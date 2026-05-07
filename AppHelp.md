@@ -3323,3 +3323,42 @@ Replaces all current data with a previously downloaded backup file. Data and pho
 
 **Filtering explained:**
 Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes where Fixed is checked. Search runs across both the note body and the resolution text within whichever tab is active.
+
+---
+
+## screen:exercise
+
+**What this screen is for:** The Exercise hub. Jump to Activities, Goals, or Summary.
+
+### Quick Help
+- Tap **Activities** to log and view your workouts
+- **Goals** and **Summary** are coming soon
+
+---
+
+## screen:exercise-activities
+
+**What this screen is for:** View and manage your logged exercise activities.
+
+### Quick Help
+- Tap **+ Activity** to log a new workout
+- Use the **range dropdown** to filter by time period (Last 7 / 30 / 90 days, This Month, This Year, All Time, or Custom)
+- **Custom**: pick a Start and End date, then press **Load**
+- **Go to Date**: shows only activities on that specific day — tap **✕ Clear date** to return to the range filter
+- **Manage Types** link lets you rename or delete custom activity types
+- Tap any row to view or edit that activity
+
+### Columns explained (desktop)
+- **Date** — date of the activity (no time shown)
+- **Day** — day of the week
+- **Type** — activity type; 🐾 appears if you took the dogs
+- **Duration** — shown as MM:SS (e.g. 25:30 = 25 min 30 sec)
+- **Miles** — distance; blank for non-mileage types (Weights, Golf, etc.)
+- **Pace** — auto-calculated min/mile; blank if miles or duration not recorded
+- **Cal** — calories burned
+- **Comment** — your notes
+
+### Mobile layout
+Each activity shows as a two-line card:
+- Line 1: Date + Type (🐾 if with dogs) + Duration
+- Line 2: Miles @ Pace + Calories + Comment

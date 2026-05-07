@@ -1068,6 +1068,55 @@ Tracks major life events — trips, milestones, goals, relationships.
 
 ---
 
+## Part 8e: Exercise
+
+**Plan document**: `ExercisePlan.md`
+
+Exercise tracking lives in the Life section. Currently only the Activities feature is built; Goals and Summary show "Coming Soon" placeholders.
+
+### Exercise Hub (`#exercise`)
+Three cards: **Activities** (active), **Goals** (coming soon), **Summary** (coming soon).
+Back button returns to Life page.
+
+### Activities List (`#exercise-activities`, `exercise.js`)
+Displays logged exercise activities in a filterable, sortable list.
+
+**Filter bar:**
+- **Range dropdown** (preserved across visits): Last 7 days / Last 30 days (default) / Last 90 days / This Month / This Year / All Time / Custom
+- **Custom range**: Start Date + End Date inputs + Load button — both dates required
+- **Go to Date**: date picker + button — overrides the dropdown and shows only that day's activities. A ✕ Clear date button resets to the dropdown filter.
+- **Manage Types** link: navigates to `#exercise-types`
+- **+ Activity** button: navigates to `#exercise-activity/new`
+
+**Display:**
+- Ordered newest → oldest by `activityDate`
+- Desktop: 8-column table — Date | Day | Type | Duration | Miles | Pace | Cal | Comment
+- Mobile (< 640 px): two-line cards, max 3 items per line
+  - Line 1: `Thu 5/8/26` | `Running 🐾` | `25:30`
+  - Line 2: `3.1 mi @ 8:14/mi` | `310 cal` | comment text
+- 🐾 paw icon shown inline on Type when "With Dogs" was logged
+- Miles, Pace, and 🐾 blank for non-mileage types
+- Pace blank if either miles or duration is missing
+- Duration displayed as MM:SS (`25.5 → 25:30`, `90 → 1:30:00`); blank if not recorded
+- Empty state: "No activities found for this period."
+- Clicking any row navigates to `#exercise-activity/{id}` (edit screen — Phase 3)
+
+**Firestore**: loads up to 500 most-recent `exerciseActivities` docs, filtered client-side.
+
+### Activity Types (`exerciseTypes` collection)
+Seeded on first visit to any exercise page (13 built-in defaults). Each type has:
+- `name`, `tracksMiles` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+
+Types with `tracksMiles = true`: Running, Trail Running, Walking, Hiking, Treadmill
+Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
+
+### Data Model
+**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
+
+**`exerciseTypes`** (per-user): `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`, `createdAt`
+
+---
+
 ## Part 8b: Credentials
 
 **Plan document**: `PWPlan.md`
