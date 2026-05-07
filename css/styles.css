@@ -17516,3 +17516,107 @@ a.legacy-fin-card:hover {
         margin-left: 0;
     }
 }
+
+
+/* ─── Exercise — Manage Activity Types (#exercise-types) ───────────────────── */
+
+.ex-types-loading,
+.ex-types-error,
+.ex-types-empty {
+    padding: 24px;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.ex-types-error { color: #c62828; }
+
+.ex-types-hint {
+    font-size: 0.82rem;
+    color: #777;
+    margin: 0 0 14px;
+    line-height: 1.5;
+}
+
+.ex-types-list {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ex-type-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff;
+    min-height: 44px;
+}
+
+.ex-type-row:last-child { border-bottom: none; }
+
+.ex-type-row-name {
+    flex: 1;
+    font-size: 0.92rem;
+    color: #222;
+    font-weight: 500;
+}
+
+.ex-type-row-icons {
+    display: flex;
+    gap: 4px;
+    font-size: 0.85rem;
+    min-width: 40px;
+}
+
+.ex-type-flag {
+    opacity: 0.7;
+}
+
+.ex-type-row-badge {
+    font-size: 0.72rem;
+    color: #888;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+
+.ex-type-row-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.ex-type-delete-btn {
+    color: #e53935;
+    border: 1.5px solid #e53935;
+    background: #fff;
+}
+
+.ex-type-delete-btn:hover { background: #fff0f0; }
+
+/* Inline rename input */
+.ex-type-rename-input {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid #3949ab;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    box-shadow: 0 0 0 2px rgba(57,73,171,0.15);
+    outline: none;
+    min-width: 0;
+}
+
+@media (max-width: 480px) {
+    .ex-type-row {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .ex-type-row-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .ex-type-rename-input { width: 100%; }
+}

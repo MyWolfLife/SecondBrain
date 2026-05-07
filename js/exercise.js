@@ -777,18 +777,148 @@ async function _exDeleteActivity() {
     }
 }
 
-// ─── Manage types page (stub — Phase 4) ──────────────────────────────────────
+// ─── Manage types page ────────────────────────────────────────────────────────
 
-function loadExerciseTypesPage() {
+var _exTypesAll = [];  // full list loaded for the types page
+
+async function loadExerciseTypesPage() {
     seedExerciseTypesIfNeeded();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
+
     el.innerHTML =
         '<div class="page-header">' +
             '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#exercise-activities\'">&#8592; Activities</button>' +
             '<h2>Manage Activity Types</h2>' +
         '</div>' +
-        '<p style="padding:24px;color:#666;">Type management — coming in Phase 4.</p>';
+        '<div id="exTypesListWrap"><p class="ex-types-loading">Loading…</p></div>';
+
+    try {
+        var snap = await userCol('exerciseTypes')
+            .where('archived', '==', false)
+            .get();
+        _exTypesAll = snap.docs.map(function(d) {
+            return Object.assign({ id: d.id }, d.data());
+        });
+        _exTypesAll = _exSortTypes(_exTypesAll);
+        _exRenderTypesList();
+    } catch (err) {
+        console.error('Exercise: failed to load types:', err);
+        document.getElementById('exTypesListWrap').innerHTML =
+            '<p class="ex-types-error">Failed to load types.</p>';
+    }
+}
+
+function _exRenderTypesList() {
+    var wrap = document.getElementById('exTypesListWrap');
+    if (!wrap) return;
+
+    if (_exTypesAll.length === 0) {
+        wrap.innerHTML = '<p class="ex-types-empty">No activity types found.</p>';
+        return;
+    }
+
+    var rows = _exTypesAll.map(function(t) {
+        var icons = '';
+        if (t.tracksMiles) icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
+        if (t.withDogs)    icons += '<span class="ex-type-flag" title="With dogs">🐾</span>';
+
+        if (t.isDefault) {
+            // Built-in: show name + icons, no action buttons
+            return '<div class="ex-type-row" id="exTypeRow-' + t.id + '">' +
+                       '<span class="ex-type-row-name">' + _exEsc(t.name) + '</span>' +
+                       '<span class="ex-type-row-icons">' + icons + '</span>' +
+                       '<span class="ex-type-row-badge">built-in</span>' +
+                   '</div>';
+        }
+
+        // Custom: show name + icons + Rename + Delete
+        return '<div class="ex-type-row" id="exTypeRow-' + t.id + '">' +
+                   '<span class="ex-type-row-name" id="exTypeName-' + t.id + '">' + _exEsc(t.name) + '</span>' +
+                   '<span class="ex-type-row-icons">' + icons + '</span>' +
+                   '<div class="ex-type-row-actions">' +
+                       '<button class="btn btn-secondary btn-small" ' +
+                           'onclick="_exStartRenameType(\'' + t.id + '\')">' +
+                           'Rename' +
+                       '</button>' +
+                       '<button class="btn btn-small ex-type-delete-btn" ' +
+                           'onclick="_exDeleteType(\'' + t.id + '\')">' +
+                           'Delete' +
+                       '</button>' +
+                   '</div>' +
+               '</div>';
+    });
+
+    wrap.innerHTML =
+        '<p class="ex-types-hint">Built-in types cannot be renamed or deleted. Custom types can be renamed; deleting hides them from the dropdown but preserves your history.</p>' +
+        '<div class="ex-types-list">' + rows.join('') + '</div>';
+}
+
+function _exStartRenameType(typeId) {
+    var t = _exTypesAll.find(function(x) { return x.id === typeId; });
+    if (!t || t.isDefault) return;
+
+    var row = document.getElementById('exTypeRow-' + typeId);
+    if (!row) return;
+
+    // Replace the name span with an inline input + Save/Cancel buttons
+    var icons = '';
+    if (t.tracksMiles) icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
+    if (t.withDogs)    icons += '<span class="ex-type-flag" title="With dogs">🐾</span>';
+
+    row.innerHTML =
+        '<input type="text" class="ex-type-rename-input" id="exRenameInput-' + typeId + '" ' +
+               'value="' + _exEsc(t.name) + '" maxlength="60">' +
+        '<span class="ex-type-row-icons">' + icons + '</span>' +
+        '<div class="ex-type-row-actions">' +
+            '<button class="btn btn-primary btn-small" ' +
+                    'onclick="_exSaveRenameType(\'' + typeId + '\')">' +
+                'Save' +
+            '</button>' +
+            '<button class="btn btn-secondary btn-small" ' +
+                    'onclick="_exRenderTypesList()">' +
+                'Cancel' +
+            '</button>' +
+        '</div>';
+
+    var input = document.getElementById('exRenameInput-' + typeId);
+    if (input) { input.focus(); input.select(); }
+}
+
+async function _exSaveRenameType(typeId) {
+    var input = document.getElementById('exRenameInput-' + typeId);
+    if (!input) return;
+    var newName = input.value.trim();
+    if (!newName) { alert('Name cannot be blank.'); input.focus(); return; }
+
+    var saveBtn = input.closest('.ex-type-row').querySelector('.btn-primary');
+    if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
+
+    try {
+        await userCol('exerciseTypes').doc(typeId).update({ name: newName });
+        var t = _exTypesAll.find(function(x) { return x.id === typeId; });
+        if (t) t.name = newName;
+        _exRenderTypesList();
+    } catch (err) {
+        console.error('Exercise: rename failed:', err);
+        alert('Failed to save. Please try again.');
+        if (saveBtn) { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }
+    }
+}
+
+async function _exDeleteType(typeId) {
+    var t = _exTypesAll.find(function(x) { return x.id === typeId; });
+    if (!t || t.isDefault) return;
+    if (!confirm('Delete "' + t.name + '"? It will be removed from the dropdown but your past activities will still show this type name.')) return;
+
+    try {
+        await userCol('exerciseTypes').doc(typeId).update({ archived: true });
+        _exTypesAll = _exTypesAll.filter(function(x) { return x.id !== typeId; });
+        _exRenderTypesList();
+    } catch (err) {
+        console.error('Exercise: delete type failed:', err);
+        alert('Failed to delete. Please try again.');
+    }
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -846,12 +976,13 @@ function _exFmtYMD(date) {
            String(date.getDate()).padStart(2, '0');
 }
 
-/** Sorts types: defaults first (alpha), then customs (alpha). */
+/** Sorts types: defaults first (alpha), then customs (alpha). Returns the array. */
 function _exSortTypes(arr) {
     arr.sort(function(a, b) {
         if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
         return a.name.localeCompare(b.name);
     });
+    return arr;
 }
 
 /** HTML-escapes a string for safe insertion into innerHTML. */

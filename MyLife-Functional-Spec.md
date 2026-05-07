@@ -1127,7 +1127,16 @@ Route param is `new` for create, or a Firestore doc ID for edit. Back button ret
 
 **Firestore collections**: `exerciseActivities` (fields: `typeId`, `activityDate`, `durationMin`, `miles`, `calories`, `withDogs`, `notes`), `exerciseTypes` (fields: `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`).
 
-### Activity Types (`exerciseTypes` collection)
+### Manage Activity Types (`#exercise-types`)
+Lists all non-archived types, sorted built-ins first (alphabetical) then custom (alphabetical). Back button returns to Activities list.
+
+- **Built-in types** (13 defaults): shown with name + flag icons + "built-in" badge. No edit/delete buttons.
+- **Custom types**: shown with name + flag icons + **Rename** and **Delete** buttons.
+  - **Rename**: replaces name with an inline text input + Save / Cancel. Save updates the Firestore doc; existing activities automatically reflect the new name (they store `typeId`, not name).
+  - **Delete**: confirm dialog → sets `archived: true` → type disappears from dropdown. Past activity history is unaffected.
+
+Flag icons: 📏 = tracks miles, 🐾 = with-dogs option.
+
 Seeded on first visit to any exercise page (13 built-in defaults). Each type has:
 - `name`, `tracksMiles` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
 

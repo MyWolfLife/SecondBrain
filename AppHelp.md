@@ -3390,3 +3390,20 @@ Each activity shows as a two-line card:
 | Calories | Optional, any type |
 | With Dogs | Checkbox — only shown if the type supports it |
 | Notes | Free-form notes about the workout |
+
+---
+
+## screen:exercise-types
+
+**What this screen is for:** View and manage your exercise activity types.
+
+### Quick Help
+- **Built-in types** (Running, Walking, Hiking, etc.) are shown with a "built-in" badge — they can't be renamed or deleted
+- **Custom types** you've added have **Rename** and **Delete** buttons
+- **Rename**: click Rename, type the new name, then Save — all past activities automatically show the updated name
+- **Delete**: hides the type from the activity dropdown; your past activity history is preserved
+- 📏 icon means the type tracks miles (and shows pace); 🐾 means it has a "With Dogs" checkbox
+
+### When to use this
+- You added a type on the fly and want to correct the spelling
+- You no longer need a custom type and want it out of the dropdown
