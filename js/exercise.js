@@ -1099,44 +1099,8 @@ var _dmCustomEnd   = '';
 var _dmEditDate    = null;          // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc = null;          // loaded doc data or null
 
-// ─── Default custom metric seeds ─────────────────────────────────────────────
-
-const DM_DEFAULT_METRIC_DEFS = [
-    { name: 'Stand 1 Hour',       type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 0 },
-    { name: 'Drinking',           type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 1 },
-    { name: 'Eat Before 7',       type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 2 },
-    { name: 'Device Off by 10pm', type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 3 },
-    { name: 'Alcohol Calories',   type: 'number',  allowDecimal: false, unitLabel: 'cal', sortOrder: 4 },
-];
-
-/**
- * Seeds 5 example custom metric definitions on first visit.
- * No-ops if the collection already has documents.
- */
-async function seedExerciseMetricDefsIfNeeded() {
-    try {
-        var snap = await userCol('exerciseMetricDefs').limit(1).get();
-        if (!snap.empty) return;
-
-        var batch = db.batch();
-        DM_DEFAULT_METRIC_DEFS.forEach(function(def) {
-            var ref = userCol('exerciseMetricDefs').doc();
-            batch.set(ref, {
-                name:         def.name,
-                type:         def.type,
-                allowDecimal: def.allowDecimal,
-                unitLabel:    def.unitLabel,
-                sortOrder:    def.sortOrder,
-                archived:     false,
-                createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-            });
-        });
-        await batch.commit();
-        console.log('DailyMetrics: seeded ' + DM_DEFAULT_METRIC_DEFS.length + ' default metric defs.');
-    } catch (err) {
-        console.error('DailyMetrics: failed to seed metric defs:', err);
-    }
-}
+// No default seeding — each user creates their own custom metrics via Manage Metrics.
+function seedExerciseMetricDefsIfNeeded() { return Promise.resolve(); }
 
 // ─── Page load stubs ─────────────────────────────────────────────────────────
 
