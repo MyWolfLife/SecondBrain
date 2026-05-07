@@ -17304,6 +17304,19 @@ a.legacy-fin-card:hover {
     margin-top: 3px;
 }
 
+.ex-duration-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ex-duration-label {
+    font-size: 0.9rem;
+    color: #2e7d32;
+    font-weight: 600;
+    min-width: 100px;
+}
+
 /* Searchable type picker */
 .ex-type-picker {
     position: relative;

@@ -503,9 +503,12 @@ function _exBuildActivityForm(existing) {
 
             // ── Duration ────────────────────────────────────────────────────
             '<div class="ex-form-group">' +
-                '<label class="ex-label" for="exDuration">Duration <span class="ex-field-note">(minutes)</span></label>' +
-                '<input type="number" id="exDuration" class="ex-input-short" step="0.5" min="0" placeholder="e.g. 45.5" value="' + duration + '">' +
-                '<p class="ex-hint" id="exDurationHint">' + _exFmtDurationHint(duration) + '</p>' +
+                '<label class="ex-label" for="exDuration">Duration</label>' +
+                '<div class="ex-duration-row">' +
+                    '<input type="text" inputmode="decimal" id="exDuration" class="ex-input-short" placeholder="e.g. 45:26 or 1:15:00" value="' + (duration !== '' ? exFmtDuration(duration) : '') + '">' +
+                    '<span class="ex-duration-label" id="exDurationLabel">' + _exFmtDurationLabel(duration) + '</span>' +
+                '</div>' +
+                '<p class="ex-hint" id="exDurationHint">MM:SS &mdash; for over 1 hr use H:MM:SS (e.g. 1:15:00)</p>' +
             '</div>' +
 
             // ── Miles (conditional) ──────────────────────────────────────────
@@ -721,21 +724,58 @@ async function _exAddTypeAnswerDogs(yes) {
     }
 }
 
-// ─── Duration hint ────────────────────────────────────────────────────────────
+// ─── Duration parsing & hint ──────────────────────────────────────────────────
 
-/** Returns a friendly hint string for the duration field. */
-function _exFmtDurationHint(val) {
-    var n = parseFloat(val);
-    if (isNaN(n) || val === '' || val == null) return 'Enter decimal minutes — e.g. 45.5';
-    var formatted = exFmtDuration(n);
-    return n + ' min = ' + formatted;
+/**
+ * Parses a duration string into decimal minutes.
+ * Accepts: "45:26" (MM:SS), "1:15:26" (H:MM:SS), or "45.5" (decimal minutes).
+ * Returns null if blank or unparseable.
+ */
+function _exParseDuration(val) {
+    if (val == null || String(val).trim() === '') return null;
+    var str = String(val).trim();
+    if (str.indexOf(':') !== -1) {
+        var parts = str.split(':');
+        if (parts.length === 2) {
+            // MM:SS
+            var m = parseInt(parts[0], 10);
+            var s = parseInt(parts[1], 10);
+            if (isNaN(m) || isNaN(s)) return null;
+            return m + s / 60;
+        } else if (parts.length === 3) {
+            // H:MM:SS
+            var h = parseInt(parts[0], 10);
+            var m = parseInt(parts[1], 10);
+            var s = parseInt(parts[2], 10);
+            if (isNaN(h) || isNaN(m) || isNaN(s)) return null;
+            return h * 60 + m + s / 60;
+        }
+        return null;
+    }
+    var n = parseFloat(str);
+    return isNaN(n) ? null : n;
+}
+
+/** Returns a friendly label like "1 hr 15 min" or "45 min 26 sec". Empty string if blank. */
+function _exFmtDurationLabel(val) {
+    var decMin = (typeof val === 'number') ? val : _exParseDuration(val);
+    if (decMin == null || isNaN(decMin)) return '';
+    var totalSec = Math.round(decMin * 60);
+    var h = Math.floor(totalSec / 3600);
+    var m = Math.floor((totalSec % 3600) / 60);
+    var s = totalSec % 60;
+    var parts = [];
+    if (h > 0) parts.push(h + ' hr');
+    if (m > 0) parts.push(m + ' min');
+    if (s > 0 && h === 0) parts.push(s + ' sec');
+    return parts.join(' ');
 }
 
 function _exUpdateDurationHint() {
-    var hint = document.getElementById('exDurationHint');
-    var durEl = document.getElementById('exDuration');
-    if (!hint || !durEl) return;
-    hint.textContent = _exFmtDurationHint(durEl.value);
+    var labelEl = document.getElementById('exDurationLabel');
+    var durEl   = document.getElementById('exDuration');
+    if (!labelEl || !durEl) return;
+    labelEl.textContent = _exFmtDurationLabel(durEl.value);
 }
 
 // ─── Pace preview ─────────────────────────────────────────────────────────────
@@ -747,7 +787,7 @@ function _exUpdatePacePreview() {
     var durEl   = document.getElementById('exDuration');
     if (!milesEl || !durEl) { previewEl.textContent = '—'; return; }
     var miles = parseFloat(milesEl.value);
-    var dur   = parseFloat(durEl.value);
+    var dur   = _exParseDuration(durEl.value);
     previewEl.textContent = (miles > 0 && dur > 0) ? exFmtPace(miles, dur) : '—';
 }
 
@@ -774,7 +814,7 @@ async function _exSaveActivity() {
     var data = {
         typeId:          _exSelectedTypeId,
         activityDate:    date + 'T' + time + ':00',
-        durationMinutes: durVal   !== '' ? parseFloat(durVal)   : null,
+        durationMinutes: _exParseDuration(durVal),
         miles:           milesVal !== '' ? parseFloat(milesVal) : null,
         withDogs:        dogsVal,
         calories:        calVal   !== '' ? parseInt(calVal, 10) : null,
