@@ -1096,6 +1096,8 @@ var _dmMetricDefs  = [];            // same data, used by list + entry form
 var _dmRangeFilter = 'thisMonth';   // always reset on page load — not persisted
 var _dmCustomStart = '';
 var _dmCustomEnd   = '';
+var _dmEditDate    = null;          // null = new entry; 'YYYY-MM-DD' = editing existing
+var _dmExistingDoc = null;          // loaded doc data or null
 
 // ─── Default custom metric seeds ─────────────────────────────────────────────
 
@@ -1541,14 +1543,8 @@ function _dmShowNoteOverlay(iconEl, noteText) {
     }, 10);
 }
 
-function loadExerciseMetricPage(dateOrNew) {
+async function loadExerciseMetricPage(dateOrNew) {
     window.scrollTo(0, 0);
-    var label = (dateOrNew === 'new') ? 'New Entry' : dateOrNew;
-    document.getElementById('breadcrumbBar').innerHTML =
-        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
-        '<span>' + label + '</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -1556,7 +1552,223 @@ function loadExerciseMetricPage(dateOrNew) {
     if (!el) return;
     el.innerHTML = '<p class="ex-status">Loading…</p>';
 
-    // Phase 4 will implement the full entry form here.
+    // Load metric defs fresh
+    var snap = await userCol('exerciseMetricDefs').get();
+    _dmMetricDefs = snap.docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(d) { return !d.archived; })
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+    if (dateOrNew === 'new') {
+        _dmEditDate    = null;
+        _dmExistingDoc = null;
+    } else {
+        _dmEditDate = dateOrNew;
+        var docSnap = await userCol('exerciseDailyMetrics').doc(dateOrNew).get();
+        _dmExistingDoc = docSnap.exists ? docSnap.data() : null;
+    }
+
+    _dmUpdateBreadcrumb();
+    _dmBuildEntryForm(el);
+}
+
+function _dmUpdateBreadcrumb() {
+    var label = _dmEditDate ? _dmEditDate : 'New Entry';
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
+        '<span>' + _exEsc(label) + '</span>';
+}
+
+function _dmTodayStr() {
+    var t = new Date();
+    var m = t.getMonth() + 1, d = t.getDate();
+    return t.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+}
+
+function _dmBuildEntryForm(el) {
+    var doc  = _dmExistingDoc || {};
+    var notes = doc.notes || {};
+    var cv    = doc.customValues || {};
+    var dateVal = _dmEditDate || _dmTodayStr();
+    var isEdit = !!_dmEditDate;
+
+    function stdField(id, label, inputMode, helpText, noteKey) {
+        var val = (doc[id] !== undefined && doc[id] !== null) ? doc[id] : '';
+        var noteVal = notes[noteKey || id] || '';
+        var hasNote = noteVal.length > 0;
+        return '<div class="dm-entry-group">' +
+            '<div class="dm-entry-field-row">' +
+                '<label class="ex-label" for="dmf-' + id + '">' + _exEsc(label) + '</label>' +
+                '<div class="dm-entry-input-wrap">' +
+                    '<input type="text" inputmode="' + inputMode + '" id="dmf-' + id + '" ' +
+                        'class="dm-entry-input" value="' + _exEsc(String(val)) + '" autocomplete="off">' +
+                    '<button type="button" class="dm-note-toggle' + (hasNote ? ' dm-note-has-note' : '') + '" ' +
+                        'data-note-key="' + _exEsc(noteKey || id) + '" aria-label="Note">📝</button>' +
+                '</div>' +
+            '</div>' +
+            (helpText ? '<p class="ex-hint">' + _exEsc(helpText) + '</p>' : '') +
+            '<div class="dm-note-area' + (hasNote ? ' dm-note-area--open' : '') + '" data-note-key="' + _exEsc(noteKey || id) + '">' +
+                '<textarea class="dm-note-textarea" rows="2" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function customField(def) {
+        var val  = cv[def.id] !== undefined ? cv[def.id] : '';
+        var noteVal = notes[def.id] || '';
+        var hasNote = noteVal.length > 0;
+        var inputHtml = '';
+        if (def.type === 'boolean') {
+            var checked = val === true ? ' checked' : '';
+            inputHtml = '<label class="dm-bool-label">' +
+                '<input type="checkbox" id="dmf-' + def.id + '" class="dm-bool-input"' + checked + '> ' +
+                '<span>Yes</span>' +
+            '</label>';
+        } else if (def.type === 'number') {
+            inputHtml = '<input type="text" inputmode="decimal" id="dmf-' + def.id + '" ' +
+                'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">' +
+                (def.unitLabel ? '<span class="dm-entry-unit">' + _exEsc(def.unitLabel) + '</span>' : '');
+        } else {
+            inputHtml = '<input type="text" id="dmf-' + def.id + '" ' +
+                'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">';
+        }
+        return '<div class="dm-entry-group">' +
+            '<div class="dm-entry-field-row">' +
+                '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
+                '<div class="dm-entry-input-wrap">' +
+                    inputHtml +
+                    '<button type="button" class="dm-note-toggle' + (hasNote ? ' dm-note-has-note' : '') + '" ' +
+                        'data-note-key="' + _exEsc(def.id) + '" aria-label="Note">📝</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="dm-note-area' + (hasNote ? ' dm-note-area--open' : '') + '" data-note-key="' + _exEsc(def.id) + '">' +
+                '<textarea class="dm-note-textarea" rows="2" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
+            '</div>' +
+        '</div>';
+    }
+
+    var customFields = _dmMetricDefs.map(customField).join('');
+
+    el.innerHTML =
+        '<div class="ex-form">' +
+            '<div class="dm-entry-group">' +
+                '<label class="ex-label" for="dmfDate">Date</label>' +
+                '<input type="date" id="dmfDate" class="dm-entry-input" value="' + _exEsc(dateVal) + '">' +
+            '</div>' +
+
+            '<div class="dm-section-header">Body</div>' +
+            stdField('weight',      'Weight',       'decimal', '') +
+            stdField('sleepScore',  'Sleep Score',  'numeric', '') +
+            stdField('bodyBattery', 'Body Battery', 'numeric', '') +
+
+            '<div class="dm-section-header">Activity</div>' +
+            stdField('dailySteps', 'Daily Steps',        'numeric', '') +
+            stdField('totalBurn',  'Total Actual Burn',  'numeric', 'From watch — usually entered the following day') +
+            stdField('foodCalories','Food Calories',     'numeric', '') +
+
+            (_dmMetricDefs.length ? '<div class="dm-section-header">Habits &amp; Custom</div>' + customFields : '') +
+
+            '<div class="ex-form-actions">' +
+                '<button type="button" id="dmSaveBtn" class="btn-primary">Save</button>' +
+                '<button type="button" id="dmCancelBtn" class="btn-secondary">Cancel</button>' +
+                (isEdit ? '<button type="button" id="dmDeleteBtn" class="btn-danger">Delete</button>' : '') +
+            '</div>' +
+        '</div>';
+
+    // Wire date change — auto-load existing record for that date
+    document.getElementById('dmfDate').addEventListener('change', async function() {
+        var newDate = this.value;
+        if (!newDate) return;
+        var docSnap = await userCol('exerciseDailyMetrics').doc(newDate).get();
+        _dmEditDate    = newDate;
+        _dmExistingDoc = docSnap.exists ? docSnap.data() : null;
+        _dmUpdateBreadcrumb();
+        _dmBuildEntryForm(el);
+    });
+
+    // Wire note toggles
+    el.querySelectorAll('.dm-note-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var key  = btn.dataset.noteKey;
+            var area = el.querySelector('.dm-note-area[data-note-key="' + key + '"]');
+            if (!area) return;
+            area.classList.toggle('dm-note-area--open');
+        });
+    });
+
+    document.getElementById('dmSaveBtn').addEventListener('click', _dmSaveMetric);
+    document.getElementById('dmCancelBtn').addEventListener('click', function() {
+        window.location.hash = 'exercise-metrics';
+    });
+    var delBtn = document.getElementById('dmDeleteBtn');
+    if (delBtn) delBtn.addEventListener('click', _dmDeleteMetric);
+}
+
+async function _dmSaveMetric() {
+    var dateVal = document.getElementById('dmfDate').value;
+    if (!dateVal) { alert('Please enter a date.'); return; }
+
+    var stdKeys = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories'];
+    var data = { date: dateVal };
+
+    // Standard fields — blank → null
+    stdKeys.forEach(function(k) {
+        var el = document.getElementById('dmf-' + k);
+        if (!el) { data[k] = null; return; }
+        var v = el.value.trim();
+        data[k] = v === '' ? null : parseFloat(v);
+    });
+
+    // Custom values
+    var customValues = {};
+    _dmMetricDefs.forEach(function(def) {
+        var el = document.getElementById('dmf-' + def.id);
+        if (!el) { customValues[def.id] = null; return; }
+        if (def.type === 'boolean') {
+            customValues[def.id] = el.checked;
+        } else if (def.type === 'number') {
+            var v = el.value.trim();
+            customValues[def.id] = v === '' ? null : parseFloat(v);
+        } else {
+            var v2 = el.value.trim();
+            customValues[def.id] = v2 === '' ? null : v2;
+        }
+    });
+    data.customValues = customValues;
+
+    // Notes — only non-empty
+    var notesObj = {};
+    document.querySelectorAll('.dm-note-textarea').forEach(function(ta) {
+        var area = ta.closest('.dm-note-area');
+        var key  = area ? area.dataset.noteKey : null;
+        if (key && ta.value.trim()) notesObj[key] = ta.value.trim();
+    });
+    data.notes = notesObj;
+
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    if (!_dmEditDate) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+
+    try {
+        await userCol('exerciseDailyMetrics').doc(dateVal).set(data);
+        window.location.hash = 'exercise-metrics';
+    } catch (err) {
+        console.error('DailyMetrics: save failed', err);
+        alert('Save failed. Please try again.');
+    }
+}
+
+async function _dmDeleteMetric() {
+    if (!_dmEditDate) return;
+    if (!confirm('Delete entry for ' + _dmEditDate + '? This cannot be undone.')) return;
+    try {
+        await userCol('exerciseDailyMetrics').doc(_dmEditDate).delete();
+        window.location.hash = 'exercise-metrics';
+    } catch (err) {
+        console.error('DailyMetrics: delete failed', err);
+        alert('Delete failed. Please try again.');
+    }
 }
 
 // ─── Manage Metrics Screen ────────────────────────────────────────────────────

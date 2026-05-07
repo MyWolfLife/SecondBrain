@@ -3411,6 +3411,27 @@ Each activity shows as a two-line card:
 
 ---
 
+## screen:exercise-metric
+
+**What this screen is for:** Log or edit a single day's health and habit metrics — weight, sleep, steps, calories, and any custom metrics you've set up.
+
+### Quick Help
+- **Date field**: defaults to today for a new entry — change it to log for a different day. If a record already exists for that date, the form switches to edit mode and pre-fills with the existing data
+- **Body section**: Weight (decimals OK), Sleep Score, Body Battery
+- **Activity section**: Daily Steps, Total Actual Burn (from your watch, usually entered the next day), Food Calories
+- **Habits & Custom**: your custom metrics in order — YES/NO metrics are checkboxes; Number metrics have an optional unit label (e.g. oz, cal); Text metrics are free-form
+- **📝 button** next to each field: click to open a small note box — add any context for that value. The button turns yellow when a note is saved
+- **Save**: writes the record (one record per date — saving again for the same date overwrites it)
+- **Cancel**: returns to the Daily Metrics list without saving
+- **Delete** (edit mode only): removes the record for that date after confirmation
+
+### When to use this
+- Log today's metrics each morning or evening
+- Go back and fill in yesterday's Total Actual Burn after your watch syncs
+- Edit a previous entry to correct a value or add a note
+
+---
+
 ## screen:exercise-metrics
 
 **What this screen is for:** Browse your daily health and habit journal entries. Filter by date range, see summary averages, and tap any record to view or edit it.

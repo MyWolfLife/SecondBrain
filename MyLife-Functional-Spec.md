@@ -1087,7 +1087,17 @@ Daily health and habit journal — one record per date. Tracks 6 hardcoded stand
 - **Desktop (≥700px)**: scrollable `<table>` with a tinted **summary row** above the column headers showing averages (weight to 1 decimal, others rounded) for standard fields and "X / N" counts for boolean custom metrics. Each data row is clickable — navigates to `#exercise-metric/<date>`. Note icons (📝) appear inline with a hover tooltip.
 - **Mobile (<700px)**: one card per record — date header, two rows of 3 standard metrics each (abbreviated labels), then custom metrics. Note icons trigger a floating overlay with the note text and a close button; tapping outside also dismisses it.
 - **"Manage Metrics"** link navigates to `#exercise-metric-defs`. **"+ Entry"** navigates to `#exercise-metric/new`.
-- Clicking any row/card routes to `#exercise-metric/<date>` (entry form, Phase 4).
+- Clicking any row/card routes to `#exercise-metric/<date>` (entry form).
+
+#### Daily Metric Entry Form (`#exercise-metric/new`, `#exercise-metric/<date>`)
+Create or edit a single day's metric record. One record per date (date is the Firestore doc ID).
+
+- **Date field**: Defaults to today (new) or the date being edited. Changing the date auto-loads any existing record for that date, switching to edit mode and pre-filling the form.
+- **Sections**: **Body** (Weight decimal, Sleep Score, Body Battery) | **Activity** (Daily Steps, Total Actual Burn with helper text, Food Calories) | **Habits & Custom** (all non-archived custom metric defs in sort order).
+- **Custom field types**: boolean → checkbox; number → text input with optional unit label; text → text input.
+- **📝 note toggle** on every field: clicking the button opens/closes a 2-row textarea for that field. If a note already exists the button is highlighted yellow and the textarea opens pre-filled.
+- **Buttons**: Save (primary) | Cancel → `#exercise-metrics` | Delete (danger — edit mode only, soft deletes and navigates back).
+- **Save**: writes full document via `.set()` (safe overwrite since date = doc ID). Null for blank standard fields; boolean/number/null for custom values; only non-empty note strings stored.
 
 #### Manage Metrics (`#exercise-metric-defs`)
 Accessible via a "Manage Metrics" link on the Daily Metrics list screen. Manages user-defined custom metric definitions only — standard metrics are always present and not editable here.
