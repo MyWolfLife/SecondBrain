@@ -3362,3 +3362,31 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 Each activity shows as a two-line card:
 - Line 1: Date + Type (🐾 if with dogs) + Duration
 - Line 2: Miles @ Pace + Calories + Comment
+
+---
+
+## screen:exercise-activity
+
+**What this screen is for:** Log a new workout or edit an existing one.
+
+### Quick Help
+- Pick an **Activity Type** from the searchable dropdown — type to filter, then click to select
+- Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked two quick questions to set it up
+- **Date** defaults to today; **Time** is optional
+- **Duration** is in decimal minutes (e.g. `25.5` = 25:30)
+- **Miles** and **With Dogs** appear only for types that track them
+- **Pace** is calculated automatically once you have miles and duration
+- Tap **Save Activity** when done; tap the back arrow to cancel
+- To delete, tap **Delete** at the bottom (only visible in edit mode)
+
+### Field details
+| Field | Notes |
+|-------|-------|
+| Activity Type | Required. Searchable — just start typing |
+| Date | Required. Defaults to today |
+| Time | Optional — leave blank if you don't need it |
+| Duration | Decimal minutes. 25.5 = 25 min 30 sec. Shown as MM:SS below the field |
+| Miles | Only shown for types that track distance (Running, Walking, etc.) |
+| Calories | Optional, any type |
+| With Dogs | Checkbox — only shown if the type supports it |
+| Notes | Free-form notes about the workout |

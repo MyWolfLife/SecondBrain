@@ -1099,9 +1099,33 @@ Displays logged exercise activities in a filterable, sortable list.
 - Pace blank if either miles or duration is missing
 - Duration displayed as MM:SS (`25.5 → 25:30`, `90 → 1:30:00`); blank if not recorded
 - Empty state: "No activities found for this period."
-- Clicking any row navigates to `#exercise-activity/{id}` (edit screen — Phase 3)
+- Clicking any row navigates to `#exercise-activity/{id}` to edit
 
 **Firestore**: loads up to 500 most-recent `exerciseActivities` docs, filtered client-side.
+
+### New / Edit Activity (`#exercise-activity/:id`)
+Route param is `new` for create, or a Firestore doc ID for edit. Back button returns to Activities list.
+
+**Form fields:**
+- **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
+- **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs
+- **Duration** — decimal minutes (e.g. `25.5` = 25 min 30 sec); displayed as MM:SS below the field
+- **Miles** — shown only when the selected type has `tracksMiles: true`
+- **Pace** — auto-calculated (min/mile) shown as a read-only preview beneath Miles + Duration
+- **Calories** — always shown
+- **With Dogs** checkbox — shown only when the selected type has `withDogs: true`
+- **Notes** — multi-line textarea
+
+**Add-on-fly flow** (inline, no modal):
+1. User types a name not in the list and picks "➕ Add … as new type"
+2. Panel asks: "Track Miles for this type?" → Yes / No
+3. Panel asks: "With Dogs option for this type?" → Yes / No
+4. Type is saved to `exerciseTypes` and selected; inline panel disappears
+
+**Save**: writes to `exerciseActivities`, navigates back to `#exercise-activities`.
+**Delete** (edit mode only): confirm dialog → delete → navigate back.
+
+**Firestore collections**: `exerciseActivities` (fields: `typeId`, `activityDate`, `durationMin`, `miles`, `calories`, `withDogs`, `notes`), `exerciseTypes` (fields: `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`).
 
 ### Activity Types (`exerciseTypes` collection)
 Seeded on first visit to any exercise page (13 built-in defaults). Each type has:

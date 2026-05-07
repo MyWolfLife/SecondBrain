@@ -48,13 +48,22 @@ async function seedExerciseTypesIfNeeded() {
     }
 }
 
-// ─── Module-level state ───────────────────────────────────────────────────────
+// ─── Module-level state (activities list) ─────────────────────────────────────
 
-var _exTypes       = {};    // typeId → type data
-var _exRangeFilter = '30';  // current dropdown value; preserved across page visits
+var _exTypes       = {};    // typeId → type data (used by list rendering)
+var _exRangeFilter = '30';  // dropdown value; preserved across page visits
 var _exCustomStart = '';    // YYYY-MM-DD
 var _exCustomEnd   = '';    // YYYY-MM-DD
 var _exGoToDate    = '';    // YYYY-MM-DD or '' (overrides range filter when set)
+
+// ─── Module-level state (activity form) ──────────────────────────────────────
+
+var _exEditId             = null;  // null = new mode, string = edit mode
+var _exSelectedTypeId     = null;  // typeId of the selected type
+var _exSelectedType       = null;  // full type object of selected type
+var _exAllTypes           = [];    // all non-archived types (sorted)
+var _exPendingAddName     = '';    // type name being added on the fly
+var _exPendingTracksMiles = null;  // answer to Q1 during add-on-fly flow
 
 // ─── Hub page ─────────────────────────────────────────────────────────────────
 
@@ -88,9 +97,8 @@ function loadExercisePage() {
 
 async function loadExerciseActivitiesPage() {
     seedExerciseTypesIfNeeded();
-    _exGoToDate = '';   // always clear a stale Go-to-Date on fresh navigation
+    _exGoToDate = '';
 
-    // Load all non-archived types into a lookup map
     _exTypes = {};
     try {
         var typeSnap = await userCol('exerciseTypes').get();
@@ -103,13 +111,11 @@ async function loadExerciseActivitiesPage() {
     _exApplyFilter();
 }
 
-/** Renders the static page shell (header + toolbar + empty list container). */
 function _exBuildActivitiesPage() {
     var el = document.getElementById('page-exercise-activities');
     if (!el) return;
 
-    var customHidden  = _exRangeFilter !== 'custom' ? ' hidden' : '';
-    var clearHidden   = _exGoToDate ? '' : ' hidden';
+    var customHidden = _exRangeFilter !== 'custom' ? ' hidden' : '';
 
     el.innerHTML =
         '<div class="page-header">' +
@@ -142,16 +148,13 @@ function _exBuildActivitiesPage() {
             '<div class="ex-toolbar-row">' +
                 '<input type="date" id="exGoToDateInput">' +
                 '<button class="btn btn-secondary btn-small" id="exGoToDateBtn">Go to Date</button>' +
-                '<button class="btn btn-secondary btn-small' + clearHidden + '" id="exClearDateBtn">&#10005; Clear date</button>' +
+                '<button class="btn btn-secondary btn-small hidden" id="exClearDateBtn">&#10005; Clear date</button>' +
             '</div>' +
         '</div>' +
 
         '<div id="exListContainer"></div>';
 
-    // Restore dropdown to current state
     document.getElementById('exRangeSelect').value = _exRangeFilter;
-
-    // ── Event wiring ──────────────────────────────────────────────────────────
 
     document.getElementById('exRangeSelect').addEventListener('change', function() {
         _exRangeFilter = this.value;
@@ -188,7 +191,6 @@ function _exBuildActivitiesPage() {
     });
 }
 
-/** Queries Firestore, applies client-side date filter, and renders results. */
 async function _exApplyFilter() {
     var container = document.getElementById('exListContainer');
     if (!container) return;
@@ -216,7 +218,6 @@ async function _exApplyFilter() {
         });
 
         container.innerHTML = '';
-
         if (filtered.length === 0) {
             container.innerHTML = '<p class="ex-status">No activities found for this period.</p>';
             return;
@@ -231,7 +232,6 @@ async function _exApplyFilter() {
     }
 }
 
-/** Returns { start, end } ISO datetime strings based on current filter state. */
 function _exGetDateRange() {
     if (_exGoToDate) {
         return { start: _exGoToDate + 'T00:00:00', end: _exGoToDate + 'T23:59:59' };
@@ -278,7 +278,6 @@ function _exBuildTable(activities) {
     var table = document.createElement('table');
     table.className = 'ex-table';
 
-    // Header row
     var thead = document.createElement('thead');
     var hRow  = document.createElement('tr');
     ['Date', 'Day', 'Type', 'Duration', 'Miles', 'Pace', 'Cal', 'Comment'].forEach(function(h) {
@@ -289,7 +288,6 @@ function _exBuildTable(activities) {
     thead.appendChild(hRow);
     table.appendChild(thead);
 
-    // Data rows
     var tbody = document.createElement('tbody');
     activities.forEach(function(a) {
         var type     = _exTypes[a.typeId] || {};
@@ -341,7 +339,6 @@ function _exBuildCards(activities) {
         card.className = 'ex-card';
         (function(id) { card.onclick = function() { location.hash = '#exercise-activity/' + id; }; })(a.id);
 
-        // Line 1: Date | Type | Duration
         var line1 = document.createElement('div');
         line1.className = 'ex-card-line';
         [dateStr, typeName, dur].forEach(function(txt) {
@@ -351,7 +348,6 @@ function _exBuildCards(activities) {
         });
         card.appendChild(line1);
 
-        // Line 2 (up to 3): miles@pace | calories | comment
         var parts = [];
         if (type.tracksMiles && a.miles) {
             var pace = exFmtPace(a.miles, a.durationMinutes);
@@ -377,19 +373,408 @@ function _exBuildCards(activities) {
     return wrap;
 }
 
-// ─── Activity detail / edit page (stub — Phase 3) ────────────────────────────
+// ─── Activity detail / edit page ─────────────────────────────────────────────
 
-function loadExerciseActivityPage(id) {
+async function loadExerciseActivityPage(id) {
     seedExerciseTypesIfNeeded();
+
+    _exEditId         = (id === 'new') ? null : id;
+    _exSelectedTypeId = null;
+    _exSelectedType   = null;
+    _exPendingAddName = '';
+    _exAllTypes       = [];
+
     var el = document.getElementById('page-exercise-activity');
     if (!el) return;
-    var isNew = (id === 'new');
+    el.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    try {
+        // Load all non-archived types
+        var typeSnap = await userCol('exerciseTypes').where('archived', '==', false).get();
+        typeSnap.forEach(function(doc) {
+            _exAllTypes.push(Object.assign({ id: doc.id }, doc.data()));
+        });
+        _exSortTypes(_exAllTypes);
+
+        // Load the existing activity if editing
+        var existing = null;
+        if (_exEditId) {
+            var actDoc = await userCol('exerciseActivities').doc(_exEditId).get();
+            if (actDoc.exists) {
+                existing = actDoc.data();
+                // If the type is archived it won't be in _exAllTypes — fetch it so we can display it
+                var typeInList = _exAllTypes.find(function(t) { return t.id === existing.typeId; });
+                if (!typeInList && existing.typeId) {
+                    var archivedDoc = await userCol('exerciseTypes').doc(existing.typeId).get();
+                    if (archivedDoc.exists) {
+                        _exAllTypes.unshift(Object.assign({ id: archivedDoc.id }, archivedDoc.data()));
+                    }
+                }
+            }
+        }
+
+        _exBuildActivityForm(existing);
+
+    } catch (err) {
+        console.error('Exercise: failed to load activity form:', err);
+        el.innerHTML = '<p class="ex-status">Error loading. Please go back and try again.</p>';
+    }
+}
+
+function _exBuildActivityForm(existing) {
+    var el    = document.getElementById('page-exercise-activity');
+    var isNew = !_exEditId;
+
+    // Date and time defaults
+    var now         = new Date();
+    var defaultDate = _exFmtYMD(now);
+    var defaultTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+    var date     = existing ? (existing.activityDate || '').substring(0, 10) : defaultDate;
+    var time     = existing ? (existing.activityDate || '').substring(11, 16) : defaultTime;
+    var duration = (existing && existing.durationMinutes != null) ? existing.durationMinutes : '';
+    var miles    = (existing && existing.miles != null) ? existing.miles : '';
+    var withDogs = existing ? !!existing.withDogs : false;
+    var calories = (existing && existing.calories != null) ? existing.calories : '';
+    var comment  = existing ? (existing.comment || '') : '';
+
     el.innerHTML =
         '<div class="page-header">' +
             '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#exercise-activities\'">&#8592; Activities</button>' +
             '<h2>' + (isNew ? 'New Activity' : 'Edit Activity') + '</h2>' +
         '</div>' +
-        '<p style="padding:24px;color:#666;">Activity form — coming in Phase 3.</p>';
+
+        '<div class="ex-form">' +
+
+            // ── Type picker ──────────────────────────────────────────────────
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="exTypeInput">Activity Type <span class="ex-required">*</span></label>' +
+                '<div class="ex-type-picker" id="exTypePicker">' +
+                    '<input type="text" id="exTypeInput" class="ex-type-input" placeholder="Search types…" autocomplete="off">' +
+                    '<div class="ex-type-dropdown hidden" id="exTypeDropdown"></div>' +
+                '</div>' +
+                // Add-on-fly panel
+                '<div class="ex-add-type-panel hidden" id="exAddTypePanel">' +
+                    '<p class="ex-add-type-title">New type: "<strong id="exAddTypeName"></strong>"</p>' +
+                    '<div id="exAddTypeQ1">' +
+                        '<p class="ex-add-type-q">Track miles for this activity?</p>' +
+                        '<div class="ex-add-type-btns">' +
+                            '<button class="btn btn-primary btn-small" id="exAddTypeMilesYes">Yes</button>' +
+                            '<button class="btn btn-secondary btn-small" id="exAddTypeMilesNo">No</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="exAddTypeQ2" class="hidden">' +
+                        '<p class="ex-add-type-q">Show \'With Dogs\' toggle?</p>' +
+                        '<div class="ex-add-type-btns">' +
+                            '<button class="btn btn-primary btn-small" id="exAddTypeDogsYes">Yes</button>' +
+                            '<button class="btn btn-secondary btn-small" id="exAddTypeDogsNo">No</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+
+            // ── Date & Time ──────────────────────────────────────────────────
+            '<div class="ex-form-group">' +
+                '<label class="ex-label">Date &amp; Time <span class="ex-required">*</span></label>' +
+                '<div class="ex-datetime-row">' +
+                    '<input type="date" id="exActivityDate" value="' + date + '">' +
+                    '<input type="time" id="exActivityTime" value="' + time + '">' +
+                '</div>' +
+            '</div>' +
+
+            // ── Duration ────────────────────────────────────────────────────
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="exDuration">Duration <span class="ex-field-note">(decimal minutes)</span></label>' +
+                '<input type="number" id="exDuration" class="ex-input-short" step="0.5" min="0" placeholder="e.g. 45 or 25.5" value="' + duration + '">' +
+                '<p class="ex-hint">Enter decimal minutes — 25.5 = 25 min 30 sec</p>' +
+            '</div>' +
+
+            // ── Miles (conditional) ──────────────────────────────────────────
+            '<div class="ex-form-group hidden" id="exMilesGroup">' +
+                '<label class="ex-label" for="exMiles">Miles</label>' +
+                '<input type="number" id="exMiles" class="ex-input-short" step="0.01" min="0" placeholder="e.g. 3.1" value="' + miles + '">' +
+            '</div>' +
+
+            // ── Pace preview (conditional) ───────────────────────────────────
+            '<div class="ex-form-group hidden" id="exPaceGroup">' +
+                '<label class="ex-label">Pace</label>' +
+                '<span class="ex-pace-preview" id="exPacePreview">—</span>' +
+            '</div>' +
+
+            // ── With Dogs (conditional) ──────────────────────────────────────
+            '<div class="ex-form-group hidden" id="exWithDogsGroup">' +
+                '<label class="ex-checkbox-label">' +
+                    '<input type="checkbox" id="exWithDogs"' + (withDogs ? ' checked' : '') + '> With Dogs 🐾' +
+                '</label>' +
+            '</div>' +
+
+            // ── Calories ────────────────────────────────────────────────────
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="exCalories">Calories Burned</label>' +
+                '<input type="number" id="exCalories" class="ex-input-short" min="0" placeholder="Optional" value="' + calories + '">' +
+            '</div>' +
+
+            // ── Comment ─────────────────────────────────────────────────────
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="exComment">Comment</label>' +
+                '<textarea id="exComment" class="ex-textarea" rows="3" placeholder="Optional notes…">' + _exEsc(comment) + '</textarea>' +
+            '</div>' +
+
+            // ── Actions ─────────────────────────────────────────────────────
+            '<div class="ex-form-actions">' +
+                '<button class="btn btn-primary" id="exSaveBtn">Save Activity</button>' +
+                '<button class="btn btn-secondary" onclick="location.hash=\'#exercise-activities\'">Cancel</button>' +
+                (!isNew ? '<button class="btn btn-danger" id="exDeleteBtn">Delete Activity</button>' : '') +
+            '</div>' +
+
+        '</div>';
+
+    // ── Wire events ───────────────────────────────────────────────────────────
+
+    var typeInput    = document.getElementById('exTypeInput');
+    var typeDropdown = document.getElementById('exTypeDropdown');
+
+    typeInput.addEventListener('focus', function() {
+        _exRenderTypeDropdown(this.value);
+    });
+
+    typeInput.addEventListener('input', function() {
+        _exRenderTypeDropdown(this.value);
+    });
+
+    typeInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            if (typeDropdown) typeDropdown.classList.add('hidden');
+            // Restore input to the selected type name if one is chosen
+            if (_exSelectedType) {
+                typeInput.value = _exSelectedType.name;
+            }
+        }, 150);
+    });
+
+    // Add-on-fly buttons
+    document.getElementById('exAddTypeMilesYes').addEventListener('click', function() { _exAddTypeAnswerMiles(true); });
+    document.getElementById('exAddTypeMilesNo').addEventListener('click',  function() { _exAddTypeAnswerMiles(false); });
+    document.getElementById('exAddTypeDogsYes').addEventListener('click',  function() { _exAddTypeAnswerDogs(true); });
+    document.getElementById('exAddTypeDogsNo').addEventListener('click',   function() { _exAddTypeAnswerDogs(false); });
+
+    // Pace preview: update when miles or duration changes
+    document.getElementById('exDuration').addEventListener('input', _exUpdatePacePreview);
+    document.getElementById('exMiles') && document.getElementById('exMiles').addEventListener('input', _exUpdatePacePreview);
+
+    // Save and delete
+    document.getElementById('exSaveBtn').addEventListener('click', _exSaveActivity);
+    var delBtn = document.getElementById('exDeleteBtn');
+    if (delBtn) delBtn.addEventListener('click', _exDeleteActivity);
+
+    // Pre-select type when editing
+    if (existing && existing.typeId) {
+        var preType = _exAllTypes.find(function(t) { return t.id === existing.typeId; });
+        if (preType) _exSelectType(preType.id, preType.name, preType);
+    }
+
+    _exUpdatePacePreview();
+}
+
+// ─── Searchable type dropdown ─────────────────────────────────────────────────
+
+function _exRenderTypeDropdown(searchText) {
+    var dropdown = document.getElementById('exTypeDropdown');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = '';
+    var search = (searchText || '').trim().toLowerCase();
+
+    var filtered = _exAllTypes.filter(function(t) {
+        return !search || t.name.toLowerCase().includes(search);
+    });
+
+    filtered.forEach(function(t) {
+        var item = document.createElement('div');
+        item.className = 'ex-type-option';
+        item.textContent = t.name;
+        item.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            _exSelectType(t.id, t.name, t);
+            dropdown.classList.add('hidden');
+        });
+        dropdown.appendChild(item);
+    });
+
+    // "Add X" option if typed text has no case-insensitive exact match
+    if (search) {
+        var exactMatch = _exAllTypes.some(function(t) {
+            return t.name.toLowerCase() === search;
+        });
+        if (!exactMatch) {
+            var addItem = document.createElement('div');
+            addItem.className = 'ex-type-option ex-type-option--add';
+            addItem.textContent = '＋ Add "' + searchText.trim() + '"';
+            addItem.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                dropdown.classList.add('hidden');
+                _exStartAddType(searchText.trim());
+            });
+            dropdown.appendChild(addItem);
+        }
+    }
+
+    dropdown.classList.toggle('hidden', dropdown.children.length === 0);
+}
+
+function _exSelectType(typeId, typeName, typeObj) {
+    _exSelectedTypeId = typeId;
+    _exSelectedType   = typeObj;
+    var input = document.getElementById('exTypeInput');
+    if (input) input.value = typeName;
+    _exUpdateConditionalFields();
+    _exUpdatePacePreview();
+}
+
+function _exUpdateConditionalFields() {
+    var type = _exSelectedType || {};
+    var milesGroup  = document.getElementById('exMilesGroup');
+    var paceGroup   = document.getElementById('exPaceGroup');
+    var dogsGroup   = document.getElementById('exWithDogsGroup');
+    if (milesGroup) milesGroup.classList.toggle('hidden', !type.tracksMiles);
+    if (paceGroup)  paceGroup.classList.toggle('hidden', !type.tracksMiles);
+    if (dogsGroup)  dogsGroup.classList.toggle('hidden', !type.withDogs);
+
+    // Wire miles input listener now that it may be visible
+    var milesInput = document.getElementById('exMiles');
+    if (milesInput && !milesInput.dataset.listenerAttached) {
+        milesInput.addEventListener('input', _exUpdatePacePreview);
+        milesInput.dataset.listenerAttached = '1';
+    }
+}
+
+// ─── Add-on-fly flow ──────────────────────────────────────────────────────────
+
+function _exStartAddType(name) {
+    _exPendingAddName     = name;
+    _exPendingTracksMiles = null;
+
+    document.getElementById('exAddTypeName').textContent = name;
+    document.getElementById('exAddTypeQ1').classList.remove('hidden');
+    document.getElementById('exAddTypeQ2').classList.add('hidden');
+    document.getElementById('exAddTypePanel').classList.remove('hidden');
+}
+
+function _exAddTypeAnswerMiles(yes) {
+    _exPendingTracksMiles = yes;
+    document.getElementById('exAddTypeQ1').classList.add('hidden');
+    document.getElementById('exAddTypeQ2').classList.remove('hidden');
+}
+
+async function _exAddTypeAnswerDogs(yes) {
+    document.getElementById('exAddTypePanel').classList.add('hidden');
+
+    try {
+        var ref = userCol('exerciseTypes').doc();
+        await ref.set({
+            name:        _exPendingAddName,
+            tracksMiles: _exPendingTracksMiles,
+            withDogs:    yes,
+            isDefault:   false,
+            archived:    false,
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        var newType = {
+            id: ref.id, name: _exPendingAddName,
+            tracksMiles: _exPendingTracksMiles, withDogs: yes,
+            isDefault: false, archived: false
+        };
+        _exAllTypes.push(newType);
+        _exSortTypes(_exAllTypes);
+
+        // Keep the activities-list type map in sync
+        _exTypes[ref.id] = newType;
+
+        _exSelectType(ref.id, _exPendingAddName, newType);
+
+    } catch (err) {
+        console.error('Exercise: failed to save new type:', err);
+        alert('Failed to save the new activity type. Please try again.');
+    }
+}
+
+// ─── Pace preview ─────────────────────────────────────────────────────────────
+
+function _exUpdatePacePreview() {
+    var previewEl = document.getElementById('exPacePreview');
+    if (!previewEl) return;
+    var milesEl = document.getElementById('exMiles');
+    var durEl   = document.getElementById('exDuration');
+    if (!milesEl || !durEl) { previewEl.textContent = '—'; return; }
+    var miles = parseFloat(milesEl.value);
+    var dur   = parseFloat(durEl.value);
+    previewEl.textContent = (miles > 0 && dur > 0) ? exFmtPace(miles, dur) : '—';
+}
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
+
+async function _exSaveActivity() {
+    if (!_exSelectedTypeId) {
+        alert('Please select an activity type.');
+        return;
+    }
+    var date = document.getElementById('exActivityDate').value;
+    var time = document.getElementById('exActivityTime').value || '00:00';
+    if (!date) { alert('Please enter a date.'); return; }
+
+    var type     = _exSelectedType || {};
+    var durVal   = document.getElementById('exDuration').value;
+    var milesEl  = document.getElementById('exMiles');
+    var milesVal = (type.tracksMiles && milesEl) ? milesEl.value : '';
+    var dogsEl   = document.getElementById('exWithDogs');
+    var dogsVal  = (type.withDogs && dogsEl) ? dogsEl.checked : null;
+    var calVal   = document.getElementById('exCalories').value;
+    var noteVal  = document.getElementById('exComment').value.trim();
+
+    var data = {
+        typeId:          _exSelectedTypeId,
+        activityDate:    date + 'T' + time + ':00',
+        durationMinutes: durVal   !== '' ? parseFloat(durVal)   : null,
+        miles:           milesVal !== '' ? parseFloat(milesVal) : null,
+        withDogs:        dogsVal,
+        calories:        calVal   !== '' ? parseInt(calVal, 10) : null,
+        comment:         noteVal
+    };
+
+    var saveBtn = document.getElementById('exSaveBtn');
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled    = true;
+
+    try {
+        if (_exEditId) {
+            await userCol('exerciseActivities').doc(_exEditId).update(data);
+        } else {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await userCol('exerciseActivities').add(data);
+        }
+        location.hash = '#exercise-activities';
+    } catch (err) {
+        console.error('Exercise: save failed:', err);
+        alert('Failed to save. Please try again.');
+        saveBtn.textContent = 'Save Activity';
+        saveBtn.disabled    = false;
+    }
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+async function _exDeleteActivity() {
+    if (!_exEditId) return;
+    if (!confirm('Delete this activity? This cannot be undone.')) return;
+
+    try {
+        await userCol('exerciseActivities').doc(_exEditId).delete();
+        location.hash = '#exercise-activities';
+    } catch (err) {
+        console.error('Exercise: delete failed:', err);
+        alert('Failed to delete. Please try again.');
+    }
 }
 
 // ─── Manage types page (stub — Phase 4) ──────────────────────────────────────
@@ -406,7 +791,7 @@ function loadExerciseTypesPage() {
         '<p style="padding:24px;color:#666;">Type management — coming in Phase 4.</p>';
 }
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 /** Converts decimal minutes to MM:SS or H:MM:SS. Returns '' if blank. */
 function exFmtDuration(min) {
@@ -420,7 +805,7 @@ function exFmtDuration(min) {
     return h > 0 ? (h + ':' + mm + ':' + ss) : (mm + ':' + ss);
 }
 
-/** Computes pace in M:SS/mi from miles and decimal minutes. Returns '' if either is missing. */
+/** Computes pace as M:SS/mi. Returns '' if either input is missing. */
 function exFmtPace(miles, durationMin) {
     if (!miles || !durationMin) return '';
     var paceMin = parseFloat(durationMin) / parseFloat(miles);
@@ -430,14 +815,14 @@ function exFmtPace(miles, durationMin) {
     return m + ':' + String(s).padStart(2, '0') + '/mi';
 }
 
-/** Formats an ISO datetime string as M/D/YY (e.g. "5/8/26"). */
+/** Formats an ISO datetime string as M/D/YY. */
 function exFmtDateShort(isoStr) {
     var d = _exParseDate(isoStr);
     if (!d) return '';
     return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2);
 }
 
-/** Returns the full day name for an ISO datetime string (e.g. "Thursday"). */
+/** Returns the full day name (e.g. "Thursday"). */
 function exFmtDayFull(isoStr) {
     var d = _exParseDate(isoStr);
     if (!d) return '';
@@ -455,9 +840,25 @@ function _exParseDate(isoStr) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-/** Returns a YYYY-MM-DD string for a Date object. */
 function _exFmtYMD(date) {
     return date.getFullYear() + '-' +
            String(date.getMonth() + 1).padStart(2, '0') + '-' +
            String(date.getDate()).padStart(2, '0');
+}
+
+/** Sorts types: defaults first (alpha), then customs (alpha). */
+function _exSortTypes(arr) {
+    arr.sort(function(a, b) {
+        if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+/** HTML-escapes a string for safe insertion into innerHTML. */
+function _exEsc(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
