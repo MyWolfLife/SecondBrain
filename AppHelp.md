@@ -3408,3 +3408,24 @@ Each activity shows as a two-line card:
 ### When to use this
 - You added a type on the fly and want to correct the spelling
 - You no longer need a custom type and want it out of the dropdown
+
+---
+
+## screen:exercise-metric-defs
+
+**What this screen is for:** Create, reorder, and delete your custom daily metric definitions — the extra fields that appear on every daily entry form below the standard metrics.
+
+### Quick Help
+- **Standard metrics** (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) are always present on the entry form and cannot be managed here
+- **+ Metric** button opens the add form at the top — fill in a name and pick a type, then Save
+- **Types**: YES/NO (boolean checkbox), Number (optional unit label like "oz" or "cal"), Text (free-form)
+- **Number type**: check "Allow Decimals" if you need fractional values (e.g. 7.5 hours), and optionally add a unit label shown next to the field
+- **Type cannot be changed** after a metric is saved — this preserves the format of historical entries
+- **↑ / ↓ buttons**: change the display order of metrics on the entry form
+- **Edit**: rename the metric or update its unit label — type stays fixed
+- **Delete**: removes the metric from future entry forms (soft delete — historical data is preserved)
+
+### When to use this
+- You want to track a new daily habit or health stat not covered by the standard metrics
+- You want to reorder metrics so the most important ones appear first
+- You misspelled a metric name and need to fix it

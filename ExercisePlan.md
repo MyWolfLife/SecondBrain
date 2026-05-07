@@ -1,4 +1,4 @@
-# Exercise Feature Plan
+﻿# Exercise Feature Plan
 
 ## Status: Discussion Phase complete — Ready to code
 
@@ -499,3 +499,542 @@ Strava free tier: **100 requests per 15 minutes, 1,000 per day**
 4. **Connect/disconnect location** — should the Strava OAuth flow live in the Exercise section or in Settings?
 5. **Unknown sport_type mapping** — auto-create silently or prompt the user to confirm the new type?
 6. **Historical import scope** — all-time, or cap at some date to avoid importing years of data on first connect?
+
+---
+
+---
+
+
+
+# Section 3: Daily Metrics
+
+## Overview
+
+A daily journal of health and habit data — one record per day. Captures both fixed biometric numbers (sleep score, steps, weight, etc.) and user-defined custom metrics (yes/no habits, extra numbers, free-text observations). The list view shows a scrollable grid with aggregate stats above the column headers, per-metric notes on hover (desktop) or tap overlay (mobile), and a date range filter that always defaults to This Month.
+
+---
+
+## Decisions Made
+
+| Topic | Decision |
+|---|---|
+| Records per day | One per day — editing overwrites |
+| Standard metrics | Always shown, all optional (blank = not tracked) |
+| Custom metric labels | 100% user-defined — no hardcoded labels |
+| Custom metric types | boolean (yes/no), number (int or decimal), text |
+| Mobile custom metrics | Show all — Y/blank for boolean, value for number/text |
+| Notes | Expand-on-demand — note icon beside each metric reveals a text input |
+| Default date range | This Month — never sticky, always resets on load |
+| Record count display | Single "N records" label in filter area; shared context for all columns |
+| Summary row — standard numbers | Average of non-null values |
+| Summary row — custom boolean | X/Y (yes count / total records) |
+| Summary row — custom number | Sum only (no per-column day count — N records label provides context) |
+| Summary row — custom text | Blank |
+| Mobile note tap | Small in-page overlay anchored near the icon; tap anywhere outside to dismiss |
+| Mobile card cutoff | Show all custom metrics; revisit if it gets unwieldy |
+| Seeding | Pre-seed 5 example custom metrics on first visit (user can delete/rename freely) |
+
+---
+
+## Entry Point
+
+- New card on the Exercise hub page: **"Daily Metrics"**
+- Routes to `#exercise-metrics` (list screen)
+- Hub card shows "Coming soon" until built (same pattern as Goals/Summary)
+
+---
+
+## Standard Metrics (Hardcoded)
+
+Always present on every daily record. Cannot be deleted. All are optional — leave blank to skip.
+
+| Metric | Type | Notes |
+|---|---|---|
+| Weight | Decimal number | e.g. 214.5 — measured at start of day |
+| Sleep Score | Integer | 0-100 |
+| Body Battery | Integer | 0-100 |
+| Daily Steps | Integer | Total steps |
+| Total Actual Burn | Integer | Calorie burn from watch — typically entered next day after watch syncs |
+| Food Calories | Integer | Calories consumed |
+
+---
+
+## Custom Metrics (User-Defined)
+
+Created, edited, and deleted on the **Manage Metrics** screen. All labels, types, and options are fully user-controlled. Metadata lives in `exerciseMetricDefs`.
+
+| Type | Entry form | List display | Summary row |
+|---|---|---|---|
+| boolean | Checkbox (checked = yes) | Y or blank | X / Y (yes count / N records) |
+| number | Text input (int or decimal) | Value + unit label | Sum |
+| text | Single-line text input | Truncated value | Blank |
+
+Each custom metric definition stores:
+- **Name** — user-defined label
+- **Type** — boolean / number / text
+- **Allow Decimal** — number type only
+- **Unit Label** — optional suffix shown in list (e.g. "cal", "oz")
+- **Sort Order** — controls column/form sequence
+- **Archived** — soft-delete; removes from entry form, preserves history
+
+---
+
+## Date Range Filter
+
+**Not sticky** — always resets to "This Month" on page load.
+
+### Dynamic options (top group)
+- Last Week
+- This Week
+- **This Month** *(default)*
+- Last Month
+- This Year
+- Last Year
+
+### Month shortcuts (bottom group)
+Jan through Dec as single-click buttons.
+
+**Year logic:** month number > current month → last year; otherwise → this year.
+
+*Example in May 2026: "Mar" = March 2026; "Aug" = August 2025.*
+
+Months that resolve to last year show a small year tag (e.g., "Aug '25"). Current-year months show the name only (e.g., "Mar"). This is built in from the start — eliminates any guessing.
+
+### Record count label
+After the filter is applied, display a small label: **"N records"** (e.g., "14 records"). This sits in the filter/toolbar area and serves as the shared denominator for all columns — boolean X/Y, number sums, and standard averages all draw meaning from the same N.
+
+---
+
+## Summary Row (Above Column Headers)
+
+A single aggregate row between the filter controls and the column headers. Updates on every filter change.
+
+| Column type | What shows |
+|---|---|
+| Standard number | Average of non-null values (0 counts; blank/null does not) |
+| Custom boolean | X / Y (yes count / N records total) |
+| Custom number | Sum of non-null values |
+| Custom text | Blank |
+| Date column | Blank |
+
+**Calculation rules:**
+- N records = count of loaded docs, not calendar days
+- A stored 0 counts toward averages and sums; a null/blank does not
+- If no records have a value for a column, show dash
+
+**Visual:** summary row is bold or has a light background tint to distinguish it from data rows.
+
+**Mobile:** compact strip above the cards showing standard-metric averages only (Weight, Sleep, Steps). Custom metric summaries are desktop-only.
+
+---
+
+## Daily Metrics List Screen (`#exercise-metrics`)
+
+- Header button: **+ Daily Metrics** → `#exercise-metric/new`
+- **Manage Metrics** link → `#exercise-metric-defs`
+- Records sorted newest-first
+- Clicking any row opens that date in edit mode
+
+### Desktop Grid
+
+`Date | Weight | Sleep | Battery | Steps | Burn | Food Cal | [custom metrics…]`
+
+- Note indicator: fields with a note show a small icon; hovering reveals the note in a tooltip
+- Columns scroll horizontally when many custom metrics are present
+
+### Mobile Layout
+
+One card per date. Standard metrics on top lines, then all custom metrics below:
+
+```
+5/7/26 (Wed)
+Wt: 214.5  Sleep: 82  Bat: 74  Steps: 8,234
+Burn: 2,450  Food: 1,800
+Stand: Y  Drinking: —  Eat<7: Y  Device: Y  Alc: 150
+```
+
+- Boolean: label + Y or blank/dash for no
+- Number: label + value (+ unit if defined)
+- Text: label + truncated value
+- Note icon inline when a note exists; **tapping shows a small in-page overlay** with the note text and a close button (tap outside or close button to dismiss)
+
+---
+
+## New / Edit Daily Metric Screen (`#exercise-metric/new` or `#exercise-metric/2026-05-07`)
+
+- Route uses the date as identifier: `#exercise-metric/2026-05-07`
+- New mode defaults to today's date (user can change it)
+- On date change: silently check Firestore — if a record exists for that date, pre-fill and switch to edit mode automatically
+- Date is the only required field; everything else is optional
+
+### Form Sections
+
+**Body**
+- Weight (decimal)
+- Sleep Score (integer)
+- Body Battery (integer)
+
+**Activity**
+- Daily Steps (integer)
+- Total Actual Burn (integer) — helper text: "From watch — usually entered the following day"
+- Food Calories (integer)
+
+**Habits & Custom** *(all user-defined metrics in sort order)*
+- Boolean: checkbox — checked = yes
+- Number: text input (integer or decimal per allowDecimal)
+- Text: single-line input
+
+### Per-Metric Notes
+- Each field (standard and custom) has a small note icon button beside it
+- Tapping/clicking toggles a text input open/closed
+- If a note already exists, the icon appears highlighted and the input pre-fills
+- Notes stored in the `notes` map, keyed by standard field name or metricDefId
+
+### Save / Delete
+- **Save**: writes or overwrites the doc for that date → returns to list
+- **Delete** (edit mode only): confirmation → deletes doc → returns to list
+
+---
+
+## Manage Metrics Screen (`#exercise-metric-defs`)
+
+- Linked from the Daily Metrics list header
+- Lists all non-archived custom metrics in sort order
+- Each row: name, type badge, unit label (if set), up/down sort arrows
+- **Add** button: name (required), type (required), allow-decimal (numbers only), unit label (optional)
+- **Edit**: rename, change unit label, change allow-decimal
+- **Delete**: soft-delete (archived = true) — removed from entry form, history preserved
+
+---
+
+## Data Model
+
+**`exerciseDailyMetrics`** (per-user via `userCol()`)
+
+| Field | Type | Notes |
+|---|---|---|
+| date | string | YYYY-MM-DD — primary lookup key |
+| weight | number or null | |
+| sleepScore | number or null | |
+| bodyBattery | number or null | |
+| dailySteps | number or null | |
+| totalBurn | number or null | |
+| foodCalories | number or null | |
+| customValues | object | `{ metricDefId: value }` — value is boolean, number, or string |
+| notes | object | `{ fieldKey: "note text" }` — fieldKey is a standard field name or a metricDefId |
+| createdAt | timestamp | |
+| updatedAt | timestamp | |
+
+**`exerciseMetricDefs`** (per-user via `userCol()`)
+
+| Field | Type | Notes |
+|---|---|---|
+| name | string | User-defined label |
+| type | string | "boolean", "number", or "text" |
+| allowDecimal | boolean | Numbers only |
+| unitLabel | string | Optional display suffix |
+| sortOrder | number | Ascending display order |
+| archived | boolean | Soft-delete |
+| createdAt | timestamp | |
+
+---
+
+## Seeding
+
+On first visit to `#exercise-metrics`, if `exerciseMetricDefs` is empty, seed these examples. The user can rename or delete all of them freely — they are not built-ins.
+
+| Name | Type |
+|---|---|
+| Stand 1 Hour | boolean |
+| Drinking | boolean |
+| Eat Before 7 | boolean |
+| Device Off by 10pm | boolean |
+| Alcohol Calories | number |
+
+---
+
+## Suggestions / Future Parking Lot
+---
+
+## Implementation
+
+### Architecture Notes
+
+**Date as Firestore doc ID**: `exerciseDailyMetrics` docs use the date string (`YYYY-MM-DD`) as the Firestore document ID rather than an auto-generated ID. This means one doc per date by construction (no duplicates possible), and lookups are a direct `.doc(date).get()` — no query needed, no index required.
+
+**File**: All Daily Metrics code lives in the existing `js/exercise.js`. The feature is large but self-contained within that file. Module-level state variables are prefixed `_dm` to distinguish from exercise activities (`_ex`).
+
+**Routing pattern** (follows existing exercise routes):
+- `exercise-metrics` and `exercise-metric-defs` → added to `TOP_LEVEL_PAGES` and `LIFE_PAGES`
+- `exercise-metric` (entry form) → added to `ALL_PAGES` and `LIFE_PAGES` only (same pattern as `exercise-activity`)
+
+---
+
+### Phase 1 — Foundation: Hub Card, Routes, Page Shells, Backup
+
+**Goal**: Plumb everything in. Navigation works. No data screens yet.
+
+**Files**: `index.html`, `js/app.js`, `js/exercise.js`, `js/settings.js`, `css/styles.css`, `sw.js`
+
+**Steps:**
+
+1. **Hub card** — in `loadExercisePage()` in `exercise.js`, add a fourth card "Daily Metrics" linking to `#exercise-metrics`, alongside Activities/Goals/Summary.
+
+2. **Page shells** — add three new `<div>` sections to `index.html` (after the existing exercise sections):
+   ```html
+   <div id="page-exercise-metrics"     class="page hidden"></div>
+   <div id="page-exercise-metric"      class="page hidden"></div>
+   <div id="page-exercise-metric-defs" class="page hidden"></div>
+   ```
+
+3. **app.js arrays**:
+   - `TOP_LEVEL_PAGES`: add `'exercise-metrics'`, `'exercise-metric-defs'`
+   - `ALL_PAGES` non-top-level block: add `'exercise-metric'`
+   - `LIFE_PAGES`: add all three (`'exercise-metrics'`, `'exercise-metric'`, `'exercise-metric-defs'`)
+
+4. **app.js routes** — add three route handlers alongside the existing exercise routes:
+   ```javascript
+   } else if (page === 'exercise-metrics') {
+       showPage('exercise-metrics');
+       loadExerciseMetricsPage();
+   } else if (page === 'exercise-metric' && id) {
+       showPage('exercise-metric');
+       loadExerciseMetricPage(id);
+   } else if (page === 'exercise-metric-defs') {
+       showPage('exercise-metric-defs');
+       loadExerciseMetricDefsPage();
+   ```
+
+5. **exercise.js stubs** — add three stub load functions (each sets the correct breadcrumb and shows a "Loading…" placeholder):
+   - `loadExerciseMetricsPage()` — breadcrumb: Life › Exercise › Daily Metrics
+   - `loadExerciseMetricPage(dateOrNew)` — breadcrumb: Life › Exercise › Daily Metrics › New Entry (or the date)
+   - `loadExerciseMetricDefsPage()` — breadcrumb: Life › Exercise › Daily Metrics › Manage Metrics
+   - Also add `seedExerciseMetricDefsIfNeeded()` function body (the logic runs in Phase 2; just declare it here)
+
+6. **settings.js** — add `'exerciseDailyMetrics'` and `'exerciseMetricDefs'` to `BACKUP_DATA_COLLECTIONS`.
+
+7. **Bump** `?v=N` on exercise.js, app.js, styles.css, and settings.js in index.html; bump `CACHE_NAME` in sw.js.
+
+**Deliverable**: Exercise hub shows 4 cards. All 3 new routes navigate cleanly. Backup covers the new collections.
+
+---
+
+### Phase 2 — Manage Metrics Screen
+
+**Goal**: Full CRUD for custom metric definitions. Seeds 5 examples on first visit.
+
+**Files**: `js/exercise.js`, `css/styles.css`, bump versions
+
+**Module-level state** (added at top of the _dm block in exercise.js):
+```javascript
+var _dmDefsAll = [];  // loaded metric defs for the manage screen
+```
+
+**Seed function** `seedExerciseMetricDefsIfNeeded()`:
+- Query `exerciseMetricDefs` limit 1; if not empty, return
+- Batch-write 5 default defs:
+  `Stand 1 Hour (boolean)`, `Drinking (boolean)`, `Eat Before 7 (boolean)`, `Device Off by 10pm (boolean)`, `Alcohol Calories (number, allowDecimal: false)`
+- Assign `sortOrder` 0–4, `archived: false`
+
+**`loadExerciseMetricDefsPage()`** — full implementation:
+1. Set breadcrumb: Life › Exercise › Daily Metrics › Manage Metrics
+2. Call `seedExerciseMetricDefsIfNeeded()`
+3. Load all non-archived docs from `exerciseMetricDefs` ordered by `sortOrder` asc
+4. Store in `_dmDefsAll`; render via `_dmRenderDefsList()`
+
+**`_dmRenderDefsList()`** builds the list HTML. Each row shows:
+- Name, type badge (Boolean / Number / Text), unit label if set
+- ↑ and ↓ arrow buttons (first item hides ↑; last item hides ↓)
+- **Edit** button → shows inline rename/unit-label/allow-decimal inputs + Save/Cancel
+- **Delete** button → confirm → `archived = true` → re-render
+
+**Add metric flow**:
+- "Add Metric" button at top renders a small inline form: Name (required), Type dropdown (Boolean / Number / Text), Allow Decimal checkbox (visible when type = Number), Unit Label input (optional for Number)
+- On save: assign `sortOrder = max(existing sortOrders) + 1`, write to Firestore, append to `_dmDefsAll`, re-render
+
+**Edit flow**:
+- Clicking Edit on a row replaces the row HTML with an inline form pre-filled: Name, Unit Label, Allow Decimal — **type cannot be changed after creation** (changing type would break how existing historical values are interpreted)
+- Save → update Firestore doc → update local array → re-render
+
+**Sort order (↑/↓)**:
+- ↑ swaps `sortOrder` values between the clicked item and its predecessor in the array
+- ↓ swaps with its successor
+- Batch-write both affected docs → update `_dmDefsAll` → re-render
+
+**CSS**: manage-metrics list, type badges (color-coded: boolean = blue, number = green, text = gray), inline edit form, add form.
+
+**Deliverable**: User can fully manage custom metrics. Seeds on first visit.
+
+---
+
+### Phase 3 — Daily Metrics List
+
+**Goal**: The list screen — filter, "N records" label, summary row, desktop grid, mobile cards, note display. Read-only for now (clicking a row will route to the entry form, which isn't built yet).
+
+**Files**: `js/exercise.js`, `css/styles.css`, bump versions
+
+**Module-level state**:
+```javascript
+var _dmMetricDefs  = [];   // non-archived defs, sorted — used by list and entry form
+var _dmRangeFilter = 'thisMonth';   // never persisted; always reset on page load
+var _dmCustomStart = '';
+var _dmCustomEnd   = '';
+```
+
+**`loadExerciseMetricsPage()`** — full implementation:
+1. Set breadcrumb, reset `_dmRangeFilter = 'thisMonth'`
+2. Call `seedExerciseMetricDefsIfNeeded()`
+3. Load `_dmMetricDefs` from Firestore (non-archived, sort by sortOrder)
+4. Build page HTML, wire filter events, call `_dmApplyFilter()`
+
+**Filter UI** (built as a toolbar block):
+
+*Dynamic group* — 6 pill/button options:
+`Last Week | This Week | This Month | Last Month | This Year | Last Year`
+
+*Month shortcuts* — a 3×4 grid of buttons (Jan–Dec):
+```
+Jan  Feb  Mar
+Apr  May  Jun
+Jul  Aug  Sep
+Oct  Nov  Dec
+```
+- Compute for each: if `monthIndex + 1 > currentMonth` → last year, else → this year
+- Last-year buttons show `"Aug '25"` (abbreviated year tag); current-year buttons show `"Aug"` only
+- Selected button is highlighted
+
+**`_dmGetDateRange(filter)`** — computes `{ start, end }` as YYYY-MM-DD strings:
+- `lastWeek`: Mon–Sun of last calendar week
+- `thisWeek`: Mon–today of current calendar week
+- `thisMonth`: 1st of current month → today
+- `lastMonth`: 1st–last day of previous month
+- `thisYear`: Jan 1 – today
+- `lastYear`: Jan 1 – Dec 31 of previous year
+- Month shortcut (`'month-3-2025'` style key): 1st–last day of that month/year
+
+**`_dmApplyFilter()`**:
+1. Show loading state
+2. Query `exerciseDailyMetrics` ordered by date desc, limit 500
+3. Filter client-side to date range
+4. Update **"N records"** label (e.g., "14 records") in toolbar
+5. Compute summary row values:
+   - Standard fields: for each, collect non-null values → `sum / count` (round appropriately); if no values, show `—`
+   - Custom boolean: `count(customValues[id] === true)` → `"X / N"`
+   - Custom number: `sum(non-null customValues[id])` → formatted total
+   - Custom text: `''`
+6. Render desktop `<table>` and mobile cards
+
+**Desktop table structure**:
+```
+<thead>
+  <tr class="dm-summary-row">  ← tinted background, bold
+    <td></td>  ← Date column blank
+    <td>avg weight</td>
+    <td>avg sleep</td>
+    ... one td per column
+  </tr>
+  <tr class="dm-header-row">
+    <th>Date</th><th>Weight</th>...
+  </tr>
+</thead>
+<tbody>
+  <tr class="dm-data-row"> ... </tr>
+</tbody>
+```
+- Note indicator: if `record.notes[fieldKey]` has text, append a small `<span class="dm-note-icon" title="the note text">📝</span>` — the `title` attribute provides the hover tooltip for free
+- Clicking any `<tr>` navigates to `#exercise-metric/` + record.date
+
+**Mobile cards** — one card per record:
+- Line 1: formatted date ("5/7/26 Wed")
+- Lines 2–3: standard metrics, abbreviated labels, values or `—`
+- Line 4+: all custom metrics — boolean: `Y` or `—`; number: value + unit; text: truncated
+- Note icon: if note exists, a small `📝` rendered inline; **tap triggers a small absolute-positioned overlay div** that appears near the icon, shows the note text, has a close ✕ button. Tapping outside the overlay (document click listener with stopPropagation on the overlay) also closes it.
+- Card click (outside of note icon) navigates to `#exercise-metric/` + record.date
+
+**CSS**: table styles, summary row tint, sticky header option, month shortcuts grid, note icon, note overlay (absolute positioned, z-index, shadow), mobile card layout.
+
+**Deliverable**: List screen fully functional — filter, aggregates, desktop grid, mobile cards, note display.
+
+---
+
+### Phase 4 — New / Edit Daily Metric Entry Form
+
+**Goal**: Full CRUD for daily metric records. The final phase — feature complete after this.
+
+**Files**: `js/exercise.js`, `css/styles.css`, bump versions
+
+**Module-level state**:
+```javascript
+var _dmEditDate    = null;  // null = new, 'YYYY-MM-DD' = edit
+var _dmExistingDoc = null;  // loaded doc data or null
+```
+
+**`loadExerciseMetricPage(dateOrNew)`**:
+1. Set breadcrumb: Life › Exercise › Daily Metrics › [New Entry | date]
+2. Load `_dmMetricDefs` fresh (non-archived, sorted)
+3. If `dateOrNew === 'new'`: `_dmEditDate = null`, `_dmExistingDoc = null`
+4. Else: `_dmEditDate = dateOrNew`, fetch `userCol('exerciseDailyMetrics').doc(dateOrNew).get()`, store result in `_dmExistingDoc`
+5. Call `_dmBuildEntryForm()`
+
+**`_dmBuildEntryForm()`** renders:
+
+*Date field* at the top:
+- Defaults to today (new) or `_dmEditDate` (edit)
+- On change: fetch `userCol('exerciseDailyMetrics').doc(newDate).get()` — if doc exists, call `_dmBuildEntryForm()` again with that doc's data pre-filled (effectively switches to edit mode for that date); if not, clear the form
+
+*Form sections*:
+
+| Section | Fields |
+|---|---|
+| Body | Weight (decimal text), Sleep Score (integer), Body Battery (integer) |
+| Activity | Daily Steps (integer), Total Actual Burn (integer, helper text: "From watch — usually entered the following day"), Food Calories (integer) |
+| Habits & Custom | All `_dmMetricDefs` in sort order |
+
+Custom field rendering per type:
+- `boolean` → `<input type="checkbox">` — checked = yes
+- `number` → `<input type="text" inputmode="decimal">` + unit label span if defined
+- `text` → `<input type="text">`
+
+*Per-metric note toggle* (each standard field and each custom metric):
+- A small 📝 button sits to the right of the value input
+- Click toggles a `<textarea rows="2">` open (slide-in or simple show/hidden)
+- If `_dmExistingDoc.notes[key]` has content: button is highlighted, textarea pre-fills
+- Note text is read back from the textarea at save time
+
+*Action buttons*: Save (primary) | Cancel → `#exercise-metrics` | Delete (danger, edit mode only)
+
+**`_dmSaveMetric()`**:
+1. Read date field → determine doc ID
+2. Collect standard field values (null if blank)
+3. Collect `customValues`: iterate `_dmMetricDefs`, read each field's input → coerce to boolean/number/string, null if blank
+4. Collect `notes`: iterate all note textareas, include only non-empty strings
+5. Build doc: `{ date, weight, sleepScore, bodyBattery, dailySteps, totalBurn, foodCalories, customValues, notes, updatedAt: serverTimestamp() }`
+6. New mode adds `createdAt: serverTimestamp()`
+7. `userCol('exerciseDailyMetrics').doc(date).set(data)` — full overwrite (date-as-ID means set is always safe)
+8. Navigate to `#exercise-metrics`
+
+**`_dmDeleteMetric()`**:
+- Confirm dialog
+- `userCol('exerciseDailyMetrics').doc(_dmEditDate).delete()`
+- Navigate to `#exercise-metrics`
+
+**CSS**: form section headers (same style as exercise form), note toggle textarea animation, checkbox label styling for boolean metrics.
+
+**Deliverable**: Full CRUD for daily records. Daily Metrics feature complete.
+
+---
+
+### Phase Summary
+
+| Phase | What it builds | Deliverable |
+|---|---|---|
+| 1 | Hub card, routes, page shells, backup | Navigation works end-to-end |
+| 2 | Manage Metrics CRUD | User can create/edit/sort/delete custom metric definitions |
+| 3 | List screen — filter, summary row, grid, cards, notes | Browse and filter all historical data |
+| 4 | Entry form — all metric types, notes, save/delete | Full data entry and edit; feature complete |
+
+Confirm phases one at a time before moving to the next.
+
+- **Streak counter**: boolean + daily-record structure is ideal for "Stand 1 Hour: 7 days in a row". Easy to add later — park in FutureEnhancements.
+- **CSV export**: structured daily data + date range = great for spreadsheet export. Park in FutureEnhancements.
+- **Mobile summary strip**: if the standard-metric averages strip above mobile cards proves valuable, adding custom metric summaries there is a small addition. Revisit after seeing real usage.

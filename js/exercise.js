@@ -1086,8 +1086,12 @@ function _exEsc(str) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DAILY METRICS — Phase 1 stubs (Phases 2–4 will flesh these out)
+// DAILY METRICS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Module-level state ──────────────────────────────────────────────────────
+
+var _dmDefsAll = [];   // non-archived metric defs, sorted by sortOrder
 
 // ─── Default custom metric seeds ─────────────────────────────────────────────
 
@@ -1164,7 +1168,9 @@ function loadExerciseMetricPage(dateOrNew) {
     // Phase 4 will implement the full entry form here.
 }
 
-function loadExerciseMetricDefsPage() {
+// ─── Manage Metrics Screen ────────────────────────────────────────────────────
+
+async function loadExerciseMetricDefsPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
@@ -1178,5 +1184,252 @@ function loadExerciseMetricDefsPage() {
     if (!el) return;
     el.innerHTML = '<p class="ex-status">Loading…</p>';
 
-    // Phase 2 will implement the full manage screen here.
+    await seedExerciseMetricDefsIfNeeded();
+
+    try {
+        var snap = await userCol('exerciseMetricDefs').get();
+        _dmDefsAll = snap.docs
+            .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+            .filter(function(d) { return !d.archived; })
+            .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to load metric defs:', err);
+        el.innerHTML = '<p class="ex-status">Error loading. Please try again.</p>';
+    }
+}
+
+function _dmRenderDefsList() {
+    var el = document.getElementById('page-exercise-metric-defs');
+    if (!el) return;
+
+    var rows = _dmDefsAll.map(function(def, idx) {
+        return _dmBuildDefRowHTML(def, idx);
+    }).join('');
+
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h2>Manage Metrics</h2>' +
+            '<button class="btn btn-primary btn-small" id="dmAddBtn">+ Metric</button>' +
+        '</div>' +
+
+        // Add form — hidden until "+" is clicked
+        '<div class="dm-add-form hidden" id="dmAddForm">' +
+            '<div class="dm-form-row">' +
+                '<input type="text" id="dmAddName" class="dm-name-input" placeholder="Metric name (required)" maxlength="60">' +
+                '<select id="dmAddType" class="dm-type-select">' +
+                    '<option value="boolean">Yes / No</option>' +
+                    '<option value="number">Number</option>' +
+                    '<option value="text">Text</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="dm-number-opts hidden" id="dmAddNumberOpts">' +
+                '<label class="dm-checkbox-label">' +
+                    '<input type="checkbox" id="dmAddDecimal"> Allow decimals' +
+                '</label>' +
+                '<input type="text" id="dmAddUnit" class="dm-unit-input" placeholder="Unit label (e.g. cal, lbs)" maxlength="20">' +
+            '</div>' +
+            '<div class="dm-form-btns">' +
+                '<button class="btn btn-primary btn-small" id="dmSaveNewBtn">Add Metric</button>' +
+                '<button class="btn btn-secondary btn-small" id="dmCancelNewBtn">Cancel</button>' +
+            '</div>' +
+        '</div>' +
+
+        '<p class="dm-defs-hint">These custom metrics appear after the standard metrics (Weight, Sleep, Steps, etc.) on the daily entry form. Standard metrics are always present and cannot be edited here.</p>' +
+
+        (rows
+            ? '<div class="dm-defs-list" id="dmDefsList">' + rows + '</div>'
+            : '<p class="ex-status">No custom metrics yet. Use "+ Metric" to add one.</p>');
+
+    // Wire add button toggle
+    document.getElementById('dmAddBtn').addEventListener('click', function() {
+        var form = document.getElementById('dmAddForm');
+        form.classList.toggle('hidden');
+        if (!form.classList.contains('hidden')) {
+            document.getElementById('dmAddName').focus();
+        }
+    });
+
+    // Wire type select → show/hide number options
+    document.getElementById('dmAddType').addEventListener('change', function() {
+        document.getElementById('dmAddNumberOpts').classList.toggle('hidden', this.value !== 'number');
+    });
+
+    document.getElementById('dmSaveNewBtn').addEventListener('click', _dmSaveNewDef);
+    document.getElementById('dmCancelNewBtn').addEventListener('click', function() {
+        document.getElementById('dmAddForm').classList.add('hidden');
+    });
+}
+
+function _dmBuildDefRowHTML(def, idx) {
+    var typeLabel = def.type === 'boolean' ? 'Yes/No' : def.type === 'number' ? 'Number' : 'Text';
+    var badge     = '<span class="dm-type-badge dm-type-badge--' + def.type + '">' + typeLabel + '</span>';
+    var unit      = (def.type === 'number' && def.unitLabel)
+                    ? ' <span class="dm-def-unit">(' + _exEsc(def.unitLabel) + ')</span>' : '';
+    var upBtn     = idx > 0
+                    ? '<button class="dm-sort-btn" onclick="_dmMoveDef(\'' + def.id + '\',-1)" title="Move up">↑</button>' : '';
+    var dnBtn     = idx < _dmDefsAll.length - 1
+                    ? '<button class="dm-sort-btn" onclick="_dmMoveDef(\'' + def.id + '\',1)" title="Move down">↓</button>' : '';
+
+    return '<div class="dm-def-row" id="dmDefRow-' + def.id + '">' +
+               '<span class="dm-def-name">' + _exEsc(def.name) + '</span>' +
+               badge + unit +
+               '<div class="dm-def-actions">' +
+                   upBtn + dnBtn +
+                   '<button class="btn btn-secondary btn-small" onclick="_dmStartEditDef(\'' + def.id + '\')">Edit</button>' +
+                   '<button class="btn btn-small dm-def-delete-btn" onclick="_dmDeleteDef(\'' + def.id + '\')">Delete</button>' +
+               '</div>' +
+           '</div>';
+}
+
+// ─── Add new metric def ───────────────────────────────────────────────────────
+
+async function _dmSaveNewDef() {
+    var name = (document.getElementById('dmAddName').value || '').trim();
+    if (!name) { alert('Please enter a metric name.'); document.getElementById('dmAddName').focus(); return; }
+
+    var type         = document.getElementById('dmAddType').value;
+    var allowDecimal = type === 'number' && document.getElementById('dmAddDecimal').checked;
+    var unitLabel    = type === 'number' ? (document.getElementById('dmAddUnit').value || '').trim() : '';
+
+    var maxOrder = _dmDefsAll.reduce(function(m, d) { return Math.max(m, d.sortOrder || 0); }, -1);
+
+    var saveBtn = document.getElementById('dmSaveNewBtn');
+    saveBtn.textContent = 'Adding…';
+    saveBtn.disabled    = true;
+
+    try {
+        var ref = userCol('exerciseMetricDefs').doc();
+        await ref.set({
+            name:         name,
+            type:         type,
+            allowDecimal: allowDecimal,
+            unitLabel:    unitLabel,
+            sortOrder:    maxOrder + 1,
+            archived:     false,
+            createdAt:    firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        _dmDefsAll.push({ id: ref.id, name: name, type: type, allowDecimal: allowDecimal,
+                          unitLabel: unitLabel, sortOrder: maxOrder + 1, archived: false });
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to save metric def:', err);
+        alert('Failed to save. Please try again.');
+        saveBtn.textContent = 'Add Metric';
+        saveBtn.disabled    = false;
+    }
+}
+
+// ─── Edit metric def ──────────────────────────────────────────────────────────
+
+function _dmStartEditDef(defId) {
+    var def = _dmDefsAll.find(function(d) { return d.id === defId; });
+    var row = document.getElementById('dmDefRow-' + defId);
+    if (!def || !row) return;
+
+    var typeLabel = def.type === 'boolean' ? 'Yes/No' : def.type === 'number' ? 'Number' : 'Text';
+    var badge     = '<span class="dm-type-badge dm-type-badge--' + def.type + '">' + typeLabel + '</span>';
+
+    var numberOpts = def.type === 'number'
+        ? '<div class="dm-number-opts">' +
+              '<label class="dm-checkbox-label">' +
+                  '<input type="checkbox" id="dmEditDecimal-' + defId + '"' + (def.allowDecimal ? ' checked' : '') + '> Allow decimals' +
+              '</label>' +
+              '<input type="text" id="dmEditUnit-' + defId + '" class="dm-unit-input" ' +
+                  'placeholder="Unit label (e.g. cal, lbs)" value="' + _exEsc(def.unitLabel || '') + '" maxlength="20">' +
+          '</div>'
+        : '';
+
+    row.innerHTML =
+        '<div class="dm-form-row">' +
+            '<input type="text" class="dm-name-input" id="dmEditName-' + defId + '" ' +
+                'value="' + _exEsc(def.name) + '" maxlength="60">' +
+            badge +
+        '</div>' +
+        numberOpts +
+        '<div class="dm-def-actions">' +
+            '<button class="btn btn-primary btn-small" onclick="_dmSaveEditDef(\'' + defId + '\')">Save</button>' +
+            '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>' +
+        '</div>';
+
+    var nameInput = document.getElementById('dmEditName-' + defId);
+    if (nameInput) { nameInput.focus(); nameInput.select(); }
+}
+
+async function _dmSaveEditDef(defId) {
+    var def       = _dmDefsAll.find(function(d) { return d.id === defId; });
+    var nameInput = document.getElementById('dmEditName-' + defId);
+    if (!def || !nameInput) return;
+
+    var newName = nameInput.value.trim();
+    if (!newName) { alert('Name cannot be blank.'); nameInput.focus(); return; }
+
+    var allowDecimal = def.type === 'number'
+        ? !!(document.getElementById('dmEditDecimal-' + defId) || {}).checked : false;
+    var unitLabel = def.type === 'number'
+        ? ((document.getElementById('dmEditUnit-' + defId) || {}).value || '').trim() : '';
+
+    var saveBtn = document.querySelector('#dmDefRow-' + defId + ' .btn-primary');
+    if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
+
+    try {
+        var updates = { name: newName };
+        if (def.type === 'number') { updates.allowDecimal = allowDecimal; updates.unitLabel = unitLabel; }
+
+        await userCol('exerciseMetricDefs').doc(defId).update(updates);
+
+        def.name = newName;
+        if (def.type === 'number') { def.allowDecimal = allowDecimal; def.unitLabel = unitLabel; }
+
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to update metric def:', err);
+        alert('Failed to save. Please try again.');
+        if (saveBtn) { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }
+    }
+}
+
+// ─── Sort order ───────────────────────────────────────────────────────────────
+
+async function _dmMoveDef(defId, direction) {
+    var idx     = _dmDefsAll.findIndex(function(d) { return d.id === defId; });
+    var swapIdx = idx + direction;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= _dmDefsAll.length) return;
+
+    var a = _dmDefsAll[idx];
+    var b = _dmDefsAll[swapIdx];
+
+    try {
+        var batch = db.batch();
+        batch.update(userCol('exerciseMetricDefs').doc(a.id), { sortOrder: b.sortOrder });
+        batch.update(userCol('exerciseMetricDefs').doc(b.id), { sortOrder: a.sortOrder });
+        await batch.commit();
+
+        var tmp      = a.sortOrder;
+        a.sortOrder  = b.sortOrder;
+        b.sortOrder  = tmp;
+        _dmDefsAll.sort(function(x, y) { return (x.sortOrder || 0) - (y.sortOrder || 0); });
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to reorder metric defs:', err);
+        alert('Failed to reorder. Please try again.');
+    }
+}
+
+// ─── Delete metric def ────────────────────────────────────────────────────────
+
+async function _dmDeleteDef(defId) {
+    var def = _dmDefsAll.find(function(d) { return d.id === defId; });
+    if (!def) return;
+    if (!confirm('Delete "' + def.name + '"? It will be removed from the entry form. Your past data for this metric is preserved.')) return;
+
+    try {
+        await userCol('exerciseMetricDefs').doc(defId).update({ archived: true });
+        _dmDefsAll = _dmDefsAll.filter(function(d) { return d.id !== defId; });
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to delete metric def:', err);
+        alert('Failed to delete. Please try again.');
+    }
 }

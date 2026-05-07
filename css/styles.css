@@ -17317,6 +17317,185 @@ a.legacy-fin-card:hover {
     min-width: 100px;
 }
 
+/* ── Daily Metrics: Manage Metrics screen ─────────────────────────────────── */
+
+.dm-defs-hint {
+    font-size: 0.82rem;
+    color: #666;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+/* Add / edit form ─────────────────────────────────────────────────────────── */
+
+.dm-add-form {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.dm-form-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dm-name-input {
+    flex: 1;
+    min-width: 160px;
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.dm-type-select {
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.dm-number-opts {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.dm-unit-input {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 180px;
+}
+
+.dm-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dm-form-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Definition list rows ───────────────────────────────────────────────────── */
+
+.dm-defs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dm-def-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 9px 12px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.dm-def-name {
+    flex: 1;
+    min-width: 120px;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.dm-type-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.dm-type-badge--boolean {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.dm-type-badge--number {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.dm-type-badge--text {
+    background: #f3e5f5;
+    color: #6a1b9a;
+}
+
+.dm-def-unit {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.dm-def-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+}
+
+.dm-sort-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #555;
+    line-height: 1;
+}
+
+.dm-sort-btn:hover {
+    background: #f0f0f0;
+}
+
+.dm-def-delete-btn {
+    background: #fff0f0;
+    border: 1px solid #ffcdd2;
+    color: #c62828;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.dm-def-delete-btn:hover {
+    background: #ffebee;
+}
+
+@media (max-width: 480px) {
+    .dm-def-row {
+        gap: 6px;
+    }
+    .dm-def-actions {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-end;
+    }
+}
+
 /* Searchable type picker */
 .ex-type-picker {
     position: relative;

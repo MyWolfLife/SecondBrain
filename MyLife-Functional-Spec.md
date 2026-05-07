@@ -1079,7 +1079,18 @@ Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (comi
 Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
 
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
-Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3. Implementation phases 2–4 in progress.
+Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.
+
+#### Manage Metrics (`#exercise-metric-defs`)
+Accessible via a "Manage Metrics" link on the Daily Metrics list screen (Phase 3). Manages user-defined custom metric definitions only — standard metrics are always present and not editable here.
+
+- **Add form**: Name (required), Type (YES/NO | Number | Text), and for Number type: Allow Decimals checkbox + optional Unit Label (e.g. "oz", "cal"). Saved to `exerciseMetricDefs` collection with `sortOrder` assigned as max existing + 1.
+- **Metric row**: Shows name, type badge (colored: blue=YES/NO, green=Number, purple=Text), unit label in parentheses if set, and ↑/↓ sort buttons + Edit + Delete actions.
+- **Edit**: Inline form replaces the row — name editable, type shown as read-only badge (type cannot change after creation to preserve historical data). Save writes to Firestore; Cancel restores the row.
+- **Sort (↑/↓)**: Swaps `sortOrder` values between adjacent items via Firestore batch write. Re-renders list after swap.
+- **Delete**: Confirms before deleting. Sets `archived: true` in Firestore (soft delete). Row removed from list.
+- **Seeding**: On first visit, 5 default metrics are written if collection is empty: Stand 1 Hour (boolean), Drinking (boolean), Eat Before 7 (boolean), Device Off by 10pm (boolean), Alcohol Calories (number, unit: cal).
+- **Firestore collection**: `exerciseMetricDefs` — fields: `name`, `type` (boolean/number/text), `allowDecimal` (bool), `unitLabel` (string), `sortOrder` (int), `archived` (bool), `createdAt`.
 
 ### Activities List (`#exercise-activities`, `exercise.js`)
 Displays logged exercise activities in a filterable, sortable list.
