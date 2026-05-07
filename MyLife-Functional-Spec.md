@@ -1072,11 +1072,14 @@ Tracks major life events — trips, milestones, goals, relationships.
 
 **Plan document**: `ExercisePlan.md`
 
-Exercise tracking lives in the Life section. Currently only the Activities feature is built; Goals and Summary show "Coming Soon" placeholders.
+Exercise tracking lives in the Life section. Activities and Daily Metrics are built; Goals and Summary show "Coming Soon" placeholders.
 
 ### Exercise Hub (`#exercise`)
-Three cards: **Activities** (active), **Goals** (coming soon), **Summary** (coming soon).
+Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (coming soon), **Summary** (coming soon).
 Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
+
+### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
+Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3. Implementation phases 2–4 in progress.
 
 ### Activities List (`#exercise-activities`, `exercise.js`)
 Displays logged exercise activities in a filterable, sortable list.

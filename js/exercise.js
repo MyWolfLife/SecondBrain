@@ -85,6 +85,10 @@ function loadExercisePage() {
                 '<span class="landing-tile-icon">🏃</span>' +
                 '<span class="landing-tile-label">Activities</span>' +
             '</a>' +
+            '<a href="#exercise-metrics" class="landing-tile landing-tile--exercise-metrics">' +
+                '<span class="landing-tile-icon">📋</span>' +
+                '<span class="landing-tile-label">Daily Metrics</span>' +
+            '</a>' +
             '<div class="landing-tile landing-tile--coming-soon">' +
                 '<span class="landing-tile-icon">🎯</span>' +
                 '<span class="landing-tile-label">Goals</span>' +
@@ -1079,4 +1083,100 @@ function _exEsc(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DAILY METRICS — Phase 1 stubs (Phases 2–4 will flesh these out)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Default custom metric seeds ─────────────────────────────────────────────
+
+const DM_DEFAULT_METRIC_DEFS = [
+    { name: 'Stand 1 Hour',       type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 0 },
+    { name: 'Drinking',           type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 1 },
+    { name: 'Eat Before 7',       type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 2 },
+    { name: 'Device Off by 10pm', type: 'boolean', allowDecimal: false, unitLabel: '', sortOrder: 3 },
+    { name: 'Alcohol Calories',   type: 'number',  allowDecimal: false, unitLabel: 'cal', sortOrder: 4 },
+];
+
+/**
+ * Seeds 5 example custom metric definitions on first visit.
+ * No-ops if the collection already has documents.
+ */
+async function seedExerciseMetricDefsIfNeeded() {
+    try {
+        var snap = await userCol('exerciseMetricDefs').limit(1).get();
+        if (!snap.empty) return;
+
+        var batch = db.batch();
+        DM_DEFAULT_METRIC_DEFS.forEach(function(def) {
+            var ref = userCol('exerciseMetricDefs').doc();
+            batch.set(ref, {
+                name:         def.name,
+                type:         def.type,
+                allowDecimal: def.allowDecimal,
+                unitLabel:    def.unitLabel,
+                sortOrder:    def.sortOrder,
+                archived:     false,
+                createdAt:    firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+        console.log('DailyMetrics: seeded ' + DM_DEFAULT_METRIC_DEFS.length + ' default metric defs.');
+    } catch (err) {
+        console.error('DailyMetrics: failed to seed metric defs:', err);
+    }
+}
+
+// ─── Page load stubs ─────────────────────────────────────────────────────────
+
+function loadExerciseMetricsPage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-metrics');
+    if (!el) return;
+    el.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    seedExerciseMetricDefsIfNeeded();
+    // Phase 3 will implement the full list here.
+}
+
+function loadExerciseMetricPage(dateOrNew) {
+    window.scrollTo(0, 0);
+    var label = (dateOrNew === 'new') ? 'New Entry' : dateOrNew;
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
+        '<span>' + label + '</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-metric');
+    if (!el) return;
+    el.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    // Phase 4 will implement the full entry form here.
+}
+
+function loadExerciseMetricDefsPage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
+        '<span>Manage Metrics</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-metric-defs');
+    if (!el) return;
+    el.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    // Phase 2 will implement the full manage screen here.
 }

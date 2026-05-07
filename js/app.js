@@ -143,7 +143,7 @@ const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'h
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
-                         'exercise', 'exercise-activities', 'exercise-types',
+                         'exercise', 'exercise-activities', 'exercise-types', 'exercise-metrics', 'exercise-metric-defs',
                          'legacy',
                          'private', 'private-bookmarks', 'private-documents', 'private-photos', 'private-photos-gallery',
                          'credentials',
@@ -183,7 +183,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'exercise-activity',
+    'exercise-activity', 'exercise-metric',
     'help'
 ];
 
@@ -224,7 +224,8 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
-                     'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types'];
+                     'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
+                     'exercise-metrics', 'exercise-metric', 'exercise-metric-defs'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -741,6 +742,15 @@ function handleRoute() {
     } else if (page === 'exercise-types') {
         showPage('exercise-types');
         loadExerciseTypesPage();
+    } else if (page === 'exercise-metrics') {
+        showPage('exercise-metrics');
+        loadExerciseMetricsPage();
+    } else if (page === 'exercise-metric' && id) {
+        showPage('exercise-metric');
+        loadExerciseMetricPage(id);
+    } else if (page === 'exercise-metric-defs') {
+        showPage('exercise-metric-defs');
+        loadExerciseMetricDefsPage();
     // ---------- My Legacy routes ----------
     } else if (page === 'legacy' && id === 'burial') {
         showPage('legacy-burial');
