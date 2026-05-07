@@ -281,3 +281,221 @@ Four phases. Each is independently shippable and builds on the previous. Phase 3
 Build one phase at a time and confirm before moving to the next. Phase 3 in particular is dense — keeping it isolated makes it easier to test and catch issues before building on top of it.
 
 **Prompt me phase by phase** unless you want to go faster and have me run through all four in sequence.
+
+---
+
+---
+
+# Section 2: Strava Integration — Future Consideration
+
+## Overview
+
+Garmin watches sync activities to Strava automatically. Strava has a well-documented public OAuth API that Bishop could use to import activities. This section documents everything researched so a future implementation has a solid starting point.
+
+---
+
+## Why Strava (Not Garmin Direct)
+
+Garmin has a Connect API but it is partner-gated — you must apply and be approved by Garmin. Not practical for a personal app.
+
+Strava has a free, publicly accessible OAuth API. Since Garmin already syncs to Strava, the data is already there. Strava is the right integration point.
+
+---
+
+## How OAuth Would Work on a Static GitHub Pages App
+
+Strava uses standard OAuth 2.0 authorization code flow:
+
+1. User clicks "Connect Strava" in Bishop settings
+2. Browser redirects to `https://www.strava.com/oauth/authorize?client_id=...&redirect_uri=https://dolphinstevekasputis.github.io/BishopHome/&scope=activity:read_all`
+3. User approves in Strava
+4. Strava redirects back to `https://dolphinstevekasputis.github.io/BishopHome/?code=abc123`
+5. Bishop detects `?code=` in `window.location.search` on page load
+6. Bishop POSTs to `https://www.strava.com/oauth/token` with the code, `client_id`, and `client_secret` to exchange for tokens (Strava allows CORS on this endpoint)
+7. Store `refresh_token` in `userCol('settings').doc('strava')` in Firestore
+8. Strip query string from URL (replaceState), navigate to `#exercise-activities`
+
+**Handling the client_secret:** Never hardcode it in source. Store `client_id` and `client_secret` in `userCol('settings').doc('strava')` in Firestore (same pattern as LLM API keys) — behind Firebase Auth login, fetched at runtime for the exchange.
+
+**Token refresh:** Access tokens expire every 6 hours. Before any API call, check `expiresAt`. If expired, POST to Strava token endpoint with `grant_type=refresh_token` to get a new access token silently.
+
+---
+
+## Complete Strava API Field Reference
+
+Fields available from the Strava API. Two endpoints:
+- **`GET /athlete/activities`** — lightweight SummaryActivity list, up to 200 per page
+- **`GET /activities/{id}`** — full DetailedActivity for one activity (richer data, one call per activity)
+
+### Fields Available from the List Endpoint (SummaryActivity)
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | Long | Strava activity ID — store as `stravaId` for deduplication |
+| `name` | String | Activity title set in Garmin/Strava |
+| `type` | String | e.g. Run, Walk, Ride, Hike, WeightTraining |
+| `sport_type` | String | More specific: TrailRun, MountainBikeRide, VirtualRide, etc. |
+| `workout_type` | Integer | Classification: easy run, race, long run, workout |
+| `start_date_local` | Date | Local-time start — prefer over `start_date` (UTC) |
+| `distance` | Float | Meters — divide by 1609.34 for miles |
+| `moving_time` | Integer | Seconds of active movement — divide by 60 for minutes |
+| `elapsed_time` | Integer | Seconds total including pauses — different from moving_time if you paused |
+| `total_elevation_gain` | Float | Meters gained — multiply by 3.28084 for feet |
+| `average_speed` | Float | m/s — mostly useful for cycling |
+| `max_speed` | Float | m/s peak |
+| `average_cadence` | Float | Steps/min (running) or RPM (cycling) |
+| `average_watts` | Float | Power output — only if power meter used |
+| `max_watts` | Integer | Peak watts |
+| `weighted_average_watts` | Integer | Normalized power |
+| `kilojoules` | Float | Energy output in kJ (more precise than calories for cycling) |
+| `device_watts` | Boolean | Whether watts came from a real device |
+| `has_heartrate` | Boolean | True if HR data was recorded |
+| `average_heartrate` | Float | BPM average |
+| `max_heartrate` | Integer | BPM peak |
+| `suffer_score` | Integer | Strava relative effort score |
+| `calories` | Float | Estimated calories burned |
+| `trainer` | Boolean | True if treadmill or indoor trainer |
+| `commute` | Boolean | Marked as commute |
+| `manual` | Boolean | Manually entered (not recorded by device) |
+| `private` | Boolean | Privacy setting |
+| `gear_id` | String | Which shoes or bike |
+| `device_name` | String | e.g. "Garmin Forerunner 955" |
+| `pr_count` | Integer | Personal records set in this activity |
+| `achievement_count` | Integer | Achievements unlocked |
+| `kudos_count` | Integer | Kudos received |
+| `start_latlng` | Array | [lat, lng] start coordinates |
+| `map` | PolylineMap | Encoded polyline of the route — renderable with Leaflet (already in Bishop) |
+| `timezone` | String | Activity timezone |
+
+### Additional Fields Only in DetailedActivity (one API call per activity)
+
+| Field | Type | Notes |
+|---|---|---|
+| `description` | String | Notes written in Garmin/Strava |
+| `average_temp` | Float | Average temperature during activity |
+| `elev_high` / `elev_low` | Float | Peak and valley elevation in meters |
+| `max_cadence` | Float | Peak cadence |
+| `laps` | Array | Lap-by-lap breakdown: time, distance, pace, HR per lap |
+| `splits_metric` | Array | Per-km splits with pace, HR, elevation |
+| `segment_efforts` | Array | Performance on named Strava segments |
+| `photos` | PhotosSummary | Photos attached to the activity |
+| `gear` | SummaryGear | Full gear details object |
+| `external_id` | String | Garmin internal activity ID |
+| `upload_id` | Long | Strava upload identifier |
+
+### Fields NOT Available in the Strava API
+- Heart rate zones (zone distribution)
+- Training load / TSS (Training Stress Score)
+- Full GPS point stream (only encoded polyline — no raw lat/lng array unless using Streams API separately)
+- Weather data beyond `average_temp`
+- Perceived exertion rating
+- Individual split details beyond aggregate metrics
+
+---
+
+## Proposed Field Tiers for Bishop Import
+
+### Tier 1 — Capture on initial import (all from list endpoint, no extra API calls)
+
+Store alongside existing `exerciseActivities` fields:
+
+| Field | Maps to |
+|---|---|
+| `id` | `stravaId` (deduplication key) |
+| `average_heartrate` / `max_heartrate` | New fields on activity |
+| `total_elevation_gain` | New field, store meters, display as feet |
+| `elapsed_time` | New field alongside `durationMinutes` (moving_time) |
+| `suffer_score` | New field |
+| `workout_type` | New field |
+| `trainer` | New boolean field — was this indoors? |
+| `average_cadence` | New field |
+| `device_name` | New field |
+| `name` | Goes into `comment` OR a separate `stravaName` field — see Open Questions |
+| `sport_type` | Used for type mapping (more specific than `type`) |
+
+### Tier 2 — Easy to add, decide at build time
+
+- `average_temp`
+- `elev_high` / `elev_low`
+- `average_speed` / `max_speed`
+- `kilojoules`
+- `pr_count`
+- `gear_id` / `gear.name`
+
+### Tier 3 — Significant UI work, plan separately
+
+- **Map** — decode polyline and render on Leaflet (already loaded in Bishop); needs a map section on the activity detail page
+- **Laps / splits** — need their own table/detail view
+- **Photos** — requires DetailedActivity call; would integrate with existing Bishop photo system
+- **Description** — requires DetailedActivity call; needs throttling for bulk import
+- **Segment efforts** — niche, probably not worth it
+
+---
+
+## Type Mapping: Strava sport_type → Bishop exerciseTypes
+
+| Strava `sport_type` | Bishop type |
+|---|---|
+| Run | Running |
+| TrailRun | Trail Running |
+| Walk | Walking |
+| Hike | Hiking |
+| VirtualRun / Treadmill | Treadmill |
+| Golf | Golf |
+| WeightTraining | Weights |
+| Ride / EBikeRide | Bike |
+| VirtualRide | Stationary Bike |
+| Elliptical | Elliptical |
+| Rowing | Row Machine |
+| *anything else* | Auto-create new exerciseType with `tracksMiles` inferred from `distance > 0` |
+
+---
+
+## Deduplication Strategy
+
+- Store `stravaId` on every imported `exerciseActivity` doc
+- Before writing any activity, query `where('stravaId', '==', activity.id)` — skip if already exists
+- Incremental sync can run safely any number of times
+- Manually-logged Bishop activities (no `stravaId`) are never touched
+- If a user logged something manually AND it synced from Garmin, there will be a duplicate — visually mark Strava-imported rows with a small badge so they are distinguishable
+
+---
+
+## Rate Limits
+
+Strava free tier: **100 requests per 15 minutes, 1,000 per day**
+
+- List endpoint: 200 activities per page → 500 historical activities = 3 requests (trivial)
+- Ongoing sync: 1 request per run
+- DetailedActivity (Tier 3): 1 call per activity — needs throttling for bulk historical import; not a concern for Tier 1/2
+
+---
+
+## Implementation Phases (When Ready to Build)
+
+### Phase A — Connect + Historical Import (~1 day)
+- Settings page: "Connect Strava" button → OAuth flow
+- On success: date range picker → preview list of activities to import → confirm → write to Firestore
+- Import Tier 1 fields
+- Progress indicator for large imports
+
+### Phase B — Ongoing Sync (~2–3 hours on top of Phase A)
+- "Sync from Strava" button on Activities list (or in Settings)
+- Pulls activities newer than the most recent imported `stravaId`
+- Shows "N new activities imported" feedback toast
+
+### Phase C — Rich Data / Tier 3 (1–2 days, separate decision)
+- Map display on activity detail page (Leaflet polyline decode)
+- Laps / splits table
+- Requires DetailedActivity API calls with throttling
+
+---
+
+## Open Questions for When This Gets Built
+
+1. **Activity name vs comment** — should Strava `name` (e.g. "Morning Run") go into `comment` or a separate `stravaName` field? If it goes into `comment`, manually-edited comments would conflict on re-sync.
+2. **Elevation units** — store meters (Strava native) or feet (display preference)? Recommended: store meters, convert on display.
+3. **moving_time vs elapsed_time** — `durationMinutes` should map to `moving_time` (active time). Store `elapsed_time` separately for reference.
+4. **Connect/disconnect location** — should the Strava OAuth flow live in the Exercise section or in Settings?
+5. **Unknown sport_type mapping** — auto-create silently or prompt the user to confirm the new type?
+6. **Historical import scope** — all-time, or cap at some date to avoid importing years of data on first connect?
