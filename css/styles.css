@@ -17339,6 +17339,14 @@ a.legacy-fin-card:hover {
     margin: 0;
     font-size: 1.25rem;
 }
+.dm-entry-btn {
+    display: inline-block;
+    text-decoration: none;
+    padding: 6px 14px;
+    font-size: 0.88rem;
+    border-radius: 4px;
+    line-height: 1.4;
+}
 .dm-list-actions {
     display: flex;
     gap: 8px;
@@ -17395,7 +17403,7 @@ a.legacy-fin-card:hover {
 }
 .dm-table th,
 .dm-table td {
-    padding: 5px 8px;
+    padding: 4px 6px;
     border-bottom: 1px solid #e0e0e0;
     text-align: left;
     white-space: nowrap;
@@ -17422,6 +17430,18 @@ a.legacy-fin-card:hover {
 .dm-date-cell {
     font-weight: 500;
     white-space: nowrap;
+}
+.dm-col-num {
+    text-align: right;
+    padding-right: 10px;
+}
+.dm-col-text {
+    white-space: normal;
+    word-break: break-word;
+    min-width: 180px;
+    max-width: 280px;
+    font-size: 0.83rem;
+    color: #444;
 }
 
 /* Mobile cards */
@@ -17596,6 +17616,30 @@ a.legacy-fin-card:hover {
 .dm-note-textarea:focus {
     outline: none;
     border-color: #1a73e8;
+}
+
+/* Text-type custom metric — full-width textarea, no note toggle */
+.dm-entry-group--text {
+    margin-bottom: 14px;
+}
+.dm-text-field {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+    resize: vertical;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.dm-text-field:focus {
+    outline: none;
+    border-color: #1a73e8;
+}
+@media (max-width: 480px) {
+    .dm-text-field { max-width: 100%; font-size: 0.9rem; }
 }
 
 /* Boolean checkbox */

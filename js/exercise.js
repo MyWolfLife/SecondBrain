@@ -1167,7 +1167,7 @@ function _dmRenderMetricsPage(el) {
             '<h2>Daily Metrics</h2>' +
             '<div class="dm-list-actions">' +
                 '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Metrics</a>' +
-                '<a href="#exercise-metric/new" class="ex-action-btn">+ Entry</a>' +
+                '<a href="#exercise-metric/new" class="btn-primary dm-entry-btn">+ Entry</a>' +
             '</div>' +
         '</div>' +
         '<div class="dm-filter-bar">' +
@@ -1398,13 +1398,17 @@ function _dmBuildTable(records, summary) {
     thead += '<tr class="dm-summary-row"><td></td>';
     stdCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
-        thead += '<td>' + _exEsc(summary.custom[def.id] || '') + '</td>';
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
+        thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
     stdCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
-    _dmMetricDefs.forEach(function(def) { thead += '<th>' + _exEsc(def.name) + '</th>'; });
+    _dmMetricDefs.forEach(function(def) {
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
+        thead += '<th' + cls + '>' + _exEsc(def.name) + '</th>';
+    });
     thead += '</tr></thead>';
 
     // Body
@@ -1416,20 +1420,23 @@ function _dmBuildTable(records, summary) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             if (typeof v === 'number') v = v.toLocaleString();
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
-            tbody += '<td>' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
+            tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
         });
         _dmMetricDefs.forEach(function(def) {
             var cv = r.customValues && r.customValues[def.id];
             var display = '';
+            var cls = '';
             if (def.type === 'boolean') {
                 display = cv === true ? 'Y' : '—';
             } else if (def.type === 'number') {
                 display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) : '—';
             } else {
-                display = cv ? _exEsc(String(cv)).substring(0, 20) : '—';
+                // text — show full value, allow wrapping
+                display = cv ? _exEsc(String(cv)) : '—';
+                cls = ' class="dm-col-text"';
             }
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
-            tbody += '<td>' + display + _dmNoteIcon(note, true) + '</td>';
+            tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
         });
         tbody += '</tr>';
     });
@@ -1581,15 +1588,25 @@ function _dmBuildEntryForm(el) {
             '</div>' +
             (helpText ? '<p class="ex-hint">' + _exEsc(helpText) + '</p>' : '') +
             '<div class="dm-note-area' + (hasNote ? ' dm-note-area--open' : '') + '" data-note-key="' + _exEsc(noteKey || id) + '">' +
-                '<textarea class="dm-note-textarea" rows="2" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
+                '<textarea class="dm-note-textarea" rows="4" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
             '</div>' +
         '</div>';
     }
 
     function customField(def) {
-        var val  = cv[def.id] !== undefined ? cv[def.id] : '';
+        var val     = cv[def.id] !== undefined ? cv[def.id] : '';
         var noteVal = notes[def.id] || '';
         var hasNote = noteVal.length > 0;
+
+        // Text fields: the textarea IS the note — no separate toggle or note area
+        if (def.type === 'text') {
+            return '<div class="dm-entry-group dm-entry-group--text">' +
+                '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
+                '<textarea id="dmf-' + def.id + '" class="dm-text-field" rows="4" ' +
+                    'placeholder="…">' + _exEsc(val !== '' ? String(val) : '') + '</textarea>' +
+            '</div>';
+        }
+
         var inputHtml = '';
         if (def.type === 'boolean') {
             var checked = val === true ? ' checked' : '';
@@ -1597,13 +1614,11 @@ function _dmBuildEntryForm(el) {
                 '<input type="checkbox" id="dmf-' + def.id + '" class="dm-bool-input"' + checked + '> ' +
                 '<span>Yes</span>' +
             '</label>';
-        } else if (def.type === 'number') {
+        } else {
+            // number
             inputHtml = '<input type="text" inputmode="decimal" id="dmf-' + def.id + '" ' +
                 'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">' +
                 (def.unitLabel ? '<span class="dm-entry-unit">' + _exEsc(def.unitLabel) + '</span>' : '');
-        } else {
-            inputHtml = '<input type="text" id="dmf-' + def.id + '" ' +
-                'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">';
         }
         return '<div class="dm-entry-group">' +
             '<div class="dm-entry-field-row">' +
@@ -1615,7 +1630,7 @@ function _dmBuildEntryForm(el) {
                 '</div>' +
             '</div>' +
             '<div class="dm-note-area' + (hasNote ? ' dm-note-area--open' : '') + '" data-note-key="' + _exEsc(def.id) + '">' +
-                '<textarea class="dm-note-textarea" rows="2" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
+                '<textarea class="dm-note-textarea" rows="4" placeholder="Note…">' + _exEsc(noteVal) + '</textarea>' +
             '</div>' +
         '</div>';
     }
