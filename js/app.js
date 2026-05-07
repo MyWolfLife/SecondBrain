@@ -143,6 +143,7 @@ const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'h
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
+                         'exercise', 'exercise-activities', 'exercise-types',
                          'legacy',
                          'private', 'private-bookmarks', 'private-documents', 'private-photos', 'private-photos-gallery',
                          'credentials',
@@ -221,7 +222,8 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'credentials', 'credentials-add', 'credentials-edit', 'credentials-categories',
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
-                     'budget', 'budget-archive', 'budget-nonmonthly'];
+                     'budget', 'budget-archive', 'budget-nonmonthly',
+                     'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -725,6 +727,19 @@ function handleRoute() {
     } else if (page === 'life-project' && id) {
         showPage('life-project');
         loadLifeProjectDetailPage(id);
+    // ---------- Exercise routes ----------
+    } else if (page === 'exercise') {
+        showPage('exercise');
+        loadExercisePage();
+    } else if (page === 'exercise-activities') {
+        showPage('exercise-activities');
+        loadExerciseActivitiesPage();
+    } else if (page === 'exercise-activity' && id) {
+        showPage('exercise-activity');
+        loadExerciseActivityPage(id);
+    } else if (page === 'exercise-types') {
+        showPage('exercise-types');
+        loadExerciseTypesPage();
     // ---------- My Legacy routes ----------
     } else if (page === 'legacy' && id === 'burial') {
         showPage('legacy-burial');

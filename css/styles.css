@@ -13833,6 +13833,49 @@ a.health-chip--link:hover { filter: brightness(0.93); }
 .landing-tile--investments { background: #e8f5e9; }
 .landing-tile--investments:hover { background: #c8e6c9; }
 
+/* ============================================================
+   EXERCISE
+   ============================================================ */
+
+/* Life page tile — orange gradient */
+.landing-tile--exercise {
+    background: linear-gradient(135deg, #ea580c, #fb923c);
+    color: #fff;
+}
+.landing-tile--exercise:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(234, 88, 12, 0.35);
+}
+
+/* Exercise hub: Activities sub-tile */
+.landing-tile--exercise-activities {
+    background: linear-gradient(135deg, #16a34a, #4ade80);
+    color: #fff;
+}
+.landing-tile--exercise-activities:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+}
+
+/* Coming-soon tile — greyed out, not clickable */
+.landing-tile--coming-soon {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border: 2px dashed #d1d5db;
+    cursor: default;
+    pointer-events: none;
+    position: relative;
+}
+.coming-soon-badge {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
 /* Person row */
 .invest-person-row {
     display: flex;

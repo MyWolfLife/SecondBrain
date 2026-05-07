@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=686">
+    <link rel="stylesheet" href="css/styles.css?v=687">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -6900,6 +6900,10 @@ service firebase.storage {
                     <span class="landing-tile-icon">📈</span>
                     <span class="landing-tile-label">Financial</span>
                 </a>
+                <a href="#exercise" class="landing-tile landing-tile--exercise" data-tile-id="exercise">
+                    <span class="landing-tile-icon">🏃</span>
+                    <span class="landing-tile-label">Exercise</span>
+                </a>
                 <a href="#private" class="landing-tile landing-tile--private hidden" id="private-life-tile" data-tile-id="private">
                     <span class="landing-tile-icon">🔐</span>
                     <span class="landing-tile-label">Private</span>
@@ -6914,6 +6918,30 @@ service firebase.storage {
         <!-- ═══════════════════════════════════════════════════════════
              LIFE CALENDAR PAGES — calendar view, event detail/create
              ═══════════════════════════════════════════════════════════ -->
+
+        <!-- ═══════════════════════════════════════════════════════════
+             EXERCISE PAGES — hub, activities, activity detail, types
+             ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Page: Exercise Hub (#exercise) -->
+        <section class="page hidden" id="page-exercise">
+            <!-- Populated by loadExercisePage() in exercise.js -->
+        </section>
+
+        <!-- Page: Exercise Activities List (#exercise-activities) -->
+        <section class="page hidden" id="page-exercise-activities">
+            <!-- Populated by loadExerciseActivitiesPage() in exercise.js -->
+        </section>
+
+        <!-- Page: Exercise Activity Detail / New (#exercise-activity/new, #exercise-activity/:id) -->
+        <section class="page hidden" id="page-exercise-activity">
+            <!-- Populated by loadExerciseActivityPage() in exercise.js -->
+        </section>
+
+        <!-- Page: Manage Activity Types (#exercise-types) -->
+        <section class="page hidden" id="page-exercise-types">
+            <!-- Populated by loadExerciseTypesPage() in exercise.js -->
+        </section>
 
         <!-- Page: Life Calendar (#life-calendar) -->
         <section class="page hidden" id="page-life-calendar">
@@ -10756,6 +10784,7 @@ export default {
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
     <script src="js/life-projects.js?v=458"></script>
+    <script src="js/exercise.js?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>
@@ -10777,7 +10806,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=658"></script>
+    <script src="js/app.js?v=659"></script>
 
 </body>
 </html>
