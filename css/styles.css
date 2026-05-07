@@ -13856,6 +13856,14 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
 }
+.landing-tile--exercise-metrics {
+    background: linear-gradient(135deg, #0369a1, #38bdf8);
+    color: #fff;
+}
+.landing-tile--exercise-metrics:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(3, 105, 161, 0.35);
+}
 
 /* Coming-soon tile — greyed out, not clickable */
 .landing-tile--coming-soon {
@@ -17338,47 +17346,22 @@ a.legacy-fin-card:hover {
 
 /* Filter bar */
 .dm-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 10px;
 }
-.dm-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
-}
-.dm-pill {
-    padding: 4px 12px;
-    border: 1px solid #bbb;
-    border-radius: 16px;
+.dm-filter-select {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.9rem;
     background: #fff;
-    font-size: 0.83rem;
     cursor: pointer;
-    white-space: nowrap;
+    min-width: 140px;
 }
-.dm-pill:hover { background: #f0f0f0; }
-.dm-pill.dm-filter-active,
-.dm-month-btn.dm-filter-active {
-    background: #1a73e8;
-    color: #fff;
-    border-color: #1a73e8;
-}
-.dm-month-grid {
-    display: grid;
-    grid-template-columns: repeat(3, auto);
-    gap: 5px;
-    width: fit-content;
-    margin-bottom: 8px;
-}
-.dm-month-btn {
-    padding: 3px 10px;
-    border: 1px solid #bbb;
-    border-radius: 12px;
-    background: #fff;
-    font-size: 0.8rem;
-    cursor: pointer;
-    white-space: nowrap;
-}
-.dm-month-btn:hover { background: #f0f0f0; }
+.dm-filter-select:focus { outline: none; border-color: #1a73e8; }
 .dm-custom-row {
     display: flex;
     align-items: center;
@@ -17517,9 +17500,8 @@ a.legacy-fin-card:hover {
 }
 
 @media (max-width: 480px) {
-    .dm-pills { gap: 4px; }
-    .dm-pill { padding: 3px 9px; font-size: 0.78rem; }
-    .dm-month-btn { padding: 2px 7px; font-size: 0.76rem; }
+    .dm-filter-select { font-size: 0.85rem; }
+    .dm-date-input { font-size: 0.85rem; }
 }
 
 /* ── Daily Metrics: Entry form ───────────────────────────────────────────── */

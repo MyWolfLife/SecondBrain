@@ -1171,30 +1171,32 @@ function _dmRenderMetricsPage(el) {
     var today = new Date();
     var thisYear = today.getFullYear();
     var thisMonth = today.getMonth(); // 0-based
-
     var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    // Build month shortcut buttons
-    var monthBtns = '';
+    // Build <select> options
+    var opts = '';
+    var ranges = [
+        ['lastWeek','Last Week'], ['thisWeek','This Week'], ['thisMonth','This Month'],
+        ['lastMonth','Last Month'], ['thisYear','This Year'], ['lastYear','Last Year']
+    ];
+    ranges.forEach(function(r) {
+        var sel = _dmRangeFilter === r[0] ? ' selected' : '';
+        opts += '<option value="' + r[0] + '"' + sel + '>' + r[1] + '</option>';
+    });
+    opts += '<optgroup label="─────────────────"></optgroup>';
     for (var m = 0; m < 12; m++) {
         var isLastYear = (m > thisMonth);
         var yr = isLastYear ? thisYear - 1 : thisYear;
         var key = 'month-' + m + '-' + yr;
         var label = monthNames[m] + (isLastYear ? ' \'' + String(yr).slice(2) : '');
-        var sel = (_dmRangeFilter === key) ? ' dm-filter-active' : '';
-        monthBtns += '<button class="dm-month-btn' + sel + '" data-filter="' + _exEsc(key) + '">' + _exEsc(label) + '</button>';
+        var sel2 = _dmRangeFilter === key ? ' selected' : '';
+        opts += '<option value="' + key + '"' + sel2 + '>' + label + '</option>';
     }
+    opts += '<optgroup label="─────────────────"></optgroup>';
+    var customSel = _dmRangeFilter === 'custom' ? ' selected' : '';
+    opts += '<option value="custom"' + customSel + '>Custom…</option>';
 
-    // Dynamic range pills
-    var pills = [
-        ['lastWeek','Last Week'], ['thisWeek','This Week'], ['thisMonth','This Month'],
-        ['lastMonth','Last Month'], ['thisYear','This Year'], ['lastYear','Last Year']
-    ];
-    var pillHtml = '';
-    pills.forEach(function(p) {
-        var sel = (_dmRangeFilter === p[0]) ? ' dm-filter-active' : '';
-        pillHtml += '<button class="dm-pill' + sel + '" data-filter="' + p[0] + '">' + p[1] + '</button>';
-    });
+    var customDisplay = _dmRangeFilter === 'custom' ? 'flex' : 'none';
 
     el.innerHTML =
         '<div class="dm-list-header">' +
@@ -1205,27 +1207,32 @@ function _dmRenderMetricsPage(el) {
             '</div>' +
         '</div>' +
         '<div class="dm-filter-bar">' +
-            '<div class="dm-pills">' + pillHtml + '</div>' +
-            '<div class="dm-month-grid">' + monthBtns + '</div>' +
-            '<div class="dm-custom-row" id="dmCustomRow" style="display:none">' +
-                '<input type="date" id="dmCustomStart" class="dm-date-input"> – ' +
-                '<input type="date" id="dmCustomEnd" class="dm-date-input">' +
+            '<select id="dmFilterSelect" class="dm-filter-select">' + opts + '</select>' +
+            '<div class="dm-custom-row" id="dmCustomRow" style="display:' + customDisplay + '">' +
+                '<input type="date" id="dmCustomStart" class="dm-date-input" value="' + _exEsc(_dmCustomStart) + '"> – ' +
+                '<input type="date" id="dmCustomEnd" class="dm-date-input" value="' + _exEsc(_dmCustomEnd) + '">' +
                 '<button id="dmCustomLoad" class="ex-action-btn">Load</button>' +
             '</div>' +
         '</div>' +
         '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
         '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
 
-    // Wire pill/month filter buttons
-    el.querySelectorAll('[data-filter]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            _dmRangeFilter = btn.dataset.filter;
-            // Update active state
-            el.querySelectorAll('[data-filter]').forEach(function(b) { b.classList.remove('dm-filter-active'); });
-            btn.classList.add('dm-filter-active');
-            document.getElementById('dmCustomRow').style.display = 'none';
+    document.getElementById('dmFilterSelect').addEventListener('change', function() {
+        _dmRangeFilter = this.value;
+        var customRow = document.getElementById('dmCustomRow');
+        if (_dmRangeFilter === 'custom') {
+            customRow.style.display = 'flex';
+        } else {
+            customRow.style.display = 'none';
             _dmApplyFilter();
-        });
+        }
+    });
+
+    document.getElementById('dmCustomLoad').addEventListener('click', function() {
+        _dmCustomStart = document.getElementById('dmCustomStart').value;
+        _dmCustomEnd   = document.getElementById('dmCustomEnd').value;
+        if (!_dmCustomStart || !_dmCustomEnd) { alert('Please select both a start and end date.'); return; }
+        _dmApplyFilter();
     });
 
     _dmApplyFilter();
