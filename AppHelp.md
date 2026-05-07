@@ -3373,10 +3373,10 @@ Each activity shows as a two-line card:
 - Pick an **Activity Type** from the searchable dropdown — type to filter, then click to select
 - Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked two quick questions to set it up
 - **Date** defaults to today; **Time** is optional
-- **Duration** is in decimal minutes (e.g. `25.5` = 25:30)
+- **Duration** is in decimal minutes — type a number like `45.5` and the field shows the MM:SS conversion live (45:30) so you can verify
 - **Miles** and **With Dogs** appear only for types that track them
 - **Pace** is calculated automatically once you have miles and duration
-- Tap **Save Activity** when done; tap the back arrow to cancel
+- Tap **Save Activity** when done; use the breadcrumb or **Cancel** to go back without saving
 - To delete, tap **Delete** at the bottom (only visible in edit mode)
 
 ### Field details
@@ -3385,7 +3385,7 @@ Each activity shows as a two-line card:
 | Activity Type | Required. Searchable — just start typing |
 | Date | Required. Defaults to today |
 | Time | Optional — leave blank if you don't need it |
-| Duration | Decimal minutes. 25.5 = 25 min 30 sec. Shown as MM:SS below the field |
+| Duration | Decimal minutes (e.g. 45.5). A live hint shows the MM:SS equivalent as you type |
 | Miles | Only shown for types that track distance (Running, Walking, etc.) |
 | Calories | Optional, any type |
 | With Dogs | Checkbox — only shown if the type supports it |

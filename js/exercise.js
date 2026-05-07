@@ -68,11 +68,16 @@ var _exPendingTracksMiles = null;  // answer to Q1 during add-on-fly flow
 // ─── Hub page ─────────────────────────────────────────────────────────────────
 
 function loadExercisePage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span><span>Exercise</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
     var el = document.getElementById('page-exercise');
     if (!el) return;
     el.innerHTML =
         '<div class="page-header">' +
-            '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#life\'">&#8592; Life</button>' +
             '<h2>Exercise</h2>' +
         '</div>' +
         '<div class="landing-grid">' +
@@ -96,6 +101,13 @@ function loadExercisePage() {
 // ─── Activities list page ─────────────────────────────────────────────────────
 
 async function loadExerciseActivitiesPage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Activities</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
     seedExerciseTypesIfNeeded();
     _exGoToDate = '';
 
@@ -119,7 +131,6 @@ function _exBuildActivitiesPage() {
 
     el.innerHTML =
         '<div class="page-header">' +
-            '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#exercise\'">&#8592; Exercise</button>' +
             '<h2>Activities</h2>' +
             '<button class="btn btn-primary btn-small" onclick="location.hash=\'#exercise-activity/new\'">+ Activity</button>' +
         '</div>' +
@@ -376,6 +387,7 @@ function _exBuildCards(activities) {
 // ─── Activity detail / edit page ─────────────────────────────────────────────
 
 async function loadExerciseActivityPage(id) {
+    window.scrollTo(0, 0);
     seedExerciseTypesIfNeeded();
 
     _exEditId         = (id === 'new') ? null : id;
@@ -438,9 +450,16 @@ function _exBuildActivityForm(existing) {
     var calories = (existing && existing.calories != null) ? existing.calories : '';
     var comment  = existing ? (existing.comment || '') : '';
 
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-activities">Activities</a><span class="separator">&rsaquo;</span>' +
+        '<span>' + (isNew ? 'New Activity' : 'Edit Activity') + '</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
     el.innerHTML =
         '<div class="page-header">' +
-            '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#exercise-activities\'">&#8592; Activities</button>' +
             '<h2>' + (isNew ? 'New Activity' : 'Edit Activity') + '</h2>' +
         '</div>' +
 
@@ -484,9 +503,9 @@ function _exBuildActivityForm(existing) {
 
             // ── Duration ────────────────────────────────────────────────────
             '<div class="ex-form-group">' +
-                '<label class="ex-label" for="exDuration">Duration <span class="ex-field-note">(decimal minutes)</span></label>' +
-                '<input type="number" id="exDuration" class="ex-input-short" step="0.5" min="0" placeholder="e.g. 45 or 25.5" value="' + duration + '">' +
-                '<p class="ex-hint">Enter decimal minutes — 25.5 = 25 min 30 sec</p>' +
+                '<label class="ex-label" for="exDuration">Duration <span class="ex-field-note">(minutes)</span></label>' +
+                '<input type="number" id="exDuration" class="ex-input-short" step="0.5" min="0" placeholder="e.g. 45.5" value="' + duration + '">' +
+                '<p class="ex-hint" id="exDurationHint">' + _exFmtDurationHint(duration) + '</p>' +
             '</div>' +
 
             // ── Miles (conditional) ──────────────────────────────────────────
@@ -558,8 +577,11 @@ function _exBuildActivityForm(existing) {
     document.getElementById('exAddTypeDogsYes').addEventListener('click',  function() { _exAddTypeAnswerDogs(true); });
     document.getElementById('exAddTypeDogsNo').addEventListener('click',   function() { _exAddTypeAnswerDogs(false); });
 
-    // Pace preview: update when miles or duration changes
-    document.getElementById('exDuration').addEventListener('input', _exUpdatePacePreview);
+    // Duration hint + pace preview: update when duration changes
+    document.getElementById('exDuration').addEventListener('input', function() {
+        _exUpdateDurationHint();
+        _exUpdatePacePreview();
+    });
     document.getElementById('exMiles') && document.getElementById('exMiles').addEventListener('input', _exUpdatePacePreview);
 
     // Save and delete
@@ -699,6 +721,23 @@ async function _exAddTypeAnswerDogs(yes) {
     }
 }
 
+// ─── Duration hint ────────────────────────────────────────────────────────────
+
+/** Returns a friendly hint string for the duration field. */
+function _exFmtDurationHint(val) {
+    var n = parseFloat(val);
+    if (isNaN(n) || val === '' || val == null) return 'Enter decimal minutes — e.g. 45.5';
+    var formatted = exFmtDuration(n);
+    return n + ' min = ' + formatted;
+}
+
+function _exUpdateDurationHint() {
+    var hint = document.getElementById('exDurationHint');
+    var durEl = document.getElementById('exDuration');
+    if (!hint || !durEl) return;
+    hint.textContent = _exFmtDurationHint(durEl.value);
+}
+
 // ─── Pace preview ─────────────────────────────────────────────────────────────
 
 function _exUpdatePacePreview() {
@@ -782,13 +821,21 @@ async function _exDeleteActivity() {
 var _exTypesAll = [];  // full list loaded for the types page
 
 async function loadExerciseTypesPage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-activities">Activities</a><span class="separator">&rsaquo;</span>' +
+        '<span>Manage Types</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
     seedExerciseTypesIfNeeded();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 
     el.innerHTML =
         '<div class="page-header">' +
-            '<button class="btn btn-secondary btn-small" onclick="location.hash=\'#exercise-activities\'">&#8592; Activities</button>' +
             '<h2>Manage Activity Types</h2>' +
         '</div>' +
         '<div id="exTypesListWrap"><p class="ex-types-loading">Loading…</p></div>';

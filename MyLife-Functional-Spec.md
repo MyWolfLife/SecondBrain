@@ -1076,7 +1076,7 @@ Exercise tracking lives in the Life section. Currently only the Activities featu
 
 ### Exercise Hub (`#exercise`)
 Three cards: **Activities** (active), **Goals** (coming soon), **Summary** (coming soon).
-Back button returns to Life page.
+Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
 
 ### Activities List (`#exercise-activities`, `exercise.js`)
 Displays logged exercise activities in a filterable, sortable list.
@@ -1104,12 +1104,12 @@ Displays logged exercise activities in a filterable, sortable list.
 **Firestore**: loads up to 500 most-recent `exerciseActivities` docs, filtered client-side.
 
 ### New / Edit Activity (`#exercise-activity/:id`)
-Route param is `new` for create, or a Firestore doc ID for edit. Back button returns to Activities list.
+Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Life › Exercise › Activities › New/Edit Activity. Navigate back via breadcrumb or Cancel button.
 
 **Form fields:**
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
 - **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs
-- **Duration** — decimal minutes (e.g. `25.5` = 25 min 30 sec); displayed as MM:SS below the field
+- **Duration** — decimal minutes (e.g. `45.5`); live hint below field shows the MM:SS conversion as you type (e.g. "45.5 min = 45:30")
 - **Miles** — shown only when the selected type has `tracksMiles: true`
 - **Pace** — auto-calculated (min/mile) shown as a read-only preview beneath Miles + Duration
 - **Calories** — always shown
@@ -1128,7 +1128,7 @@ Route param is `new` for create, or a Firestore doc ID for edit. Back button ret
 **Firestore collections**: `exerciseActivities` (fields: `typeId`, `activityDate`, `durationMin`, `miles`, `calories`, `withDogs`, `notes`), `exerciseTypes` (fields: `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`).
 
 ### Manage Activity Types (`#exercise-types`)
-Lists all non-archived types, sorted built-ins first (alphabetical) then custom (alphabetical). Back button returns to Activities list.
+Lists all non-archived types, sorted built-ins first (alphabetical) then custom (alphabetical). Breadcrumb: Life › Exercise › Activities › Manage Types.
 
 - **Built-in types** (13 defaults): shown with name + flag icons + "built-in" badge. No edit/delete buttons.
 - **Custom types**: shown with name + flag icons + **Rename** and **Delete** buttons.
