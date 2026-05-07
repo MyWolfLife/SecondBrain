@@ -3411,6 +3411,28 @@ Each activity shows as a two-line card:
 
 ---
 
+## screen:exercise-metrics
+
+**What this screen is for:** Browse your daily health and habit journal entries. Filter by date range, see summary averages, and tap any record to view or edit it.
+
+### Quick Help
+- **Filter pills** (Last Week, This Week, This Month, etc.) and **month shortcut buttons** change the date range — the list reloads automatically
+- Months that belong to last year show an abbreviated year tag (e.g. "Aug '25"); current-year months show no tag
+- **N records** label below the filter bar shows how many entries match
+- **Desktop**: data appears as a table with a tinted **summary row** at the top showing averages for the period
+- **Mobile**: each entry is a card showing the date, standard metrics, and your custom metrics
+- **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
+- Click or tap any row/card to open that day's entry form
+- **+ Entry** button: create a new entry for today (or any date)
+- **Manage Metrics** link: add, reorder, or remove your custom metric definitions
+
+### When to use this
+- Review trends over the past week or month at a glance
+- Jump to a specific month using the shortcut buttons
+- Find a specific day's entry to edit or review
+
+---
+
 ## screen:exercise-metric-defs
 
 **What this screen is for:** Create, reorder, and delete your custom daily metric definitions — the extra fields that appear on every daily entry form below the standard metrics.

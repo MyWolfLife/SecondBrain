@@ -17317,6 +17317,211 @@ a.legacy-fin-card:hover {
     min-width: 100px;
 }
 
+/* ── Daily Metrics: List screen ─────────────────────────────────────────── */
+
+.dm-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.dm-list-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+.dm-list-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Filter bar */
+.dm-filter-bar {
+    margin-bottom: 10px;
+}
+.dm-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.dm-pill {
+    padding: 4px 12px;
+    border: 1px solid #bbb;
+    border-radius: 16px;
+    background: #fff;
+    font-size: 0.83rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.dm-pill:hover { background: #f0f0f0; }
+.dm-pill.dm-filter-active,
+.dm-month-btn.dm-filter-active {
+    background: #1a73e8;
+    color: #fff;
+    border-color: #1a73e8;
+}
+.dm-month-grid {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 5px;
+    width: fit-content;
+    margin-bottom: 8px;
+}
+.dm-month-btn {
+    padding: 3px 10px;
+    border: 1px solid #bbb;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.dm-month-btn:hover { background: #f0f0f0; }
+.dm-custom-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.dm-date-input {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+}
+
+/* Records label */
+.dm-records-label {
+    font-size: 0.82rem;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+/* Desktop table */
+.dm-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.dm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    min-width: 600px;
+}
+.dm-table th,
+.dm-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+    white-space: nowrap;
+}
+.dm-summary-row td {
+    background: #f0f4ff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #333;
+}
+.dm-header-row th {
+    background: #f5f5f5;
+    font-weight: 600;
+    font-size: 0.8rem;
+    position: sticky;
+    top: 0;
+}
+.dm-data-row {
+    cursor: pointer;
+}
+.dm-data-row:hover td {
+    background: #f9f9f9;
+}
+.dm-date-cell {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Mobile cards */
+.dm-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+.dm-card:hover { background: #fafafa; }
+.dm-card-date {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    color: #1a1a1a;
+}
+.dm-card-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 0.83rem;
+    color: #333;
+    margin-bottom: 3px;
+}
+.dm-card-metric {
+    white-space: nowrap;
+}
+.dm-card-label {
+    font-weight: 500;
+    color: #666;
+}
+.dm-card-custom {
+    color: #444;
+}
+
+/* Note icon */
+.dm-note-icon {
+    cursor: pointer;
+    margin-left: 3px;
+    font-size: 0.75rem;
+    vertical-align: middle;
+    user-select: none;
+}
+
+/* Mobile note overlay */
+.dm-note-overlay {
+    position: absolute;
+    z-index: 300;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+    padding: 10px 12px;
+    max-width: 260px;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.dm-note-overlay-text {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.dm-note-overlay-close {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .dm-pills { gap: 4px; }
+    .dm-pill { padding: 3px 9px; font-size: 0.78rem; }
+    .dm-month-btn { padding: 2px 7px; font-size: 0.76rem; }
+}
+
 /* ── Daily Metrics: Manage Metrics screen ─────────────────────────────────── */
 
 .dm-defs-hint {

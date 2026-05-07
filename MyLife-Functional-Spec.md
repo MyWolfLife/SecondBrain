@@ -1081,8 +1081,16 @@ Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
 Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.
 
+#### Daily Metrics List (`#exercise-metrics`)
+- **Filter bar**: 6 dynamic range pills (Last Week, This Week, This Month, Last Month, This Year, Last Year) + a 3×4 month shortcut grid (Jan–Dec). Month buttons show an abbreviated year tag (e.g. "Aug '25") when they refer to the prior year; current-year months show no tag. Default filter on page load: This Month.
+- **Records label**: "N records" shown below the filter bar.
+- **Desktop (≥700px)**: scrollable `<table>` with a tinted **summary row** above the column headers showing averages (weight to 1 decimal, others rounded) for standard fields and "X / N" counts for boolean custom metrics. Each data row is clickable — navigates to `#exercise-metric/<date>`. Note icons (📝) appear inline with a hover tooltip.
+- **Mobile (<700px)**: one card per record — date header, two rows of 3 standard metrics each (abbreviated labels), then custom metrics. Note icons trigger a floating overlay with the note text and a close button; tapping outside also dismisses it.
+- **"Manage Metrics"** link navigates to `#exercise-metric-defs`. **"+ Entry"** navigates to `#exercise-metric/new`.
+- Clicking any row/card routes to `#exercise-metric/<date>` (entry form, Phase 4).
+
 #### Manage Metrics (`#exercise-metric-defs`)
-Accessible via a "Manage Metrics" link on the Daily Metrics list screen (Phase 3). Manages user-defined custom metric definitions only — standard metrics are always present and not editable here.
+Accessible via a "Manage Metrics" link on the Daily Metrics list screen. Manages user-defined custom metric definitions only — standard metrics are always present and not editable here.
 
 - **Add form**: Name (required), Type (YES/NO | Number | Text), and for Number type: Allow Decimals checkbox + optional Unit Label (e.g. "oz", "cal"). Saved to `exerciseMetricDefs` collection with `sortOrder` assigned as max existing + 1.
 - **Metric row**: Shows name, type badge (colored: blue=YES/NO, green=Number, purple=Text), unit label in parentheses if set, and ↑/↓ sort buttons + Edit + Delete actions.

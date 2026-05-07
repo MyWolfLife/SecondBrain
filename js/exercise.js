@@ -1091,7 +1091,11 @@ function _exEsc(str) {
 
 // ─── Module-level state ──────────────────────────────────────────────────────
 
-var _dmDefsAll = [];   // non-archived metric defs, sorted by sortOrder
+var _dmDefsAll     = [];            // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
+var _dmMetricDefs  = [];            // same data, used by list + entry form
+var _dmRangeFilter = 'thisMonth';   // always reset on page load — not persisted
+var _dmCustomStart = '';
+var _dmCustomEnd   = '';
 
 // ─── Default custom metric seeds ─────────────────────────────────────────────
 
@@ -1134,7 +1138,7 @@ async function seedExerciseMetricDefsIfNeeded() {
 
 // ─── Page load stubs ─────────────────────────────────────────────────────────
 
-function loadExerciseMetricsPage() {
+async function loadExerciseMetricsPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
@@ -1146,8 +1150,395 @@ function loadExerciseMetricsPage() {
     if (!el) return;
     el.innerHTML = '<p class="ex-status">Loading…</p>';
 
-    seedExerciseMetricDefsIfNeeded();
-    // Phase 3 will implement the full list here.
+    _dmRangeFilter = 'thisMonth';
+    _dmCustomStart = '';
+    _dmCustomEnd   = '';
+
+    await seedExerciseMetricDefsIfNeeded();
+
+    var snap = await userCol('exerciseMetricDefs').get();
+    _dmMetricDefs = snap.docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(d) { return !d.archived; })
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+    _dmRenderMetricsPage(el);
+}
+
+function _dmRenderMetricsPage(el) {
+    var today = new Date();
+    var thisYear = today.getFullYear();
+    var thisMonth = today.getMonth(); // 0-based
+
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Build month shortcut buttons
+    var monthBtns = '';
+    for (var m = 0; m < 12; m++) {
+        var isLastYear = (m > thisMonth);
+        var yr = isLastYear ? thisYear - 1 : thisYear;
+        var key = 'month-' + m + '-' + yr;
+        var label = monthNames[m] + (isLastYear ? ' \'' + String(yr).slice(2) : '');
+        var sel = (_dmRangeFilter === key) ? ' dm-filter-active' : '';
+        monthBtns += '<button class="dm-month-btn' + sel + '" data-filter="' + _exEsc(key) + '">' + _exEsc(label) + '</button>';
+    }
+
+    // Dynamic range pills
+    var pills = [
+        ['lastWeek','Last Week'], ['thisWeek','This Week'], ['thisMonth','This Month'],
+        ['lastMonth','Last Month'], ['thisYear','This Year'], ['lastYear','Last Year']
+    ];
+    var pillHtml = '';
+    pills.forEach(function(p) {
+        var sel = (_dmRangeFilter === p[0]) ? ' dm-filter-active' : '';
+        pillHtml += '<button class="dm-pill' + sel + '" data-filter="' + p[0] + '">' + p[1] + '</button>';
+    });
+
+    el.innerHTML =
+        '<div class="dm-list-header">' +
+            '<h2>Daily Metrics</h2>' +
+            '<div class="dm-list-actions">' +
+                '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Metrics</a>' +
+                '<a href="#exercise-metric/new" class="ex-action-btn">+ Entry</a>' +
+            '</div>' +
+        '</div>' +
+        '<div class="dm-filter-bar">' +
+            '<div class="dm-pills">' + pillHtml + '</div>' +
+            '<div class="dm-month-grid">' + monthBtns + '</div>' +
+            '<div class="dm-custom-row" id="dmCustomRow" style="display:none">' +
+                '<input type="date" id="dmCustomStart" class="dm-date-input"> – ' +
+                '<input type="date" id="dmCustomEnd" class="dm-date-input">' +
+                '<button id="dmCustomLoad" class="ex-action-btn">Load</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
+        '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
+
+    // Wire pill/month filter buttons
+    el.querySelectorAll('[data-filter]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            _dmRangeFilter = btn.dataset.filter;
+            // Update active state
+            el.querySelectorAll('[data-filter]').forEach(function(b) { b.classList.remove('dm-filter-active'); });
+            btn.classList.add('dm-filter-active');
+            document.getElementById('dmCustomRow').style.display = 'none';
+            _dmApplyFilter();
+        });
+    });
+
+    _dmApplyFilter();
+}
+
+function _dmGetDateRange(filter) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+
+    function fmt(dt) {
+        var mm = dt.getMonth() + 1, dd = dt.getDate();
+        return dt.getFullYear() + '-' + (mm < 10 ? '0' : '') + mm + '-' + (dd < 10 ? '0' : '') + dd;
+    }
+
+    if (filter === 'thisMonth') {
+        return { start: y + '-' + (m < 9 ? '0' : '') + (m + 1) + '-01', end: fmt(today) };
+    }
+    if (filter === 'lastMonth') {
+        var lm = new Date(y, m, 0); // last day of prev month
+        var fm = new Date(y, m - 1, 1);
+        return { start: fmt(fm), end: fmt(lm) };
+    }
+    if (filter === 'thisWeek') {
+        var dow = today.getDay(); // 0=Sun
+        var mon = new Date(today); mon.setDate(d - ((dow + 6) % 7));
+        return { start: fmt(mon), end: fmt(today) };
+    }
+    if (filter === 'lastWeek') {
+        var dow2 = today.getDay();
+        var thisMonday = new Date(today); thisMonday.setDate(d - ((dow2 + 6) % 7));
+        var lastMon = new Date(thisMonday); lastMon.setDate(thisMonday.getDate() - 7);
+        var lastSun = new Date(thisMonday); lastSun.setDate(thisMonday.getDate() - 1);
+        return { start: fmt(lastMon), end: fmt(lastSun) };
+    }
+    if (filter === 'thisYear') {
+        return { start: y + '-01-01', end: fmt(today) };
+    }
+    if (filter === 'lastYear') {
+        return { start: (y - 1) + '-01-01', end: (y - 1) + '-12-31' };
+    }
+    // Month shortcut: 'month-M-YYYY' (M is 0-based)
+    var monthMatch = filter.match(/^month-(\d+)-(\d+)$/);
+    if (monthMatch) {
+        var mm2 = parseInt(monthMatch[1], 10);
+        var yy2 = parseInt(monthMatch[2], 10);
+        var firstDay = new Date(yy2, mm2, 1);
+        var lastDay = new Date(yy2, mm2 + 1, 0);
+        return { start: fmt(firstDay), end: fmt(lastDay) };
+    }
+    // Custom
+    return { start: _dmCustomStart, end: _dmCustomEnd };
+}
+
+async function _dmApplyFilter() {
+    var listEl = document.getElementById('dmListContent');
+    var labelEl = document.getElementById('dmRecordsLabel');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    var range = _dmGetDateRange(_dmRangeFilter);
+    var snap;
+    try {
+        snap = await userCol('exerciseDailyMetrics')
+            .orderBy('date', 'desc')
+            .limit(500)
+            .get();
+    } catch (e) {
+        listEl.innerHTML = '<p class="ex-status">Error loading records.</p>';
+        return;
+    }
+
+    var records = snap.docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(r) {
+            return r.date >= range.start && r.date <= range.end;
+        });
+
+    if (labelEl) labelEl.textContent = records.length + ' record' + (records.length === 1 ? '' : 's');
+
+    if (records.length === 0) {
+        listEl.innerHTML = '<p class="ex-status">No entries for this period.</p>';
+        return;
+    }
+
+    // Compute summary values
+    var summary = _dmComputeSummary(records);
+
+    // Detect desktop vs mobile
+    var isDesktop = window.innerWidth >= 700;
+    listEl.innerHTML = isDesktop
+        ? _dmBuildTable(records, summary)
+        : _dmBuildCards(records);
+
+    // Wire card/row clicks
+    listEl.querySelectorAll('[data-date]').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            if (e.target.closest('.dm-note-icon')) return; // let note icon handle it
+            window.location.hash = 'exercise-metric/' + el.dataset.date;
+        });
+    });
+
+    // Wire note icon taps (mobile overlay)
+    listEl.querySelectorAll('.dm-note-icon[data-note]').forEach(function(icon) {
+        icon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            _dmShowNoteOverlay(icon, icon.dataset.note);
+        });
+    });
+}
+
+function _dmComputeSummary(records) {
+    var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories'];
+    var sums = {}, counts = {};
+    stdFields.forEach(function(f) { sums[f] = 0; counts[f] = 0; });
+
+    var customSums   = {};   // id → sum (number)
+    var customCounts = {};   // id → count of non-null
+    var customTrueCounts = {}; // id → true count (boolean)
+    _dmMetricDefs.forEach(function(def) {
+        customSums[def.id] = 0; customCounts[def.id] = 0; customTrueCounts[def.id] = 0;
+    });
+
+    records.forEach(function(r) {
+        stdFields.forEach(function(f) {
+            var v = r[f];
+            if (v !== null && v !== undefined && v !== '') {
+                sums[f] += parseFloat(v); counts[f]++;
+            }
+        });
+        _dmMetricDefs.forEach(function(def) {
+            var cv = r.customValues && r.customValues[def.id];
+            if (def.type === 'boolean') {
+                if (cv === true) customTrueCounts[def.id]++;
+                customCounts[def.id]++;
+            } else if (def.type === 'number') {
+                if (cv !== null && cv !== undefined && cv !== '') {
+                    customSums[def.id] += parseFloat(cv); customCounts[def.id]++;
+                }
+            }
+            // text: no summary
+        });
+    });
+
+    var n = records.length;
+    var result = {};
+    // Weight: 1 decimal; others: round to integer
+    result.weight      = counts.weight      ? (sums.weight / counts.weight).toFixed(1) : '—';
+    result.sleepScore  = counts.sleepScore  ? Math.round(sums.sleepScore / counts.sleepScore) : '—';
+    result.bodyBattery = counts.bodyBattery ? Math.round(sums.bodyBattery / counts.bodyBattery) : '—';
+    result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
+    result.totalBurn   = counts.totalBurn   ? Math.round(sums.totalBurn / counts.totalBurn).toLocaleString() : '—';
+    result.foodCalories = counts.foodCalories ? Math.round(sums.foodCalories / counts.foodCalories).toLocaleString() : '—';
+
+    result.custom = {};
+    _dmMetricDefs.forEach(function(def) {
+        if (def.type === 'boolean') {
+            result.custom[def.id] = customTrueCounts[def.id] + ' / ' + n;
+        } else if (def.type === 'number') {
+            result.custom[def.id] = customCounts[def.id] ? customSums[def.id].toLocaleString() : '—';
+        } else {
+            result.custom[def.id] = '';
+        }
+    });
+    return result;
+}
+
+function _dmFmtDate(dateStr) {
+    // 'YYYY-MM-DD' → '5/7/26 Wed'
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return (dt.getMonth() + 1) + '/' + dt.getDate() + '/' + String(dt.getFullYear()).slice(2) + ' ' + days[dt.getDay()];
+}
+
+function _dmNoteIcon(noteText, desktop) {
+    if (!noteText) return '';
+    var escaped = _exEsc(noteText);
+    if (desktop) {
+        return '<span class="dm-note-icon" title="' + escaped + '">📝</span>';
+    }
+    return '<span class="dm-note-icon" data-note="' + escaped + '" role="button" tabindex="0">📝</span>';
+}
+
+function _dmBuildTable(records, summary) {
+    var stdCols = [
+        { key: 'weight',       label: 'Weight' },
+        { key: 'sleepScore',   label: 'Sleep' },
+        { key: 'bodyBattery',  label: 'Body Bat.' },
+        { key: 'dailySteps',   label: 'Steps' },
+        { key: 'totalBurn',    label: 'Burn' },
+        { key: 'foodCalories', label: 'Food Cal.' }
+    ];
+
+    // Header row
+    var thead = '<thead>';
+    // Summary row
+    thead += '<tr class="dm-summary-row"><td></td>';
+    stdCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
+    _dmMetricDefs.forEach(function(def) {
+        thead += '<td>' + _exEsc(summary.custom[def.id] || '') + '</td>';
+    });
+    thead += '</tr>';
+    // Column header row
+    thead += '<tr class="dm-header-row"><th>Date</th>';
+    stdCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
+    _dmMetricDefs.forEach(function(def) { thead += '<th>' + _exEsc(def.name) + '</th>'; });
+    thead += '</tr></thead>';
+
+    // Body
+    var tbody = '<tbody>';
+    records.forEach(function(r) {
+        tbody += '<tr class="dm-data-row" data-date="' + _exEsc(r.date) + '">';
+        tbody += '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(r.date)) + '</td>';
+        stdCols.forEach(function(c) {
+            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            if (typeof v === 'number') v = v.toLocaleString();
+            var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            tbody += '<td>' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
+        });
+        _dmMetricDefs.forEach(function(def) {
+            var cv = r.customValues && r.customValues[def.id];
+            var display = '';
+            if (def.type === 'boolean') {
+                display = cv === true ? 'Y' : '—';
+            } else if (def.type === 'number') {
+                display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) : '—';
+            } else {
+                display = cv ? _exEsc(String(cv)).substring(0, 20) : '—';
+            }
+            var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
+            tbody += '<td>' + display + _dmNoteIcon(note, true) + '</td>';
+        });
+        tbody += '</tr>';
+    });
+    tbody += '</tbody>';
+
+    return '<div class="dm-table-wrap"><table class="dm-table">' + thead + tbody + '</table></div>';
+}
+
+function _dmBuildCards(records) {
+    var stdLabels = [
+        { key: 'weight',       label: 'Wt' },
+        { key: 'sleepScore',   label: 'Sleep' },
+        { key: 'bodyBattery',  label: 'Bat' },
+        { key: 'dailySteps',   label: 'Steps' },
+        { key: 'totalBurn',    label: 'Burn' },
+        { key: 'foodCalories', label: 'Food' }
+    ];
+
+    return records.map(function(r) {
+        // Standard metrics — 2 rows of 3
+        var stdLine1 = '', stdLine2 = '';
+        stdLabels.slice(0, 3).forEach(function(c) {
+            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            stdLine1 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
+        });
+        stdLabels.slice(3).forEach(function(c) {
+            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
+        });
+
+        // Custom metrics
+        var customHtml = _dmMetricDefs.map(function(def) {
+            var cv = r.customValues && r.customValues[def.id];
+            var display = '';
+            if (def.type === 'boolean') {
+                display = cv === true ? 'Y' : '—';
+            } else if (def.type === 'number') {
+                display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) + (def.unitLabel ? ' ' + def.unitLabel : '') : '—';
+            } else {
+                display = cv ? _exEsc(String(cv)).substring(0, 30) : '—';
+            }
+            var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
+            return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + '</span> ' + display + _dmNoteIcon(note, false) + '</span>';
+        }).join('');
+
+        return '<div class="dm-card" data-date="' + _exEsc(r.date) + '">' +
+            '<div class="dm-card-date">' + _exEsc(_dmFmtDate(r.date)) + '</div>' +
+            '<div class="dm-card-row">' + stdLine1 + '</div>' +
+            '<div class="dm-card-row">' + stdLine2 + '</div>' +
+            (customHtml ? '<div class="dm-card-row dm-card-custom">' + customHtml + '</div>' : '') +
+        '</div>';
+    }).join('');
+}
+
+function _dmShowNoteOverlay(iconEl, noteText) {
+    // Remove any existing overlay
+    var old = document.getElementById('dmNoteOverlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'dmNoteOverlay';
+    overlay.className = 'dm-note-overlay';
+    overlay.innerHTML = '<span class="dm-note-overlay-text">' + _exEsc(noteText) + '</span>' +
+        '<button class="dm-note-overlay-close" aria-label="Close">✕</button>';
+    overlay.addEventListener('click', function(e) { e.stopPropagation(); });
+    overlay.querySelector('.dm-note-overlay-close').addEventListener('click', function() { overlay.remove(); });
+
+    // Position near the icon
+    var rect = iconEl.getBoundingClientRect();
+    overlay.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    overlay.style.left = Math.max(8, rect.left + window.scrollX - 100) + 'px';
+    document.body.appendChild(overlay);
+
+    // Close on outside tap
+    setTimeout(function() {
+        document.addEventListener('click', function closeOverlay() {
+            overlay.remove();
+            document.removeEventListener('click', closeOverlay);
+        });
+    }, 10);
 }
 
 function loadExerciseMetricPage(dateOrNew) {
