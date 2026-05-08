@@ -324,9 +324,9 @@ function _dnGetFixedFields() {
  * @param {boolean} navigateAfter - If true, navigates back to the list after saving.
  *   Pass false when calling internally (e.g. auto-save before photo upload).
  */
-async function _dnSaveNote(navigateAfter) {
+async function _dnSaveNote(navigateAfter, allowEmptyText) {
     var text = document.getElementById('devNoteTextarea').value.trim();
-    if (!text) { alert('Please enter some text.'); return; }
+    if (!text && !allowEmptyText) { alert('Please enter some text.'); return; }
 
     var btn = document.getElementById('devNoteSaveBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -443,14 +443,9 @@ function _dnRenderPhotos() {
 async function _dnAddPhotoFromFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
 
-    // Save note first if it hasn't been saved yet
+    // Auto-save note first if it hasn't been saved yet (text is optional at this point)
     if (!_dnCurrentId) {
-        var text = document.getElementById('devNoteTextarea').value.trim();
-        if (!text) {
-            alert('Please enter some note text before adding photos.');
-            return;
-        }
-        await _dnSaveNote();
+        await _dnSaveNote(false, true);
         if (!_dnCurrentId) return; // save failed
     }
 

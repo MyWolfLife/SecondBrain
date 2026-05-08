@@ -2207,7 +2207,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 **Writing an entry:**
 - Tap **+ New Entry** (or the date button) to open the entry form
 - **Entry text:** Free-form textarea. Supports @mentions (see below). Tab key inserts 4 spaces.
-- **Date and time:** Defaults to now; editable.
+- **Date and time:** Defaults to now; editable. The day of week (e.g., "Friday") appears inline next to the date field as a quick reference.
 - **Photos:** Tap Camera (take a new photo), Gallery (pick from device), or paste an image from clipboard. Photos are compressed automatically. Appear as 80x80 thumbnails in the form; full-screen lightbox in the feed.
 - **Tracking items:** Log numeric values per category (e.g., "Weight = 183", "Mood = 7"). Categories are managed on the Journal Categories page.
 - **Place / Check-in:** Attach a place to the entry. The Check-In button opens a GPS-based picker to find nearby venues (Foursquare-powered) or search by name. After check-in, the venue is locked to the entry. Check-in entries show a "checked in" badge in the feed.
@@ -3317,7 +3317,7 @@ Replaces all current data with a previously downloaded backup file. Data and pho
   - **Fixed Date** — date picker, defaults to today when first checked; change if needed
   - **Resolution** — describe what was done to fix the issue
 - Save records all three fields; fixed notes disappear from the default Open view
-- **Photos section**: "Add from Gallery" or "Paste" to attach images; click thumbnail to enlarge; delete from lightbox
+- **Photos section**: "Add from Gallery" or "Paste" to attach images; you can paste a photo before entering any text — the note is auto-saved as a draft first; click thumbnail to enlarge; delete from lightbox
 - **Copy to Notebook…** — copies note text + all photos into a chosen personal notebook
 - **Delete Note** — confirms, deletes note and all photos, returns to list
 
