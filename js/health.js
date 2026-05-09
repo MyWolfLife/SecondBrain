@@ -10,10 +10,153 @@
 var HEALTH_SEVERITY_ORDER = { Severe: 0, Moderate: 1, Mild: 2 };
 
 // -----------------------------------------------------------------
-//  HEALTH HUB
+//  HEALTH HUB  (CH4 + CH5)
 // -----------------------------------------------------------------
+
+/** Module-level cache so _healthSelectContact can re-render without a reload. */
+var _healthContactsCache = [];
+var _healthMeIdCache = null;
+
 function loadHealthPage() {
-    runHealthContactMigration();  // CH3: one-time migration, no-op after first run
+    runHealthContactMigration();   // CH3: one-time migration, no-op after first run
+    _healthHubInit();              // CH4+CH5: contact selection strip
+}
+
+async function _healthHubInit() {
+    try {
+        var meId = await ensureMeContact();
+        if (!meId) return;
+        _healthMeIdCache = meId;
+        window.healthActiveContactId = meId;   // always reset to Me on every entry
+        await _healthLoadAndRenderContacts(meId);
+    } catch (err) {
+        console.error('_healthHubInit:', err);
+    }
+}
+
+async function _healthLoadAndRenderContacts(meId) {
+    try {
+        var snap = await userCol('healthTrackedContacts').doc('default').get();
+        var ids = (snap.exists && snap.data().contactIds) ? snap.data().contactIds.slice() : [];
+
+        // Me is always first; insert if missing
+        ids = [meId].concat(ids.filter(function(id) { return id !== meId; }));
+
+        // Persist normalised list if it changed
+        var stored = snap.exists ? (snap.data().contactIds || []) : [];
+        if (stored.length !== ids.length || stored[0] !== meId) {
+            userCol('healthTrackedContacts').doc('default')
+                .set({ contactIds: ids }, { merge: true })
+                .catch(function() {});
+        }
+
+        // Fetch contact docs
+        var contacts = [];
+        for (var i = 0; i < ids.length; i++) {
+            var pSnap = await userCol('people').doc(ids[i]).get();
+            if (pSnap.exists) contacts.push(Object.assign({ id: pSnap.id }, pSnap.data()));
+        }
+        _healthContactsCache = contacts;
+        _healthRenderContactCards(contacts, meId);
+    } catch (err) {
+        console.error('_healthLoadAndRenderContacts:', err);
+    }
+}
+
+function _healthRenderContactCards(contacts, meId) {
+    var strip = document.getElementById('healthContactStrip');
+    if (!strip) return;
+    strip.innerHTML = '';
+
+    var activeId = window.healthActiveContactId || meId;
+
+    contacts.forEach(function(c) {
+        var isActive = c.id === activeId;
+        var isMe = !!c.isMe;
+        var icon = c.category === 'Pet' ? '🐾' : '👤';
+
+        var card = document.createElement('div');
+        card.className = 'health-contact-card' + (isActive ? ' health-contact-card--active' : '');
+        card.onclick = function() { _healthSelectContact(c.id); };
+
+        var html = '<div class="health-contact-card-top">'
+            + '<span class="health-contact-name">' + icon + ' ' + escapeHtml(c.name) + '</span>';
+        if (isActive) html += '<span class="health-contact-active-badge">&#10003;</span>';
+        html += '</div>';
+        if (isActive && c.category && !isMe) {
+            html += '<div class="health-contact-meta">' + escapeHtml(c.category) + '</div>';
+        }
+        if (!isMe) {
+            html += '<button class="health-contact-remove-btn" onclick="event.stopPropagation();_healthRemoveTrackedContact(\''
+                + c.id + '\',\'' + escapeHtml(c.name).replace(/'/g, '\\\'') + '\')">Remove</button>';
+        }
+        card.innerHTML = html;
+        strip.appendChild(card);
+    });
+
+    // "+ Add Person" card
+    var addCard = document.createElement('div');
+    addCard.className = 'health-contact-card health-contact-card--add';
+    addCard.innerHTML = '<span class="health-contact-name">+ Add Person</span>';
+    addCard.onclick = _healthOpenAddContactModal;
+    strip.appendChild(addCard);
+
+    // Hide Emergency Info and Care Team tiles for non-Me contacts
+    var meActive = activeId === meId;
+    var emergencyTile = document.getElementById('healthEmergencyTile');
+    var careTeamTile  = document.getElementById('healthCareTeamTile');
+    if (emergencyTile) emergencyTile.style.display = meActive ? '' : 'none';
+    if (careTeamTile)  careTeamTile.style.display  = meActive ? '' : 'none';
+}
+
+function _healthSelectContact(contactId) {
+    window.healthActiveContactId = contactId;
+    _healthRenderContactCards(_healthContactsCache, _healthMeIdCache);
+}
+
+function _healthOpenAddContactModal() {
+    var pickerDiv = document.getElementById('healthAddContactPicker');
+    if (!pickerDiv) return;
+    pickerDiv.innerHTML = '';
+    buildContactPicker('healthAddContactPicker', {
+        placeholder: 'Search contacts…',
+        onSelect: function(id, name) {
+            _healthAddTrackedContact(id);
+        }
+    });
+    openModal('healthAddContactModal');
+}
+
+async function _healthAddTrackedContact(contactId) {
+    if (!contactId) return;
+    try {
+        var snap = await userCol('healthTrackedContacts').doc('default').get();
+        var ids = (snap.exists && snap.data().contactIds) ? snap.data().contactIds.slice() : [];
+        if (ids.indexOf(contactId) === -1) {
+            ids.push(contactId);
+            await userCol('healthTrackedContacts').doc('default').set({ contactIds: ids }, { merge: true });
+        }
+        closeModal('healthAddContactModal');
+        await _healthLoadAndRenderContacts(_healthMeIdCache);
+    } catch (err) {
+        alert('Error adding contact: ' + err.message);
+    }
+}
+
+async function _healthRemoveTrackedContact(contactId, name) {
+    if (!confirm('Remove ' + name + ' from health tracking?\n\nTheir health records will not be deleted.')) return;
+    try {
+        var snap = await userCol('healthTrackedContacts').doc('default').get();
+        var ids = (snap.exists && snap.data().contactIds) ? snap.data().contactIds.slice() : [];
+        ids = ids.filter(function(id) { return id !== contactId; });
+        await userCol('healthTrackedContacts').doc('default').set({ contactIds: ids }, { merge: true });
+        if (window.healthActiveContactId === contactId) {
+            window.healthActiveContactId = _healthMeIdCache;
+        }
+        await _healthLoadAndRenderContacts(_healthMeIdCache);
+    } catch (err) {
+        alert('Error removing contact: ' + err.message);
+    }
 }
 
 // -----------------------------------------------------------------

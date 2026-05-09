@@ -804,10 +804,20 @@ Renamed from "People". Tracks personal contacts and medical/service professional
 
 **Plan document**: `HealthEnhancements.md`
 
-A comprehensive medical tracking hub.
+A comprehensive medical tracking hub. Health data can be tracked for any contact (family members, pets, etc.) via the **Track Health For** contact strip at the top of the hub.
+
+**Track Health For strip** (CH4+CH5):
+- Appears at the top of My Health hub, above the tile grid
+- Shows contact cards for all tracked contacts; "Me" is always first and cannot be removed
+- **Active contact** card has a blue border/tint + ✓ badge; tapping any card switches the active context
+- `window.healthActiveContactId` — in-memory session state, **always resets to Me on every entry** to the health hub; preserved while navigating child pages within the session
+- **+ Add Person** card opens a ContactPicker modal to add any contact to the tracked list
+- **Remove button** on non-Me cards — confirms before removing (does not delete records)
+- **Emergency Info and Care Team tiles are hidden** (not just grayed) when a non-Me contact is active
+- Tracked contacts stored in `userCol('healthTrackedContacts').doc('default')` — field `contactIds: string[]`
 
 **My Health main page tile order** (2-column grid):
-Row 1: Conditions, Concerns | Row 2: Appointments, Health Visits | Row 3: Medications, Supplements | Row 4: Blood Work, Vitals | Row 5: Insurance, Emergency Info | Row 6: Vaccinations, Allergies | Row 7: Eye / Glasses | Row 8: My Care Team (full-width)
+Row 1: Conditions, Concerns | Row 2: Appointments, Health Visits | Row 3: Medications, Supplements | Row 4: Blood Work, Vitals | Row 5: Insurance, Emergency Info (hidden for non-Me) | Row 6: Vaccinations, Allergies | Row 7: Eye / Glasses | Row 8: My Care Team (full-width, hidden for non-Me)
 
 **My Care Team** (`#health-care-team`):
 - Dedicated page listing the user's medical care team
@@ -840,6 +850,7 @@ Row 1: Conditions, Concerns | Row 2: Appointments, Health Visits | Row 3: Medica
 | `emergencyInfo` | emergencyContacts[], allergies[], medicalAdvances, dnr, notes — **Me-only, no contactId** |
 | `healthCareTeam` | members[] — **Me-only, no contactId** |
 | `healthAppointments` | contactId, date, time, type, facilityContactId, providerContactId, concernIds[], conditionIds[], notes, status (scheduled/completed/cancelled/converted), linkedVisitId |
+| `healthTrackedContacts` | Single doc `default` — `contactIds: string[]` (Me is always first; cannot be removed) |
 
 **Appointments** (`#health-appointments`): List page shows Overdue / Upcoming / Past sections. Each card shows: type badge, date/time (tappable — opens edit modal, same as Edit button), Facility (tappable link to `#contact/{id}` if contactId set), Provider (tappable link or plain text), concern/condition chips, notes. Actions: Edit (hidden on converted), ✓ Mark Done (scheduled/overdue only), View Visit link (if linkedVisitId set). **Delete and Cancel Appointment are in the edit modal** (not the card). Edit modal bottom row: left side has Delete (always shown when editing) + Cancel Appt (shown only for active appointments — not cancelled/completed/converted); right side has Close + Save. "Cancel Appt" saves current notes field + sets `status: 'cancelled'` in one step, then closes modal. Add/Edit modal: date, time, type dropdown (Dr. Visit / Specialist / Follow-up / Physical or Annual / Urgent Care / Emergency / Dental / Eye Exam / Lab or Test / Procedure), status, Facility ContactPicker (Medical Facility, allowCreate), Provider ContactPicker (Medical Professional, allowCreate, optional), scrollable concern/condition checkbox list (open concerns + active/managed conditions), notes. Mark Done → opens `apptConvertModal` to create a Health Visit; on save sets `status: 'converted'` and `linkedVisitId`. Converted appointments show no Edit button and a "View Visit" link.
 

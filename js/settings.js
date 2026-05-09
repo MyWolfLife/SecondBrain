@@ -739,7 +739,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'checklistRuns', 'checklistTemplates',
     'concernUpdates', 'concerns', 'conditions',
     'distances', 'emergencyInfo', 'eyePrescriptions',
-    'healthAppointments', 'healthCareTeam', 'healthConditionLogs', 'healthVisits',
+    'healthAppointments', 'healthCareTeam', 'healthConditionLogs', 'healthTrackedContacts', 'healthVisits',
     'insurancePolicies', 'medications', 'supplements', 'vaccinations', 'vitals',
 
     // Life / Calendar

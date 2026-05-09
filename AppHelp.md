@@ -1056,12 +1056,21 @@ Switching modes clears any selection and resets to Select tool.
 
 ### Quick Help
 - The Health home page -- a tile grid linking to every health tracking area
-- Tap any tile to open that section
-- Covers: Conditions, Concerns, Appointments, Health Visits, Medications, Supplements, Blood Work, Vitals, Insurance, Emergency Info, Vaccinations, Allergies, Eye/Glasses, and My Care Team
+- **Track Health For** strip at the top lets you switch whose health you're viewing (Me, a family member, or a pet)
+- Tap any tile to open that section for the active person
 
 ### Details
 
-**What the Health section tracks:** A comprehensive personal health record -- medical history, active conditions and concerns, medications, doctor visits, appointments, blood work, vitals, insurance, and more. Everything in one place, private and offline-first.
+**What the Health section tracks:** A comprehensive personal health record -- medical history, active conditions and concerns, medications, doctor visits, appointments, blood work, vitals, insurance, and more. Works for you and for anyone else you want to track (family, pets).
+
+**Track Health For strip:**
+- Shows cards for all tracked contacts. The active card has a blue border and ✓ badge.
+- Tap a card to switch context -- all tiles below will open data for that person.
+- **Me** is always first and cannot be removed.
+- **+ Add Person** adds any contact to the tracked list.
+- **Remove** (on non-Me cards) removes them from tracking without deleting any records.
+- Context always resets to Me when you return to this screen; it's remembered while you navigate within the health section.
+- **Emergency Info and My Care Team tiles are hidden when viewing a non-Me contact** -- those sections are Me-only.
 
 **Tile grid layout (top to bottom):**
 - **Conditions** -- chronic or ongoing medical conditions with a journal, medication links, and visit history
@@ -1073,14 +1082,15 @@ Switching modes clears any selection and resets to Select tool.
 - **Blood Work** -- lab results with LLM-assisted import from pasted lab text
 - **Vitals** -- blood pressure, weight, heart rate, and other measurements over time
 - **Insurance** -- health insurance plan details and coverage records
-- **Emergency Info** -- critical info card for emergency situations (blood type, allergies, emergency contacts)
+- **Emergency Info** -- critical info card for emergency situations; visible for Me only
 - **Vaccinations** -- vaccination history with dates and providers
 - **Allergies** -- allergy list with reactions and severity
 - **Eye / Glasses** -- prescription history and eye exam records
-- **My Care Team** -- your roster of doctors, specialists, dentists, and other providers
+- **My Care Team** -- your roster of doctors, specialists, dentists, and other providers; visible for Me only
 
 **Tips:**
-- Start with Conditions and Concerns to establish your health baseline, then add Medications and link them to the right conditions.
+- To track a pet's health, add the pet as a contact (category: Pet), then use + Add Person to add them to health tracking.
+- Start with Conditions and Concerns to establish a health baseline, then add Medications and link them to the right conditions.
 - The Appointments flow is the fastest way to log a visit -- mark an appointment Done and it walks you through creating the visit record and adding notes per concern/condition.
 - Blood Work import supports pasting raw lab text (from a patient portal PDF) and the AI extracts all markers automatically.
 

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=699">
+    <link rel="stylesheet" href="css/styles.css?v=700">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7390,6 +7390,13 @@ service firebase.storage {
                 <button class="btn btn-secondary btn-small" onclick="location.hash='#life'">&#8592; Life</button>
                 <h2>My Health</h2>
             </div>
+            <!-- CH4/CH5: Track Health For contact strip -->
+            <div class="health-contact-section">
+                <div class="health-contact-label">Track Health For</div>
+                <div class="health-contact-strip" id="healthContactStrip">
+                    <p class="empty-state" style="margin:0; font-size:0.85rem;">Loading…</p>
+                </div>
+            </div>
             <div class="landing-grid" id="healthFeatureGrid">
                 <!-- Row 1: Conditions, Concerns -->
                 <a href="#health-conditions" class="landing-tile landing-tile--health-conditions">
@@ -7432,7 +7439,7 @@ service firebase.storage {
                     <span class="landing-tile-icon">🛡️</span>
                     <span class="landing-tile-label">Insurance</span>
                 </a>
-                <a href="#health-emergency" class="landing-tile landing-tile--health-emergency">
+                <a href="#health-emergency" class="landing-tile landing-tile--health-emergency" id="healthEmergencyTile">
                     <span class="landing-tile-icon">🆘</span>
                     <span class="landing-tile-label">Emergency Info</span>
                 </a>
@@ -7451,7 +7458,7 @@ service firebase.storage {
                     <span class="landing-tile-label">Eye / Glasses</span>
                 </a>
                 <!-- Row 8: My Care Team (full width) -->
-                <a href="#health-care-team" class="landing-tile landing-tile--care-team landing-tile--full">
+                <a href="#health-care-team" class="landing-tile landing-tile--care-team landing-tile--full" id="healthCareTeamTile">
                     <span class="landing-tile-icon">👨‍⚕️</span>
                     <span class="landing-tile-label">My Care Team</span>
                 </a>
@@ -7519,6 +7526,18 @@ service firebase.storage {
         </section>
 
         <!-- ─── HEALTH MODALS ────────────────────────────────────────── -->
+
+        <!-- Modal: Add Person to Health Tracking (CH4) -->
+        <div class="modal-overlay" id="healthAddContactModal">
+            <div class="modal">
+                <h3>Add Person to Health Tracking</h3>
+                <p style="font-size:0.88rem; color:#64748b; margin: 0 0 12px;">Pick a contact to track health for. You can remove them from tracking at any time.</p>
+                <div id="healthAddContactPicker"></div>
+                <div class="modal-actions" style="margin-top:16px;">
+                    <button class="btn btn-secondary" onclick="closeModal('healthAddContactModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal: Add / Edit Care Team Member -->
         <div class="modal-overlay" id="careTeamModal">
@@ -10782,7 +10801,7 @@ export default {
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=6"></script>
-    <script src="js/settings.js?v=654"></script>
+    <script src="js/settings.js?v=655"></script>
     <script src="js/devnotes.js?v=559"></script>
     <script src="js/house.js?v=537"></script>
     <script src="js/floorplan.js?v=398"></script>
@@ -10800,7 +10819,7 @@ export default {
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>
-    <script src="js/health.js?v=381"></script>
+    <script src="js/health.js?v=382"></script>
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
     <script src="js/life-projects.js?v=458"></script>
