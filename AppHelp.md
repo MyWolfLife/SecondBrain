@@ -1524,6 +1524,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-emergency
 
 ### Quick Help
+- **Me-only** -- this tile is hidden when a non-Me contact is selected in the Track Health For strip
 - Your critical health information card for emergency situations
 - Includes: blood type, organ donor status, emergency contacts, primary conditions, current medications, allergies, and special instructions
 - Single page that any first responder or ER staff could read quickly
@@ -1640,6 +1641,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-care-team
 
 ### Quick Help
+- **Me-only** -- this tile is hidden when a non-Me contact is selected in the Track Health For strip
 - Your roster of doctors, specialists, dentists, therapists, and other healthcare providers
 - Each team member links to a Contact record -- tap to see their full contact info
 - Used in Appointments and Visits to pre-fill provider information
