@@ -2364,12 +2364,15 @@ Natural language command interface for logging anything hands-free.
 | `LOG_INTERACTION` | Logs a people interaction |
 | `ADD_WEED` | Creates a new weed record |
 | `ADD_TRACKING_ENTRY` | Logs a journal tracking value |
+| `LOG_EXERCISE` | Logs a personal exercise activity to `exerciseActivities`. LLM matches type name from `exerciseTypeNames` context list (case-insensitive), falls back to "Other" (auto-created if missing). Duration parsed from natural language: 4-digit MMSS (e.g. "5303" → 53:03), ambiguous short numbers inferred from activity/distance context (e.g. "107" for a 5-mile run → 1:07:00 = 67 min). Confirm screen: type dropdown (editable), date, duration (MM:SS display, editable), miles, calories, comment. Navigates to `#exercise-activities` on confirm. |
 | `ADD_THING` | Creates a house thing |
 | `ATTACH_PHOTOS` | Attaches photos to an entity |
 | `ADD_NOTE` | Adds a note to a notebook. Routes to user's configured default notebook unless they explicitly name one in the command. Does NOT infer notebook from note content. |
 | `ADD_DEV_NOTE` | Sends developer feedback to the shared `sharedDevNotes` collection. Only triggers on explicit developer-feedback phrases ("note to dev", etc). Confirm screen includes a "Save to" notebook redirect dropdown — selecting a notebook saves to the user's notes instead (with photo support). |
 | `CHECK_IN` | Opens the check-in form for a named or GPS-based place (short-circuit — no Firestore write; navigates to the check-in form) |
 | `UNKNOWN_ACTION` | LLM could not determine intent — no action taken |
+
+**Context**: Includes zones, plants, people, vehicles, weeds, chemicals, house/garage/structures hierarchy, notebooks, lifeCategories, trackingCategories, and `exerciseTypeNames` (non-archived type names for `LOG_EXERCISE` matching). Context cached 5 minutes.
 
 **Help screen**: Built-in help listing all actions with icons, labels, descriptions, and example utterances. Maintained in `SB_HELP_ACTIONS` array — **must be kept in sync when new actions are added**.
 

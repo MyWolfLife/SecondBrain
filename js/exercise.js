@@ -18,6 +18,7 @@ const EXERCISE_DEFAULT_TYPES = [
     { name: 'Row Machine',     tracksMiles: false, withDogs: false },
     { name: 'Bike',            tracksMiles: false, withDogs: false },
     { name: 'Stationary Bike', tracksMiles: false, withDogs: false },
+    { name: 'Other',           tracksMiles: false, withDogs: false },
 ];
 
 /**

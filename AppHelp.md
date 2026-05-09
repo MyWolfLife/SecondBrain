@@ -3388,6 +3388,15 @@ Each activity shows as a two-line card:
 - Line 1: Date + Type (🐾 if with dogs) + Duration
 - Line 2: Miles @ Pace + Calories + Comment
 
+### Log via QuickLog (SecondBrain)
+You can log an exercise activity hands-free using the QuickLog mic button. Say things like:
+- "I just ran 5 miles in 5303" — the AI interprets "5303" as 53:03
+- "Walked 3.1 miles in 45 minutes and 20 seconds"
+- "Did 45 minutes of weights at the gym"
+- "Mowed the lawn for an hour and a half"
+
+The AI matches your description to a known activity type (Running, Walking, Weights, etc.) or falls back to "Other" if it can't identify the type. The confirm screen lets you review and adjust all fields before saving.
+
 ---
 
 ## screen:exercise-activity

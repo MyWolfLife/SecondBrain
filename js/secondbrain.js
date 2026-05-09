@@ -56,6 +56,7 @@ var SB_ICONS = {
     CHECK_IN:           '📍',
     ASK_HELP:           '💡',
     ADD_REMINDER:       '⏰',
+    LOG_EXERCISE:       '🏃',
     UNKNOWN_ACTION:     '❓'
 };
 var SB_LABELS = {
@@ -73,6 +74,7 @@ var SB_LABELS = {
     CHECK_IN:           'Check In',
     ASK_HELP:           'Help Question',
     ADD_REMINDER:       'Add Reminder',
+    LOG_EXERCISE:       'Log Exercise',
     UNKNOWN_ACTION:     'Unknown Action'
 };
 
@@ -123,7 +125,7 @@ async function _sbBuildContext() {
             floorsSnap, roomsSnap, thingsSnap, subThingsSnap, subThingItemsSnap,
             gRoomsSnap, gThingsSnap, gSubSnap,
             strSnap, strThingsSnap, strSubSnap,
-            notebooksSnap, lifeCatSnap
+            notebooksSnap, lifeCatSnap, exTypesSnap
         ] = await Promise.all([
             userCol('zones').get(),
             userCol('plants').get(),
@@ -144,7 +146,8 @@ async function _sbBuildContext() {
             userCol('structureThings').get(),
             userCol('structureSubThings').get(),
             userCol('notebooks').orderBy('name').get(),
-            userCol('lifeCategories').orderBy('name').get()
+            userCol('lifeCategories').orderBy('name').get(),
+            userCol('exerciseTypes').get()
         ]);
 
         // --- Zones (build hierarchy) ---
@@ -300,6 +303,15 @@ async function _sbBuildContext() {
             lifeCategories.push({ id: d.id, name: lc.name || '', template: lc.template || null });
         });
 
+        // --- Exercise Types ---
+        var exerciseTypes = [];
+        exTypesSnap.forEach(function(d) {
+            var t = d.data();
+            if (!t.archived) {
+                exerciseTypes.push({ id: d.id, name: t.name || '', tracksMiles: !!t.tracksMiles, withDogs: !!t.withDogs });
+            }
+        });
+
         // --- Assemble final context ---
         _sbContext = {
             today: _sbToday(), currentTime: _sbNow(),
@@ -310,7 +322,8 @@ async function _sbBuildContext() {
             house: house, garage: garage, structures: structures,
             notebooks: notebooks,
             defaultNotebookId: defaultNotebookId,
-            lifeCategories: lifeCategories
+            lifeCategories: lifeCategories,
+            exerciseTypes: exerciseTypes
         };
         _sbContextExp = now + SB_CACHE_MS;
         return _sbContext;
@@ -418,7 +431,8 @@ function _sbBuildSystemPrompt(ctx) {
         lifeCategories: (ctx.lifeCategories || []).map(function(c) {
             return { id: c.id, name: c.name, template: c.template };
         }),
-        sportTypes: ['baseball', 'football', 'basketball', 'hockey', 'other']
+        sportTypes: ['baseball', 'football', 'basketball', 'hockey', 'other'],
+        exerciseTypeNames: (ctx.exerciseTypes || []).map(function(t) { return t.name; })
     });
 
     return [
@@ -486,6 +500,20 @@ ctxJson,
 '',
 'ADD_TRACKING_ENTRY — personal health/life metric (weight, BP, sleep, steps, etc.).',
 '{"action":"ADD_TRACKING_ENTRY","payload":{"date":"YYYY-MM-DD","categoryId":"id or null","categoryName":"name","categoryExists":true,"value":"value"}}',
+'',
+'LOG_EXERCISE — log a personal exercise activity (running, walking, biking, gym session, mowing, yard work, etc.).',
+'typeName: match case-insensitively against exerciseTypeNames. If no match, use "Other" and set typeFound:false.',
+'Duration rules — store as DECIMAL MINUTES:',
+'  "45 min" or "45 minutes" → 45.0',
+'  "45:26" or "45 min 26 sec" → 45.433',
+'  "1:15:00" or "1 hr 15 min" → 75.0',
+'  4-digit number like "5303" or "4803" → treat as MMSS → 53:03=53.05 or 48:03=48.05',
+'  Short ambiguous number like "107": check if it could be mm:ss for the stated activity/distance.',
+'    - 1:07 for a 5-mile run would be 0.22 min/mile — physically impossible → interpret as H:MM:SS → 1:07:00 = 67.0 min',
+'    - When in doubt for runs/walks over ~3 miles, prefer the H:MM:SS interpretation for 3-digit numbers starting with 1.',
+'  Always include durationNote if the input was ambiguous or in a non-standard format.',
+'  If no duration mentioned: null.',
+'{"action":"LOG_EXERCISE","payload":{"typeName":"Running","typeFound":true,"durationMinutes":53.05,"durationRaw":"5303","durationNote":"4-digit number interpreted as MM:SS (53:03)","miles":5.0,"calories":null,"withDogs":false,"comment":"","activityDate":"YYYY-MM-DD"}}',
 '',
 'ADD_THING — add a tracked item to a room/garage/structure or sub-item inside a subthing; identify from photos if possible.',
 '{"action":"ADD_THING","payload":{"parentType":"room|thing|subthing|garageroom|garagething|structure|structurething","parentId":"id","parentLabel":"full path","name":"item name","notes":"","hasPhotos":true,"ambiguous":false}}',
@@ -1467,6 +1495,44 @@ function _sbRenderConfirmFields(action, payload) {
                 '<textarea class="sb-field" data-field="notes" rows="2">' + _sbEsc(p.notes || '') + '</textarea>');
             break;
 
+        case 'LOG_EXERCISE': {
+            var exTypes = (_sbContext && _sbContext.exerciseTypes) || [];
+            var tSel = '<select class="sb-field' + (!p.typeFound ? ' sb-ambiguous' : '') +
+                       '" data-field="exTypeName">';
+            tSel += '<option value="">— select type —</option>';
+            exTypes.forEach(function(t) {
+                tSel += '<option value="' + _sbEsc(t.name) + '"' +
+                        (t.name.toLowerCase() === (p.typeName || '').toLowerCase() ? ' selected' : '') +
+                        '>' + _sbEsc(t.name) + '</option>';
+            });
+            // Fallback: if exerciseTypes not yet seeded or loaded, show the LLM-suggested name
+            if (exTypes.length === 0 && p.typeName) {
+                tSel += '<option value="' + _sbEsc(p.typeName) + '" selected>' + _sbEsc(p.typeName) + '</option>';
+            }
+            tSel += '</select>';
+            if (!p.typeFound) {
+                tSel += '<div class="sb-ambiguous-note">⚠ Could not match type — please select or leave as Other</div>';
+            }
+            var durDisplay = (p.durationMinutes != null && p.durationMinutes !== '')
+                ? (typeof exFmtDuration === 'function' ? exFmtDuration(p.durationMinutes) : p.durationMinutes)
+                : '';
+            html += _sbFieldRow('Type', tSel);
+            html += _sbFieldRow('Date',
+                '<input type="date" class="sb-field" data-field="activityDate" value="' + _sbEsc(p.activityDate || _sbToday()) + '">');
+            html += _sbFieldRow('Duration',
+                '<input type="text" class="sb-field" data-field="exDurationStr" placeholder="MM:SS or H:MM:SS" value="' + _sbEsc(durDisplay) + '">');
+            if (p.durationNote) {
+                html += '<div class="sb-info" style="margin:-6px 0 8px 0;font-size:0.83em;">ℹ ' + _sbEsc(p.durationNote) + '</div>';
+            }
+            html += _sbFieldRow('Miles',
+                '<input type="number" class="sb-field" data-field="miles" step="0.01" min="0" placeholder="optional" value="' + _sbEsc(p.miles != null ? p.miles : '') + '">');
+            html += _sbFieldRow('Calories',
+                '<input type="number" class="sb-field" data-field="calories" min="0" placeholder="optional" value="' + _sbEsc(p.calories != null ? p.calories : '') + '">');
+            html += _sbFieldRow('Comment',
+                '<textarea class="sb-field" data-field="comment" rows="2">' + _sbEsc(p.comment || '') + '</textarea>');
+            break;
+        }
+
         case 'FIND_THING':
             if (p.found) {
                 html += '<div class="sb-find-result">' +
@@ -2218,6 +2284,65 @@ async function _sbWrite(action, payload) {
             return newId;
         }
 
+        // ---- Log Exercise Activity --------------------------
+        case 'LOG_EXERCISE': {
+            // Resolve type name (user may have changed it in confirm modal)
+            var exTypeName = ((payload.exTypeName || payload.typeName || '').trim()) || 'Other';
+
+            // Look up typeId by name in exerciseTypes
+            var exTypeId = null;
+            var exAllTypesSnap = await userCol('exerciseTypes').get();
+            exAllTypesSnap.forEach(function(doc) {
+                var d = doc.data();
+                if (!d.archived && d.name && d.name.toLowerCase() === exTypeName.toLowerCase()) {
+                    exTypeId = doc.id;
+                }
+            });
+
+            // If still not found, find or create the "Other" type
+            if (!exTypeId) {
+                exTypeName = 'Other';
+                exAllTypesSnap.forEach(function(doc) {
+                    var d = doc.data();
+                    if (d.name && d.name.toLowerCase() === 'other') {
+                        exTypeId = doc.id;
+                    }
+                });
+                if (!exTypeId) {
+                    var otherRef = await userCol('exerciseTypes').add({
+                        name: 'Other', tracksMiles: false, withDogs: false,
+                        isDefault: true, archived: false, createdAt: ts
+                    });
+                    exTypeId = otherRef.id;
+                }
+            }
+
+            // Parse duration: user may have edited exDurationStr (MM:SS), fall back to decimal
+            var exDurMin = null;
+            var exDurStr = (payload.exDurationStr || '').trim();
+            if (exDurStr) {
+                exDurMin = (typeof _exParseDuration === 'function') ? _exParseDuration(exDurStr) : parseFloat(exDurStr) || null;
+            } else if (payload.durationMinutes != null && payload.durationMinutes !== '') {
+                exDurMin = parseFloat(payload.durationMinutes) || null;
+            }
+
+            var exMiles = (payload.miles !== '' && payload.miles != null) ? parseFloat(payload.miles) : null;
+            var exCal   = (payload.calories !== '' && payload.calories != null) ? parseInt(payload.calories, 10) : null;
+
+            ref = await userCol('exerciseActivities').add({
+                typeId:          exTypeId,
+                activityDate:    (payload.activityDate || _sbToday()) + 'T' + _sbNow() + ':00',
+                durationMinutes: (exDurMin != null && !isNaN(exDurMin)) ? exDurMin : null,
+                miles:           (exMiles  != null && !isNaN(exMiles))  ? exMiles  : null,
+                withDogs:        null,
+                calories:        (exCal    != null && !isNaN(exCal))    ? exCal    : null,
+                comment:         (payload.comment || '').trim(),
+                createdAt:       ts
+            });
+            newId = ref.id;
+            break;
+        }
+
         case 'FIND_THING':
             // Read-only — no write needed (short-circuited before _sbWrite in normal flow)
             return null;
@@ -2279,6 +2404,7 @@ function _sbNavigateTo(action, payload, newId) {
             hash = '#devnotes';
             break;
         case 'ADD_TRACKING_ENTRY':  hash = '#journal-tracking';  break;
+        case 'LOG_EXERCISE':        hash = '#exercise-activities'; break;
         case 'ADD_PLANT':
             hash = id ? '#plant/' + id : '#home';
             break;
@@ -2493,6 +2619,17 @@ var SB_HELP_ACTIONS = [
             'Blood pressure this morning was 118 over 76',
             'Slept 7.5 hours last night',
             'Walked 8,200 steps today'
+        ]
+    },
+    {
+        action: 'LOG_EXERCISE',
+        icon: '🏃', label: 'Log Exercise',
+        desc: 'Log a personal workout — run, walk, bike ride, weights, mowing, or any exercise activity. The AI parses duration from natural language: "5303" → 53:03, "4803" → 48:03, and "107" for a 5-mile run → 1:07:00.',
+        examples: [
+            'I just ran 5 miles in 5303',
+            'Walked 3.1 miles in 45 minutes and 20 seconds',
+            'Did 45 minutes of weights at the gym',
+            'Mowed the lawn for an hour and a half'
         ]
     },
     {
