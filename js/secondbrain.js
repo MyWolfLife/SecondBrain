@@ -2404,7 +2404,9 @@ function _sbNavigateTo(action, payload, newId) {
             hash = '#devnotes';
             break;
         case 'ADD_TRACKING_ENTRY':  hash = '#journal-tracking';  break;
-        case 'LOG_EXERCISE':        hash = '#exercise-activities'; break;
+        case 'LOG_EXERCISE':
+            hash = id ? '#exercise-activity/' + id : '#exercise-activities';
+            break;
         case 'ADD_PLANT':
             hash = id ? '#plant/' + id : '#home';
             break;
