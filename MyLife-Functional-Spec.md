@@ -816,6 +816,13 @@ A comprehensive medical tracking hub. Health data can be tracked for any contact
 - **Emergency Info and Care Team tiles are hidden** (not just grayed) when a non-Me contact is active
 - Tracked contacts stored in `userCol('healthTrackedContacts').doc('default')` — field `contactIds: string[]`
 
+**Sub-page scoping (CH6+CH7)**:
+- All health sub-pages (allergies, supplements, vaccinations, eye, health visits, medications, conditions, concerns, blood work, vitals, insurance, appointments) filter Firestore reads by `contactId == window.healthActiveContactId`
+- Each sub-page header shows " — PersonName" suffix when a non-Me contact is active (e.g., "Allergies — Max")
+- Writes on all sub-pages stamp `contactId: window.healthActiveContactId || null`
+- Records created via step-2 post-visit flow (concernUpdates, healthConditionLogs, new concerns, new conditions) inherit `contactId` from the parent visit/concern rather than from `window.healthActiveContactId`
+- Page-refresh safety: if `window.healthActiveContactId` is null when a sub-page loads, `_healthEnsureActiveContact()` falls back to Me automatically
+
 **My Health main page tile order** (2-column grid):
 Row 1: Conditions, Concerns | Row 2: Appointments, Health Visits | Row 3: Medications, Supplements | Row 4: Blood Work, Vitals | Row 5: Insurance, Emergency Info (hidden for non-Me) | Row 6: Vaccinations, Allergies | Row 7: Eye / Glasses | Row 8: My Care Team (full-width, hidden for non-Me)
 

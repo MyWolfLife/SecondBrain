@@ -1106,6 +1106,7 @@ Switching modes clears any selection and resets to Select tool.
 ## screen:health-appointments
 
 ### Quick Help
+- Shows appointments for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Upcoming, overdue, and past medical appointments -- doctor visits, specialists, follow-ups, labs, procedures
 - Tap **Mark Done** to convert an appointment into a Health Visit record (captures notes per concern/condition)
 - Overdue appointments appear at the top as a reminder
@@ -1160,6 +1161,7 @@ Switching modes clears any selection and resets to Select tool.
 ## screen:health-visits
 
 ### Quick Help
+- Shows visits for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Chronological log of completed medical visits -- doctor, specialist, urgent care, dental, eye, lab, procedures
 - Visits are grouped by year, newest first
 - Tap any visit card to open its full detail page with notes, medications, and linked concerns/conditions
@@ -1204,6 +1206,7 @@ Switching modes clears any selection and resets to Select tool.
 ## screen:health-concerns
 
 ### Quick Help
+- Shows concerns for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Active health worries or symptoms you are tracking -- things you are watching but that may not yet be a diagnosed condition
 - Each concern has a journal of updates, linked medications, and a history of visits that addressed it
 - Concerns can be promoted to a full Condition when appropriate
@@ -1282,6 +1285,7 @@ See the Concerns list page help for full detail on the concern lifecycle and all
 ## screen:health-conditions
 
 ### Quick Help
+- Shows conditions for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Chronic or ongoing medical conditions with a full journal, medication links, visit history, and status tracking
 - Status cycles: Active, Managed, Resolved -- tap the status button on a condition to advance it
 - Tap any condition card to open its full detail page
@@ -1352,6 +1356,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-medications
 
 ### Quick Help
+- Shows medications for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Your full medication list -- current prescriptions, past medications, and as-needed drugs
 - Link medications to conditions and concerns so you always know what is treating what
 - **Scan Rx Label** in the Add/Edit modal lets the AI read a prescription receipt photo and fill in the details automatically
@@ -1395,6 +1400,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-supplements
 
 ### Quick Help
+- Shows supplements for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Vitamins, minerals, herbs, and other supplements tracked separately from prescription medications
 - Same fields as medications: name, dosage, type, start date, notes, and condition/concern links
 
@@ -1419,6 +1425,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-bloodwork
 
 ### Quick Help
+- Shows blood work for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Blood work and lab results -- import from pasted lab text using AI, or enter markers manually
 - Each record is a lab panel with individual markers (value, unit, reference range, flagged status)
 - View trends for individual markers over time across multiple panels
@@ -1457,6 +1464,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-vitals
 
 ### Quick Help
+- Shows vitals for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Recurring health measurements over time -- blood pressure, weight, heart rate, blood glucose, oxygen saturation, temperature, and more
 - Select a vital type and see all readings in a table with date, value, and notes
 - Add readings manually with a date, value, and optional notes
@@ -1490,6 +1498,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-insurance
 
 ### Quick Help
+- Shows insurance for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Health insurance plan details -- carrier, plan name, policy number, group number, coverage details, and contacts
 - Multiple plans supported (primary, secondary, dental, vision, etc.)
 - Tap any plan card to open its full detail page
@@ -1549,6 +1558,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-allergies
 
 ### Quick Help
+- Shows allergies for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Your full allergy list -- medications, foods, environmental, and contact allergens
 - Each entry records the allergen, reaction type, severity, and notes
 - Linked to Emergency Info so your allergy list is always accessible in a crisis
@@ -1577,6 +1587,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-vaccinations
 
 ### Quick Help
+- Shows vaccinations for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Vaccination history -- dates, doses, providers, and lot numbers for every vaccine you have received
 - Add records for childhood vaccines, flu shots, COVID vaccines, travel vaccines, and boosters
 
@@ -1599,6 +1610,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:health-eye
 
 ### Quick Help
+- Shows eye records for the person selected in the **Track Health For** strip -- the page title shows their name when it's not you
 - Eye exam history and current glasses/contact prescription
 - Track prescription changes over time -- sphere, cylinder, axis, add power, and PD
 

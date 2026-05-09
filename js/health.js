@@ -160,6 +160,41 @@ async function _healthRemoveTrackedContact(contactId, name) {
 }
 
 // -----------------------------------------------------------------
+//  CH6/CH7 — Active contact utilities used by every health sub-page
+// -----------------------------------------------------------------
+
+/**
+ * Returns the current healthActiveContactId, falling back to Me on page
+ * refresh (when window.healthActiveContactId is not yet set).
+ */
+async function _healthEnsureActiveContact() {
+    if (!window.healthActiveContactId) {
+        var meId = await ensureMeContact();
+        if (!_healthMeIdCache) _healthMeIdCache = meId;
+        window.healthActiveContactId = meId;
+    }
+    return window.healthActiveContactId;
+}
+
+/**
+ * Updates the h2 in the page header to append " — PersonName" when a
+ * non-Me contact is active. Stores the original text in dataset.baseText
+ * so it can be restored when switching back to Me.
+ */
+function _healthSetPageContext(routeId) {
+    var h2 = document.querySelector('#page-' + routeId + ' .page-header h2');
+    if (!h2) return;
+    if (!h2.dataset.baseText) h2.dataset.baseText = h2.textContent;
+    var contactId = window.healthActiveContactId;
+    var contact = _healthContactsCache.find(function(c) { return c.id === contactId; });
+    if (!contact || contact.isMe) {
+        h2.textContent = h2.dataset.baseText;
+    } else {
+        h2.textContent = h2.dataset.baseText + ' — ' + contact.name;
+    }
+}
+
+// -----------------------------------------------------------------
 //  CH3 — ONE-TIME MIGRATION: stamp contactId on legacy health records
 //  Runs once when the health hub loads; guarded by healthConverted flag.
 // -----------------------------------------------------------------
@@ -207,12 +242,14 @@ async function runHealthContactMigration() {
 //  ALLERGIES
 // =================================================================
 
-function loadAllergyPage() {
+async function loadAllergyPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-allergies');
     var list = document.getElementById('allergyList');
     if (!list) return;
     list.innerHTML = '<p class="empty-state">Loading…</p>';
 
-    userCol('allergies').get()
+    userCol('allergies').where('contactId', '==', contactId).get()
         .then(function(snap) {
             if (snap.empty) {
                 list.innerHTML = '<p class="empty-state">No allergies recorded yet. Tap + Add to add one.</p>';
@@ -307,7 +344,7 @@ function saveAllergy() {
     if (editId) {
         op = userCol('allergies').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         op = userCol('allergies').add(data);
     }
 
@@ -330,7 +367,9 @@ function deleteAllergy(id) {
 //  SUPPLEMENTS
 // =================================================================
 
-function loadSupplementPage() {
+async function loadSupplementPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-supplements');
     var activeList   = document.getElementById('supplementActiveList');
     var stoppedList  = document.getElementById('supplementStoppedList');
     var stoppedSect  = document.getElementById('supplementStoppedSection');
@@ -338,7 +377,7 @@ function loadSupplementPage() {
 
     activeList.innerHTML = '<p class="empty-state">Loading…</p>';
 
-    userCol('supplements').orderBy('name').get()
+    userCol('supplements').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var activeDocs = [], stoppedDocs = [];
             snap.docs.forEach(function(d) {
@@ -349,6 +388,8 @@ function loadSupplementPage() {
                     activeDocs.push(rec);
                 }
             });
+            activeDocs.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+            stoppedDocs.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
 
             // Active section
             if (activeDocs.length === 0) {
@@ -449,7 +490,7 @@ function saveSupplement() {
         op = userCol('supplements').doc(editId).update(data);
     } else {
         data.status    = 'active';
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('supplements').add(data);
     }
@@ -486,20 +527,24 @@ function deleteSupplement(id) {
 //  VACCINATIONS
 // =================================================================
 
-function loadVaccinationPage() {
+async function loadVaccinationPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-vaccinations');
     var list = document.getElementById('vaccinationList');
     if (!list) return;
     list.innerHTML = '<p class="empty-state">Loading…</p>';
 
-    userCol('vaccinations').orderBy('date', 'desc').get()
+    userCol('vaccinations').where('contactId', '==', contactId).get()
         .then(function(snap) {
             if (snap.empty) {
                 list.innerHTML = '<p class="empty-state">No vaccinations recorded yet. Tap + Add to add one.</p>';
                 return;
             }
+            var docs = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+            docs.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
             list.innerHTML = '';
-            snap.docs.forEach(function(d) {
-                list.appendChild(buildVaccinationCard(Object.assign({ id: d.id }, d.data())));
+            docs.forEach(function(d) {
+                list.appendChild(buildVaccinationCard(d));
             });
         })
         .catch(function(err) {
@@ -577,7 +622,7 @@ function saveVaccination() {
     if (editId) {
         op = userCol('vaccinations').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('vaccinations').add(data);
     }
@@ -601,7 +646,9 @@ function deleteVaccination(id) {
 //  EYE / GLASSES PRESCRIPTIONS
 // =================================================================
 
-function loadEyePage() {
+async function loadEyePage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-eye');
     var distanceList = document.getElementById('eyeDistanceList');
     var readingList  = document.getElementById('eyeReadingList');
     if (!distanceList || !readingList) return;
@@ -609,7 +656,7 @@ function loadEyePage() {
     distanceList.innerHTML = '<p class="empty-state">Loading…</p>';
     readingList.innerHTML  = '';
 
-    userCol('eyePrescriptions').orderBy('date', 'desc').get()
+    userCol('eyePrescriptions').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var distanceDocs = [], readingDocs = [];
             snap.docs.forEach(function(d) {
@@ -620,6 +667,8 @@ function loadEyePage() {
                     distanceDocs.push(rec);
                 }
             });
+            distanceDocs.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+            readingDocs.sort(function(a, b)  { return (b.date || '').localeCompare(a.date || ''); });
 
             // Distance section
             if (distanceDocs.length === 0) {
@@ -745,7 +794,7 @@ function saveEye() {
     if (editId) {
         op = userCol('eyePrescriptions').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('eyePrescriptions').add(data);
     }
@@ -772,16 +821,19 @@ function deleteEye(id) {
 /** Cached visit list for client-side filter re-render. */
 var _healthVisitCache = [];
 
-function loadHealthVisitsPage() {
+async function loadHealthVisitsPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-visits');
     var list = document.getElementById('visitList');
     if (!list) return;
     list.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('healthVisits').orderBy('date', 'desc').get()
+    userCol('healthVisits').where('contactId', '==', contactId).get()
         .then(async function(snap) {
             _healthVisitCache = snap.docs.map(function(d) {
                 return Object.assign({ id: d.id }, d.data());
             });
+            _healthVisitCache.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
 
             // Collect unique providerContactIds so we can resolve their names
             var providerIds = [];
@@ -1553,7 +1605,7 @@ function saveVisit() {
     if (editId) {
         p = userCol('healthVisits').doc(editId).update(data).then(function() { return editId; });
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         p = userCol('healthVisits').add(data).then(function(ref) { return ref.id; });
     }
@@ -1583,20 +1635,24 @@ function deleteCurrentVisit() {
 //  MEDICATIONS (H3)
 // =================================================================
 
-function loadMedicationsPage() {
+async function loadMedicationsPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-medications');
     var activeList  = document.getElementById('medicationActiveList');
     var histList    = document.getElementById('medicationHistList');
     var histSection = document.getElementById('medicationHistSection');
     if (!activeList) return;
     activeList.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('medications').orderBy('name').get()
+    userCol('medications').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var active = [], hist = [];
             snap.docs.forEach(function(d) {
                 var rec = Object.assign({ id: d.id }, d.data());
                 if (rec.status === 'completed') hist.push(rec); else active.push(rec);
             });
+            active.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+            hist.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
 
             if (active.length === 0) {
                 activeList.innerHTML = '<p class="empty-state">No current medications. Tap + Add to add one.</p>';
@@ -1911,7 +1967,7 @@ function saveMed() {
     if (editId) {
         op = userCol('medications').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('medications').add(data);
     }
@@ -1960,14 +2016,16 @@ function deleteMed(id) {
 //  CONDITIONS (H3)
 // =================================================================
 
-function loadConditionsPage() {
+async function loadConditionsPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-conditions');
     var activeList  = document.getElementById('conditionActiveList');
     var resolvedList    = document.getElementById('conditionResolvedList');
     var resolvedSection = document.getElementById('conditionResolvedSection');
     if (!activeList) return;
     activeList.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('conditions').get()
+    userCol('conditions').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var active = [], resolved = [];
             snap.docs.forEach(function(d) {
@@ -2074,7 +2132,7 @@ function saveCondition() {
     if (editId) {
         op = userCol('conditions').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('conditions').add(data);
     }
@@ -2101,14 +2159,16 @@ function deleteCondition(id) {
 //  CONCERNS (H3)
 // =================================================================
 
-function loadConcernsPage() {
+async function loadConcernsPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-concerns');
     var openList       = document.getElementById('concernOpenList');
     var resolvedList   = document.getElementById('concernResolvedList');
     var resolvedSection = document.getElementById('concernResolvedSection');
     if (!openList) return;
     openList.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('concerns').get()
+    userCol('concerns').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var open = [], resolved = [];
             snap.docs.forEach(function(d) {
@@ -2337,7 +2397,7 @@ function saveConditionUpdate() {
         note:        note,
         painScale:   pain,
         type:        'manual',
-        contactId:   null,
+        contactId:   window.healthActiveContactId || null,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -2873,7 +2933,7 @@ async function _confirmPromoteNew() {
             category:      category,
             status:        'active',
             diagnosedDate: concern.startDate || null,
-            contactId:     null,
+            contactId:     concern.contactId || null,
             createdAt:     firebase.firestore.FieldValue.serverTimestamp()
         });
         await _doPromotionWork(concern, condRef.id, name, false);
@@ -2917,7 +2977,7 @@ async function _doPromotionWork(concern, conditionId, conditionName, isMerge) {
         date:        today,
         note:        (isMerge ? 'Merged from concern: ' : 'Promoted from concern: ') + concern.title + ' on ' + today + '.',
         type:        'system',
-        contactId:   null,
+        contactId:   concern.contactId || null,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -2932,7 +2992,7 @@ async function _doPromotionWork(concern, conditionId, conditionName, isMerge) {
             note:        'Imported from concern: ' + concern.title + ' \u2014 ' + (u.note || ''),
             painScale:   u.painScale || null,
             type:        'system',
-            contactId:   null,
+            contactId:   concern.contactId || null,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp()
         });
     });
@@ -3070,7 +3130,7 @@ function saveConcern() {
     if (editId) {
         op = userCol('concerns').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('concerns').add(data);
     }
@@ -3142,7 +3202,7 @@ function saveConcernUpdate() {
         date:       document.getElementById('concernUpdateDate').value || new Date().toISOString().slice(0, 10),
         note:       note,
         painScale:  pain,
-        contactId:  null,
+        contactId:  window.healthActiveContactId || null,
         createdAt:  firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -3170,12 +3230,14 @@ var _bwAllRecords = [];
 
 // ── List page ────────────────────────────────────────────────────
 
-function loadBloodWorkPage() {
+async function loadBloodWorkPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-bloodwork');
     var list = document.getElementById('bloodWorkList');
     if (!list) return;
     list.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('bloodWorkRecords').get()
+    userCol('bloodWorkRecords').where('contactId', '==', contactId).get()
         .then(function(snap) {
             _bwAllRecords = snap.docs.map(function(d) {
                 return Object.assign({ id: d.id }, d.data());
@@ -3349,7 +3411,7 @@ function saveBloodWork() {
     if (editId) {
         op = userCol('bloodWorkRecords').doc(editId).update(data).then(function() { return editId; });
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('bloodWorkRecords').add(data).then(function(ref) { return ref.id; });
     }
@@ -3584,7 +3646,9 @@ var VITAL_UNITS = {
 
 // ── List page ────────────────────────────────────────────────────
 
-function loadVitalsPage(filterType) {
+async function loadVitalsPage(filterType) {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-vitals');
     var sel  = document.getElementById('vitalTypeFilter');
     var list = document.getElementById('vitalsList');
     if (!list) return;
@@ -3593,7 +3657,7 @@ function loadVitalsPage(filterType) {
     var activeFilter = sel ? sel.value : (filterType || '');
     list.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('vitals').get()
+    userCol('vitals').where('contactId', '==', contactId).get()
         .then(function(snap) {
             var all = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
             all.sort(function(a, b) {
@@ -3710,7 +3774,7 @@ function saveVital() {
     if (editId) {
         op = userCol('vitals').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('vitals').add(data);
     }
@@ -3786,12 +3850,14 @@ function renderVitalTrend(type) {
 //  INSURANCE (H5)
 // =================================================================
 
-function loadInsurancePage() {
+async function loadInsurancePage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-insurance');
     var list = document.getElementById('insuranceList');
     if (!list) return;
     list.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
-    userCol('insurancePolicies').get()
+    userCol('insurancePolicies').where('contactId', '==', contactId).get()
         .then(function(snap) {
             if (snap.empty) {
                 list.innerHTML = '<p class="empty-state">No insurance policies recorded. Tap + Add to add one.</p>';
@@ -3984,7 +4050,7 @@ function saveInsurance() {
     if (editId) {
         op = userCol('insurancePolicies').doc(editId).update(data).then(function() { return editId; });
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('insurancePolicies').add(data).then(function(ref) { return ref.id; });
     }
@@ -4210,13 +4276,15 @@ var _apptAllRecords = [];
 // ── List page ────────────────────────────────────────────────────
 
 async function loadAppointmentsPage() {
+    var contactId = await _healthEnsureActiveContact();
+    _healthSetPageContext('health-appointments');
     var container = document.getElementById('appointmentsList');
     container.innerHTML = '<p class="empty-state">Loading...</p>';
 
     try {
         // Parallel fetch: appointments + lookup maps for contacts, concerns, conditions
         var results = await Promise.all([
-            userCol('healthAppointments').orderBy('date', 'asc').get(),
+            userCol('healthAppointments').where('contactId', '==', contactId).get(),
             userCol('people').get(),
             userCol('concerns').get(),
             userCol('conditions').get()
@@ -4229,6 +4297,7 @@ async function loadAppointmentsPage() {
         _apptAllRecords = apptSnap.docs.map(function(d) {
             return Object.assign({ id: d.id }, d.data());
         });
+        _apptAllRecords.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
 
         // Build id → data maps for resolving linked records
         var contactMap = {};
@@ -4538,7 +4607,7 @@ function saveAppointment() {
     if (editId) {
         p = userCol('healthAppointments').doc(editId).update(data);
     } else {
-        data.contactId = null;
+        data.contactId = window.healthActiveContactId || null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         p = userCol('healthAppointments').add(data);
     }
@@ -4668,7 +4737,7 @@ function saveConvertedVisit() {
         outcome:            document.getElementById('acvOutcome').value.trim(),
         cost:               document.getElementById('acvCost').value.trim(),
         notes:              document.getElementById('acvNotes').value.trim(),
-        contactId:          null,
+        contactId:          window.healthActiveContactId || null,
         createdAt:          firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -5007,7 +5076,7 @@ async function _step2SaveNewConcern() {
             bodyArea:  bodyArea,
             status:    'open',
             startDate: _step2Visit.date || new Date().toISOString().slice(0, 10),
-            contactId: null,
+            contactId: _step2Visit.contactId || null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('healthVisits').doc(_step2Visit.id).update({
@@ -5034,7 +5103,7 @@ async function _step2SaveNewCondition() {
         var ref = await userCol('conditions').add({
             name:      name,
             status:    'active',
-            contactId: null,
+            contactId: _step2Visit.contactId || null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('healthVisits').doc(_step2Visit.id).update({
@@ -5074,7 +5143,7 @@ async function saveStep2AndDone() {
                 note:      note,
                 type:      'visit-note',
                 visitId:   visitId,
-                contactId: null,
+                contactId: _step2Visit.contactId || null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -5095,7 +5164,7 @@ async function saveStep2AndDone() {
                 note:        note,
                 type:        'visit-note',
                 visitId:     visitId,
-                contactId:   null,
+                contactId:   _step2Visit.contactId || null,
                 createdAt:   firebase.firestore.FieldValue.serverTimestamp()
             });
         }
