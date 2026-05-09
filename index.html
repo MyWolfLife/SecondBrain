@@ -4676,6 +4676,11 @@ service firebase.storage {
                     </div>
                 </div>
             </div>
+            <!-- Owner — shown for Pet contacts only -->
+            <div class="form-group" id="personOwnerGroup" style="display:none;">
+                <label>Owner</label>
+                <div id="personOwnerPicker"></div>
+            </div>
             <!-- Business Type — shown for Business contacts only -->
             <div class="form-group" id="personBusinessTypeGroup" style="display:none;">
                 <label>Business Type</label>
@@ -4717,7 +4722,7 @@ service firebase.storage {
                 <label for="personNotesInput">Notes</label>
                 <textarea id="personNotesInput" placeholder="General notes about this contact…"></textarea>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="personIsMeGroup">
                 <label class="show-toggle" style="font-weight:normal;">
                     <input type="checkbox" id="personIsMeInput">
                     This is me (used for age/retirement calculations)
@@ -10791,7 +10796,7 @@ export default {
     <script src="js/structures.js?v=537"></script>
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=547"></script>
-    <script src="js/contacts.js?v=547"></script>
+    <script src="js/contacts.js?v=548"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>

@@ -303,15 +303,47 @@ function _configureTypeFields(category) {
     var tradeGrp         = document.getElementById('personTradeGroup');
     var personalTypeGrp  = document.getElementById('personPersonalTypeGroup');
     var businessTypeGrp  = document.getElementById('personBusinessTypeGroup');
+    var ownerGrp         = document.getElementById('personOwnerGroup');
 
     if (specialtyGrp)    specialtyGrp.style.display    = (category === 'Medical Professional') ? '' : 'none';
     if (tradeGrp)        tradeGrp.style.display        = (category === 'Service Professional') ? '' : 'none';
     if (personalTypeGrp) personalTypeGrp.style.display = (category === 'Personal')            ? '' : 'none';
     if (businessTypeGrp) businessTypeGrp.style.display = (category === 'Business')            ? '' : 'none';
+    if (ownerGrp)        ownerGrp.style.display        = (category === 'Pet')                 ? '' : 'none';
 }
 
 // Backwards-compat alias (still referenced in a few older places)
 function _configureSpecialtyField(category) { _configureTypeFields(category); }
+
+// ============================================================
+// ME CONTACT  (auto-created protected contact for the user)
+// ============================================================
+
+/**
+ * Ensure a "Me" contact exists in the people collection.
+ * Called on contacts page load and before health migration.
+ * Returns the Me contact ID (creates one if none exists).
+ * Safe to call multiple times — idempotent.
+ */
+async function ensureMeContact() {
+    try {
+        var snap = await userCol('people').where('isMe', '==', true).limit(1).get();
+        if (!snap.empty) return snap.docs[0].id;
+        // No Me contact yet — create one
+        var ref = await userCol('people').add({
+            name:             'Me',
+            isMe:             true,
+            category:         'Personal',
+            parentPersonId:   null,
+            profilePhotoData: null,
+            createdAt:        firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return ref.id;
+    } catch (err) {
+        console.error('ensureMeContact error:', err);
+        return null;
+    }
+}
 
 // ============================================================
 // CONTACTS LIST PAGE  (#contacts)
@@ -322,6 +354,9 @@ function _configureSpecialtyField(category) { _configureTypeFields(category); }
  * Shows only top-level contacts (parentPersonId == null).
  */
 async function loadContactsPage() {
+    // Ensure the "Me" contact exists (silent, non-blocking)
+    ensureMeContact();
+
     // Set breadcrumb in sticky header
     var crumb = document.getElementById('breadcrumbBar');
     if (crumb) crumb.innerHTML = '<a href="#life">Life</a><span class="separator">&rsaquo;</span><span>Contacts</span>';
@@ -562,6 +597,8 @@ function renderPersonDetail(person, parentPerson) {
 
     // Contact info rows
     var rows = '';
+    if (person.category === 'Pet' && person.ownerContactId && person.ownerName)
+        rows += _contactRow('Owner', '<a href="#contact/' + escapeHtml(person.ownerContactId) + '">' + escapeHtml(person.ownerName) + '</a>');
     if (person.specialty && person.category === 'Medical Professional')
         rows += _contactRow('Specialty', escapeHtml(person.specialty));
     if (person.specialty && person.category === 'Service Professional')
@@ -736,6 +773,10 @@ async function openAddContactModal(parentPersonId) {
     document.getElementById('personIsMeInput').checked           = false;
     document.getElementById('personQuickMentionInput').checked   = false;
     document.getElementById('personModalDeleteBtn').style.display = 'none';
+    document.getElementById('personNameInput').readOnly           = false;
+    document.getElementById('personNameInput').style.background   = '';
+    var isMeGrp = document.getElementById('personIsMeGroup');
+    if (isMeGrp) isMeGrp.style.display = '';
 
     // Reset inline-add rows
     document.getElementById('personTradeAddRow').style.display        = 'none';
@@ -753,6 +794,7 @@ async function openAddContactModal(parentPersonId) {
     _loadServiceTrades('');
     _loadPersonalTypes('');
     _loadBusinessTypes('');
+    buildContactPicker('personOwnerPicker', { placeholder: 'Search contacts…', onSelect: function() {} });
     openModal('personModal');
     document.getElementById('personNameInput').focus();
 }
@@ -774,7 +816,14 @@ async function openEditContactModal(person) {
     document.getElementById('personSpecialtyInput').value  = person.specialty   || '';
     document.getElementById('personIsMeInput').checked           = !!person.isMe;
     document.getElementById('personQuickMentionInput').checked   = !!person.quickMention;
-    document.getElementById('personModalDeleteBtn').style.display = '';
+
+    // Me contact: hide delete button, lock name, hide the isMe toggle (can't change it)
+    var isMe = !!person.isMe;
+    document.getElementById('personModalDeleteBtn').style.display = isMe ? 'none' : '';
+    document.getElementById('personNameInput').readOnly           = isMe;
+    document.getElementById('personNameInput').style.background   = isMe ? 'var(--bg-secondary, #f3f4f6)' : '';
+    var isMeGroup = document.getElementById('personIsMeGroup');
+    if (isMeGroup) isMeGroup.style.display = isMe ? 'none' : '';
 
     // Reset inline-add rows
     document.getElementById('personTradeAddRow').style.display        = 'none';
@@ -794,6 +843,12 @@ async function openEditContactModal(person) {
     _loadServiceTrades(person.specialty    || '');   // trade stored in specialty field
     _loadPersonalTypes(person.personalType || '');
     _loadBusinessTypes(person.businessType || '');
+    buildContactPicker('personOwnerPicker', {
+        placeholder: 'Search contacts…',
+        initialId:   person.ownerContactId || '',
+        initialName: person.ownerName      || '',
+        onSelect: function() {}
+    });
     openModal('personModal');
 }
 
@@ -848,6 +903,20 @@ async function handleContactModalSave() {
                           : '',
         quickMention: document.getElementById('personQuickMentionInput').checked,
         isMe:         document.getElementById('personIsMeInput').checked,
+        ownerContactId: (catVal === 'Pet')
+            ? (document.getElementById('personOwnerPicker')
+                   ? (document.getElementById('personOwnerPicker')._getSelectedId
+                          ? document.getElementById('personOwnerPicker')._getSelectedId()
+                          : '')
+                   : '')
+            : '',
+        ownerName: (catVal === 'Pet')
+            ? (document.getElementById('personOwnerPicker')
+                   ? (document.getElementById('personOwnerPicker')._getSelectedName
+                          ? document.getElementById('personOwnerPicker')._getSelectedName()
+                          : '')
+                   : '')
+            : '',
     };
 
     var modal          = document.getElementById('personModal');
@@ -898,6 +967,12 @@ async function handleContactModalSave() {
 function handlePersonModalSave() { return handleContactModalSave(); }
 
 async function handleDeleteContact(id) {
+    // The Me contact cannot be deleted
+    if (currentPerson && currentPerson.isMe) {
+        alert('The "Me" contact cannot be deleted.');
+        return;
+    }
+
     if (!confirm('Delete this contact? Their interactions and important dates will also be deleted.')) return;
 
     var parentId = currentPerson ? currentPerson.parentPersonId : null;

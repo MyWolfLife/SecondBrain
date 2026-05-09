@@ -2266,7 +2266,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - **Medical Facility** -- clinics, hospitals, labs, pharmacies. Appears in the health appointment facility picker. Staff sub-contacts (Medical Professionals) can be linked under a facility.
 - **Service Professional** -- plumbers, electricians, HVAC, pest control, handyman, etc. Trade is user-customizable in Settings > Contact Types.
 - **Business** -- stores, restaurants, hardware stores, etc. Business type is user-customizable.
-- **Pet** -- pets as contacts (useful for @mentions in journal entries about pet activities).
+- **Pet** -- pets as contacts. Shows an **Owner** field (ContactPicker) to link the pet to its owner in your contacts list. The owner's name appears as a tappable link on the pet's detail page. Useful for tracking vet visits, medications, and concerns in Health.
 - **Other** -- anything that does not fit above.
 
 **Sub-contacts (hierarchy):** A contact can have sub-contacts linked under it via a parent-child relationship. For Medical Facilities, staff members (Medical Professionals) appear under the facility in a "Staff" section. For Personal contacts, sub-contacts appear under "Family Members." This is useful for tracking a whole family or all staff at a clinic.
@@ -2274,7 +2274,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 **Adding a contact:**
 - Tap **+ Add Contact** -- select category, fill in name, type/specialty/trade as applicable, phone, email, address, website, Facebook URL, how you know them, notes, and whether to include in quick @mentions.
 
-**"This is me" flag:** One contact can be flagged as you. Check "This is me" on a contact's add/edit form. Only one contact can hold this flag at a time -- saving it here clears it from everyone else. A green **✓ This is me** badge appears on that contact's detail page. The Investments section uses this contact to find your birthday for retirement age calculations.
+**"Me" contact:** A special contact named "Me" is automatically created when you first open Contacts. It represents you and cannot be deleted or renamed. It is used as the default person in Health tracking and by Investments for birthday / retirement calculations. A green **✓ This is me** badge appears on its detail page. You can still edit all other fields (phone, email, photo, important dates, etc.).
 
 **Contact detail page sections:**
 - **Contact info:** Phone (tappable tel: link), email (tappable mailto: link), address (tappable Google Maps link), website (external link), Facebook, how known, specialty (Medical Professional), notes.

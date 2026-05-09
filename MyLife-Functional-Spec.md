@@ -766,7 +766,7 @@ Daily entry logging with optional tracking metrics.
 Renamed from "People". Tracks personal contacts and medical/service professionals and facilities.
 
 **Firestore** (collection name unchanged: `people`):
-- `people` — `name`, `nickname`, `category` (see below), `specialty?`, `personalType?`, `businessType?`, `phone`, `email`, `address`, `website?`, `facebookUrl`, `howKnown`, `notes`, `quickMention` (bool — shown as "Include in quick mentions" checkbox in add/edit modal), `isMe` (bool — exclusive; only one contact may have `true` at a time; saving with `isMe=true` clears the flag on all other contacts via batch write; used by Investments to find the user's birthday for age/retirement calculations; shown as a green "✓ This is me" badge on the contact detail page), `profilePhotoData?`, `parentPersonId?`, `createdAt`
+- `people` — `name`, `nickname`, `category` (see below), `specialty?`, `personalType?`, `businessType?`, `ownerContactId?` (Pet only — FK to another `people` doc), `ownerName?` (Pet only — denormalized name for display), `phone`, `email`, `address`, `website?`, `facebookUrl`, `howKnown`, `notes`, `quickMention` (bool), `isMe` (bool — exclusive; only one contact may have `true` at a time; a "Me" contact is auto-created via `ensureMeContact()` on first Contacts page load; the Me contact cannot be deleted or renamed; its name field is read-only in the edit modal and the delete button is hidden; saving a different contact with `isMe=true` clears the flag on all others via batch write; shown as a green "✓ This is me" badge on the detail page; used by Investments and Health as the default subject), `profilePhotoData?`, `parentPersonId?`, `createdAt`
 - `peopleImportantDates` — `personId`, `label`, `month`, `day`, `year?`, `recurrence`, `createdAt`. The `label` input is a datalist combobox with built-in suggestions (Birthday, Wedding Anniversary, Graduation, Work Anniversary); any free-form text is also accepted.
 - `peopleInteractions` — `personId`, `date`, `text`, `sourceType`, `createdAt`
 - `lookups/serviceTrades` — `{ values: [...] }` full list of trades (defaults: Plumber, Electrician, HVAC, Pest Control, Handyman)
@@ -779,7 +779,7 @@ Renamed from "People". Tracks personal contacts and medical/service professional
 - **Medical Facility** — clinic, hospital, lab, pharmacy
 - **Service Professional** — shows `trade` dropdown (Plumber, Electrician, HVAC, Pest Control, Handyman + user-defined); trades stored in `lookups/serviceTrades`; on-the-fly add in modal
 - **Business** — shows `businessType` dropdown (Electronics Store, Garden Store, Restaurant, Hardware Store, Grocery Store + user-defined); types stored in `lookups/businessTypes`; on-the-fly add in modal
-- **Pet**
+- **Pet** — shows `ownerContactId` ContactPicker (links to any other contact as the owner); `ownerName` is denormalized for display; owner shown as a tappable link on the pet's contact detail page
 - **Other**
 
 **Contact Types settings page** (`#settings-contact-lists`): Accessible from Settings hub (tile renamed from "Contact Lists" to "Contact Types"). Three cards — "Service Trades", "Personal Contact Types", and "Business Types". Each shows a list of all items with Rename and Delete buttons per item. An "Add" input at the bottom adds new items. Changes are saved immediately to Firestore.
