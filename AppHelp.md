@@ -467,7 +467,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - "Replace dead azalea" with items: remove old plant, amend soil, plant new
 - "Level the front yard" (no checklist needed)
 
-**How to add a task:** Go to the Quick Tasks section on any detail page → tap **+ Add Task** → enter title and optional notes. Add checklist items by typing in the item field and pressing Enter or tapping Add.
+**How to add a task:** Go to the Quick Tasks section on any detail page → tap **+ Add Task** → enter title and optional notes. Add checklist items by typing in the item field and pressing Enter or tapping Add. You can also use **⚡ QuickLog** — say "Add a task to the back yard — trim the hedges" and it will create the task for you.
 
 **Using tasks:**
 - Check off individual items — each records a completion timestamp

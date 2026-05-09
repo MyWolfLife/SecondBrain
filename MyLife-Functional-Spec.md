@@ -2338,6 +2338,7 @@ Natural language command interface for logging anything hands-free.
 | `LOG_MILEAGE` | Adds a mileage log entry to a vehicle |
 | `ADD_FACT` | Adds a fact (key/value) to an entity |
 | `ADD_PROJECT` | Creates a project on an entity |
+| `ADD_TASK` | Creates a quick task on a zone, plant, vehicle, room, or item (same Firestore write as `ADD_PROJECT`; triggered by "add a task / to-do" phrasing) |
 | `LOG_INTERACTION` | Logs a people interaction |
 | `ADD_WEED` | Creates a new weed record |
 | `ADD_TRACKING_ENTRY` | Logs a journal tracking value |

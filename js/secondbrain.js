@@ -31,6 +31,7 @@ var SB_TARGET_TYPES = {
                     'garageroom','garagething','garagesubthing',
                     'structure','structurething','structuresubthing'],
     ADD_PROJECT:   ['zone','plant','vehicle','floor','room','thing','subthing','item','garageroom','structure'],
+    ADD_TASK:      ['zone','plant','vehicle','floor','room','thing','subthing','item','garageroom','structure'],
     ADD_THING:     ['room','thing','subthing','garageroom','garagething','structure','structurething'],
     ATTACH_PHOTOS: ['zone','plant','weed','vehicle','person','floor','room','thing','subthing','item',
                     'garageroom','garagething','garagesubthing',
@@ -46,7 +47,8 @@ var SB_TARGET_TYPES = {
 var SB_ICONS = {
     ADD_JOURNAL_ENTRY:  '📓', ADD_CALENDAR_EVENT: '📅', LOG_ACTIVITY:       '🌿',
     ADD_PROBLEM:        '⚠️', ADD_IMPORTANT_DATE: '🎂', LOG_MILEAGE:        '🚗',
-    ADD_FACT:           '📋', ADD_PROJECT:        '🔨', LOG_INTERACTION:    '👥',
+    ADD_FACT:           '📋', ADD_PROJECT:        '🔨', ADD_TASK:           '✅',
+    LOG_INTERACTION:    '👥',
     ADD_WEED:           '🌱', ADD_TRACKING_ENTRY: '📊', ADD_THING:          '📦',
     ATTACH_PHOTOS:      '📷', MOVE_THING:         '🚚', ADD_PLANT:          '🪴',
     ADD_NOTE:           '📝', FIND_THING:         '🔍', ADD_DEV_NOTE:       '🛠️',
@@ -61,6 +63,7 @@ var SB_LABELS = {
     LOG_ACTIVITY:       'Log Activity',        ADD_PROBLEM:        'Add Problem',
     ADD_IMPORTANT_DATE: 'Add Important Date',  LOG_MILEAGE:        'Log Mileage',
     ADD_FACT:           'Add Fact',            ADD_PROJECT:        'Add Project',
+    ADD_TASK:           'Add Task',
     LOG_INTERACTION:    'Log Interaction',     ADD_WEED:           'Add Weed',
     ADD_TRACKING_ENTRY: 'Add Tracking Entry',  ADD_THING:          'Add Item',
     ATTACH_PHOTOS:      'Attach Photos',       MOVE_THING:         'Move Item',
@@ -463,8 +466,11 @@ ctxJson,
 'ADD_FACT — factual attribute about any entity (size, spec, date, preference).',
 '{"action":"ADD_FACT","payload":{"targetType":"zone|plant|weed|vehicle|person|floor|room|thing|subthing|item|garageroom|garagething|garagesubthing|structure|structurething|structuresubthing","targetId":"id","targetLabel":"full path","label":"label","value":"value","ambiguous":false}}',
 '',
-'ADD_PROJECT — future improvement or task to track (not a calendar event).',
+'ADD_PROJECT — future improvement or larger project to track (not a calendar event).',
 '{"action":"ADD_PROJECT","payload":{"targetType":"zone|plant|vehicle|floor|room|thing|subthing|item|garageroom|structure","targetId":"id","targetLabel":"full path","title":"title","notes":"","ambiguous":false}}',
+'',
+'ADD_TASK — a to-do or quick task for a specific zone, plant, vehicle, room, or item. Use when the user says "add a task", "I need to", "to-do", or similar short actionable phrasing (as opposed to a larger project).',
+'{"action":"ADD_TASK","payload":{"targetType":"zone|plant|vehicle|floor|room|thing|subthing|item|garageroom|structure","targetId":"id","targetLabel":"full path","title":"title","notes":"","ambiguous":false}}',
 '',
 'LOG_INTERACTION — meeting, talking to, or spending time with a person.',
 '{"action":"LOG_INTERACTION","payload":{"personId":"id or null","personName":"name","personFound":true,"date":"YYYY-MM-DD","notes":"summary"}}',
@@ -1220,6 +1226,7 @@ function _sbRenderConfirmFields(action, payload) {
             break;
 
         case 'ADD_PROJECT':
+        case 'ADD_TASK':
             html += _sbFieldRow('Target', _sbTargetDropdown(SB_TARGET_TYPES.ADD_PROJECT, p));
             html += _sbFieldRow('Title',
                 '<input type="text" class="sb-field" data-field="title" value="' + _sbEsc(p.title || '') + '">');
@@ -1872,8 +1879,9 @@ async function _sbWrite(action, payload) {
             return newId;
         }
 
-        // ---- Add Project ------------------------------------
-        case 'ADD_PROJECT': {
+        // ---- Add Project / Add Task (same Firestore write) -----
+        case 'ADD_PROJECT':
+        case 'ADD_TASK': {
             ref = await userCol('projects').add({
                 targetType:  payload.targetType || '',
                 targetId:    payload.targetId   || '',
@@ -2291,6 +2299,7 @@ function _sbNavigateTo(action, payload, newId) {
         case 'ADD_PROBLEM':
         case 'ADD_FACT':
         case 'ADD_PROJECT':
+        case 'ADD_TASK':
         case 'ATTACH_PHOTOS':
             hash = _sbTypeHash(payload.targetType, payload.targetId);
             break;
@@ -2394,12 +2403,23 @@ var SB_HELP_ACTIONS = [
     {
         action: 'ADD_PROJECT',
         icon: '🔨', label: 'Add Project',
-        desc: 'Track a future improvement or task (not a scheduled reminder).',
+        desc: 'Track a future improvement or larger project (not a scheduled reminder).',
         examples: [
             'I want to install drip irrigation in the back yard',
             'Need to repaint the shed door',
             'Replace the carpet in the office',
             'Build a raised garden bed by the mailbox'
+        ]
+    },
+    {
+        action: 'ADD_TASK',
+        icon: '✅', label: 'Add Task',
+        desc: 'Add a quick to-do item to a zone, plant, vehicle, room, or item.',
+        examples: [
+            'Add a task to the back yard — trim the hedges',
+            'I need to clean the gutters on the garage',
+            'To-do: fix the loose hinge on the shed door',
+            'Add a task to the truck — check tire pressure'
         ]
     },
     {
