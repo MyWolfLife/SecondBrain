@@ -818,24 +818,28 @@ Row 1: Conditions, Concerns | Row 2: Appointments, Health Visits | Row 3: Medica
 - Both provider and facility are optional per member
 - Edit / Remove per member (Remove confirms before deleting)
 
+**contactId on health records**: Every health record (except `emergencyInfo` and `healthCareTeam` which are Me-only) carries a `contactId` field linking the record to a contact (from the `people` collection). New records are stamped `contactId: null` at write time; a one-time migration (`runHealthContactMigration()`, triggered on health page load, guarded by `settings/appState.healthConverted`) back-fills existing null records with the Me contact's ID.
+
 **Firestore collections** (all under `userCol`):
 
 | Collection | Key Fields |
 |------------|------------|
-| `healthVisits` | date, type, provider (legacy), providerType (legacy), facilityContactId, providerContactId, concernIds[], conditionIds[], reason, whatWasDone, outcome, cost, notes, linkedJournalEntryId? |
-| `medications` | name, dosage, purpose, prescribedBy, startDate, endDate, status (active/completed), type (Ongoing/Short-term/As-needed), concernIds[], conditionIds[] |
-| `concerns` | title, bodyArea, startDate, status (open/resolved/promoted), resolvedDate, summary, promotedToConditionId, promotedDate |
-| `healthConcernLogs` | concernId, date, note, painScale?, type (manual/system/visit-note), visitId? |
-| `conditions` | name, category, diagnosedDate, diagnosedBy, status (active/managed/resolved), managementNotes |
-| `healthConditionLogs` | conditionId, date, note, painScale, type (manual/system/visit-note), visitId (optional), createdAt |
-| `bloodWork` | date, lab, orderedBy, notes, markers[] (name/value/unit/referenceRange/flagged) |
-| `vitals` | date, time, type (BP/HR/O2/Glucose/Temp/Other), value1, value2, unit, notes |
-| `supplements` | name, dosage, brand, reason, frequency, startDate, endDate, status (active/stopped) |
-| `vaccinations` | name, date, dateApproximate, provider, lotNumber, nextDueDate |
-| `eyePrescriptions` | date, type (Distance/Reading), rightEye{}, leftEye{}, pd, provider |
-| `insurance` | provider, policyNumber, groupNumber, memberId, copay, deductible, photoDocuments[] |
-| `emergencyInfo` | emergencyContacts[], allergies[], medicalAdvances, dnr, notes |
-| `healthAppointments` | date, time, type, facilityContactId, providerContactId, concernIds[], conditionIds[], notes, status (scheduled/completed/cancelled/converted), linkedVisitId |
+| `healthVisits` | contactId, date, type, facilityContactId, providerContactId, providerText, concernIds[], conditionIds[], reason, whatWasDone, outcome, cost, notes, linkedJournalEntryId? |
+| `medications` | contactId, name, dosage, purpose, prescribedBy, startDate, endDate, status (active/completed), type (Ongoing/Short-term/As-needed), concernIds[], conditionIds[] |
+| `concerns` | contactId, title, bodyArea, startDate, status (open/resolved/promoted), resolvedDate, summary, promotedToConditionId, promotedDate |
+| `concernUpdates` | contactId, concernId, date, note, painScale?, type (manual/system/visit-note), visitId? |
+| `conditions` | contactId, name, category, diagnosedDate, diagnosedBy, status (active/managed/resolved), managementNotes |
+| `healthConditionLogs` | contactId, conditionId, date, note, painScale, type (manual/system/visit-note), visitId?, createdAt |
+| `bloodWorkRecords` | contactId, date, lab, orderedBy, notes, markers[] (name/value/unit/referenceRange/flagged) |
+| `vitals` | contactId, date, time, type (BP/HR/O2/Glucose/Temp/Other), value1, value2, unit, notes |
+| `supplements` | contactId, name, dosage, brand, reason, frequency, startDate, endDate, status (active/stopped) |
+| `vaccinations` | contactId, name, date, dateApproximate, provider, lotNumber, nextDueDate |
+| `eyePrescriptions` | contactId, date, type (Distance/Reading), rightEye{}, leftEye{}, pd, provider |
+| `insurancePolicies` | contactId, type, carrier, planName, memberId, groupNumber, policyNumber, startDate, endDate, premiumAmount, deductible, outOfPocketMax, beneficiaries, customerServicePhone, website, notes, status (active/inactive) |
+| `allergies` | contactId, allergen, type, reaction, severity, dateDiscovered, notes |
+| `emergencyInfo` | emergencyContacts[], allergies[], medicalAdvances, dnr, notes — **Me-only, no contactId** |
+| `healthCareTeam` | members[] — **Me-only, no contactId** |
+| `healthAppointments` | contactId, date, time, type, facilityContactId, providerContactId, concernIds[], conditionIds[], notes, status (scheduled/completed/cancelled/converted), linkedVisitId |
 
 **Appointments** (`#health-appointments`): List page shows Overdue / Upcoming / Past sections. Each card shows: type badge, date/time (tappable — opens edit modal, same as Edit button), Facility (tappable link to `#contact/{id}` if contactId set), Provider (tappable link or plain text), concern/condition chips, notes. Actions: Edit (hidden on converted), ✓ Mark Done (scheduled/overdue only), View Visit link (if linkedVisitId set). **Delete and Cancel Appointment are in the edit modal** (not the card). Edit modal bottom row: left side has Delete (always shown when editing) + Cancel Appt (shown only for active appointments — not cancelled/completed/converted); right side has Close + Save. "Cancel Appt" saves current notes field + sets `status: 'cancelled'` in one step, then closes modal. Add/Edit modal: date, time, type dropdown (Dr. Visit / Specialist / Follow-up / Physical or Annual / Urgent Care / Emergency / Dental / Eye Exam / Lab or Test / Procedure), status, Facility ContactPicker (Medical Facility, allowCreate), Provider ContactPicker (Medical Professional, allowCreate, optional), scrollable concern/condition checkbox list (open concerns + active/managed conditions), notes. Mark Done → opens `apptConvertModal` to create a Health Visit; on save sets `status: 'converted'` and `linkedVisitId`. Converted appointments show no Edit button and a "View Visit" link.
 

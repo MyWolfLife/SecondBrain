@@ -13,7 +13,51 @@ var HEALTH_SEVERITY_ORDER = { Severe: 0, Moderate: 1, Mild: 2 };
 //  HEALTH HUB
 // -----------------------------------------------------------------
 function loadHealthPage() {
-    // Hub is a static grid — nothing dynamic to load.
+    runHealthContactMigration();  // CH3: one-time migration, no-op after first run
+}
+
+// -----------------------------------------------------------------
+//  CH3 — ONE-TIME MIGRATION: stamp contactId on legacy health records
+//  Runs once when the health hub loads; guarded by healthConverted flag.
+// -----------------------------------------------------------------
+async function runHealthContactMigration() {
+    try {
+        var stateSnap = await userCol('settings').doc('appState').get();
+        if (stateSnap.exists && stateSnap.data().healthConverted) return;
+
+        var meId = await ensureMeContact();
+        if (!meId) { console.error('runHealthContactMigration: could not resolve Me contact'); return; }
+
+        var HEALTH_COLLECTIONS = [
+            'allergies', 'supplements', 'vaccinations', 'eyePrescriptions',
+            'healthVisits', 'medications', 'conditions', 'healthConditionLogs',
+            'concerns', 'concernUpdates', 'bloodWorkRecords', 'vitals',
+            'insurancePolicies', 'healthAppointments'
+        ];
+
+        // Collect all document refs that still have contactId == null
+        var refs = [];
+        for (var i = 0; i < HEALTH_COLLECTIONS.length; i++) {
+            var snap = await userCol(HEALTH_COLLECTIONS[i]).get();
+            snap.docs.forEach(function(d) {
+                if (d.data().contactId == null) refs.push(d.ref);
+            });
+        }
+
+        // Commit in batches of 400 (Firestore batch limit)
+        for (var start = 0; start < refs.length; start += 400) {
+            var batch = db.batch();
+            refs.slice(start, start + 400).forEach(function(ref) {
+                batch.update(ref, { contactId: meId });
+            });
+            await batch.commit();
+        }
+
+        await userCol('settings').doc('appState').set({ healthConverted: true }, { merge: true });
+        console.log('runHealthContactMigration: stamped ' + refs.length + ' records with contactId=' + meId);
+    } catch (err) {
+        console.error('runHealthContactMigration error:', err);
+    }
 }
 
 // =================================================================
@@ -116,9 +160,13 @@ function saveAllergy() {
 
     var modal  = document.getElementById('allergyModal');
     var editId = modal.dataset.editId;
-    var op = editId
-        ? userCol('allergies').doc(editId).update(data)
-        : userCol('allergies').add(data);
+    var op;
+    if (editId) {
+        op = userCol('allergies').doc(editId).update(data);
+    } else {
+        data.contactId = null;
+        op = userCol('allergies').add(data);
+    }
 
     op.then(function() {
         closeModal('allergyModal');
@@ -258,6 +306,7 @@ function saveSupplement() {
         op = userCol('supplements').doc(editId).update(data);
     } else {
         data.status    = 'active';
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('supplements').add(data);
     }
@@ -385,6 +434,7 @@ function saveVaccination() {
     if (editId) {
         op = userCol('vaccinations').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('vaccinations').add(data);
     }
@@ -552,6 +602,7 @@ function saveEye() {
     if (editId) {
         op = userCol('eyePrescriptions').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('eyePrescriptions').add(data);
     }
@@ -1359,6 +1410,7 @@ function saveVisit() {
     if (editId) {
         p = userCol('healthVisits').doc(editId).update(data).then(function() { return editId; });
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         p = userCol('healthVisits').add(data).then(function(ref) { return ref.id; });
     }
@@ -1716,6 +1768,7 @@ function saveMed() {
     if (editId) {
         op = userCol('medications').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('medications').add(data);
     }
@@ -1878,6 +1931,7 @@ function saveCondition() {
     if (editId) {
         op = userCol('conditions').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('conditions').add(data);
     }
@@ -2140,6 +2194,7 @@ function saveConditionUpdate() {
         note:        note,
         painScale:   pain,
         type:        'manual',
+        contactId:   null,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -2675,6 +2730,7 @@ async function _confirmPromoteNew() {
             category:      category,
             status:        'active',
             diagnosedDate: concern.startDate || null,
+            contactId:     null,
             createdAt:     firebase.firestore.FieldValue.serverTimestamp()
         });
         await _doPromotionWork(concern, condRef.id, name, false);
@@ -2718,6 +2774,7 @@ async function _doPromotionWork(concern, conditionId, conditionName, isMerge) {
         date:        today,
         note:        (isMerge ? 'Merged from concern: ' : 'Promoted from concern: ') + concern.title + ' on ' + today + '.',
         type:        'system',
+        contactId:   null,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -2732,6 +2789,7 @@ async function _doPromotionWork(concern, conditionId, conditionName, isMerge) {
             note:        'Imported from concern: ' + concern.title + ' \u2014 ' + (u.note || ''),
             painScale:   u.painScale || null,
             type:        'system',
+            contactId:   null,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp()
         });
     });
@@ -2869,6 +2927,7 @@ function saveConcern() {
     if (editId) {
         op = userCol('concerns').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('concerns').add(data);
     }
@@ -2940,6 +2999,7 @@ function saveConcernUpdate() {
         date:       document.getElementById('concernUpdateDate').value || new Date().toISOString().slice(0, 10),
         note:       note,
         painScale:  pain,
+        contactId:  null,
         createdAt:  firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -3146,6 +3206,7 @@ function saveBloodWork() {
     if (editId) {
         op = userCol('bloodWorkRecords').doc(editId).update(data).then(function() { return editId; });
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('bloodWorkRecords').add(data).then(function(ref) { return ref.id; });
     }
@@ -3506,6 +3567,7 @@ function saveVital() {
     if (editId) {
         op = userCol('vitals').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('vitals').add(data);
     }
@@ -3779,6 +3841,7 @@ function saveInsurance() {
     if (editId) {
         op = userCol('insurancePolicies').doc(editId).update(data).then(function() { return editId; });
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         op = userCol('insurancePolicies').add(data).then(function(ref) { return ref.id; });
     }
@@ -4332,6 +4395,7 @@ function saveAppointment() {
     if (editId) {
         p = userCol('healthAppointments').doc(editId).update(data);
     } else {
+        data.contactId = null;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         p = userCol('healthAppointments').add(data);
     }
@@ -4461,6 +4525,7 @@ function saveConvertedVisit() {
         outcome:            document.getElementById('acvOutcome').value.trim(),
         cost:               document.getElementById('acvCost').value.trim(),
         notes:              document.getElementById('acvNotes').value.trim(),
+        contactId:          null,
         createdAt:          firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -4799,6 +4864,7 @@ async function _step2SaveNewConcern() {
             bodyArea:  bodyArea,
             status:    'open',
             startDate: _step2Visit.date || new Date().toISOString().slice(0, 10),
+            contactId: null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('healthVisits').doc(_step2Visit.id).update({
@@ -4825,6 +4891,7 @@ async function _step2SaveNewCondition() {
         var ref = await userCol('conditions').add({
             name:      name,
             status:    'active',
+            contactId: null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('healthVisits').doc(_step2Visit.id).update({
@@ -4864,6 +4931,7 @@ async function saveStep2AndDone() {
                 note:      note,
                 type:      'visit-note',
                 visitId:   visitId,
+                contactId: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -4884,6 +4952,7 @@ async function saveStep2AndDone() {
                 note:        note,
                 type:        'visit-note',
                 visitId:     visitId,
+                contactId:   null,
                 createdAt:   firebase.firestore.FieldValue.serverTimestamp()
             });
         }
