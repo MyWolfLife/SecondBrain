@@ -64,7 +64,7 @@ It is used by the in-app AI assistant to answer your questions.
 - Detail page for one zone — shows its plants, sub-zones, and all tracking data in collapsible accordions
 - Tap any section header (Photos, Facts, Problems, Tasks, Activities) to expand or collapse it
 - **Add here** for zone-wide events (sprayed the whole yard); **drill into a sub-zone or plant** for targeted tracking
-- Problems and Quick Tasks show data **rolled up from all sub-zones and plants below** — each item labeled "from: [source]"
+- Quick Tasks shows **this zone's tasks first**, then a "From Sub-zones" divider, then tasks from sub-zones — each rollup item labeled "from: [source]"
 - **Shortcut:** Tap **⚡ QuickLog** on the main screen instead of navigating here — say "I watered the back yard"
 
 ### Details
@@ -76,7 +76,7 @@ It is used by the in-app AI assistant to answer your questions.
 - **Navigate into a sub-zone or plant** when you want to track something specific — e.g., one particular azalea is struggling, or you only watered the left flower bed.
 - Either approach is valid. Log at whatever level matches how you think about your yard.
 
-**Rollup from children:** The Problems and Quick Tasks sections aggregate data from THIS zone AND everything beneath it — all sub-zones and all plants inside them. Each rolled-up item is labeled "from: [source name]" so you always know where it came from. This lets you see all open issues across an entire zone hierarchy at a glance, without drilling into each child.
+**Rollup from children:** The Problems and Quick Tasks sections aggregate data from THIS zone AND everything beneath it — all sub-zones and all plants inside them. Each rolled-up item is labeled "from: [source name]" so you always know where it came from. For Quick Tasks, this zone's own tasks appear first; sub-zone rollup tasks appear below a "From Sub-zones" divider. This lets you see all tasks across a zone hierarchy at a glance without losing track of what belongs directly to this zone.
 
 **Note:** The Activities section shows only activities logged directly at this zone level. It does not pull in activities from sub-zones or plants. For a cross-zone view of all activity, use the Activity Report (History in the nav bar).
 
@@ -91,7 +91,7 @@ It is used by the in-app AI assistant to answer your questions.
 - **Photos** — Reference photos of this zone (before/after, seasonal shots, overview)
 - **Facts** — Key-value notes (e.g., "Square Footage = 200 sq ft", "Soil Type = Clay", "Irrigation = Drip")
 - **Problems** — Open issues for this zone plus all rolled-up problems from sub-zones and plants beneath it
-- **Quick Tasks** — To-do items and checklists for this zone plus rolled-up tasks from all children
+- **Quick Tasks** — This zone's own tasks first, then (if "Include sub-zones" is checked) a divider and sub-zone rollup tasks below
 - **Calendar Events** — Scheduled events linked to this zone
 - **Activities** — Only activities logged directly at this zone level
 

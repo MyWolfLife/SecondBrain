@@ -1104,6 +1104,17 @@ button {
     flex-shrink: 0;
 }
 
+.project-rollup-divider {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 4px 4px;
+    border-top: 1px solid #ddd;
+    margin-top: 6px;
+}
+
 .project-header-actions {
     display: flex;
     gap: 4px;

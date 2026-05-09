@@ -98,13 +98,25 @@ async function loadProjectsWithChildren(targetType, targetId, containerId, empty
         var activeItems    = allItems.filter(function(i) { return i.project.status !== 'completed'; });
         var completedItems = allItems.filter(function(i) { return i.project.status === 'completed'; });
 
-        activeItems.sort(function(a, b)    { return (a.project.title || '').localeCompare(b.project.title || ''); });
-        completedItems.sort(function(a, b) { return (a.project.title || '').localeCompare(b.project.title || ''); });
+        // Separate own (this entity) from rollup (descendants) within each group
+        var ownActive      = activeItems.filter(function(i)    { return i.sourceLabel === null; });
+        var rollupActive   = activeItems.filter(function(i)    { return i.sourceLabel !== null; });
+        var ownCompleted   = completedItems.filter(function(i) { return i.sourceLabel === null; });
+        var rollupCompleted = completedItems.filter(function(i) { return i.sourceLabel !== null; });
 
-        var displayItems = showCompleted ? activeItems.concat(completedItems) : activeItems;
+        var sortByTitle = function(a, b) { return (a.project.title || '').localeCompare(b.project.title || ''); };
+        ownActive.sort(sortByTitle);
+        rollupActive.sort(sortByTitle);
+        ownCompleted.sort(sortByTitle);
+        rollupCompleted.sort(sortByTitle);
+
+        // Build ordered display: own first (active then completed), rollup second
+        var displayOwnItems    = showCompleted ? ownActive.concat(ownCompleted)       : ownActive;
+        var displayRollupItems = showCompleted ? rollupActive.concat(rollupCompleted) : rollupActive;
+        var displayItems       = displayOwnItems.concat(displayRollupItems);
 
         if (displayItems.length === 0) {
-            emptyState.textContent = completedItems.length > 0
+            emptyState.textContent = (completedItems.length > 0)
                 ? 'All tasks completed! Check "Show completed" to see them.'
                 : 'No quick tasks yet.';
             emptyState.style.display = 'block';
@@ -112,7 +124,8 @@ async function loadProjectsWithChildren(targetType, targetId, containerId, empty
         }
 
         emptyState.style.display = 'none';
-        displayItems.forEach(function(item) {
+
+        function renderItem(item) {
             var card = createProjectCard(item.project, item.targetType, item.targetId, item.sourceLabel);
             if (expandedIds[item.project.id]) {
                 var body = card.querySelector('.project-body');
@@ -121,7 +134,19 @@ async function loadProjectsWithChildren(targetType, targetId, containerId, empty
                 if (chevron) chevron.textContent = '\u25BE';
             }
             container.appendChild(card);
-        });
+        }
+
+        displayOwnItems.forEach(renderItem);
+
+        // Divider between own tasks and sub-entity rollups
+        if (displayOwnItems.length > 0 && displayRollupItems.length > 0) {
+            var divider = document.createElement('div');
+            divider.className = 'project-rollup-divider';
+            divider.textContent = 'From Sub-zones';
+            container.appendChild(divider);
+        }
+
+        displayRollupItems.forEach(renderItem);
 
     } catch (err) {
         console.error('loadProjectsWithChildren error:', err);
@@ -1224,26 +1249,31 @@ async function loadSubZoneProjects(zoneId) {
  * @param {string} targetId - The target's Firestore document ID.
  */
 function reloadProjectsForCurrentTarget(targetType, targetId) {
-    // Map every targetType to its container and empty-state element IDs
+    // Map every targetType to its container, empty-state, and count badge element IDs
     var map = {
-        'plant':            ['plantProjectsContainer',              'plantProjectsEmptyState'],
-        'zone':             ['zoneProjectsContainer',               'zoneProjectsEmptyState'],
-        'vehicle':          ['vehicleProjectsContainer',            'vehicleProjectsEmptyState'],
-        'floor':            ['floorProjectsContainer',              'floorProjectsEmptyState'],
-        'room':             ['roomProjectsContainer',               'roomProjectsEmptyState'],
-        'thing':            ['thingProjectsContainer',              'thingProjectsEmptyState'],
-        'subthing':         ['stProjectsContainer',                 'stProjectsEmptyState'],
-        'garageroom':       ['garageRoomProjectsContainer',         'garageRoomProjectsEmpty'],
-        'garagething':      ['garageThingProjectsContainer',        'garageThingProjectsEmpty'],
-        'garagesubthing':   ['garageSubThingProjectsContainer',     'garageSubThingProjectsEmpty'],
-        'structure':        ['structureProjectsContainer',          'structureProjectsEmpty'],
-        'structurething':   ['structureThingProjectsContainer',     'structureThingProjectsEmpty'],
-        'structuresubthing':['structureSubThingProjectsContainer',  'structureSubThingProjectsEmpty'],
+        'plant':            ['plantProjectsContainer',              'plantProjectsEmptyState',       'plantTasksAccCount'],
+        'zone':             ['zoneProjectsContainer',               'zoneProjectsEmptyState',        'zoneTasksAccCount'],
+        'vehicle':          ['vehicleProjectsContainer',            'vehicleProjectsEmptyState',     'vehicleTasksAccCount'],
+        'floor':            ['floorProjectsContainer',              'floorProjectsEmptyState',       'floorTasksAccCount'],
+        'room':             ['roomProjectsContainer',               'roomProjectsEmptyState',        'roomTasksAccCount'],
+        'thing':            ['thingProjectsContainer',              'thingProjectsEmptyState',       'thingTasksAccCount'],
+        'subthing':         ['stProjectsContainer',                 'stProjectsEmptyState',          'stTasksAccCount'],
+        'garageroom':       ['garageRoomProjectsContainer',         'garageRoomProjectsEmpty',       'garageRoomTasksAccCount'],
+        'garagething':      ['garageThingProjectsContainer',        'garageThingProjectsEmpty',      'garageThingTasksAccCount'],
+        'garagesubthing':   ['garageSubThingProjectsContainer',     'garageSubThingProjectsEmpty',   'garageSubThingTasksAccCount'],
+        'structure':        ['structureProjectsContainer',          'structureProjectsEmpty',        'structureTasksAccCount'],
+        'structurething':   ['structureThingProjectsContainer',     'structureThingProjectsEmpty',   'structureThingTasksAccCount'],
+        'structuresubthing':['structureSubThingProjectsContainer',  'structureSubThingProjectsEmpty','structureSubThingTasksAccCount'],
     };
 
     var ids = map[targetType];
     if (ids) {
-        loadProjects(targetType, targetId, ids[0], ids[1]);
+        loadProjects(targetType, targetId, ids[0], ids[1])
+            .then(function() {
+                if (ids[2] && typeof _setDetailAccCount === 'function') {
+                    _setDetailAccCount(ids[2], ids[0]);
+                }
+            });
     }
 
     // Also refresh yard projects page if it's currently visible
