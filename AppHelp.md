@@ -3449,7 +3449,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Log or edit a single day's health and habit metrics — weight, sleep, steps, calories, and any custom metrics you've set up.
 
 ### Quick Help
-- **Date field**: defaults to today for a new entry — change it to log for a different day. If a record already exists for that date, the form switches to edit mode and pre-fills with the existing data
+- **Date field**: defaults to today for a new entry — change it to log for a different day. If a record already exists for that date, the form reloads pre-filled with that record's data. If no record exists for the new date, your in-progress values are kept (only the date updates)
 - **Body section**: Weight (decimals OK), Sleep Score, Body Battery
 - **Activity section**: Daily Steps, Total Actual Burn (from your watch, usually entered the next day), Food Calories
 - **Habits & Custom**: your custom metrics in order — YES/NO metrics are checkboxes; Number metrics have an optional unit label (e.g. oz, cal); Text metrics are free-form

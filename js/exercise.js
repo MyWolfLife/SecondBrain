@@ -1732,7 +1732,8 @@ function _dmBuildEntryForm(el) {
             '</div>' +
         '</div>';
 
-    // Wire date change — auto-load existing record for that date
+    // Wire date change — load existing record for that date if one exists;
+    // otherwise preserve the in-progress form values (user just corrected the date)
     document.getElementById('dmfDate').addEventListener('change', async function() {
         var newDate = this.value;
         if (!newDate) return;
@@ -1740,7 +1741,14 @@ function _dmBuildEntryForm(el) {
         _dmEditDate    = newDate;
         _dmExistingDoc = docSnap.exists ? docSnap.data() : null;
         _dmUpdateBreadcrumb();
-        _dmBuildEntryForm(el);
+        if (docSnap.exists) {
+            // Existing record for this date — load it into the form
+            _dmBuildEntryForm(el);
+        } else {
+            // No record yet — keep whatever the user typed; just hide Delete if it's showing
+            var delBtn = document.getElementById('dmDeleteBtn');
+            if (delBtn) delBtn.remove();
+        }
     });
 
     // Wire note toggles
