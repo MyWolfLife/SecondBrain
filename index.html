@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=702">
+    <link rel="stylesheet" href="css/styles.css?v=703">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -9324,10 +9324,10 @@ service firebase.storage {
             <div class="journal-entry-form">
                 <div class="form-group">
                     <label>Date &amp; Time</label>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <input type="date" id="journalEntryDate" style="flex:1;">
+                    <div class="journal-datetime-row">
+                        <input type="date" id="journalEntryDate">
                         <span id="journalEntryDayOfWeek" style="font-size:1em;font-weight:600;color:#374151;white-space:nowrap;"></span>
-                        <input type="time" id="journalEntryTime" style="flex:0 0 120px;width:120px;">
+                        <input type="time" id="journalEntryTime">
                     </div>
                 </div>
                 <div class="form-group">

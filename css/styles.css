@@ -6142,6 +6142,19 @@ a.ar-target-link:hover {
     padding-left: 16px;
 }
 
+/* Date/time row — flexible on mobile, constrained widths on desktop */
+.journal-datetime-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.journal-datetime-row input[type="date"] { flex: 1; }
+.journal-datetime-row input[type="time"] { flex: 0 0 120px; width: 120px; }
+@media (min-width: 600px) {
+    .journal-datetime-row input[type="date"] { flex: 0 0 150px; width: 150px; }
+    .journal-datetime-row input[type="time"] { flex: 0 0 155px; width: 155px; }
+}
+
 /* Row above the textarea with label on left, mic button on right */
 .journal-textarea-header {
     display: flex;
