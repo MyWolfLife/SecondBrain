@@ -4822,6 +4822,23 @@ button {
 .run-drag-handle { display: none; }
 .cl-run-card--editing .run-drag-handle { display: inline; }
 
+/* Run-card indent button: hidden by default, shown when card is in edit mode */
+.cl-run-indent-btn { display: none; }
+.cl-run-card--editing .cl-run-indent-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    color: #6b7280;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
 /* Indent toggle button in template editor */
 .cl-indent-btn {
     background: none;

@@ -2609,7 +2609,7 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Drag-and-drop reorder of undone items in edit mode (SortableJS on `.cl-undone-list`)
   - Adding items in edit mode prompts "Add to template too?" for template-derived runs
 - **URL items**: labels starting with `http://` or `https://` render as clickable links (new tab) in run cards and completed accordions
-- **Sub-item indentation**: `indent: 1` → 28px padding; `indent: 2` → 56px padding — applies in run cards, completed, and archived cards
+- **Sub-item indentation**: `indent: 1` → 28px padding; `indent: 2` → 56px padding — applies in run cards, completed, and archived cards. In run card edit mode, each item also shows a `→`/`←` indent button (same 3-way cycle as the template editor) that saves immediately to Firestore.
 - **Per-item notes**: 📝 button → inline textarea. Saves on blur/Enter. Escape discards. Clicking the note text itself (when it exists) also opens the editor. Fixed blur/click race: `mousedown` on the 📝 button prevents blur from firing before click, so clicking 📝 to close correctly saves without re-opening.
 - **Item completion date**: `doneAt` recorded on check; shown as `(Apr 17)` inline. Cleared on uncheck.
 - **Item sort order**: undone first (drag-reordered); done at bottom by completion time.

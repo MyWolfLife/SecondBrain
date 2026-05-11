@@ -571,8 +571,9 @@ function clBuildItemEl(runId, item, idx, card) {
         (item.indent === 1 ? ' cl-item--indent-1' : item.indent === 2 ? ' cl-item--indent-2' : '') +
         (item.done   ? ' cl-item--done'     : '');
     li.dataset.storageIdx = String(idx);
+    li.dataset.indent     = String(item.indent || 0);
 
-    // ── Main row: drag handle + checkbox + label + buttons ─────
+    // ── Main row: drag handle + indent button + checkbox + label + buttons ─────
     var row = document.createElement('div');
     row.className = 'cl-item-row';
 
@@ -581,6 +582,24 @@ function clBuildItemEl(runId, item, idx, card) {
     dragHandle.className   = 'drag-handle run-drag-handle';
     dragHandle.textContent = '⠿';
     dragHandle.title       = 'Drag to reorder';
+
+    // Indent button — visible only in edit mode, cycles 0→1→2→0
+    var runIndentBtn = document.createElement('button');
+    runIndentBtn.type      = 'button';
+    runIndentBtn.className = 'cl-run-indent-btn';
+    var _curInd = item.indent || 0;
+    runIndentBtn.textContent = _curInd === 2 ? '←' : '→';
+    runIndentBtn.title       = _curInd === 0 ? 'Indent' : _curInd === 1 ? 'Indent more' : 'Remove indent';
+    runIndentBtn.addEventListener('click', function() {
+        var cur  = parseInt(li.dataset.indent || '0');
+        var next = cur >= 2 ? 0 : cur + 1;
+        li.dataset.indent = String(next);
+        li.classList.remove('cl-item--indent-1', 'cl-item--indent-2');
+        if (next > 0) li.classList.add('cl-item--indent-' + next);
+        runIndentBtn.textContent = next === 2 ? '←' : '→';
+        runIndentBtn.title       = next === 0 ? 'Indent' : next === 1 ? 'Indent more' : 'Remove indent';
+        clSaveItemIndent(runId, idx, next);
+    });
 
     var cb = document.createElement('input');
     cb.type    = 'checkbox';
@@ -629,6 +648,7 @@ function clBuildItemEl(runId, item, idx, card) {
     });
 
     row.appendChild(dragHandle);
+    row.appendChild(runIndentBtn);
     row.appendChild(cb);
     row.appendChild(label);
     row.appendChild(noteBtn);
@@ -865,6 +885,21 @@ async function clSaveItemNote(runId, idx, noteText) {
 
     } catch (err) {
         console.error('Error saving item note:', err);
+    }
+}
+
+/**
+ * Updates the indent level of one item in a run (0, 1, or 2).
+ */
+async function clSaveItemIndent(runId, idx, newIndent) {
+    try {
+        var doc = await userCol('checklistRuns').doc(runId).get();
+        if (!doc.exists) return;
+        var items = doc.data().items;
+        items[idx] = Object.assign({}, items[idx], { indent: newIndent });
+        await userCol('checklistRuns').doc(runId).update({ items: items });
+    } catch (err) {
+        console.error('Error saving item indent:', err);
     }
 }
 
