@@ -17588,6 +17588,13 @@ a.legacy-fin-card:hover {
     color: #666;
     white-space: nowrap;
 }
+.dm-dow-label {
+    font-size: 0.85rem;
+    color: #555;
+    font-style: italic;
+    white-space: nowrap;
+    margin-left: 6px;
+}
 
 /* Note toggle button */
 .dm-note-toggle {

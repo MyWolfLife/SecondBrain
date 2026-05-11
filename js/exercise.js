@@ -1733,11 +1733,23 @@ function _dmBuildEntryForm(el) {
 
     var customFields = _dmMetricDefs.map(customField).join('');
 
+    var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    function _dowLabel(ds) {
+        if (!ds) return '';
+        var p = ds.split('-');
+        return days[new Date(+p[0], +p[1]-1, +p[2]).getDay()];
+    }
+
     el.innerHTML =
         '<div class="ex-form">' +
             '<div class="dm-entry-group">' +
-                '<label class="ex-label" for="dmfDate">Date</label>' +
-                '<input type="date" id="dmfDate" class="dm-entry-input" value="' + _exEsc(dateVal) + '">' +
+                '<div class="dm-entry-field-row">' +
+                    '<label class="ex-label" for="dmfDate">Date</label>' +
+                    '<div class="dm-entry-input-wrap">' +
+                        '<input type="date" id="dmfDate" class="dm-entry-input" value="' + _exEsc(dateVal) + '">' +
+                        '<span id="dmDateDow" class="dm-dow-label">' + _exEsc(_dowLabel(dateVal)) + '</span>' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
 
             '<div class="dm-section-header">Body</div>' +
@@ -1775,6 +1787,9 @@ function _dmBuildEntryForm(el) {
             // No record yet — keep whatever the user typed; just hide Delete if it's showing
             var delBtn = document.getElementById('dmDeleteBtn');
             if (delBtn) delBtn.remove();
+            // Update day-of-week label
+            var dowEl = document.getElementById('dmDateDow');
+            if (dowEl) dowEl.textContent = _dowLabel(newDate);
         }
     });
 
