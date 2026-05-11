@@ -7051,6 +7051,11 @@ img.collection-item-row-thumb {
 .journal-mention-link:hover { border-bottom-color: #0d9488; }
 
 /* Chips row in the edit form */
+.journal-copy-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
 .journal-mention-chips-row {
     display: flex;
     flex-wrap: wrap;

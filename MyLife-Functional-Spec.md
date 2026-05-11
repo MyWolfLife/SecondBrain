@@ -757,6 +757,8 @@ Daily entry logging with optional tracking metrics.
 
 **Tab key**: In the journal entry textarea, if the @mention dropdown is open, Tab selects the first name in the list (same as clicking it) and keeps focus in the textarea. If the dropdown is not open, Tab inserts 4 spaces (handled by `_initTabIndentTextareas` in `app.js`).
 
+**📋 Copy button**: A small "📋 Copy" button appears below the entry textarea (above the @mentions chips row). Tapping it copies the full entry text to the clipboard and briefly shows "Copied!" on the button as confirmation.
+
 **Clipboard safety copy**: When the user taps Save on a journal entry, the entry text is silently copied to the clipboard before the Firestore write is attempted. This is a silent background operation (no toast/confirmation shown) — it ensures the text is recoverable if the save fails due to a network error or Firestore issue.
 
 **Voice-to-text** (`initVoiceToText` in `journal.js`): 🎤 Speak button uses the Web Speech API (`continuous: true`). Spoken punctuation words are converted by `applySpokenPunctuation()`. Editing commands are handled by `_applyVoiceEditCommand()` and execute on the textarea directly — they are never appended as text. Commands must be spoken as their own phrase (pause before and after): — **"new line"** → inserts `\n` — **"new paragraph"** → inserts `\n\n` — **"delete last word"** → removes the last word — **"delete last sentence"** → removes everything after the last `.` `!` or `?` (clears all if no sentence boundary found) — **"clear all"** → empties the textarea. Full punctuation command list: period, comma, question mark, exclamation point, colon, semicolon, dash, hyphen, ellipsis, dot dot dot, open/close paren.

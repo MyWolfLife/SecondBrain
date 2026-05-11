@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=701">
+    <link rel="stylesheet" href="css/styles.css?v=702">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -9343,6 +9343,11 @@ service firebase.storage {
                     </div>
                     <textarea id="journalEntryText" rows="16" spellcheck="true"
                               placeholder="Write your journal entry here... Type @ to mention a person"></textarea>
+                    <!-- Copy button — below text box, above mentions -->
+                    <div class="journal-copy-row">
+                        <button class="btn btn-secondary btn-small" id="journalCopyBtn" type="button"
+                                onclick="(function(btn){var t=document.getElementById('journalEntryText');if(!t||!t.value)return;navigator.clipboard.writeText(t.value).then(function(){var orig=btn.textContent;btn.textContent='Copied!';setTimeout(function(){btn.textContent=orig;},1500);});})(this)">📋 Copy</button>
+                    </div>
                     <!-- @mention autocomplete dropdown -->
                     <div id="journalMentionDropdown" class="mention-dropdown" style="display:none;"></div>
                     <!-- Mentioned people chips — shown when entry has @mentions -->

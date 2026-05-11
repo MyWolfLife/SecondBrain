@@ -2230,7 +2230,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Writing an entry:**
 - Tap **+ New Entry** (or the date button) to open the entry form
-- **Entry text:** Free-form textarea. Supports @mentions (see below). Tab key inserts 4 spaces.
+- **Entry text:** Free-form textarea. Supports @mentions (see below). Tab key inserts 4 spaces. A **📋 Copy** button below the textarea copies the full entry text to the clipboard with one tap.
 - **Date and time:** Defaults to now; editable. The day of week (e.g., "Friday") appears inline next to the date field as a quick reference.
 - **Photos:** Tap Camera (take a new photo), Gallery (pick from device), or paste an image from clipboard. Photos are compressed automatically. Appear as 80x80 thumbnails in the form; full-screen lightbox in the feed.
 - **Tracking items:** Log numeric values per category (e.g., "Weight = 183", "Mood = 7"). Categories are managed on the Journal Categories page.
