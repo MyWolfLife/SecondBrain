@@ -1346,6 +1346,19 @@ function _dmComputeSummary(records) {
     var result = {};
     // Weight: 1 decimal; others: round to integer
     result.weight      = counts.weight      ? (sums.weight / counts.weight).toFixed(1) : '—';
+
+    // Weight change: newest entry minus oldest entry (records are desc, so records[0] = newest)
+    var newestWeight = null, oldestWeight = null;
+    for (var i = 0; i < records.length; i++) {
+        var w = records[i].weight;
+        if (w !== null && w !== undefined && w !== '') {
+            if (newestWeight === null) newestWeight = parseFloat(w);
+            oldestWeight = parseFloat(w); // keeps updating — ends at the oldest found
+        }
+    }
+    result.weightChange = (newestWeight !== null && oldestWeight !== null && newestWeight !== oldestWeight)
+        ? parseFloat((newestWeight - oldestWeight).toFixed(1))
+        : null;
     result.sleepScore  = counts.sleepScore  ? Math.round(sums.sleepScore / counts.sleepScore) : '—';
     result.bodyBattery = counts.bodyBattery ? Math.round(sums.bodyBattery / counts.bodyBattery) : '—';
     result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
@@ -1384,12 +1397,15 @@ function _dmNoteIcon(noteText, desktop) {
 }
 
 function _dmBuildTable(records, summary) {
-    var stdCols = [
+    // Split around the computed +/- Diff column (inserted between Burn and Food Cal.)
+    var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
         { key: 'sleepScore',   label: 'Sleep' },
         { key: 'bodyBattery',  label: 'Body Bat.' },
         { key: 'dailySteps',   label: 'Steps' },
-        { key: 'totalBurn',    label: 'Burn' },
+        { key: 'totalBurn',    label: 'Burn' }
+    ];
+    var postDiffCols = [
         { key: 'foodCalories', label: 'Food Cal.' }
     ];
 
@@ -1397,7 +1413,23 @@ function _dmBuildTable(records, summary) {
     var thead = '<thead>';
     // Summary row
     thead += '<tr class="dm-summary-row"><td></td>';
-    stdCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
+    preDiffCols.forEach(function(c) {
+        if (c.key === 'weight') {
+            // Show overall weight change instead of average
+            if (summary.weightChange !== null && summary.weightChange !== undefined) {
+                var wc = summary.weightChange;
+                var color = wc < 0 ? 'green' : 'red';
+                var sign = wc > 0 ? '+' : '';
+                thead += '<td style="color:' + color + ';font-weight:bold">' + sign + wc.toFixed(1) + '</td>';
+            } else {
+                thead += '<td>—</td>';
+            }
+        } else {
+            thead += '<td>avg ' + summary[c.key] + '</td>';
+        }
+    });
+    thead += '<td>—</td>'; // +/- Diff summary
+    postDiffCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
@@ -1405,7 +1437,9 @@ function _dmBuildTable(records, summary) {
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
-    stdCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
+    preDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
+    thead += '<th>+/- Diff</th>';
+    postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
         thead += '<th' + cls + '>' + _exEsc(def.name) + '</th>';
@@ -1417,7 +1451,26 @@ function _dmBuildTable(records, summary) {
     records.forEach(function(r) {
         tbody += '<tr class="dm-data-row" data-date="' + _exEsc(r.date) + '">';
         tbody += '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(r.date)) + '</td>';
-        stdCols.forEach(function(c) {
+        preDiffCols.forEach(function(c) {
+            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            if (typeof v === 'number') v = v.toLocaleString();
+            var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
+        });
+        // +/- Diff: burn - food; yellow bg when negative (ate more than burned)
+        var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var foodVal = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (burnVal !== null && foodVal !== null) {
+            var diff = burnVal - foodVal;
+            if (diff < 0) {
+                tbody += '<td class="dm-col-num" style="background-color:#ffeb3b;color:#000">' + diff.toLocaleString() + '</td>';
+            } else {
+                tbody += '<td class="dm-col-num">—</td>';
+            }
+        } else {
+            tbody += '<td class="dm-col-num">—</td>';
+        }
+        postDiffCols.forEach(function(c) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             if (typeof v === 'number') v = v.toLocaleString();
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
@@ -1464,11 +1517,23 @@ function _dmBuildCards(records) {
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             stdLine1 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
-        stdLabels.slice(3).forEach(function(c) {
+        // Row 2: Steps, Burn, +/-Diff (yellow when negative), Food
+        stdLabels.slice(3, 5).forEach(function(c) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
+        var cardBurn = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var cardFood = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (cardBurn !== null && cardFood !== null && cardBurn - cardFood < 0) {
+            var cardDiff = cardBurn - cardFood;
+            stdLine2 += '<span class="dm-card-metric" style="background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px"><span class="dm-card-label" style="color:#555">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+        } else {
+            stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> —</span>';
+        }
+        var foodV = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? r.foodCalories : '—';
+        var foodNote = r.notes && r.notes.foodCalories ? r.notes.foodCalories : '';
+        stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + _exEsc(String(foodV)) + _dmNoteIcon(foodNote, false) + '</span>';
 
         // Custom metrics
         var customHtml = _dmMetricDefs.map(function(def) {

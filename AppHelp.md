@@ -3473,8 +3473,9 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Filter pills** (Last Week, This Week, This Month, etc.) and **month shortcut buttons** change the date range — the list reloads automatically
 - Months that belong to last year show an abbreviated year tag (e.g. "Aug '25"); current-year months show no tag
 - **N records** label below the filter bar shows how many entries match
-- **Desktop**: data appears as a table with a tinted **summary row** at the top showing averages for the period
-- **Mobile**: each entry is a card showing the date, standard metrics, and your custom metrics
+- **Desktop**: data appears as a table with a tinted **summary row** at the top — Weight shows net change for the period (green = lost, red = gained); other columns show averages
+- **+/- Diff column** (between Burn and Food): shows `burn − food` for each day — a yellow cell means you ate more than you burned that day; "—" means you were in a deficit (good)
+- **Mobile**: each entry is a card showing the date, standard metrics (including a Diff value), and your custom metrics
 - **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
 - Click or tap any row/card to open that day's entry form
 - **+ Entry** button: create a new entry for today (or any date)
