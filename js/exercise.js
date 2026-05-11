@@ -1681,7 +1681,16 @@ function _dmBuildEntryForm(el) {
     }
 
     function customField(def) {
-        var val     = cv[def.id] !== undefined ? cv[def.id] : '';
+        var raw = cv[def.id];
+        // Treat null/undefined as the empty default; numbers default to 0, text to blank
+        var val;
+        if (def.type === 'number') {
+            val = (raw !== undefined && raw !== null && raw !== '') ? raw : 0;
+        } else if (def.type === 'boolean') {
+            val = raw === true;
+        } else {
+            val = (raw !== undefined && raw !== null) ? raw : '';
+        }
         var noteVal = notes[def.id] || '';
         var hasNote = noteVal.length > 0;
 
@@ -1690,7 +1699,7 @@ function _dmBuildEntryForm(el) {
             return '<div class="dm-entry-group dm-entry-group--text">' +
                 '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
                 '<textarea id="dmf-' + def.id + '" class="dm-text-field" rows="4" ' +
-                    'placeholder="…">' + _exEsc(val !== '' ? String(val) : '') + '</textarea>' +
+                    'placeholder="…">' + _exEsc(String(val)) + '</textarea>' +
             '</div>';
         }
 
@@ -1704,7 +1713,7 @@ function _dmBuildEntryForm(el) {
         } else {
             // number
             inputHtml = '<input type="text" inputmode="decimal" id="dmf-' + def.id + '" ' +
-                'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">' +
+                'class="dm-entry-input" value="' + _exEsc(String(val)) + '" autocomplete="off">' +
                 (def.unitLabel ? '<span class="dm-entry-unit">' + _exEsc(def.unitLabel) + '</span>' : '');
         }
         return '<div class="dm-entry-group">' +
