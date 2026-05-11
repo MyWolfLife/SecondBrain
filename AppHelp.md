@@ -21,8 +21,55 @@ It is used by the in-app AI assistant to answer your questions.
 - **Health** — Vitals, medications, visits, conditions, blood work, insurance, and more
 
 **Buttons on this screen:**
-- **⚡ QuickLog** — AI assistant. Type or speak a command like "I watered the front yard azaleas" and it logs the activity for you. Also supports adding notes, tasks, and journal entries.
+- **⚡ QuickLog** — AI assistant. Type or speak anything in plain English — log activities, add tasks, record problems, log exercise, track health metrics, add plants or weeds, move items, set reminders, and more. 25 commands total. See the QuickLog help screen (tap ?) for the full list.
 - **📍 Check In** — GPS-based location check-in. Records where you are right now.
+
+---
+
+## screen:secondbrain
+
+**What this screen is for:** QuickLog — the AI assistant that lets you log anything in the app by typing or speaking in plain English. Tap ⚡ QuickLog from the main screen to open it.
+
+### How it works
+- Type or speak a command in plain English and tap Send (or use the mic button to speak)
+- The AI interprets your command, shows you a confirmation screen with the parsed details, and lets you review or adjust before saving
+- Attach a photo first to include it with the logged item
+
+### Full command list
+
+| Icon | Command | What it does | Example phrases |
+|------|---------|-------------|-----------------|
+| 📓 | **Add Journal Entry** | Log a diary entry, thought, or personal note | "This morning I had a great walk", "Feeling tired today" |
+| 📅 | **Add Calendar Event** | Schedule a future reminder or recurring event | "Remind me to change the oil on April 15th", "Schedule fertilizer every 6 weeks" |
+| 🌿 | **Log Activity** | Record a task done on any plant, zone, vehicle, room, or item | "I just mowed the back yard", "Washed the truck", "Painted the office walls" |
+| ⚠️ | **Add Problem** | Flag an issue or concern with any entity | "The shed roof is leaking", "The rose bush has black spots" |
+| 📋 | **Add Fact** | Record a factual detail — dimensions, specs, dates | "The front garden bed is 120 square feet", "The shed was built in 2018" |
+| 🔨 | **Add Project** | Track a future improvement or multi-step effort | "I want to install drip irrigation", "Replace the carpet in the office" |
+| ✅ | **Add Task** | Add a quick to-do item | "Add a task to the back yard — trim the hedges", "I need to clean the gutters" |
+| 🎂 | **Add Important Date** | Record a birthday or anniversary for a person | "Jake's birthday is March 15th", "Connie and I got married on June 3rd 2001" |
+| 🚗 | **Log Mileage** | Record the current odometer reading on a vehicle | "The truck is at 87,500 miles", "Just hit 45,000 on the SUV" |
+| 👥 | **Log Interaction** | Log a conversation, visit, or time with someone | "Had lunch with Jake", "Called my brother about Thanksgiving" |
+| 🌱 | **Add Weed** | Record a weed; attach a photo for AI identification | "There's crabgrass along the back fence", "Found wild onions near the mailbox" |
+| 🪴 | **Add Plant** | Add a new plant to a zone; attach a photo for AI ID | "I planted a new azalea in the front yard", "Put 3 mums in the back garden bed" |
+| 🧪 | **Add Product** | Add a product to your chemicals/products list | "Add Roundup to my products", "I bought Scotts Turf Builder" |
+| 📊 | **Add Tracking Entry** | Log a personal health or life metric | "My weight today is 182", "Blood pressure was 118 over 76", "Slept 7.5 hours" |
+| 🏃 | **Log Exercise** | Log a workout — run, walk, bike, gym, mowing, etc. | "I just ran 5 miles in 5303", "Did 45 minutes of weights", "Mowed for an hour and a half" |
+| 📦 | **Add Item** | Add a tracked item to a room, garage area, or structure | "Add this lamp to the office", "Add this tool to the shed shelves" |
+| 🚚 | **Move Item** | Move tracked items to a new location | "I moved the chainsaw from the shed to the garage", "Move the drill to the workbench" |
+| 📷 | **Attach Photos** | Attach photos to an existing record | "Add these photos to the back yard", "Attach this to the shed" |
+| 📝 | **Add Note** | Add a note to a notebook | "Add a note to pay my taxes", "Note that the azalea was blooming today" |
+| 🛠️ | **Dev Note** | Leave feedback for the developer | "Note to developer: the speech button gets stuck", "Dev note — fix the photo layout" |
+| 🗓️ | **Add Personal Event** | Add a life event to your personal calendar | "I'm going to the AC/DC concert on Sept 26", "Golf trip to Scottsdale next March" |
+| 🔍 | **Find Item** | Locate where something is stored or tracked | "Where is my gator hat?", "Find the chainsaw", "Where did I put the router manual?" |
+| ⏰ | **Add Reminder** | Set a time-based reminder; syncs to Google Calendar | "Remind me in 30 days to change the hot tub filter", "Remind me tomorrow to call the groomer" |
+| 📍 | **Check In** | Check in at a real-world place | "Check in at Smokey Bones", "I'm at Home Depot" |
+| 💡 | **Help Question** | Ask how to use the app | "How do I add a plant?", "Where do I log a doctor's visit?" |
+
+### Tips
+- **Voice input**: Tap the mic button to speak. Punctuation commands work the same as in the journal ("period", "comma", "new line", etc.)
+- **Photos**: Attach a photo before sending to include it with the result (plant ID, weed ID, item add, etc.)
+- **Tap the ? button** on the QuickLog screen to see the full command list with examples inside the app
+- **Duration shorthand for exercise**: A 4-digit number like "5303" is read as MM:SS (53 minutes 03 seconds)
 
 ---
 
