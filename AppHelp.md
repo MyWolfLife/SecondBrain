@@ -2385,6 +2385,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Templates vs. runs**: A template is a saved checklist blueprint. Tapping **▶ Start** creates a "run" — a live copy you work through. Runs are independent; edits to a run don't affect the original template.
 
+**Indenting items (template editor)**: Each item row has a `→` / `←` indent button. Click it to cycle through 3 levels: normal → indented (level 1) → double-indented (level 2) → back to normal. You can also use **Tab** to indent and **Shift+Tab** to unindent while typing in the item text box. Indentation carries over from templates into runs.
+
 **Active run cards**:
 - Items are shown directly on the card. Undone items are at the top; checked items collapse into a "▶ X completed" toggle.
 - **Check an item**: tap the checkbox. A completion date is recorded and shown next to the label.

@@ -2587,11 +2587,12 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Life: shows all life-tagged templates/runs (no sub-targets)
 - **Templates** (`checklistTemplates`): `{ name, tags[], targetType, targetId, targetName, items:[{label, indent}], createdAt }`
   - `tags[]`: string array of user-defined tags (e.g., ["Danielle", "Finance"]) — entered comma-separated in the modal; displayed as chips on cards; copied to runs when starting
-  - `items[].indent`: 0 = normal, 1 = indented sub-item (one level deep, Google Keep style)
+  - `items[].indent`: 0 = normal, 1 = indented sub-item (level 1 ~28px), 2 = double-indented sub-item (level 2 ~56px)
 - **Runs** (`checklistRuns`): same fields copied from template; `items:[{label, done, doneAt, note, indent}]`; `archived: boolean` (false by default)
 - **Template modal**: Location dropdown shows the full hierarchy for the current context (e.g., Yard → zones → subzones), defaulting to the entity the user was on when they clicked Checklists; full hierarchy shown so user can pick any level. Delete button is inside the edit modal.
-  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button (`→` to indent, `←` to remove indent), the text input, and a ✕ remove button
-  - **Indent shortcut**: Tab key on the text input indents the item; Shift+Tab removes indent
+  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button, the text input, and a ✕ remove button
+  - **Indent levels**: 3-way cycle — 0 (normal) → 1 (28px) → 2 (56px) → back to 0. Button shows `→` at levels 0–1, `←` at level 2.
+  - **Indent shortcut**: Tab key increments indent (cap at 2); Shift+Tab decrements indent (floor at 0)
   - **Enter key**: adds a new blank row inheriting the current row's indent level
 - **Location badge**: shown on template/run cards in roll-up views (e.g., "📍 Front Yard")
 - **Context subtitle**: shown on the page header ("Showing: Front Yard (Zone)")
@@ -2608,7 +2609,7 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Drag-and-drop reorder of undone items in edit mode (SortableJS on `.cl-undone-list`)
   - Adding items in edit mode prompts "Add to template too?" for template-derived runs
 - **URL items**: labels starting with `http://` or `https://` render as clickable links (new tab) in run cards and completed accordions
-- **Sub-item indentation**: `indent: 1` → ~28px padding in run cards, completed, and archived cards
+- **Sub-item indentation**: `indent: 1` → 28px padding; `indent: 2` → 56px padding — applies in run cards, completed, and archived cards
 - **Per-item notes**: 📝 button → inline textarea. Saves on blur/Enter. Escape discards. Clicking the note text itself (when it exists) also opens the editor. Fixed blur/click race: `mousedown` on the 📝 button prevents blur from firing before click, so clicking 📝 to close correctly saves without re-opening.
 - **Item completion date**: `doneAt` recorded on check; shown as `(Apr 17)` inline. Cleared on uncheck.
 - **Item sort order**: undone first (drag-reordered); done at bottom by completion time.

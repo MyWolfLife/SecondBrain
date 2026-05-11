@@ -4801,9 +4801,8 @@ button {
     margin-bottom: 6px;
     transition: padding-left 0.15s;
 }
-.cl-template-item-row--indented {
-    padding-left: 28px;
-}
+.cl-template-item-row--indent-1 { padding-left: 28px; }
+.cl-template-item-row--indent-2 { padding-left: 56px; }
 
 /* Drag handles — shared style for both template editor and run cards */
 .drag-handle {
@@ -4868,8 +4867,10 @@ button {
 .cl-item-remove-btn:hover { background: #ffebee; }
 
 /* Sub-item indentation in active runs and completed cards */
-.cl-item--indented { padding-left: 28px; }
-.cl-completed-item--indented { padding-left: 24px; }
+.cl-item--indent-1 { padding-left: 28px; }
+.cl-item--indent-2 { padding-left: 56px; }
+.cl-completed-item--indent-1 { padding-left: 24px; }
+.cl-completed-item--indent-2 { padding-left: 48px; }
 
 /* ---------- Activity History Report (NF-2) ---------- */
 
