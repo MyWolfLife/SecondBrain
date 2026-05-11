@@ -1397,17 +1397,16 @@ function _dmNoteIcon(noteText, desktop) {
 }
 
 function _dmBuildTable(records, summary) {
-    // Split around the computed +/- Diff column (inserted between Burn and Food Cal.)
+    // +/- Diff column appears after Food Cal.
     var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
         { key: 'sleepScore',   label: 'Sleep' },
         { key: 'bodyBattery',  label: 'Body Bat.' },
         { key: 'dailySteps',   label: 'Steps' },
-        { key: 'totalBurn',    label: 'Burn' }
-    ];
-    var postDiffCols = [
+        { key: 'totalBurn',    label: 'Burn' },
         { key: 'foodCalories', label: 'Food Cal.' }
     ];
+    var postDiffCols = [];
 
     // Header row
     var thead = '<thead>';
@@ -1457,7 +1456,7 @@ function _dmBuildTable(records, summary) {
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
         });
-        // +/- Diff: burn - food; yellow bg when negative (ate more than burned)
+        // +/- Diff: burn - food; yellow bg when negative (ate more than burned = fail)
         var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var foodVal = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
         if (burnVal !== null && foodVal !== null) {
@@ -1465,7 +1464,7 @@ function _dmBuildTable(records, summary) {
             if (diff < 0) {
                 tbody += '<td class="dm-col-num" style="background-color:#ffeb3b;color:#000">' + diff.toLocaleString() + '</td>';
             } else {
-                tbody += '<td class="dm-col-num">—</td>';
+                tbody += '<td class="dm-col-num">' + diff.toLocaleString() + '</td>';
             }
         } else {
             tbody += '<td class="dm-col-num">—</td>';
@@ -1525,9 +1524,13 @@ function _dmBuildCards(records) {
         });
         var cardBurn = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var cardFood = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
-        if (cardBurn !== null && cardFood !== null && cardBurn - cardFood < 0) {
+        if (cardBurn !== null && cardFood !== null) {
             var cardDiff = cardBurn - cardFood;
-            stdLine2 += '<span class="dm-card-metric" style="background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px"><span class="dm-card-label" style="color:#555">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+            if (cardDiff < 0) {
+                stdLine2 += '<span class="dm-card-metric" style="background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px"><span class="dm-card-label" style="color:#555">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+            } else {
+                stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+            }
         } else {
             stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> —</span>';
         }
