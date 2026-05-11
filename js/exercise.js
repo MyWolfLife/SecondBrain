@@ -1365,6 +1365,17 @@ function _dmComputeSummary(records) {
     result.totalBurn   = counts.totalBurn   ? Math.round(sums.totalBurn / counts.totalBurn).toLocaleString() : '—';
     result.foodCalories = counts.foodCalories ? Math.round(sums.foodCalories / counts.foodCalories).toLocaleString() : '—';
 
+    // +/- Diff sum: total (burn - food) across all rows that have both values
+    var diffSum = null;
+    records.forEach(function(r) {
+        var b = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var f = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (b !== null && f !== null) {
+            diffSum = (diffSum || 0) + (b - f);
+        }
+    });
+    result.diffSum = diffSum; // null if no rows had both values
+
     result.custom = {};
     _dmMetricDefs.forEach(function(def) {
         if (def.type === 'boolean') {
@@ -1427,7 +1438,14 @@ function _dmBuildTable(records, summary) {
             thead += '<td>avg ' + summary[c.key] + '</td>';
         }
     });
-    thead += '<td>—</td>'; // +/- Diff summary
+    // +/- Diff summary: total calories and equivalent pounds (÷3500)
+    if (summary.diffSum !== null && summary.diffSum !== undefined) {
+        var ds = Math.round(summary.diffSum);
+        var lbs = (summary.diffSum / 3500).toFixed(1);
+        thead += '<td>' + ds.toLocaleString() + ' (' + lbs + ')</td>';
+    } else {
+        thead += '<td>—</td>';
+    }
     postDiffCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
