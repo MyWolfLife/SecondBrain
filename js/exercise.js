@@ -14,6 +14,7 @@ function _exDowLabel(ds) {
 const EXERCISE_DEFAULT_TYPES = [
     { name: 'Running',         tracksMiles: true,  withDogs: true  },
     { name: 'Trail Running',   tracksMiles: true,  withDogs: true  },
+    { name: 'Mixed Run',       tracksMiles: true,  withDogs: true  },
     { name: 'Walking',         tracksMiles: true,  withDogs: true  },
     { name: 'Hiking',          tracksMiles: true,  withDogs: true  },
     { name: 'Treadmill',       tracksMiles: true,  withDogs: false },
@@ -27,6 +28,12 @@ const EXERCISE_DEFAULT_TYPES = [
     { name: 'Stationary Bike', tracksMiles: false, withDogs: false },
     { name: 'Other',           tracksMiles: false, withDogs: false },
 ];
+
+// Types that split mileage into Walked Miles + Run Miles (instead of a single Miles field)
+var _EX_SPLIT_MILES_TYPES = ['Trail Running', 'Mixed Run', 'Treadmill'];
+function _exIsSplitMilesType(type) {
+    return !!(type && _EX_SPLIT_MILES_TYPES.indexOf(type.name) !== -1);
+}
 
 /**
  * Seeds 13 default activity types into Firestore on first visit.
@@ -53,6 +60,21 @@ async function seedExerciseTypesIfNeeded() {
         console.log('Exercise: seeded ' + EXERCISE_DEFAULT_TYPES.length + ' default activity types.');
     } catch (err) {
         console.error('Exercise: failed to seed activity types:', err);
+    }
+}
+
+// One-time migration: add "Mixed Run" to existing users who were seeded before it existed
+async function _exEnsureMixedRunType() {
+    try {
+        var snap = await userCol('exerciseTypes').where('name', '==', 'Mixed Run').limit(1).get();
+        if (!snap.empty) return;
+        await userCol('exerciseTypes').add({
+            name: 'Mixed Run', tracksMiles: true, withDogs: true,
+            isDefault: true, archived: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (err) {
+        console.error('Exercise: failed to ensure Mixed Run type:', err);
     }
 }
 
@@ -120,7 +142,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
     _exGoToDate = '';
 
     _exTypes = {};
@@ -316,8 +338,16 @@ function _exBuildTable(activities) {
         var type     = _exTypes[a.typeId] || {};
         var typeName = (type.name || '?') + (a.withDogs ? ' 🐾' : '');
         var dur      = exFmtDuration(a.durationMinutes);
-        var miles    = (type.tracksMiles && a.miles != null && a.miles !== '') ? a.miles : '';
-        var pace     = (type.tracksMiles && miles && a.durationMinutes) ? exFmtPace(miles, a.durationMinutes) : '';
+        // For split-miles types show walked + run total; otherwise just miles
+        var milesDisplay = '';
+        if (type.tracksMiles) {
+            var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+            var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+            var total  = _exIsSplitMilesType(type) ? (walked + run) : walked;
+            if (total > 0) milesDisplay = total;
+        }
+        var miles = milesDisplay;
+        var pace  = (type.tracksMiles && miles && a.durationMinutes) ? exFmtPace(miles, a.durationMinutes) : '';
 
         var tr = document.createElement('tr');
         tr.className = 'ex-table-row';
@@ -372,9 +402,14 @@ function _exBuildCards(activities) {
         card.appendChild(line1);
 
         var parts = [];
-        if (type.tracksMiles && a.miles) {
-            var pace = exFmtPace(a.miles, a.durationMinutes);
-            parts.push(a.miles + ' mi' + (pace ? ' @ ' + pace : ''));
+        if (type.tracksMiles) {
+            var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+            var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+            var totalMi = _exIsSplitMilesType(type) ? (walked + run) : walked;
+            if (totalMi > 0) {
+                var pace = exFmtPace(totalMi, a.durationMinutes);
+                parts.push(totalMi + ' mi' + (pace ? ' @ ' + pace : ''));
+            }
         }
         if (a.calories != null && a.calories !== '') parts.push(a.calories + ' cal');
         if (a.comment) parts.push(a.comment);
@@ -400,7 +435,7 @@ function _exBuildCards(activities) {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -457,7 +492,8 @@ function _exBuildActivityForm(existing) {
     var date     = existing ? (existing.activityDate || '').substring(0, 10) : defaultDate;
     var time     = existing ? (existing.activityDate || '').substring(11, 16) : defaultTime;
     var duration = (existing && existing.durationMinutes != null) ? existing.durationMinutes : '';
-    var miles    = (existing && existing.miles != null) ? existing.miles : '';
+    var miles    = (existing && existing.miles    != null) ? existing.miles    : '';
+    var runMiles = (existing && existing.runMiles != null) ? existing.runMiles : '';
     var withDogs = existing ? !!existing.withDogs : false;
     var calories = (existing && existing.calories != null) ? existing.calories : '';
     var comment  = existing ? (existing.comment || '') : '';
@@ -536,10 +572,24 @@ function _exBuildActivityForm(existing) {
                 '<p class="ex-hint" id="exDurationHint">MM:SS &mdash; for over 1 hr use H:MM:SS (e.g. 1:15:00)</p>' +
             '</div>' +
 
-            // ── Miles (conditional) ──────────────────────────────────────────
+            // ── Miles / Walked Miles (conditional) ──────────────────────────
+            // Label is "Walked Miles" for Trail Running, Mixed Run, Treadmill;
+            // "Miles" for all other types that track distance.
             '<div class="ex-form-group hidden" id="exMilesGroup">' +
-                '<label class="ex-label" for="exMiles">Miles</label>' +
+                '<label class="ex-label" for="exMiles" id="exMilesLabel">Miles</label>' +
                 '<input type="number" id="exMiles" class="ex-input-short" step="0.01" min="0" placeholder="e.g. 3.1" value="' + miles + '">' +
+            '</div>' +
+
+            // ── Run Miles (split-miles types only) ───────────────────────────
+            '<div class="ex-form-group hidden" id="exRunMilesGroup">' +
+                '<label class="ex-label" for="exRunMiles">Run Miles</label>' +
+                '<input type="number" id="exRunMiles" class="ex-input-short" step="0.01" min="0" placeholder="e.g. 1.5" value="' + runMiles + '">' +
+            '</div>' +
+
+            // ── Total Miles preview (split-miles types only) ─────────────────
+            '<div class="ex-form-group hidden" id="exTotalMilesGroup">' +
+                '<label class="ex-label">Total Miles</label>' +
+                '<span class="ex-pace-preview" id="exTotalMilesPreview">—</span>' +
             '</div>' +
 
             // ── Pace preview (conditional) ───────────────────────────────────
@@ -700,19 +750,41 @@ function _exSelectType(typeId, typeName, typeObj) {
 
 function _exUpdateConditionalFields() {
     var type = _exSelectedType || {};
-    var milesGroup  = document.getElementById('exMilesGroup');
-    var paceGroup   = document.getElementById('exPaceGroup');
-    var dogsGroup   = document.getElementById('exWithDogsGroup');
-    if (milesGroup) milesGroup.classList.toggle('hidden', !type.tracksMiles);
-    if (paceGroup)  paceGroup.classList.toggle('hidden', !type.tracksMiles);
-    if (dogsGroup)  dogsGroup.classList.toggle('hidden', !type.withDogs);
+    var isSplit = _exIsSplitMilesType(type);
 
-    // Wire miles input listener now that it may be visible
+    var milesGroup      = document.getElementById('exMilesGroup');
+    var milesLabel      = document.getElementById('exMilesLabel');
+    var runMilesGroup   = document.getElementById('exRunMilesGroup');
+    var totalMilesGroup = document.getElementById('exTotalMilesGroup');
+    var paceGroup       = document.getElementById('exPaceGroup');
+    var dogsGroup       = document.getElementById('exWithDogsGroup');
+
+    if (milesGroup)      milesGroup.classList.toggle('hidden', !type.tracksMiles);
+    if (milesLabel)      milesLabel.textContent = isSplit ? 'Walked Miles' : 'Miles';
+    if (runMilesGroup)   runMilesGroup.classList.toggle('hidden', !isSplit);
+    if (totalMilesGroup) totalMilesGroup.classList.toggle('hidden', !isSplit);
+    if (paceGroup)       paceGroup.classList.toggle('hidden', !type.tracksMiles);
+    if (dogsGroup)       dogsGroup.classList.toggle('hidden', !type.withDogs);
+
+    // Wire input listeners now that fields may be visible
     var milesInput = document.getElementById('exMiles');
     if (milesInput && !milesInput.dataset.listenerAttached) {
-        milesInput.addEventListener('input', _exUpdatePacePreview);
+        milesInput.addEventListener('input', function() {
+            _exUpdateTotalMilesPreview();
+            _exUpdatePacePreview();
+        });
         milesInput.dataset.listenerAttached = '1';
     }
+    var runMilesInput = document.getElementById('exRunMiles');
+    if (runMilesInput && !runMilesInput.dataset.listenerAttached) {
+        runMilesInput.addEventListener('input', function() {
+            _exUpdateTotalMilesPreview();
+            _exUpdatePacePreview();
+        });
+        runMilesInput.dataset.listenerAttached = '1';
+    }
+
+    _exUpdateTotalMilesPreview();
 }
 
 // ─── Add-on-fly flow ──────────────────────────────────────────────────────────
@@ -820,17 +892,34 @@ function _exUpdateDurationHint() {
     labelEl.textContent = _exFmtDurationLabel(durEl.value);
 }
 
-// ─── Pace preview ─────────────────────────────────────────────────────────────
+// ─── Pace / total miles preview ──────────────────────────────────────────────
+
+function _exUpdateTotalMilesPreview() {
+    var el = document.getElementById('exTotalMilesPreview');
+    if (!el) return;
+    var walked = parseFloat((document.getElementById('exMiles')    || {}).value) || 0;
+    var run    = parseFloat((document.getElementById('exRunMiles') || {}).value) || 0;
+    el.textContent = (walked > 0 || run > 0) ? (walked + run).toFixed(2) + ' mi' : '—';
+}
 
 function _exUpdatePacePreview() {
     var previewEl = document.getElementById('exPacePreview');
     if (!previewEl) return;
-    var milesEl = document.getElementById('exMiles');
-    var durEl   = document.getElementById('exDuration');
-    if (!milesEl || !durEl) { previewEl.textContent = '—'; return; }
-    var miles = parseFloat(milesEl.value);
-    var dur   = _exParseDuration(durEl.value);
-    previewEl.textContent = (miles > 0 && dur > 0) ? exFmtPace(miles, dur) : '—';
+    var durEl = document.getElementById('exDuration');
+    if (!durEl) { previewEl.textContent = '—'; return; }
+    var dur = _exParseDuration(durEl.value);
+
+    // For split-miles types pace is based on total miles (walked + run)
+    var milesForPace;
+    if (_exIsSplitMilesType(_exSelectedType)) {
+        var walked = parseFloat((document.getElementById('exMiles')    || {}).value) || 0;
+        var run    = parseFloat((document.getElementById('exRunMiles') || {}).value) || 0;
+        milesForPace = walked + run;
+    } else {
+        milesForPace = parseFloat((document.getElementById('exMiles') || {}).value) || 0;
+    }
+
+    previewEl.textContent = (milesForPace > 0 && dur > 0) ? exFmtPace(milesForPace, dur) : '—';
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -844,22 +933,26 @@ async function _exSaveActivity() {
     var time = document.getElementById('exActivityTime').value || '00:00';
     if (!date) { alert('Please enter a date.'); return; }
 
-    var type     = _exSelectedType || {};
-    var durVal   = document.getElementById('exDuration').value;
-    var milesEl  = document.getElementById('exMiles');
-    var milesVal = (type.tracksMiles && milesEl) ? milesEl.value : '';
-    var dogsEl   = document.getElementById('exWithDogs');
-    var dogsVal  = (type.withDogs && dogsEl) ? dogsEl.checked : null;
-    var calVal   = document.getElementById('exCalories').value;
-    var noteVal  = document.getElementById('exComment').value.trim();
+    var type         = _exSelectedType || {};
+    var isSplit      = _exIsSplitMilesType(type);
+    var durVal       = document.getElementById('exDuration').value;
+    var milesEl      = document.getElementById('exMiles');
+    var runMilesEl   = document.getElementById('exRunMiles');
+    var milesVal     = (type.tracksMiles && milesEl)            ? milesEl.value    : '';
+    var runMilesVal  = (isSplit && runMilesEl)                  ? runMilesEl.value : '';
+    var dogsEl       = document.getElementById('exWithDogs');
+    var dogsVal      = (type.withDogs && dogsEl) ? dogsEl.checked : null;
+    var calVal       = document.getElementById('exCalories').value;
+    var noteVal      = document.getElementById('exComment').value.trim();
 
     var data = {
         typeId:          _exSelectedTypeId,
         activityDate:    date + 'T' + time + ':00',
         durationMinutes: _exParseDuration(durVal),
-        miles:           milesVal !== '' ? parseFloat(milesVal) : null,
+        miles:           milesVal    !== '' ? parseFloat(milesVal)    : null,
+        runMiles:        runMilesVal !== '' ? parseFloat(runMilesVal) : null,
         withDogs:        dogsVal,
-        calories:        calVal   !== '' ? parseInt(calVal, 10) : null,
+        calories:        calVal !== '' ? parseInt(calVal, 10) : null,
         comment:         noteVal
     };
 
@@ -912,7 +1005,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 

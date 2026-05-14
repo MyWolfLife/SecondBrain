@@ -3458,7 +3458,9 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked two quick questions to set it up
 - **Date** defaults to today; **Time** is optional
 - **Duration** — type as `MM:SS` (e.g. `45:26`), `H:MM:SS` for over an hour (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label like "45 min 26 sec" or "1 hr 15 min" appears to the right as you type
-- **Miles** and **With Dogs** appear only for types that track them
+- **Miles / Walked Miles** appears for types that track distance. For Trail Running, Mixed Run, and Treadmill it's labeled "Walked Miles" — enter only the walked portion
+- **Run Miles** appears alongside Walked Miles for Trail Running, Mixed Run, and Treadmill — enter the running portion; **Total Miles** is calculated automatically
+- **With Dogs** appears only for types that support it
 - **Pace** is calculated automatically once you have miles and duration
 - Tap **Save Activity** when done; use the breadcrumb or **Cancel** to go back without saving
 - To delete, tap **Delete** at the bottom (only visible in edit mode)
@@ -3471,7 +3473,9 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 | Date | Required. Defaults to today |
 | Time | Optional — uses the native time picker. Leave blank if you don't need it. |
 | Duration | `MM:SS` (e.g. 45:26), `H:MM:SS` (e.g. 1:15:00), or decimal minutes (e.g. 45.5). A friendly label appears to the right as you type |
-| Miles | Only shown for types that track distance (Running, Walking, etc.) |
+| Miles / Walked Miles | Only shown for distance-tracking types. Labeled "Walked Miles" for Trail Running, Mixed Run, Treadmill |
+| Run Miles | Only shown for Trail Running, Mixed Run, Treadmill — enter the running portion of the workout |
+| Total Miles | Read-only sum of Walked Miles + Run Miles (Trail Running, Mixed Run, Treadmill only) |
 | Calories | Optional, any type |
 | With Dogs | Checkbox — only shown if the type supports it |
 | Notes | Free-form notes about the workout |

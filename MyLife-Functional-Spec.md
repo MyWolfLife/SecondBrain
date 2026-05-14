@@ -1188,8 +1188,10 @@ Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Lif
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
 - **Date** (required, defaults today), **day-of-week label** (updates on date change), and **Time** (optional native time picker) — all on one row, matching the journal entry layout. Duration field uses `inputmode="text"` so the full keyboard (including colon) is available on mobile.
 - **Duration** — accepts `MM:SS` (e.g. `45:26`), `H:MM:SS` (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label (e.g. "45 min 26 sec" or "1 hr 15 min") appears to the right of the field as you type; stored as decimal minutes in Firestore
-- **Miles** — shown only when the selected type has `tracksMiles: true`
-- **Pace** — auto-calculated (min/mile) shown as a read-only preview beneath Miles + Duration
+- **Miles / Walked Miles** — shown only when `tracksMiles: true`. For Trail Running, Mixed Run, and Treadmill the label reads "Walked Miles"; for all other types it reads "Miles"
+- **Run Miles** — shown only for Trail Running, Mixed Run, and Treadmill; a separate field for the running portion of a split workout
+- **Total Miles** — read-only calculated field (Walked Miles + Run Miles); shown only for the 3 split-miles types; used for pace calculation
+- **Pace** — auto-calculated (min/mile) shown as a read-only preview; uses total miles for split-miles types, plain miles otherwise
 - **Calories** — always shown
 - **With Dogs** checkbox — shown only when the selected type has `withDogs: true`
 - **Notes** — multi-line textarea
@@ -1203,7 +1205,7 @@ Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Lif
 **Save**: writes to `exerciseActivities`, navigates back to `#exercise-activities`.
 **Delete** (edit mode only): confirm dialog → delete → navigate back.
 
-**Firestore collections**: `exerciseActivities` (fields: `typeId`, `activityDate`, `durationMin`, `miles`, `calories`, `withDogs`, `notes`), `exerciseTypes` (fields: `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`).
+**Firestore collections**: `exerciseActivities` (fields: `typeId`, `activityDate`, `durationMinutes`, `miles`, `runMiles`, `calories`, `withDogs`, `comment`), `exerciseTypes` (fields: `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`).
 
 ### Manage Activity Types (`#exercise-types`)
 Lists all non-archived types, sorted built-ins first (alphabetical) then custom (alphabetical). Breadcrumb: Life › Exercise › Activities › Manage Types.
@@ -1222,7 +1224,7 @@ Types with `tracksMiles = true`: Running, Trail Running, Walking, Hiking, Treadm
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
 
 ### Data Model
-**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
+**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for Trail Running / Mixed Run / Treadmill), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
 
 **`exerciseTypes`** (per-user): `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`, `createdAt`
 
