@@ -1165,6 +1165,7 @@ async function _exHandleFromPicture(files) {
 
         // Build prompt — include available type names so LLM can match
         var typeNames = _exAllTypes.map(function(t) { return t.name; });
+        var now = new Date();
         var prompt = [
             'You are a fitness data extraction assistant. Analyze the provided exercise screenshot and return ONLY a valid JSON object.',
             'No explanation, no markdown, no code blocks. Your entire response must be parseable by JSON.parse().',
@@ -1172,6 +1173,8 @@ async function _exHandleFromPicture(files) {
             'Return this exact structure:',
             '{',
             '  "typeName": "",',
+            '  "activityDate": null,',
+            '  "activityTime": null,',
             '  "durationMin": null,',
             '  "miles": null,',
             '  "calories": null,',
@@ -1180,6 +1183,8 @@ async function _exHandleFromPicture(files) {
             '',
             'Field rules:',
             '- typeName: pick the best match from this list (use exact name, or "" if none fits): ' + JSON.stringify(typeNames),
+            '- activityDate: the date the activity took place, as YYYY-MM-DD (e.g. "2026-05-12"). Use the current year (' + now.getFullYear() + ') if only month/day is shown. Return null if no date is visible.',
+            '- activityTime: the start time of the activity in 24-hour HH:MM format (e.g. "17:12"), or null if not visible',
             '- durationMin: total exercise duration as decimal minutes (e.g. 22min 58sec = 22.967), or null if not shown',
             '- miles: distance in miles as a decimal number, or null if not shown or not applicable',
             '- calories: total calories burned as an integer, or null if not shown',
@@ -1203,6 +1208,28 @@ async function _exHandleFromPicture(files) {
         } catch (e) {
             statusEl.textContent = 'Could not parse LLM response. Try again.';
             return;
+        }
+
+        // Pre-fill Date (default to today if LLM returns null)
+        var dateEl = document.getElementById('exActivityDate');
+        var dowEl  = document.getElementById('exActivityDateDow');
+        if (dateEl) {
+            var fillDate = (parsed.activityDate && /^\d{4}-\d{2}-\d{2}$/.test(parsed.activityDate))
+                ? parsed.activityDate
+                : _exFmtYMD(new Date());
+            dateEl.value = fillDate;
+            if (dowEl) dowEl.textContent = _exDowLabel(fillDate);
+        }
+
+        // Pre-fill Time (default to now if LLM returns null)
+        var timeEl = document.getElementById('exActivityTime');
+        if (timeEl) {
+            if (parsed.activityTime && /^\d{2}:\d{2}$/.test(parsed.activityTime)) {
+                timeEl.value = parsed.activityTime;
+            } else {
+                var n = new Date();
+                timeEl.value = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+            }
         }
 
         // Pre-fill Type

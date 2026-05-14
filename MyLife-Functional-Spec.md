@@ -1179,8 +1179,10 @@ Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Lif
 - User selects a screenshot from their fitness app (e.g. Samsung Health, Strava)
 - The image is compressed and sent to the configured LLM with a prompt asking it to extract: activity type, duration, miles, and calories
 - The LLM returns a JSON object; the form fields are pre-filled directly with no confirmation step
+- Fields extracted: activity type, date (YYYY-MM-DD), time (HH:MM 24-hr), duration, miles, calories
+- Date defaults to today and time defaults to now if the LLM cannot read them from the image
 - The user reviews and edits as needed, then saves normally
-- If the LLM cannot identify a field, it is left blank; the LLM's note appears in a status line below the button
+- If the LLM cannot identify a field, it is left blank (except date/time which fall back to now); the LLM's note appears in a status line below the button
 
 **Form fields:**
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly

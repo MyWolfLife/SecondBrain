@@ -3466,7 +3466,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 ### Field details
 | Field | Notes |
 |-------|-------|
-| From Picture | Tap to select a fitness app screenshot — LLM pre-fills the fields (new mode only, requires LLM configured in Settings) |
+| From Picture | Tap to select a fitness app screenshot — LLM pre-fills Type, Date, Time, Duration, Miles, and Calories (new mode only, requires LLM configured in Settings). Date/Time default to today/now if not found in the image. |
 | Activity Type | Required. Searchable — just start typing |
 | Date | Required. Defaults to today |
 | Time | Optional — uses the native time picker. Leave blank if you don't need it. |
