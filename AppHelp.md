@@ -21,8 +21,55 @@ It is used by the in-app AI assistant to answer your questions.
 - **Health** — Vitals, medications, visits, conditions, blood work, insurance, and more
 
 **Buttons on this screen:**
-- **⚡ QuickLog** — AI assistant. Type or speak a command like "I watered the front yard azaleas" and it logs the activity for you. Also supports adding notes, tasks, and journal entries.
+- **⚡ QuickLog** — AI assistant. Type or speak anything in plain English — log activities, add tasks, record problems, log exercise, track health metrics, add plants or weeds, move items, set reminders, and more. 25 commands total. See the QuickLog help screen (tap ?) for the full list.
 - **📍 Check In** — GPS-based location check-in. Records where you are right now.
+
+---
+
+## screen:secondbrain
+
+**What this screen is for:** QuickLog — the AI assistant that lets you log anything in the app by typing or speaking in plain English. Tap ⚡ QuickLog from the main screen to open it.
+
+### How it works
+- Type or speak a command in plain English and tap Send (or use the mic button to speak)
+- The AI interprets your command, shows you a confirmation screen with the parsed details, and lets you review or adjust before saving
+- Attach a photo first to include it with the logged item
+
+### Full command list
+
+| Icon | Command | What it does | Example phrases |
+|------|---------|-------------|-----------------|
+| 📓 | **Add Journal Entry** | Log a diary entry, thought, or personal note | "This morning I had a great walk", "Feeling tired today" |
+| 📅 | **Add Calendar Event** | Schedule a future reminder or recurring event | "Remind me to change the oil on April 15th", "Schedule fertilizer every 6 weeks" |
+| 🌿 | **Log Activity** | Record a task done on any plant, zone, vehicle, room, or item | "I just mowed the back yard", "Washed the truck", "Painted the office walls" |
+| ⚠️ | **Add Problem** | Flag an issue or concern with any entity | "The shed roof is leaking", "The rose bush has black spots" |
+| 📋 | **Add Fact** | Record a factual detail — dimensions, specs, dates | "The front garden bed is 120 square feet", "The shed was built in 2018" |
+| 🔨 | **Add Project** | Track a future improvement or multi-step effort | "I want to install drip irrigation", "Replace the carpet in the office" |
+| ✅ | **Add Task** | Add a quick to-do item | "Add a task to the back yard — trim the hedges", "I need to clean the gutters" |
+| 🎂 | **Add Important Date** | Record a birthday or anniversary for a person | "Jake's birthday is March 15th", "Connie and I got married on June 3rd 2001" |
+| 🚗 | **Log Mileage** | Record the current odometer reading on a vehicle | "The truck is at 87,500 miles", "Just hit 45,000 on the SUV" |
+| 👥 | **Log Interaction** | Log a conversation, visit, or time with someone | "Had lunch with Jake", "Called my brother about Thanksgiving" |
+| 🌱 | **Add Weed** | Record a weed; attach a photo for AI identification | "There's crabgrass along the back fence", "Found wild onions near the mailbox" |
+| 🪴 | **Add Plant** | Add a new plant to a zone; attach a photo for AI ID | "I planted a new azalea in the front yard", "Put 3 mums in the back garden bed" |
+| 🧪 | **Add Product** | Add a product to your chemicals/products list | "Add Roundup to my products", "I bought Scotts Turf Builder" |
+| 📊 | **Add Tracking Entry** | Log a personal health or life metric | "My weight today is 182", "Blood pressure was 118 over 76", "Slept 7.5 hours" |
+| 🏃 | **Log Exercise** | Log a workout — run, walk, bike, gym, mowing, etc. | "I just ran 5 miles in 5303", "Did 45 minutes of weights", "Mowed for an hour and a half" |
+| 📦 | **Add Item** | Add a tracked item to a room, garage area, or structure | "Add this lamp to the office", "Add this tool to the shed shelves" |
+| 🚚 | **Move Item** | Move tracked items to a new location | "I moved the chainsaw from the shed to the garage", "Move the drill to the workbench" |
+| 📷 | **Attach Photos** | Attach photos to an existing record | "Add these photos to the back yard", "Attach this to the shed" |
+| 📝 | **Add Note** | Add a note to a notebook | "Add a note to pay my taxes", "Note that the azalea was blooming today" |
+| 🛠️ | **Dev Note** | Leave feedback for the developer | "Note to developer: the speech button gets stuck", "Dev note — fix the photo layout" |
+| 🗓️ | **Add Personal Event** | Add a life event to your personal calendar | "I'm going to the AC/DC concert on Sept 26", "Golf trip to Scottsdale next March" |
+| 🔍 | **Find Item** | Locate where something is stored or tracked | "Where is my gator hat?", "Find the chainsaw", "Where did I put the router manual?" |
+| ⏰ | **Add Reminder** | Set a time-based reminder; syncs to Google Calendar | "Remind me in 30 days to change the hot tub filter", "Remind me tomorrow to call the groomer" |
+| 📍 | **Check In** | Check in at a real-world place | "Check in at Smokey Bones", "I'm at Home Depot" |
+| 💡 | **Help Question** | Ask how to use the app | "How do I add a plant?", "Where do I log a doctor's visit?" |
+
+### Tips
+- **Voice input**: Tap the mic button to speak. Punctuation commands work the same as in the journal ("period", "comma", "new line", etc.)
+- **Photos**: Attach a photo before sending to include it with the result (plant ID, weed ID, item add, etc.)
+- **Tap the ? button** on the QuickLog screen to see the full command list with examples inside the app
+- **Duration shorthand for exercise**: A 4-digit number like "5303" is read as MM:SS (53 minutes 03 seconds)
 
 ---
 
@@ -2230,7 +2277,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Writing an entry:**
 - Tap **+ New Entry** (or the date button) to open the entry form
-- **Entry text:** Free-form textarea. Supports @mentions (see below). Tab key inserts 4 spaces.
+- **Entry text:** Free-form textarea. Supports @mentions (see below). Tab key inserts 4 spaces. A **📋 Copy** button below the textarea copies the full entry text to the clipboard with one tap.
 - **Date and time:** Defaults to now; editable. The day of week (e.g., "Friday") appears inline next to the date field as a quick reference.
 - **Photos:** Tap Camera (take a new photo), Gallery (pick from device), or paste an image from clipboard. Photos are compressed automatically. Appear as 80x80 thumbnails in the form; full-screen lightbox in the feed.
 - **Tracking items:** Log numeric values per category (e.g., "Weight = 183", "Mood = 7"). Categories are managed on the Journal Categories page.
@@ -2337,6 +2384,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 ### Details
 
 **Templates vs. runs**: A template is a saved checklist blueprint. Tapping **▶ Start** creates a "run" — a live copy you work through. Runs are independent; edits to a run don't affect the original template.
+
+**Indenting items**: Each item row has a `→` / `←` indent button. Click it to cycle through 3 levels: normal → indented (level 1) → double-indented (level 2) → back to normal. This button appears in both the **template editor** and in **active run cards** (when in edit mode ✏️). In the template editor you can also use **Tab** to indent and **Shift+Tab** to unindent while typing. Indentation carries over from templates into runs.
 
 **Active run cards**:
 - Items are shown directly on the card. Undone items are at the top; checked items collapse into a "▶ X completed" toggle.
@@ -3418,7 +3467,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 |-------|-------|
 | Activity Type | Required. Searchable — just start typing |
 | Date | Required. Defaults to today |
-| Time | Optional — leave blank if you don't need it |
+| Time | Optional — type as `HH:MM` (e.g. `14:30`). You can also type 4 digits without the colon (e.g. `1430`) and it will be converted automatically. Leave blank if you don't need it. |
 | Duration | `MM:SS` (e.g. 45:26), `H:MM:SS` (e.g. 1:15:00), or decimal minutes (e.g. 45.5). A friendly label appears to the right as you type |
 | Miles | Only shown for types that track distance (Running, Walking, etc.) |
 | Calories | Optional, any type |
@@ -3449,7 +3498,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Log or edit a single day's health and habit metrics — weight, sleep, steps, calories, and any custom metrics you've set up.
 
 ### Quick Help
-- **Date field**: defaults to today for a new entry — change it to log for a different day. If a record already exists for that date, the form switches to edit mode and pre-fills with the existing data
+- **Date field**: shown inline with the day of the week beside it (e.g. "Monday") — updates as you change the date. Defaults to today for a new entry. If a record already exists for that date, the form reloads pre-filled with that record's data. If no record exists for the new date, your in-progress values are kept (only the date updates)
 - **Body section**: Weight (decimals OK), Sleep Score, Body Battery
 - **Activity section**: Daily Steps, Total Actual Burn (from your watch, usually entered the next day), Food Calories
 - **Habits & Custom**: your custom metrics in order — YES/NO metrics are checkboxes; Number metrics have an optional unit label (e.g. oz, cal); Text metrics are free-form
@@ -3473,8 +3522,9 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Filter pills** (Last Week, This Week, This Month, etc.) and **month shortcut buttons** change the date range — the list reloads automatically
 - Months that belong to last year show an abbreviated year tag (e.g. "Aug '25"); current-year months show no tag
 - **N records** label below the filter bar shows how many entries match
-- **Desktop**: data appears as a table with a tinted **summary row** at the top showing averages for the period
-- **Mobile**: each entry is a card showing the date, standard metrics, and your custom metrics
+- **Desktop**: data appears as a table with a tinted **summary row** at the top — Weight shows net change for the period (green = lost, red = gained); other columns show averages
+- **+/- Diff column** (between Burn and Food): shows `burn − food` for each day — a yellow cell means you ate more than you burned that day; "—" means you were in a deficit (good)
+- **Mobile**: each entry is a card showing the date, standard metrics (including a Diff value), and your custom metrics
 - **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
 - Click or tap any row/card to open that day's entry form
 - **+ Entry** button: create a new entry for today (or any date)

@@ -757,6 +757,8 @@ Daily entry logging with optional tracking metrics.
 
 **Tab key**: In the journal entry textarea, if the @mention dropdown is open, Tab selects the first name in the list (same as clicking it) and keeps focus in the textarea. If the dropdown is not open, Tab inserts 4 spaces (handled by `_initTabIndentTextareas` in `app.js`).
 
+**📋 Copy button**: A small "📋 Copy" button appears below the entry textarea (above the @mentions chips row). Tapping it copies the full entry text to the clipboard and briefly shows "Copied!" on the button as confirmation.
+
 **Clipboard safety copy**: When the user taps Save on a journal entry, the entry text is silently copied to the clipboard before the Firestore write is attempted. This is a silent background operation (no toast/confirmation shown) — it ensures the text is recoverable if the save fails due to a network error or Firestore issue.
 
 **Voice-to-text** (`initVoiceToText` in `journal.js`): 🎤 Speak button uses the Web Speech API (`continuous: true`). Spoken punctuation words are converted by `applySpokenPunctuation()`. Editing commands are handled by `_applyVoiceEditCommand()` and execute on the textarea directly — they are never appended as text. Commands must be spoken as their own phrase (pause before and after): — **"new line"** → inserts `\n` — **"new paragraph"** → inserts `\n\n` — **"delete last word"** → removes the last word — **"delete last sentence"** → removes everything after the last `.` `!` or `?` (clears all if no sentence boundary found) — **"clear all"** → empties the textarea. Full punctuation command list: period, comma, question mark, exclamation point, colon, semicolon, dash, hyphen, ellipsis, dot dot dot, open/close paren.
@@ -1110,15 +1112,15 @@ Daily health and habit journal — one record per date. Tracks 6 hardcoded stand
 #### Daily Metrics List (`#exercise-metrics`)
 - **Filter bar**: 6 dynamic range pills (Last Week, This Week, This Month, Last Month, This Year, Last Year) + a 3×4 month shortcut grid (Jan–Dec). Month buttons show an abbreviated year tag (e.g. "Aug '25") when they refer to the prior year; current-year months show no tag. Default filter on page load: This Month.
 - **Records label**: "N records" shown below the filter bar.
-- **Desktop (≥700px)**: scrollable `<table>` with a tinted **summary row** above the column headers showing averages (weight to 1 decimal, others rounded) for standard fields and "X / N" counts for boolean custom metrics. Each data row is clickable — navigates to `#exercise-metric/<date>`. Note icons (📝) appear inline with a hover tooltip.
-- **Mobile (<700px)**: one card per record — date header, two rows of 3 standard metrics each (abbreviated labels), then custom metrics. Note icons trigger a floating overlay with the note text and a close button; tapping outside also dismisses it.
+- **Desktop (≥700px)**: scrollable `<table>` with a tinted **summary row** above the column headers. Weight column shows the **net change** (newest − oldest weight in range) in green if negative (lost weight) or red if gained; all other standard fields show averages. "X / N" counts for boolean custom metrics. A computed **+/- Diff** column appears after Food Cal. showing `burn − food` per row — yellow background/black text when negative (ate more than burned), normal otherwise. The summary row shows the **total diff** for the period plus its pound-equivalent (÷ 3500), e.g. `4,500 (1.3)`. Each data row is clickable — navigates to `#exercise-metric/<date>`. Note icons (📝) appear inline with a hover tooltip.
+- **Mobile (<700px)**: one card per record — date header, row 1 = Wt/Sleep/Bat, row 2 = Steps/Burn/Diff/Food (Diff cell has yellow background when negative), then custom metrics. Note icons trigger a floating overlay with the note text and a close button; tapping outside also dismisses it.
 - **"Manage Metrics"** link navigates to `#exercise-metric-defs`. **"+ Entry"** navigates to `#exercise-metric/new`.
 - Clicking any row/card routes to `#exercise-metric/<date>` (entry form).
 
 #### Daily Metric Entry Form (`#exercise-metric/new`, `#exercise-metric/<date>`)
 Create or edit a single day's metric record. One record per date (date is the Firestore doc ID).
 
-- **Date field**: Defaults to today (new) or the date being edited. Changing the date auto-loads any existing record for that date, switching to edit mode and pre-filling the form.
+- **Date field**: Displayed inline (label + picker on one line). The day of the week (e.g. "Monday") appears beside the picker and updates as the date changes. Defaults to today (new) or the date being edited. Changing the date checks for an existing record: if one exists it reloads the form pre-filled with that record's data; if no record exists the in-progress form values are preserved (only the date changes).
 - **Sections**: **Body** (Weight decimal, Sleep Score, Body Battery) | **Activity** (Daily Steps, Total Actual Burn with helper text, Food Calories) | **Habits & Custom** (all non-archived custom metric defs in sort order).
 - **Custom field types**: boolean → checkbox; number → text input with optional unit label; text → text input.
 - **📝 note toggle** on every field: clicking the button opens/closes a 2-row textarea for that field. If a note already exists the button is highlighted yellow and the textarea opens pre-filled.
@@ -1166,7 +1168,7 @@ Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Lif
 
 **Form fields:**
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
-- **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs
+- **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs. Time is a plain text field (`HH:MM` format, e.g. `14:30`). On save, bare 4-digit input like `1430` is auto-normalized to `14:30`; invalid values show an error.
 - **Duration** — accepts `MM:SS` (e.g. `45:26`), `H:MM:SS` (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label (e.g. "45 min 26 sec" or "1 hr 15 min") appears to the right of the field as you type; stored as decimal minutes in Firestore
 - **Miles** — shown only when the selected type has `tracksMiles: true`
 - **Pace** — auto-calculated (min/mile) shown as a read-only preview beneath Miles + Duration
@@ -2585,11 +2587,12 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Life: shows all life-tagged templates/runs (no sub-targets)
 - **Templates** (`checklistTemplates`): `{ name, tags[], targetType, targetId, targetName, items:[{label, indent}], createdAt }`
   - `tags[]`: string array of user-defined tags (e.g., ["Danielle", "Finance"]) — entered comma-separated in the modal; displayed as chips on cards; copied to runs when starting
-  - `items[].indent`: 0 = normal, 1 = indented sub-item (one level deep, Google Keep style)
+  - `items[].indent`: 0 = normal, 1 = indented sub-item (level 1 ~28px), 2 = double-indented sub-item (level 2 ~56px)
 - **Runs** (`checklistRuns`): same fields copied from template; `items:[{label, done, doneAt, note, indent}]`; `archived: boolean` (false by default)
 - **Template modal**: Location dropdown shows the full hierarchy for the current context (e.g., Yard → zones → subzones), defaulting to the entity the user was on when they clicked Checklists; full hierarchy shown so user can pick any level. Delete button is inside the edit modal.
-  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button (`→` to indent, `←` to remove indent), the text input, and a ✕ remove button
-  - **Indent shortcut**: Tab key on the text input indents the item; Shift+Tab removes indent
+  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button, the text input, and a ✕ remove button
+  - **Indent levels**: 3-way cycle — 0 (normal) → 1 (28px) → 2 (56px) → back to 0. Button shows `→` at levels 0–1, `←` at level 2.
+  - **Indent shortcut**: Tab key increments indent (cap at 2); Shift+Tab decrements indent (floor at 0)
   - **Enter key**: adds a new blank row inheriting the current row's indent level
 - **Location badge**: shown on template/run cards in roll-up views (e.g., "📍 Front Yard")
 - **Context subtitle**: shown on the page header ("Showing: Front Yard (Zone)")
@@ -2606,7 +2609,7 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Drag-and-drop reorder of undone items in edit mode (SortableJS on `.cl-undone-list`)
   - Adding items in edit mode prompts "Add to template too?" for template-derived runs
 - **URL items**: labels starting with `http://` or `https://` render as clickable links (new tab) in run cards and completed accordions
-- **Sub-item indentation**: `indent: 1` → ~28px padding in run cards, completed, and archived cards
+- **Sub-item indentation**: `indent: 1` → 28px padding; `indent: 2` → 56px padding — applies in run cards, completed, and archived cards. In run card edit mode, each item also shows a `→`/`←` indent button (same 3-way cycle as the template editor) that saves immediately to Firestore.
 - **Per-item notes**: 📝 button → inline textarea. Saves on blur/Enter. Escape discards. Clicking the note text itself (when it exists) also opens the editor. Fixed blur/click race: `mousedown` on the 📝 button prevents blur from firing before click, so clicking 📝 to close correctly saves without re-opening.
 - **Item completion date**: `doneAt` recorded on check; shown as `(Apr 17)` inline. Cleared on uncheck.
 - **Item sort order**: undone first (drag-reordered); done at bottom by completion time.

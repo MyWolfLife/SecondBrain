@@ -568,11 +568,12 @@ async function clSaveRunItemOrder(runId, wrapper, originalItems, card) {
 function clBuildItemEl(runId, item, idx, card) {
     var li = document.createElement('li');
     li.className = 'cl-item' +
-        (item.indent ? ' cl-item--indented' : '') +
+        (item.indent === 1 ? ' cl-item--indent-1' : item.indent === 2 ? ' cl-item--indent-2' : '') +
         (item.done   ? ' cl-item--done'     : '');
     li.dataset.storageIdx = String(idx);
+    li.dataset.indent     = String(item.indent || 0);
 
-    // ── Main row: drag handle + checkbox + label + buttons ─────
+    // ── Main row: drag handle + indent button + checkbox + label + buttons ─────
     var row = document.createElement('div');
     row.className = 'cl-item-row';
 
@@ -581,6 +582,24 @@ function clBuildItemEl(runId, item, idx, card) {
     dragHandle.className   = 'drag-handle run-drag-handle';
     dragHandle.textContent = '⠿';
     dragHandle.title       = 'Drag to reorder';
+
+    // Indent button — visible only in edit mode, cycles 0→1→2→0
+    var runIndentBtn = document.createElement('button');
+    runIndentBtn.type      = 'button';
+    runIndentBtn.className = 'cl-run-indent-btn';
+    var _curInd = item.indent || 0;
+    runIndentBtn.textContent = _curInd === 2 ? '←' : '→';
+    runIndentBtn.title       = _curInd === 0 ? 'Indent' : _curInd === 1 ? 'Indent more' : 'Remove indent';
+    runIndentBtn.addEventListener('click', function() {
+        var cur  = parseInt(li.dataset.indent || '0');
+        var next = cur >= 2 ? 0 : cur + 1;
+        li.dataset.indent = String(next);
+        li.classList.remove('cl-item--indent-1', 'cl-item--indent-2');
+        if (next > 0) li.classList.add('cl-item--indent-' + next);
+        runIndentBtn.textContent = next === 2 ? '←' : '→';
+        runIndentBtn.title       = next === 0 ? 'Indent' : next === 1 ? 'Indent more' : 'Remove indent';
+        clSaveItemIndent(runId, idx, next);
+    });
 
     var cb = document.createElement('input');
     cb.type    = 'checkbox';
@@ -629,6 +648,7 @@ function clBuildItemEl(runId, item, idx, card) {
     });
 
     row.appendChild(dragHandle);
+    row.appendChild(runIndentBtn);
     row.appendChild(cb);
     row.appendChild(label);
     row.appendChild(noteBtn);
@@ -865,6 +885,21 @@ async function clSaveItemNote(runId, idx, noteText) {
 
     } catch (err) {
         console.error('Error saving item note:', err);
+    }
+}
+
+/**
+ * Updates the indent level of one item in a run (0, 1, or 2).
+ */
+async function clSaveItemIndent(runId, idx, newIndent) {
+    try {
+        var doc = await userCol('checklistRuns').doc(runId).get();
+        if (!doc.exists) return;
+        var items = doc.data().items;
+        items[idx] = Object.assign({}, items[idx], { indent: newIndent });
+        await userCol('checklistRuns').doc(runId).update({ items: items });
+    } catch (err) {
+        console.error('Error saving item indent:', err);
     }
 }
 
@@ -1298,7 +1333,7 @@ function clBuildCompletedCard(run) {
         var li = document.createElement('li');
         li.className = (item.done ? 'cl-completed-item cl-completed-item--done'
                                   : 'cl-completed-item cl-completed-item--missed') +
-                       (item.indent ? ' cl-completed-item--indented' : '');
+                       (item.indent === 1 ? ' cl-completed-item--indent-1' : item.indent === 2 ? ' cl-completed-item--indent-2' : '');
 
         var prefix = item.done ? '✓ ' : '✗ ';
         var isUrl  = /^https?:\/\//i.test(item.label);
@@ -1693,10 +1728,10 @@ async function clPopulateTargetPicker(ctx, existing) {
  */
 function clAddItemRow(value, indent) {
     var editor = document.getElementById('clTemplateItemsEditor');
-    indent = indent ? 1 : 0;
+    indent = Math.min(2, Math.max(0, parseInt(indent) || 0));
 
     var row = document.createElement('div');
-    row.className    = 'cl-template-item-row' + (indent ? ' cl-template-item-row--indented' : '');
+    row.className    = 'cl-template-item-row' + (indent > 0 ? ' cl-template-item-row--indent-' + indent : '');
     row.dataset.indent = String(indent);
 
     // Drag handle
@@ -1705,18 +1740,20 @@ function clAddItemRow(value, indent) {
     handle.textContent = '⠿';
     handle.title       = 'Drag to reorder';
 
-    // Indent toggle button: → indents, ← removes indent
+    // Indent toggle button: cycles 0→1→2→0; → advances, ← resets from level 2
     var indentBtn = document.createElement('button');
     indentBtn.type        = 'button';
     indentBtn.className   = 'cl-indent-btn';
-    indentBtn.title       = indent ? 'Remove indent' : 'Indent item';
-    indentBtn.textContent = indent ? '←' : '→';
+    indentBtn.title       = indent === 0 ? 'Indent' : indent === 1 ? 'Indent more' : 'Remove indent';
+    indentBtn.textContent = indent === 2 ? '←' : '→';
     indentBtn.addEventListener('click', function() {
-        var isIndented = row.dataset.indent === '1';
-        row.dataset.indent    = isIndented ? '0' : '1';
-        indentBtn.textContent = isIndented ? '→' : '←';
-        indentBtn.title       = isIndented ? 'Indent item' : 'Remove indent';
-        row.classList.toggle('cl-template-item-row--indented', !isIndented);
+        var cur  = parseInt(row.dataset.indent || '0');
+        var next = cur >= 2 ? 0 : cur + 1;
+        row.dataset.indent = String(next);
+        row.classList.remove('cl-template-item-row--indent-1', 'cl-template-item-row--indent-2');
+        if (next > 0) row.classList.add('cl-template-item-row--indent-' + next);
+        indentBtn.textContent = next === 2 ? '←' : '→';
+        indentBtn.title       = next === 0 ? 'Indent' : next === 1 ? 'Indent more' : 'Remove indent';
     });
 
     var input = document.createElement('input');
@@ -1733,20 +1770,17 @@ function clAddItemRow(value, indent) {
             var rows = editor.querySelectorAll('.cl-item-input');
             rows[rows.length - 1].focus();
         }
-        // Tab: indent; Shift+Tab: unindent
+        // Tab: indent more (up to 2); Shift+Tab: unindent
         if (e.key === 'Tab') {
             e.preventDefault();
-            var isIndented = row.dataset.indent === '1';
-            if (!e.shiftKey && !isIndented) {
-                row.dataset.indent    = '1';
-                indentBtn.textContent = '←';
-                indentBtn.title       = 'Remove indent';
-                row.classList.add('cl-template-item-row--indented');
-            } else if (e.shiftKey && isIndented) {
-                row.dataset.indent    = '0';
-                indentBtn.textContent = '→';
-                indentBtn.title       = 'Indent item';
-                row.classList.remove('cl-template-item-row--indented');
+            var cur  = parseInt(row.dataset.indent || '0');
+            var next = e.shiftKey ? Math.max(0, cur - 1) : Math.min(2, cur + 1);
+            if (next !== cur) {
+                row.dataset.indent = String(next);
+                row.classList.remove('cl-template-item-row--indent-1', 'cl-template-item-row--indent-2');
+                if (next > 0) row.classList.add('cl-template-item-row--indent-' + next);
+                indentBtn.textContent = next === 2 ? '←' : '→';
+                indentBtn.title       = next === 0 ? 'Indent' : next === 1 ? 'Indent more' : 'Remove indent';
             }
         }
     });

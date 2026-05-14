@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=700">
+    <link rel="stylesheet" href="css/styles.css?v=706">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -9324,10 +9324,10 @@ service firebase.storage {
             <div class="journal-entry-form">
                 <div class="form-group">
                     <label>Date &amp; Time</label>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <input type="date" id="journalEntryDate" style="flex:1;">
+                    <div class="journal-datetime-row">
+                        <input type="date" id="journalEntryDate">
                         <span id="journalEntryDayOfWeek" style="font-size:1em;font-weight:600;color:#374151;white-space:nowrap;"></span>
-                        <input type="time" id="journalEntryTime" style="flex:0 0 120px;width:120px;">
+                        <input type="time" id="journalEntryTime">
                     </div>
                 </div>
                 <div class="form-group">
@@ -9343,6 +9343,11 @@ service firebase.storage {
                     </div>
                     <textarea id="journalEntryText" rows="16" spellcheck="true"
                               placeholder="Write your journal entry here... Type @ to mention a person"></textarea>
+                    <!-- Copy button — below text box, above mentions -->
+                    <div class="journal-copy-row">
+                        <button class="btn btn-secondary btn-small" id="journalCopyBtn" type="button"
+                                onclick="(function(btn){var t=document.getElementById('journalEntryText');if(!t||!t.value)return;navigator.clipboard.writeText(t.value).then(function(){var orig=btn.textContent;btn.textContent='Copied!';setTimeout(function(){btn.textContent=orig;},1500);});})(this)">📋 Copy</button>
+                    </div>
                     <!-- @mention autocomplete dropdown -->
                     <div id="journalMentionDropdown" class="mention-dropdown" style="display:none;"></div>
                     <!-- Mentioned people chips — shown when entry has @mentions -->
@@ -10802,13 +10807,13 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=6"></script>
     <script src="js/settings.js?v=655"></script>
-    <script src="js/devnotes.js?v=559"></script>
+    <script src="js/devnotes.js?v=560"></script>
     <script src="js/house.js?v=537"></script>
     <script src="js/floorplan.js?v=398"></script>
     <script src="js/floorplanitem.js?v=393"></script>
     <script src="js/search.js?v=519"></script>
     <script src="js/activityreport.js?v=350"></script>
-    <script src="js/checklists.js?v=549"></script>
+    <script src="js/checklists.js?v=551"></script>
     <script src="js/bulkactivity.js?v=350"></script>
     <script src="js/vehicles.js?v=357"></script>
     <script src="js/garage.js?v=537"></script>
@@ -10823,7 +10828,7 @@ export default {
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
     <script src="js/life-projects.js?v=458"></script>
-    <script src="js/exercise.js?v=17"></script>
+    <script src="js/exercise.js?v=24"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>

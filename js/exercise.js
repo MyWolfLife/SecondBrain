@@ -502,7 +502,7 @@ function _exBuildActivityForm(existing) {
                 '<label class="ex-label">Date &amp; Time <span class="ex-required">*</span></label>' +
                 '<div class="ex-datetime-row">' +
                     '<input type="date" id="exActivityDate" value="' + date + '">' +
-                    '<input type="time" id="exActivityTime" value="' + time + '">' +
+                    '<input type="text" inputmode="text" id="exActivityTime" class="ex-input-time" placeholder="HH:MM" value="' + time + '">' +
                 '</div>' +
             '</div>' +
 
@@ -803,8 +803,22 @@ async function _exSaveActivity() {
         alert('Please select an activity type.');
         return;
     }
-    var date = document.getElementById('exActivityDate').value;
-    var time = document.getElementById('exActivityTime').value || '00:00';
+    var date    = document.getElementById('exActivityDate').value;
+    var rawTime = (document.getElementById('exActivityTime').value || '').trim();
+    var time    = '00:00';
+    if (rawTime) {
+        // Accept HHMM without colon (e.g. "2358" → "23:58", "958" → "09:58")
+        if (/^\d{3,4}$/.test(rawTime)) {
+            rawTime = rawTime.padStart(4, '0');
+            rawTime = rawTime.substring(0, 2) + ':' + rawTime.substring(2);
+        }
+        if (/^\d{1,2}:\d{2}$/.test(rawTime)) {
+            time = rawTime.padStart(5, '0'); // "9:05" → "09:05"
+        } else {
+            alert('Please enter time as HH:MM (e.g. 14:30).');
+            return;
+        }
+    }
     if (!date) { alert('Please enter a date.'); return; }
 
     var type     = _exSelectedType || {};
@@ -1346,11 +1360,35 @@ function _dmComputeSummary(records) {
     var result = {};
     // Weight: 1 decimal; others: round to integer
     result.weight      = counts.weight      ? (sums.weight / counts.weight).toFixed(1) : '—';
+
+    // Weight change: newest entry minus oldest entry (records are desc, so records[0] = newest)
+    var newestWeight = null, oldestWeight = null;
+    for (var i = 0; i < records.length; i++) {
+        var w = records[i].weight;
+        if (w !== null && w !== undefined && w !== '') {
+            if (newestWeight === null) newestWeight = parseFloat(w);
+            oldestWeight = parseFloat(w); // keeps updating — ends at the oldest found
+        }
+    }
+    result.weightChange = (newestWeight !== null && oldestWeight !== null && newestWeight !== oldestWeight)
+        ? parseFloat((newestWeight - oldestWeight).toFixed(1))
+        : null;
     result.sleepScore  = counts.sleepScore  ? Math.round(sums.sleepScore / counts.sleepScore) : '—';
     result.bodyBattery = counts.bodyBattery ? Math.round(sums.bodyBattery / counts.bodyBattery) : '—';
     result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
     result.totalBurn   = counts.totalBurn   ? Math.round(sums.totalBurn / counts.totalBurn).toLocaleString() : '—';
     result.foodCalories = counts.foodCalories ? Math.round(sums.foodCalories / counts.foodCalories).toLocaleString() : '—';
+
+    // +/- Diff sum: total (burn - food) across all rows that have both values
+    var diffSum = null;
+    records.forEach(function(r) {
+        var b = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var f = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (b !== null && f !== null) {
+            diffSum = (diffSum || 0) + (b - f);
+        }
+    });
+    result.diffSum = diffSum; // null if no rows had both values
 
     result.custom = {};
     _dmMetricDefs.forEach(function(def) {
@@ -1384,7 +1422,8 @@ function _dmNoteIcon(noteText, desktop) {
 }
 
 function _dmBuildTable(records, summary) {
-    var stdCols = [
+    // +/- Diff column appears after Food Cal.
+    var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
         { key: 'sleepScore',   label: 'Sleep' },
         { key: 'bodyBattery',  label: 'Body Bat.' },
@@ -1392,12 +1431,36 @@ function _dmBuildTable(records, summary) {
         { key: 'totalBurn',    label: 'Burn' },
         { key: 'foodCalories', label: 'Food Cal.' }
     ];
+    var postDiffCols = [];
 
     // Header row
     var thead = '<thead>';
     // Summary row
     thead += '<tr class="dm-summary-row"><td></td>';
-    stdCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
+    preDiffCols.forEach(function(c) {
+        if (c.key === 'weight') {
+            // Show overall weight change instead of average
+            if (summary.weightChange !== null && summary.weightChange !== undefined) {
+                var wc = summary.weightChange;
+                var color = wc < 0 ? 'green' : 'red';
+                var sign = wc > 0 ? '+' : '';
+                thead += '<td style="color:' + color + ';font-weight:bold">' + sign + wc.toFixed(1) + '</td>';
+            } else {
+                thead += '<td>—</td>';
+            }
+        } else {
+            thead += '<td>avg ' + summary[c.key] + '</td>';
+        }
+    });
+    // +/- Diff summary: total calories and equivalent pounds (÷3500)
+    if (summary.diffSum !== null && summary.diffSum !== undefined) {
+        var ds = Math.round(summary.diffSum);
+        var lbs = (summary.diffSum / 3500).toFixed(1);
+        thead += '<td>' + ds.toLocaleString() + ' (' + lbs + ')</td>';
+    } else {
+        thead += '<td>—</td>';
+    }
+    postDiffCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
@@ -1405,7 +1468,9 @@ function _dmBuildTable(records, summary) {
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
-    stdCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
+    preDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
+    thead += '<th>+/- Diff</th>';
+    postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
         thead += '<th' + cls + '>' + _exEsc(def.name) + '</th>';
@@ -1417,7 +1482,26 @@ function _dmBuildTable(records, summary) {
     records.forEach(function(r) {
         tbody += '<tr class="dm-data-row" data-date="' + _exEsc(r.date) + '">';
         tbody += '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(r.date)) + '</td>';
-        stdCols.forEach(function(c) {
+        preDiffCols.forEach(function(c) {
+            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            if (typeof v === 'number') v = v.toLocaleString();
+            var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
+        });
+        // +/- Diff: burn - food; yellow bg when negative (ate more than burned = fail)
+        var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var foodVal = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (burnVal !== null && foodVal !== null) {
+            var diff = burnVal - foodVal;
+            if (diff < 0) {
+                tbody += '<td class="dm-col-num" style="background-color:#ffeb3b;color:#000">' + diff.toLocaleString() + '</td>';
+            } else {
+                tbody += '<td class="dm-col-num">' + diff.toLocaleString() + '</td>';
+            }
+        } else {
+            tbody += '<td class="dm-col-num">—</td>';
+        }
+        postDiffCols.forEach(function(c) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             if (typeof v === 'number') v = v.toLocaleString();
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
@@ -1464,11 +1548,27 @@ function _dmBuildCards(records) {
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             stdLine1 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
-        stdLabels.slice(3).forEach(function(c) {
+        // Row 2: Steps, Burn, +/-Diff (yellow when negative), Food
+        stdLabels.slice(3, 5).forEach(function(c) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
+        var cardBurn = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
+        var cardFood = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+        if (cardBurn !== null && cardFood !== null) {
+            var cardDiff = cardBurn - cardFood;
+            if (cardDiff < 0) {
+                stdLine2 += '<span class="dm-card-metric" style="background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px"><span class="dm-card-label" style="color:#555">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+            } else {
+                stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
+            }
+        } else {
+            stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> —</span>';
+        }
+        var foodV = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? r.foodCalories : '—';
+        var foodNote = r.notes && r.notes.foodCalories ? r.notes.foodCalories : '';
+        stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + _exEsc(String(foodV)) + _dmNoteIcon(foodNote, false) + '</span>';
 
         // Custom metrics
         var customHtml = _dmMetricDefs.map(function(def) {
@@ -1595,7 +1695,16 @@ function _dmBuildEntryForm(el) {
     }
 
     function customField(def) {
-        var val     = cv[def.id] !== undefined ? cv[def.id] : '';
+        var raw = cv[def.id];
+        // Treat null/undefined as the empty default; numbers default to 0, text to blank
+        var val;
+        if (def.type === 'number') {
+            val = (raw !== undefined && raw !== null && raw !== '') ? raw : 0;
+        } else if (def.type === 'boolean') {
+            val = raw === true;
+        } else {
+            val = (raw !== undefined && raw !== null) ? raw : '';
+        }
         var noteVal = notes[def.id] || '';
         var hasNote = noteVal.length > 0;
 
@@ -1604,7 +1713,7 @@ function _dmBuildEntryForm(el) {
             return '<div class="dm-entry-group dm-entry-group--text">' +
                 '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
                 '<textarea id="dmf-' + def.id + '" class="dm-text-field" rows="4" ' +
-                    'placeholder="…">' + _exEsc(val !== '' ? String(val) : '') + '</textarea>' +
+                    'placeholder="…">' + _exEsc(String(val)) + '</textarea>' +
             '</div>';
         }
 
@@ -1618,7 +1727,7 @@ function _dmBuildEntryForm(el) {
         } else {
             // number
             inputHtml = '<input type="text" inputmode="decimal" id="dmf-' + def.id + '" ' +
-                'class="dm-entry-input" value="' + _exEsc(val !== '' ? String(val) : '') + '" autocomplete="off">' +
+                'class="dm-entry-input" value="' + _exEsc(String(val)) + '" autocomplete="off">' +
                 (def.unitLabel ? '<span class="dm-entry-unit">' + _exEsc(def.unitLabel) + '</span>' : '');
         }
         return '<div class="dm-entry-group">' +
@@ -1638,11 +1747,23 @@ function _dmBuildEntryForm(el) {
 
     var customFields = _dmMetricDefs.map(customField).join('');
 
+    var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    function _dowLabel(ds) {
+        if (!ds) return '';
+        var p = ds.split('-');
+        return days[new Date(+p[0], +p[1]-1, +p[2]).getDay()];
+    }
+
     el.innerHTML =
         '<div class="ex-form">' +
             '<div class="dm-entry-group">' +
-                '<label class="ex-label" for="dmfDate">Date</label>' +
-                '<input type="date" id="dmfDate" class="dm-entry-input" value="' + _exEsc(dateVal) + '">' +
+                '<div class="dm-entry-field-row">' +
+                    '<label class="ex-label" for="dmfDate">Date</label>' +
+                    '<div class="dm-entry-input-wrap">' +
+                        '<input type="date" id="dmfDate" class="dm-entry-input" value="' + _exEsc(dateVal) + '">' +
+                        '<span id="dmDateDow" class="dm-dow-label">' + _exEsc(_dowLabel(dateVal)) + '</span>' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
 
             '<div class="dm-section-header">Body</div>' +
@@ -1664,7 +1785,8 @@ function _dmBuildEntryForm(el) {
             '</div>' +
         '</div>';
 
-    // Wire date change — auto-load existing record for that date
+    // Wire date change — load existing record for that date if one exists;
+    // otherwise preserve the in-progress form values (user just corrected the date)
     document.getElementById('dmfDate').addEventListener('change', async function() {
         var newDate = this.value;
         if (!newDate) return;
@@ -1672,7 +1794,17 @@ function _dmBuildEntryForm(el) {
         _dmEditDate    = newDate;
         _dmExistingDoc = docSnap.exists ? docSnap.data() : null;
         _dmUpdateBreadcrumb();
-        _dmBuildEntryForm(el);
+        if (docSnap.exists) {
+            // Existing record for this date — load it into the form
+            _dmBuildEntryForm(el);
+        } else {
+            // No record yet — keep whatever the user typed; just hide Delete if it's showing
+            var delBtn = document.getElementById('dmDeleteBtn');
+            if (delBtn) delBtn.remove();
+            // Update day-of-week label
+            var dowEl = document.getElementById('dmDateDow');
+            if (dowEl) dowEl.textContent = _dowLabel(newDate);
+        }
     });
 
     // Wire note toggles

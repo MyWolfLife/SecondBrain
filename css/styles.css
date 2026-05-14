@@ -4801,9 +4801,8 @@ button {
     margin-bottom: 6px;
     transition: padding-left 0.15s;
 }
-.cl-template-item-row--indented {
-    padding-left: 28px;
-}
+.cl-template-item-row--indent-1 { padding-left: 28px; }
+.cl-template-item-row--indent-2 { padding-left: 56px; }
 
 /* Drag handles — shared style for both template editor and run cards */
 .drag-handle {
@@ -4822,6 +4821,23 @@ button {
 /* Run-card drag handle: hidden by default, shown when card is in edit mode */
 .run-drag-handle { display: none; }
 .cl-run-card--editing .run-drag-handle { display: inline; }
+
+/* Run-card indent button: hidden by default, shown when card is in edit mode */
+.cl-run-indent-btn { display: none; }
+.cl-run-card--editing .cl-run-indent-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    color: #6b7280;
+    flex-shrink: 0;
+    line-height: 1;
+}
 
 /* Indent toggle button in template editor */
 .cl-indent-btn {
@@ -4868,8 +4884,10 @@ button {
 .cl-item-remove-btn:hover { background: #ffebee; }
 
 /* Sub-item indentation in active runs and completed cards */
-.cl-item--indented { padding-left: 28px; }
-.cl-completed-item--indented { padding-left: 24px; }
+.cl-item--indent-1 { padding-left: 28px; }
+.cl-item--indent-2 { padding-left: 56px; }
+.cl-completed-item--indent-1 { padding-left: 24px; }
+.cl-completed-item--indent-2 { padding-left: 48px; }
 
 /* ---------- Activity History Report (NF-2) ---------- */
 
@@ -6142,6 +6160,19 @@ a.ar-target-link:hover {
     padding-left: 16px;
 }
 
+/* Date/time row — flexible on mobile, constrained widths on desktop */
+.journal-datetime-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.journal-datetime-row input[type="date"] { flex: 1; }
+.journal-datetime-row input[type="time"] { flex: 0 0 120px; width: 120px; }
+@media (min-width: 600px) {
+    .journal-datetime-row input[type="date"] { flex: 0 0 150px; width: 150px; }
+    .journal-datetime-row input[type="time"] { flex: 0 0 155px; width: 155px; }
+}
+
 /* Row above the textarea with label on left, mic button on right */
 .journal-textarea-header {
     display: flex;
@@ -7051,6 +7082,11 @@ img.collection-item-row-thumb {
 .journal-mention-link:hover { border-bottom-color: #0d9488; }
 
 /* Chips row in the edit form */
+.journal-copy-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
 .journal-mention-chips-row {
     display: flex;
     flex-wrap: wrap;
@@ -17588,6 +17624,13 @@ a.legacy-fin-card:hover {
     color: #666;
     white-space: nowrap;
 }
+.dm-dow-label {
+    font-size: 0.85rem;
+    color: #555;
+    font-style: italic;
+    white-space: nowrap;
+    margin-left: 6px;
+}
 
 /* Note toggle button */
 .dm-note-toggle {
@@ -17944,6 +17987,12 @@ a.legacy-fin-card:hover {
 
 .ex-add-type-btns .btn {
     min-width: 64px;
+}
+
+/* Time text input in the activity form */
+.ex-input-time {
+    width: 90px;
+    flex: 0 0 90px;
 }
 
 /* Date + Time on one row */
