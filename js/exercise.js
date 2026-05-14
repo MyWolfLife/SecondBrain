@@ -502,7 +502,7 @@ function _exBuildActivityForm(existing) {
                 '<label class="ex-label">Date &amp; Time <span class="ex-required">*</span></label>' +
                 '<div class="ex-datetime-row">' +
                     '<input type="date" id="exActivityDate" value="' + date + '">' +
-                    '<input type="time" id="exActivityTime" value="' + time + '">' +
+                    '<input type="text" inputmode="text" id="exActivityTime" class="ex-input-time" placeholder="HH:MM" value="' + time + '">' +
                 '</div>' +
             '</div>' +
 
@@ -803,8 +803,22 @@ async function _exSaveActivity() {
         alert('Please select an activity type.');
         return;
     }
-    var date = document.getElementById('exActivityDate').value;
-    var time = document.getElementById('exActivityTime').value || '00:00';
+    var date    = document.getElementById('exActivityDate').value;
+    var rawTime = (document.getElementById('exActivityTime').value || '').trim();
+    var time    = '00:00';
+    if (rawTime) {
+        // Accept HHMM without colon (e.g. "2358" → "23:58", "958" → "09:58")
+        if (/^\d{3,4}$/.test(rawTime)) {
+            rawTime = rawTime.padStart(4, '0');
+            rawTime = rawTime.substring(0, 2) + ':' + rawTime.substring(2);
+        }
+        if (/^\d{1,2}:\d{2}$/.test(rawTime)) {
+            time = rawTime.padStart(5, '0'); // "9:05" → "09:05"
+        } else {
+            alert('Please enter time as HH:MM (e.g. 14:30).');
+            return;
+        }
+    }
     if (!date) { alert('Please enter a date.'); return; }
 
     var type     = _exSelectedType || {};

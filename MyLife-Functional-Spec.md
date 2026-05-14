@@ -1168,7 +1168,7 @@ Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Lif
 
 **Form fields:**
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
-- **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs
+- **Date** (required, defaults today) and **Time** (optional) — side-by-side inputs. Time is a plain text field (`HH:MM` format, e.g. `14:30`). On save, bare 4-digit input like `1430` is auto-normalized to `14:30`; invalid values show an error.
 - **Duration** — accepts `MM:SS` (e.g. `45:26`), `H:MM:SS` (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label (e.g. "45 min 26 sec" or "1 hr 15 min") appears to the right of the field as you type; stored as decimal minutes in Firestore
 - **Miles** — shown only when the selected type has `tracksMiles: true`
 - **Pace** — auto-calculated (min/mile) shown as a read-only preview beneath Miles + Duration
