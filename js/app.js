@@ -13,6 +13,28 @@ function _pwToggle(inputId, btn) {
     btn.textContent = inp.type === 'password' ? 'Show' : 'Hide';
 }
 
+// ---------- Edit-safe reload tracking ----------
+// Prevents a service worker update from reloading the page mid-edit.
+// Any input/textarea activity sets the dirty flag; navigation clears it.
+// If an update arrives while dirty, it is deferred until the next navigation.
+window._bishopDirty        = false;
+window._bishopUpdatePending = false;
+
+document.addEventListener('input', function(e) {
+    var tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        window._bishopDirty = true;
+    }
+});
+
+window.addEventListener('hashchange', function() {
+    window._bishopDirty = false;
+    if (window._bishopUpdatePending) {
+        window._bishopUpdatePending = false;
+        window.location.reload();
+    }
+});
+
 // ---------- PWA Service Worker Registration ----------
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
@@ -34,9 +56,13 @@ if ('serviceWorker' in navigator) {
 
         }).catch(function(err) { console.warn('Service worker registration failed:', err); });
 
-        // When the SW swaps in (after skipWaiting), reload to get fresh files
+        // When the SW swaps in, reload — but defer if the user is mid-edit
         navigator.serviceWorker.addEventListener('controllerchange', function() {
-            window.location.reload();
+            if (window._bishopDirty) {
+                window._bishopUpdatePending = true;
+            } else {
+                window.location.reload();
+            }
         });
     });
 }

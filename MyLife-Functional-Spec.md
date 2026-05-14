@@ -86,6 +86,14 @@ All `<script>` and `<link>` tags in `index.html` have a `?v=N` version query str
 - Current pattern: `<script src="js/app.js?v=316"></script>`
 - CSS: `<link rel="stylesheet" href="css/styles.css?v=316">`
 
+### Service Worker Update Behavior
+When a new service worker activates (after a deploy), the app defers the page reload to avoid interrupting in-progress edits:
+
+- **If no form field is being edited** (no user has typed into any `<input>` or `<textarea>` since the last navigation): the page reloads immediately when the new SW activates.
+- **If the user is mid-edit** (dirty state): the reload is deferred. `window._bishopUpdatePending` is set to `true`. The page reloads automatically the next time the user navigates to a new hash route — i.e., when they finish what they're doing and move to another screen.
+- `window._bishopDirty` resets to `false` on every `hashchange` event.
+- This prevents data loss (e.g., a journal entry being wiped by a background update) while still ensuring users get the new version within one navigation.
+
 ### LLM Configuration (`settings.js`)
 - Stored in `userCol('settings').doc('llm')` — behind auth, not in localStorage
 - Fields: `provider` (openai / xai), `apiKey`, `model` (optional override)
