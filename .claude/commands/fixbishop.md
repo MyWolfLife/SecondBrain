@@ -1,7 +1,7 @@
 ---
 description: Fix a Bishop dev note by ID. Reads the note from Firestore, understands the issue using the spec/help/code, implements the fix, and marks the note resolved.
 argument-hint: <firestore-doc-id>
-allowed-tools: [Read, Edit, Write, Glob, Grep, Bash]
+allowed-tools: [Read, Edit, Write, Glob, Grep, Bash, mcp__Claude_Preview__preview_start, mcp__Claude_Preview__preview_eval, mcp__Claude_Preview__preview_screenshot]
 ---
 
 # /fixbishop — Bishop Dev Note Fix
@@ -27,16 +27,17 @@ Start the preview server (`bishop-dev`) and log in with test credentials from me
 
 If the result is `'NOT FOUND'`, tell the user: "Dev note `$ARGUMENTS` not found in sharedDevNotes."
 
-If `photoCount > 0`, display each photo using `preview_screenshot` or note to the user that there are N attached photos. To display a photo inline, evaluate:
+**Always check for photos** — the query above fetches them regardless of whether the note text mentions a picture. If `photoCount > 0`, inject and screenshot each one so you can see what the user attached. For each photo, run this `preview_eval` (substituting the actual `imageData` value):
 ```js
 (function() {
     var img = document.createElement('img');
     img.src = '<imageData>';
-    img.style.cssText = 'max-width:600px;max-height:400px;border:1px solid #ccc';
+    img.style.cssText = 'position:fixed;top:10px;right:10px;max-width:600px;max-height:500px;border:2px solid #333;z-index:99999;background:#fff';
     document.body.appendChild(img);
     return 'photo injected';
 })()
 ```
+Then immediately take a `preview_screenshot` to see the image. Use what you see as context for understanding the issue in Step 2 — the photo is part of the bug report.
 
 ## Step 2 — Understand the issue
 
