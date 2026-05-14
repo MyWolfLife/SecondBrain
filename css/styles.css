@@ -5209,6 +5209,29 @@ a.ar-target-link:hover {
     color: #c62828;
 }
 
+/* Exercise — From Picture section */
+.ex-from-pic-section {
+    border-top: 1px solid #e0e0e0;
+    margin-top: 4px;
+    margin-bottom: 16px;
+    padding-top: 12px;
+}
+.ex-from-pic-divider {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 10px;
+}
+.ex-from-pic-btn-row {
+    display: flex;
+    gap: 8px;
+}
+.ex-pic-status {
+    margin-top: 8px;
+    font-size: 0.88rem;
+    color: #c62828;
+}
+
 /* Plant — LLM Review Modal */
 .modal-wide {
     max-width: 560px;

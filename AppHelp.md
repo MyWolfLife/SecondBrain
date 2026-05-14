@@ -3453,6 +3453,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Log a new workout or edit an existing one.
 
 ### Quick Help
+- **📷 From Picture** — tap this (new workouts only) to select a screenshot from your fitness app; the app reads the image and pre-fills Type, Duration, Miles, and Calories automatically. Requires LLM to be configured in Settings.
 - Pick an **Activity Type** from the searchable dropdown — type to filter, then click to select
 - Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked two quick questions to set it up
 - **Date** defaults to today; **Time** is optional
@@ -3465,6 +3466,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 ### Field details
 | Field | Notes |
 |-------|-------|
+| From Picture | Tap to select a fitness app screenshot — LLM pre-fills the fields (new mode only, requires LLM configured in Settings) |
 | Activity Type | Required. Searchable — just start typing |
 | Date | Required. Defaults to today |
 | Time | Optional — uses the native time picker. Leave blank if you don't need it. |

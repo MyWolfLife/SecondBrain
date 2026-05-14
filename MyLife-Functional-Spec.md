@@ -1174,6 +1174,14 @@ Displays logged exercise activities in a filterable, sortable list.
 ### New / Edit Activity (`#exercise-activity/:id`)
 Route param is `new` for create, or a Firestore doc ID for edit. Breadcrumb: Life › Exercise › Activities › New/Edit Activity. Navigate back via breadcrumb or Cancel button.
 
+**From Picture** (new mode only, shown when LLM is configured in Settings):
+- A "📷 From Picture" button appears at the top of the form under a "— or fill from a photo —" divider
+- User selects a screenshot from their fitness app (e.g. Samsung Health, Strava)
+- The image is compressed and sent to the configured LLM with a prompt asking it to extract: activity type, duration, miles, and calories
+- The LLM returns a JSON object; the form fields are pre-filled directly with no confirmation step
+- The user reviews and edits as needed, then saves normally
+- If the LLM cannot identify a field, it is left blank; the LLM's note appears in a status line below the button
+
 **Form fields:**
 - **Activity Type** (required) — searchable dropdown; type to filter, click to select, or type a new name and click "➕ Add '[name]' as new type" to create on the fly
 - **Date** (required, defaults today), **day-of-week label** (updates on date change), and **Time** (optional native time picker) — all on one row, matching the journal entry layout. Duration field uses `inputmode="text"` so the full keyboard (including colon) is available on mobile.

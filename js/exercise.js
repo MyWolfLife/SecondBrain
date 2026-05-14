@@ -477,6 +477,18 @@ function _exBuildActivityForm(existing) {
 
         '<div class="ex-form">' +
 
+            // ── From Picture (new mode only, shown when LLM configured) ───────
+            (isNew ?
+                '<div id="exFromPicSection" class="ex-from-pic-section hidden">' +
+                    '<div class="ex-from-pic-divider">— or fill from a photo —</div>' +
+                    '<input type="file" id="exPicInput" accept="image/*" style="display:none">' +
+                    '<div class="ex-from-pic-btn-row">' +
+                        '<button type="button" class="btn btn-secondary btn-sm" id="exPicGalleryBtn" title="Select picture to prefill exercise">📷 From Picture</button>' +
+                    '</div>' +
+                    '<div id="exPicStatus" class="ex-pic-status hidden"></div>' +
+                '</div>'
+            : '') +
+
             // ── Type picker ──────────────────────────────────────────────────
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="exTypeInput">Activity Type <span class="ex-required">*</span></label>' +
@@ -605,6 +617,16 @@ function _exBuildActivityForm(existing) {
     });
     document.getElementById('exMiles') && document.getElementById('exMiles').addEventListener('input', _exUpdatePacePreview);
 
+    // From Picture
+    if (isNew) {
+        var exPicInput   = document.getElementById('exPicInput');
+        var exGalleryBtn = document.getElementById('exPicGalleryBtn');
+        if (exGalleryBtn) exGalleryBtn.addEventListener('click', function() { exPicInput.click(); });
+        if (exPicInput) exPicInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) _exHandleFromPicture(this.files);
+        });
+    }
+
     // Save and delete
     document.getElementById('exSaveBtn').addEventListener('click', _exSaveActivity);
     var delBtn = document.getElementById('exDeleteBtn');
@@ -617,6 +639,8 @@ function _exBuildActivityForm(existing) {
     }
 
     _exUpdatePacePreview();
+
+    if (isNew) _exCheckLlmForPage();
 }
 
 // ─── Searchable type dropdown ─────────────────────────────────────────────────
@@ -1097,6 +1121,136 @@ function _exEsc(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// ─── From Picture ─────────────────────────────────────────────────────────────
+
+async function _exCheckLlmForPage() {
+    try {
+        var doc = await userCol('settings').doc('llm').get();
+        var ok  = doc.exists && doc.data().provider && doc.data().apiKey;
+        var section = document.getElementById('exFromPicSection');
+        if (section) section.classList.toggle('hidden', !ok);
+    } catch (e) { /* leave hidden on error */ }
+}
+
+async function _exHandleFromPicture(files) {
+    if (!files || !files.length) return;
+
+    var statusEl   = document.getElementById('exPicStatus');
+    var galleryBtn = document.getElementById('exPicGalleryBtn');
+    var saveBtn    = document.getElementById('exSaveBtn');
+
+    statusEl.textContent = 'Analyzing picture…';
+    statusEl.classList.remove('hidden');
+    if (galleryBtn) galleryBtn.disabled = true;
+    if (saveBtn)    saveBtn.disabled    = true;
+
+    try {
+        // Compress up to 2 images
+        var images = [];
+        for (var i = 0; i < Math.min(files.length, 2); i++) {
+            images.push(await compressImage(files[i]));
+        }
+
+        // Load LLM config
+        var cfgDoc = await userCol('settings').doc('llm').get();
+        var cfg    = cfgDoc.exists ? cfgDoc.data() : null;
+        if (!cfg || !cfg.provider || !cfg.apiKey) {
+            statusEl.textContent = 'No LLM configured. Go to Settings.';
+            return;
+        }
+        var llm = LLM_PROVIDERS[cfg.provider];
+        if (!llm) { statusEl.textContent = 'Unknown LLM provider.'; return; }
+
+        // Build prompt — include available type names so LLM can match
+        var typeNames = _exAllTypes.map(function(t) { return t.name; });
+        var prompt = [
+            'You are a fitness data extraction assistant. Analyze the provided exercise screenshot and return ONLY a valid JSON object.',
+            'No explanation, no markdown, no code blocks. Your entire response must be parseable by JSON.parse().',
+            '',
+            'Return this exact structure:',
+            '{',
+            '  "typeName": "",',
+            '  "durationMin": null,',
+            '  "miles": null,',
+            '  "calories": null,',
+            '  "additionalMessage": ""',
+            '}',
+            '',
+            'Field rules:',
+            '- typeName: pick the best match from this list (use exact name, or "" if none fits): ' + JSON.stringify(typeNames),
+            '- durationMin: total exercise duration as decimal minutes (e.g. 22min 58sec = 22.967), or null if not shown',
+            '- miles: distance in miles as a decimal number, or null if not shown or not applicable',
+            '- calories: total calories burned as an integer, or null if not shown',
+            '- additionalMessage: brief note on what could not be extracted, or "" if all fields found'
+        ].join('\n');
+
+        var content = [{ type: 'text', text: prompt }];
+        images.forEach(function(url) {
+            content.push({ type: 'image_url', image_url: { url: url } });
+        });
+
+        var model        = cfg.model || llm.model;
+        var responseText = await chatCallOpenAICompat(llm, cfg.apiKey, content, model);
+
+        // Parse JSON response
+        var parsed;
+        try {
+            var cleaned   = responseText.replace(/```[\s\S]*?```/g, '').trim();
+            var jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+        } catch (e) {
+            statusEl.textContent = 'Could not parse LLM response. Try again.';
+            return;
+        }
+
+        // Pre-fill Type
+        if (parsed.typeName) {
+            var match = _exAllTypes.find(function(t) {
+                return t.name.toLowerCase() === String(parsed.typeName).toLowerCase();
+            });
+            if (match) _exSelectType(match.id, match.name, match);
+        }
+
+        // Pre-fill Duration
+        if (parsed.durationMin != null) {
+            var durEl = document.getElementById('exDuration');
+            if (durEl) {
+                durEl.value = exFmtDuration(parsed.durationMin);
+                _exUpdateDurationHint();
+                _exUpdatePacePreview();
+            }
+        }
+
+        // Pre-fill Miles
+        if (parsed.miles != null) {
+            var milesEl = document.getElementById('exMiles');
+            if (milesEl) {
+                milesEl.value = parsed.miles;
+                _exUpdatePacePreview();
+            }
+        }
+
+        // Pre-fill Calories
+        if (parsed.calories != null) {
+            var calEl = document.getElementById('exCalories');
+            if (calEl) calEl.value = parsed.calories;
+        }
+
+        statusEl.textContent = parsed.additionalMessage || 'Fields pre-filled — review and save.';
+        statusEl.style.color = '#2e7d32'; // green for success
+
+    } catch (err) {
+        console.error('Exercise from picture error:', err);
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.style.color = '';
+    } finally {
+        if (galleryBtn) galleryBtn.disabled = false;
+        if (saveBtn)    saveBtn.disabled    = false;
+        var picInput = document.getElementById('exPicInput');
+        if (picInput) picInput.value = '';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
