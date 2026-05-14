@@ -3467,7 +3467,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 |-------|-------|
 | Activity Type | Required. Searchable — just start typing |
 | Date | Required. Defaults to today |
-| Time | Optional — type as `HH:MM` (e.g. `14:30`). You can also type 4 digits without the colon (e.g. `1430`) and it will be converted automatically. Leave blank if you don't need it. |
+| Time | Optional — uses the native time picker. Leave blank if you don't need it. |
 | Duration | `MM:SS` (e.g. 45:26), `H:MM:SS` (e.g. 1:15:00), or decimal minutes (e.g. 45.5). A friendly label appears to the right as you type |
 | Miles | Only shown for types that track distance (Running, Walking, etc.) |
 | Calories | Optional, any type |

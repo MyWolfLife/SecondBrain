@@ -2,6 +2,13 @@
  * exercise.js — Exercise section: hub, activities list, activity detail, manage types.
  */
 
+var _exDays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function _exDowLabel(ds) {
+    if (!ds) return '';
+    var p = ds.split('-');
+    return _exDays[new Date(+p[0], +p[1]-1, +p[2]).getDay()];
+}
+
 // ─── Default types ────────────────────────────────────────────────────────────
 
 const EXERCISE_DEFAULT_TYPES = [
@@ -502,7 +509,8 @@ function _exBuildActivityForm(existing) {
                 '<label class="ex-label">Date &amp; Time <span class="ex-required">*</span></label>' +
                 '<div class="ex-datetime-row">' +
                     '<input type="date" id="exActivityDate" value="' + date + '">' +
-                    '<input type="text" inputmode="text" id="exActivityTime" class="ex-input-time" placeholder="HH:MM" value="' + time + '">' +
+                    '<span id="exActivityDateDow" class="ex-dow-label">' + _exDowLabel(date) + '</span>' +
+                    '<input type="time" id="exActivityTime" value="' + time + '">' +
                 '</div>' +
             '</div>' +
 
@@ -510,7 +518,7 @@ function _exBuildActivityForm(existing) {
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="exDuration">Duration</label>' +
                 '<div class="ex-duration-row">' +
-                    '<input type="text" inputmode="decimal" id="exDuration" class="ex-input-short" placeholder="e.g. 45:26 or 1:15:00" value="' + (duration !== '' ? exFmtDuration(duration) : '') + '">' +
+                    '<input type="text" inputmode="text" id="exDuration" class="ex-input-short" placeholder="e.g. 45:26 or 1:15:00" value="' + (duration !== '' ? exFmtDuration(duration) : '') + '">' +
                     '<span class="ex-duration-label" id="exDurationLabel">' + _exFmtDurationLabel(duration) + '</span>' +
                 '</div>' +
                 '<p class="ex-hint" id="exDurationHint">MM:SS &mdash; for over 1 hr use H:MM:SS (e.g. 1:15:00)</p>' +
@@ -586,6 +594,11 @@ function _exBuildActivityForm(existing) {
     document.getElementById('exAddTypeDogsNo').addEventListener('click',   function() { _exAddTypeAnswerDogs(false); });
 
     // Duration hint + pace preview: update when duration changes
+    document.getElementById('exActivityDate').addEventListener('change', function() {
+        var dowEl = document.getElementById('exActivityDateDow');
+        if (dowEl) dowEl.textContent = _exDowLabel(this.value);
+    });
+
     document.getElementById('exDuration').addEventListener('input', function() {
         _exUpdateDurationHint();
         _exUpdatePacePreview();
@@ -803,22 +816,8 @@ async function _exSaveActivity() {
         alert('Please select an activity type.');
         return;
     }
-    var date    = document.getElementById('exActivityDate').value;
-    var rawTime = (document.getElementById('exActivityTime').value || '').trim();
-    var time    = '00:00';
-    if (rawTime) {
-        // Accept HHMM without colon (e.g. "2358" → "23:58", "958" → "09:58")
-        if (/^\d{3,4}$/.test(rawTime)) {
-            rawTime = rawTime.padStart(4, '0');
-            rawTime = rawTime.substring(0, 2) + ':' + rawTime.substring(2);
-        }
-        if (/^\d{1,2}:\d{2}$/.test(rawTime)) {
-            time = rawTime.padStart(5, '0'); // "9:05" → "09:05"
-        } else {
-            alert('Please enter time as HH:MM (e.g. 14:30).');
-            return;
-        }
-    }
+    var date = document.getElementById('exActivityDate').value;
+    var time = document.getElementById('exActivityTime').value || '00:00';
     if (!date) { alert('Please enter a date.'); return; }
 
     var type     = _exSelectedType || {};
