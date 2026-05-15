@@ -632,7 +632,8 @@ function _exBuildActivityForm(existing) {
     var typeDropdown = document.getElementById('exTypeDropdown');
 
     typeInput.addEventListener('focus', function() {
-        _exRenderTypeDropdown(this.value);
+        this.select();
+        _exRenderTypeDropdown('');
     });
 
     typeInput.addEventListener('input', function() {
