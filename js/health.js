@@ -4740,6 +4740,21 @@ async function openConvertToVisitModal(apptId) {
         document.getElementById(id).value = '';
     });
 
+    // Pre-fill Reason for Visit from linked concern/condition names
+    var cIds  = appt.concernIds   || [];
+    var coIds = appt.conditionIds || [];
+    if (cIds.length > 0 || coIds.length > 0) {
+        Promise.all([
+            cIds.length  ? Promise.all(cIds.map(function(id)  { return userCol('concerns').doc(id).get();   })) : Promise.resolve([]),
+            coIds.length ? Promise.all(coIds.map(function(id) { return userCol('conditions').doc(id).get(); })) : Promise.resolve([])
+        ]).then(function(results) {
+            var names = [];
+            results[0].forEach(function(s) { if (s.exists && s.data().title) names.push(s.data().title); });
+            results[1].forEach(function(s) { if (s.exists && s.data().name)  names.push(s.data().name);  });
+            if (names.length > 0) document.getElementById('acvReason').value = names.join(', ');
+        }).catch(function() { /* leave blank on error */ });
+    }
+
     // Facility display row
     var facilityRow = document.getElementById('acvFacilityRow');
     var facilityDisplay = document.getElementById('acvFacilityDisplay');

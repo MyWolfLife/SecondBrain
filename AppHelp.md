@@ -1185,7 +1185,7 @@ Switching modes clears any selection and resets to Select tool.
 - Both facility and provider have an "allow create" option -- you can add a new contact inline without leaving the form
 
 **Mark Done -- converting an appointment to a visit (2-step flow):**
-- Step 1: A conversion modal opens pre-filled with the appointment data (date, time, type, facility, provider). Confirm or adjust, then Save to create the Health Visit record.
+- Step 1: A conversion modal opens pre-filled with the appointment data (date, time, type, facility, provider). If the appointment had linked concerns or conditions, the **Reason for Visit** field is automatically filled with their names (comma-separated) -- edit as needed. Confirm or adjust, then Save to create the Health Visit record.
 - Step 2: You are taken to the Visit Notes page. For each concern and condition linked to the appointment, you can add notes about what was discussed or decided. A microphone button supports voice-to-text entry. You can also add or link medications from this screen.
 - When done, tap "Done -- Visit" to save all notes and go to the visit detail page.
 - The appointment is marked "converted" and a "View Visit" link appears on the appointment card.
