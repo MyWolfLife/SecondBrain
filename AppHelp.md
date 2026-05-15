@@ -1316,7 +1316,7 @@ See the Concerns list page help for full detail on the concern lifecycle and all
 **Key actions on this page:**
 - **Edit** -- update title, body area, since date, summary, notes
 - **Mark Resolved / Reopen** -- close or reactivate the concern
-- **+ Add Entry** (in Journal Updates) -- log a new update with date, note, and pain scale
+- **+ Add Entry** (in Journal Updates) -- log a new update with date, note, and pain scale; each entry also has **Edit** and **Delete** buttons
 - **Link Medications** -- connect existing medications to this concern
 - **Promote to Condition** -- migrate this concern to a full condition record (irreversible; concern becomes read-only)
 
@@ -1374,7 +1374,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **Accordion sections (Journal starts expanded; all others collapsed):**
 
-**Journal:** Chronological log entries from `healthConditionLogs`. Each entry shows date, pain scale (if recorded), note, and type (manual entry, visit note, or imported from concern). Visit-sourced entries show a tappable "Visit" chip. Tap **+ Add Note** to log manually (date, pain scale, free-form note).
+**Journal:** Chronological log entries from `healthConditionLogs`. Each entry shows date, pain scale (if recorded), note, and type (manual entry, visit note, or imported from concern). Visit-sourced entries show a tappable "Visit" chip. Tap **+ Add Note** to log manually (date, pain scale, free-form note). Each entry has **Edit** and **Delete** buttons. Entries are sorted newest-date first; within the same date, newest entry first.
 
 **Medications:** All medications linked to this condition. Shows name and dosage. Unlink button. "+ Add Med" opens the Add Medication modal with this condition pre-linked. "+ Link Existing" opens a picker to link an already-recorded medication.
 

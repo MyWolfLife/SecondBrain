@@ -2339,7 +2339,13 @@ function loadConditionLogs(conditionId) {
     userCol('healthConditionLogs').where('conditionId', '==', conditionId).get()
         .then(function(snap) {
             var logs = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-            logs.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+            logs.sort(function(a, b) {
+                var dc = (b.date || '').localeCompare(a.date || '');
+                if (dc !== 0) return dc;
+                var at = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : 0;
+                var bt = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : 0;
+                return bt - at;
+            });
 
             _setSectionCount('conditionSectionJournal', logs.length);
             if (logs.length === 0) {
@@ -2360,6 +2366,7 @@ function loadConditionLogs(conditionId) {
                         '<div class="health-card-sub">' + escapeHtml(u.note || '') + '</div>' +
                     '</div>' +
                     '<div class="health-card-actions">' +
+                        '<button class="btn btn-secondary btn-small" onclick="openConditionUpdateModal(\'' + u.id + '\')">Edit</button>' +
                         '<button class="btn btn-danger btn-small" onclick="deleteConditionUpdate(\'' + u.id + '\',\'' + conditionId + '\')">Delete</button>' +
                     '</div>';
                 container.appendChild(div);
@@ -2371,12 +2378,26 @@ function loadConditionLogs(conditionId) {
         });
 }
 
-function openConditionUpdateModal() {
-    var today = new Date().toISOString().slice(0, 10);
-    document.getElementById('conditionUpdateDate').value  = today;
-    document.getElementById('conditionUpdateNote').value  = '';
-    document.getElementById('conditionUpdatePain').value  = '';
-    openModal('conditionUpdateModal');
+function openConditionUpdateModal(editId) {
+    var modal = document.getElementById('conditionUpdateModal');
+    modal.dataset.editId = editId || '';
+    document.getElementById('conditionUpdateModalTitle').textContent = editId ? 'Edit Journal Entry' : 'Add Journal Entry';
+
+    if (editId) {
+        userCol('healthConditionLogs').doc(editId).get().then(function(snap) {
+            if (!snap.exists) return;
+            var d = snap.data();
+            document.getElementById('conditionUpdateDate').value  = d.date      || '';
+            document.getElementById('conditionUpdateNote').value  = d.note      || '';
+            document.getElementById('conditionUpdatePain').value  = d.painScale != null ? d.painScale : '';
+            openModal('conditionUpdateModal');
+        }).catch(function(err) { alert('Error loading entry: ' + err.message); });
+    } else {
+        document.getElementById('conditionUpdateDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('conditionUpdateNote').value = '';
+        document.getElementById('conditionUpdatePain').value = '';
+        openModal('conditionUpdateModal');
+    }
 }
 
 function saveConditionUpdate() {
@@ -2391,22 +2412,32 @@ function saveConditionUpdate() {
         alert('Pain scale must be 1\u201310 or left blank.'); return;
     }
 
-    var data = {
-        conditionId: condition.id,
-        date:        document.getElementById('conditionUpdateDate').value || new Date().toISOString().slice(0, 10),
-        note:        note,
-        painScale:   pain,
-        type:        'manual',
-        contactId:   window.healthActiveContactId || null,
-        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-    };
+    var modal     = document.getElementById('conditionUpdateModal');
+    var editId    = modal.dataset.editId;
 
-    userCol('healthConditionLogs').add(data)
-        .then(function() {
-            closeModal('conditionUpdateModal');
-            loadConditionLogs(condition.id);
-        })
-        .catch(function(err) { alert('Error saving: ' + err.message); });
+    var op;
+    if (editId) {
+        op = userCol('healthConditionLogs').doc(editId).update({
+            date:      document.getElementById('conditionUpdateDate').value || new Date().toISOString().slice(0, 10),
+            note:      note,
+            painScale: pain
+        });
+    } else {
+        op = userCol('healthConditionLogs').add({
+            conditionId: condition.id,
+            date:        document.getElementById('conditionUpdateDate').value || new Date().toISOString().slice(0, 10),
+            note:        note,
+            painScale:   pain,
+            type:        'manual',
+            contactId:   window.healthActiveContactId || null,
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    op.then(function() {
+        closeModal('conditionUpdateModal');
+        loadConditionLogs(condition.id);
+    }).catch(function(err) { alert('Error saving: ' + err.message); });
 }
 
 function deleteConditionUpdate(logId, conditionId) {
@@ -3048,7 +3079,13 @@ function loadConcernUpdates(concernId) {
     userCol('concernUpdates').where('concernId', '==', concernId).get()
         .then(function(snap) {
             var updates = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-            updates.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+            updates.sort(function(a, b) {
+                var dc = (b.date || '').localeCompare(a.date || '');
+                if (dc !== 0) return dc;
+                var at = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : 0;
+                var bt = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : 0;
+                return bt - at;
+            });
 
             _setSectionCount('concernSectionJournal', updates.length);
             if (updates.length === 0) {
@@ -3069,6 +3106,7 @@ function loadConcernUpdates(concernId) {
                         '<div class="health-card-sub">' + escapeHtml(u.note || '') + '</div>' +
                     '</div>' +
                     '<div class="health-card-actions">' +
+                        '<button class="btn btn-secondary btn-small" onclick="openConcernUpdateModal(\'' + u.id + '\')">Edit</button>' +
                         '<button class="btn btn-danger btn-small" onclick="deleteConcernUpdate(\'' + u.id + '\', \'' + concernId + '\')">Delete</button>' +
                     '</div>';
                 container.appendChild(div);
@@ -3177,12 +3215,26 @@ function deleteCurrentConcern() {
 
 // ── Concern journal updates ───────────────────────────────────────
 
-function openConcernUpdateModal() {
-    var today = new Date().toISOString().slice(0, 10);
-    document.getElementById('concernUpdateDate').value      = today;
-    document.getElementById('concernUpdateNote').value      = '';
-    document.getElementById('concernUpdatePain').value      = '';
-    openModal('concernUpdateModal');
+function openConcernUpdateModal(editId) {
+    var modal = document.getElementById('concernUpdateModal');
+    modal.dataset.editId = editId || '';
+    document.getElementById('concernUpdateModalTitle').textContent = editId ? 'Edit Journal Entry' : 'Add Journal Entry';
+
+    if (editId) {
+        userCol('concernUpdates').doc(editId).get().then(function(snap) {
+            if (!snap.exists) return;
+            var d = snap.data();
+            document.getElementById('concernUpdateDate').value  = d.date      || '';
+            document.getElementById('concernUpdateNote').value  = d.note      || '';
+            document.getElementById('concernUpdatePain').value  = d.painScale != null ? d.painScale : '';
+            openModal('concernUpdateModal');
+        }).catch(function(err) { alert('Error loading entry: ' + err.message); });
+    } else {
+        document.getElementById('concernUpdateDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('concernUpdateNote').value = '';
+        document.getElementById('concernUpdatePain').value = '';
+        openModal('concernUpdateModal');
+    }
 }
 
 function saveConcernUpdate() {
@@ -3197,21 +3249,31 @@ function saveConcernUpdate() {
         alert('Pain scale must be 1\u201310 or left blank.'); return;
     }
 
-    var data = {
-        concernId:  concern.id,
-        date:       document.getElementById('concernUpdateDate').value || new Date().toISOString().slice(0, 10),
-        note:       note,
-        painScale:  pain,
-        contactId:  window.healthActiveContactId || null,
-        createdAt:  firebase.firestore.FieldValue.serverTimestamp()
-    };
+    var modal  = document.getElementById('concernUpdateModal');
+    var editId = modal.dataset.editId;
 
-    userCol('concernUpdates').add(data)
-        .then(function() {
-            closeModal('concernUpdateModal');
-            loadConcernUpdates(concern.id);
-        })
-        .catch(function(err) { alert('Error saving: ' + err.message); });
+    var op;
+    if (editId) {
+        op = userCol('concernUpdates').doc(editId).update({
+            date:      document.getElementById('concernUpdateDate').value || new Date().toISOString().slice(0, 10),
+            note:      note,
+            painScale: pain
+        });
+    } else {
+        op = userCol('concernUpdates').add({
+            concernId: concern.id,
+            date:      document.getElementById('concernUpdateDate').value || new Date().toISOString().slice(0, 10),
+            note:      note,
+            painScale: pain,
+            contactId: window.healthActiveContactId || null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    op.then(function() {
+        closeModal('concernUpdateModal');
+        loadConcernUpdates(concern.id);
+    }).catch(function(err) { alert('Error saving: ' + err.message); });
 }
 
 function deleteConcernUpdate(updateId, concernId) {
