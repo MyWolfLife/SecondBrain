@@ -4,6 +4,13 @@
 // plants, as well as rendering plant lists and detail pages.
 // ============================================================
 
+// ---------- Textarea auto-resize ----------
+
+function _autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+
 // ---------- Health Status Config ----------
 
 /**
@@ -244,7 +251,9 @@ async function loadPlantDetail(plantId) {
         document.getElementById('plantSunShade').value = meta.sunShade || '';
         document.getElementById('plantBloomMonth').value = meta.bloomMonth || '';
         document.getElementById('plantDormantMonth').value = meta.dormantMonth || '';
-        document.getElementById('plantNotes').value = meta.notes || '';
+        var plantNotesEl = document.getElementById('plantNotes');
+        plantNotesEl.value = meta.notes || '';
+        _autoResizeTextarea(plantNotesEl);
 
         // Snapshot original values for dirty-state tracking
         snapshotOriginalMetadata();
@@ -1302,6 +1311,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Use 'input' for text/textarea, 'change' for selects
         el.addEventListener('input', updateMetadataSaveButtonState);
         el.addEventListener('change', updateMetadataSaveButtonState);
+    });
+
+    // Auto-resize the notes textarea as the user types
+    document.getElementById('plantNotes').addEventListener('input', function() {
+        _autoResizeTextarea(this);
     });
 
     // Move plant modal — Save button

@@ -814,6 +814,11 @@ button {
     resize: vertical;
     min-height: 80px;
 }
+#plantNotes {
+    resize: none;
+    overflow: hidden;
+    min-height: 80px;
+}
 
 /* ---------- Modal / Dialog ---------- */
 .modal-overlay {
