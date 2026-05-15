@@ -2546,10 +2546,6 @@
                 </div>
                 <div class="detail-acc-body">
                     <div id="plantMetadataForm" class="metadata-form">
-                        <div class="form-group">
-                            <label for="plantCommonName">Common Name</label>
-                            <input type="text" id="plantCommonName" placeholder="e.g., Japanese Maple (optional — used for AI matching)">
-                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="plantHeatTolerance">Heat Tolerance</label>
@@ -4437,6 +4433,10 @@ service firebase.storage {
             <div class="form-group">
                 <label for="plantNameInput">Formal Name</label>
                 <input type="text" id="plantNameInput" placeholder="e.g., Azalea #1">
+            </div>
+            <div class="form-group" id="plantAliasGroup">
+                <label for="plantAliasInput">Common Name <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+                <input type="text" id="plantAliasInput" placeholder="e.g., Japanese Maple — used for AI matching">
             </div>
 
             <!-- From Picture section — only shown in add mode when LLM is configured -->
@@ -10801,7 +10801,7 @@ export default {
     <script src="js/firebase-config.js?v=579"></script>
     <script src="js/auth.js?v=351"></script>
     <script src="js/zones.js?v=355"></script>
-    <script src="js/plants.js?v=353"></script>
+    <script src="js/plants.js?v=354"></script>
     <script src="js/problems.js?v=389"></script>
     <script src="js/facts.js?v=350"></script>
     <script src="js/projects.js?v=403"></script>

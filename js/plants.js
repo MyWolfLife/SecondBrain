@@ -258,7 +258,6 @@ async function loadPlantDetail(plantId) {
         document.getElementById('plantSunShade').value = meta.sunShade || '';
         document.getElementById('plantBloomMonth').value = meta.bloomMonth || '';
         document.getElementById('plantDormantMonth').value = meta.dormantMonth || '';
-        document.getElementById('plantCommonName').value = plant.alias || '';
         var plantNotesEl = document.getElementById('plantNotes');
         plantNotesEl.value = meta.notes || '';
         _autoResizeTextarea(plantNotesEl);
@@ -365,6 +364,8 @@ function clonePlant() {
 
     modalTitle.textContent = 'Clone Plant';
     nameInput.value        = window.currentPlant.name + ' (Clone)';
+    document.getElementById('plantAliasInput').value = '';
+    document.getElementById('plantAliasGroup').classList.add('hidden');
 
     modal.dataset.mode        = 'clone';
     modal.dataset.zoneId      = window.currentPlant.zoneId || '';
@@ -387,6 +388,8 @@ function openAddPlantModal(zoneId) {
 
     modalTitle.textContent = 'Add Plant';
     nameInput.value = '';
+    document.getElementById('plantAliasInput').value = '';
+    document.getElementById('plantAliasGroup').classList.remove('hidden');
 
     modal.dataset.mode = 'add';
     modal.dataset.zoneId = zoneId;
@@ -416,6 +419,8 @@ function openEditPlantNameModal(plantId, currentName) {
 
     modalTitle.textContent = 'Edit Plant Name';
     nameInput.value = currentName;
+    document.getElementById('plantAliasInput').value = (window.currentPlant && window.currentPlant.alias) || '';
+    document.getElementById('plantAliasGroup').classList.remove('hidden');
 
     modal.dataset.mode = 'edit';
     modal.dataset.editId = plantId;
@@ -437,6 +442,7 @@ async function handlePlantModalSave() {
         return;
     }
 
+    const alias = document.getElementById('plantAliasInput').value.trim();
     const mode = modal.dataset.mode;
 
     try {
@@ -444,6 +450,7 @@ async function handlePlantModalSave() {
             const zoneId = modal.dataset.zoneId;
             await userCol('plants').add({
                 name: name,
+                alias: alias,
                 zoneId: zoneId,
                 metadata: {},
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -455,8 +462,21 @@ async function handlePlantModalSave() {
 
         } else if (mode === 'edit') {
             const plantId = modal.dataset.editId;
-            await userCol('plants').doc(plantId).update({ name: name });
+            await userCol('plants').doc(plantId).update({ name: name, alias: alias });
             console.log('Plant renamed:', name);
+
+            // Update header live without a full page reload
+            if (window.currentPlant && window.currentPlant.id === plantId) {
+                window.currentPlant.name  = name;
+                window.currentPlant.alias = alias;
+                var titleEl   = document.getElementById('plantTitle');
+                var formalEl  = document.getElementById('plantFormalName');
+                if (titleEl) titleEl.childNodes[0].textContent = alias || name;
+                if (formalEl) {
+                    if (alias) { formalEl.textContent = name; formalEl.classList.remove('hidden'); }
+                    else         formalEl.classList.add('hidden');
+                }
+            }
 
             closeModal('plantModal');
             refreshCurrentView();
@@ -498,7 +518,6 @@ var originalMetadata = {};
 
 /** IDs of all metadata form fields to track. */
 var METADATA_FIELD_IDS = [
-    'plantCommonName',
     'plantHeatTolerance', 'plantColdTolerance', 'plantWateringNeeds',
     'plantSunShade', 'plantBloomMonth', 'plantDormantMonth', 'plantNotes'
 ];
@@ -540,7 +559,6 @@ function updateMetadataSaveButtonState() {
 async function savePlantMetadata() {
     if (!window.currentPlant) return;
 
-    const alias = document.getElementById('plantCommonName').value.trim();
     const metadata = {
         heatTolerance: document.getElementById('plantHeatTolerance').value.trim(),
         coldTolerance: document.getElementById('plantColdTolerance').value.trim(),
@@ -553,7 +571,6 @@ async function savePlantMetadata() {
 
     try {
         await userCol('plants').doc(window.currentPlant.id).update({
-            alias: alias,
             metadata: metadata
         });
 
