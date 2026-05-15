@@ -170,7 +170,7 @@ function createPlantCard(id, plant) {
 
     const title = document.createElement('div');
     title.className = 'card-title';
-    title.textContent = plant.name;
+    title.textContent = plant.alias || plant.name;
     info.appendChild(title);
 
     // Health status badge — shown beneath the name when a status is set
@@ -224,7 +224,14 @@ async function loadPlantDetail(plantId) {
         }
 
         const plant = doc.data();
-        titleEl.textContent = plant.name;
+        titleEl.textContent = plant.alias || plant.name;
+        var formalEl = document.getElementById('plantFormalName');
+        if (plant.alias && formalEl) {
+            formalEl.textContent = plant.name;
+            formalEl.classList.remove('hidden');
+        } else if (formalEl) {
+            formalEl.classList.add('hidden');
+        }
 
         // Store current plant info for buttons
         window.currentPlant = { id: doc.id, ...plant };
@@ -251,6 +258,7 @@ async function loadPlantDetail(plantId) {
         document.getElementById('plantSunShade').value = meta.sunShade || '';
         document.getElementById('plantBloomMonth').value = meta.bloomMonth || '';
         document.getElementById('plantDormantMonth').value = meta.dormantMonth || '';
+        document.getElementById('plantCommonName').value = plant.alias || '';
         var plantNotesEl = document.getElementById('plantNotes');
         plantNotesEl.value = meta.notes || '';
         _autoResizeTextarea(plantNotesEl);
@@ -490,6 +498,7 @@ var originalMetadata = {};
 
 /** IDs of all metadata form fields to track. */
 var METADATA_FIELD_IDS = [
+    'plantCommonName',
     'plantHeatTolerance', 'plantColdTolerance', 'plantWateringNeeds',
     'plantSunShade', 'plantBloomMonth', 'plantDormantMonth', 'plantNotes'
 ];
@@ -531,6 +540,7 @@ function updateMetadataSaveButtonState() {
 async function savePlantMetadata() {
     if (!window.currentPlant) return;
 
+    const alias = document.getElementById('plantCommonName').value.trim();
     const metadata = {
         heatTolerance: document.getElementById('plantHeatTolerance').value.trim(),
         coldTolerance: document.getElementById('plantColdTolerance').value.trim(),
@@ -543,6 +553,7 @@ async function savePlantMetadata() {
 
     try {
         await userCol('plants').doc(window.currentPlant.id).update({
+            alias: alias,
             metadata: metadata
         });
 
@@ -826,7 +837,7 @@ function createPlantCardWithPath(id, plant, zonePath) {
 
     const title = document.createElement('div');
     title.className = 'card-title';
-    title.textContent = plant.name;
+    title.textContent = plant.alias || plant.name;
     info.appendChild(title);
 
     // Health status badge — shown when a status is set
@@ -882,6 +893,7 @@ var PLANT_ID_PROMPT = [
     'Return this exact structure:',
     '{',
     '  "name": "",',
+    '  "commonName": "",',
     '  "heatTolerance": "",',
     '  "coldTolerance": "",',
     '  "wateringNeeds": "",',
@@ -893,7 +905,8 @@ var PLANT_ID_PROMPT = [
     '}',
     '',
     'Field rules:',
-    '- name: the most recognizable common name, e.g. "Purple Diamond Loropetalum"',
+    '- name: the formal or scientific name, e.g. "Loropetalum chinense var. rubrum \'Purple Diamond\'"',
+    '- commonName: the informal everyday name most people use, e.g. "Purple Diamond Loropetalum". Leave "" if it is the same as name or unknown.',
     '- heatTolerance: one of exactly: "High", "Medium-High", "Medium", "Medium-Low", "Low", or "" if unknown',
     '- coldTolerance: one of exactly: "High", "Medium-High", "Medium", "Medium-Low", "Low", or "" if unknown',
     '- wateringNeeds: free text, e.g. "Weekly", "Drought tolerant", or "" if unknown',
@@ -1087,9 +1100,10 @@ function plantParseLlmResponse(text) {
  * of the parsed fields so the user can verify before saving.
  */
 function plantShowReviewModal(prompt, rawResponse, parsed) {
-    document.getElementById('reviewPromptText').textContent   = prompt;
-    document.getElementById('reviewResponseText').textContent = rawResponse;
-    document.getElementById('plantReviewName').value          = parsed.name || '';
+    document.getElementById('reviewPromptText').textContent      = prompt;
+    document.getElementById('reviewResponseText').textContent    = rawResponse;
+    document.getElementById('plantReviewName').value             = parsed.name || '';
+    document.getElementById('plantReviewCommonName').value       = parsed.commonName || '';
 
     function monthLabel(val) {
         var n = parseInt(val);
@@ -1120,8 +1134,9 @@ function plantShowReviewModal(prompt, rawResponse, parsed) {
  * nameOverride is used when the user edited the name in the review modal.
  * Photos are only saved when a plant name was successfully identified.
  */
-async function plantSaveFromLlm(parsed, images, zoneId, nameOverride) {
+async function plantSaveFromLlm(parsed, images, zoneId, nameOverride, aliasOverride) {
     var plantName = (nameOverride || parsed.name || 'Unknown Plant').trim();
+    var plantAlias = (aliasOverride !== undefined ? aliasOverride : (parsed.commonName || '')).trim();
 
     function monthVal(num) {
         var n = parseInt(num);
@@ -1140,6 +1155,7 @@ async function plantSaveFromLlm(parsed, images, zoneId, nameOverride) {
 
     var newRef = await userCol('plants').add({
         name      : plantName,
+        alias     : plantAlias,
         zoneId    : zoneId,
         metadata  : metadata,
         createdAt : firebase.firestore.FieldValue.serverTimestamp()
@@ -1392,12 +1408,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('plantReviewAddBtn').addEventListener('click', async function() {
         if (!plantLlmPending) return;
         var btn          = this;
-        var nameOverride = document.getElementById('plantReviewName').value.trim();
+        var nameOverride  = document.getElementById('plantReviewName').value.trim();
+        var aliasOverride = document.getElementById('plantReviewCommonName').value.trim();
         btn.disabled     = true;
         btn.textContent  = 'Saving\u2026';
         try {
             await plantSaveFromLlm(plantLlmPending.parsed, plantLlmPending.images,
-                                   plantLlmPending.zoneId, nameOverride);
+                                   plantLlmPending.zoneId, nameOverride, aliasOverride);
             plantLlmPending = null;
             closeModal('plantLlmReviewModal');
             refreshCurrentView();

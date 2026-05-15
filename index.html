@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=711">
+    <link rel="stylesheet" href="css/styles.css?v=712">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -2519,6 +2519,9 @@
                 </div>
             </div>
 
+            <!-- Formal name — shown beneath title when a common name alias is set -->
+            <p class="plant-formal-name hidden" id="plantFormalName"></p>
+
             <!-- Zone location -->
             <p class="plant-zone-info" id="plantZoneInfo"></p>
 
@@ -2543,6 +2546,10 @@
                 </div>
                 <div class="detail-acc-body">
                     <div id="plantMetadataForm" class="metadata-form">
+                        <div class="form-group">
+                            <label for="plantCommonName">Common Name</label>
+                            <input type="text" id="plantCommonName" placeholder="e.g., Japanese Maple (optional — used for AI matching)">
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="plantHeatTolerance">Heat Tolerance</label>
@@ -4428,7 +4435,7 @@ service firebase.storage {
         <div class="modal">
             <h3 id="plantModalTitle">Add Plant</h3>
             <div class="form-group">
-                <label for="plantNameInput">Plant Name</label>
+                <label for="plantNameInput">Formal Name</label>
                 <input type="text" id="plantNameInput" placeholder="e.g., Azalea #1">
             </div>
 
@@ -4460,8 +4467,12 @@ service firebase.storage {
         <div class="modal modal-wide">
             <h3>Plant Identified</h3>
             <div class="form-group">
-                <label for="plantReviewName">Plant Name (editable)</label>
+                <label for="plantReviewName">Formal Name (editable)</label>
                 <input type="text" id="plantReviewName" class="plant-review-name-input">
+            </div>
+            <div class="form-group">
+                <label for="plantReviewCommonName">Common Name (editable)</label>
+                <input type="text" id="plantReviewCommonName" class="plant-review-name-input" placeholder="Suggested alias for AI matching">
             </div>
             <div class="plant-review-fields">
                 <div class="plant-review-row"><span class="plant-review-label">Heat Tolerance</span><span id="reviewHeatTolerance"></span></div>
@@ -10790,7 +10801,7 @@ export default {
     <script src="js/firebase-config.js?v=579"></script>
     <script src="js/auth.js?v=351"></script>
     <script src="js/zones.js?v=355"></script>
-    <script src="js/plants.js?v=352"></script>
+    <script src="js/plants.js?v=353"></script>
     <script src="js/problems.js?v=389"></script>
     <script src="js/facts.js?v=350"></script>
     <script src="js/projects.js?v=403"></script>
@@ -10833,7 +10844,7 @@ export default {
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>
     <script src="js/chat.js?v=350"></script>
-    <script src="js/secondbrain.js?v=540"></script>
+    <script src="js/secondbrain.js?v=541"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=357"></script>
     <script src="js/thoughts.js?v=548"></script>

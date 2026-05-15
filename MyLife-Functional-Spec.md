@@ -137,7 +137,9 @@ Zones are the organizational backbone of the yard. They form a hierarchy up to 3
 ### Plants (`plants.js`)
 Each plant is an individual physical instance — 3 azalea bushes = 3 records. Plants are tied to a single zone.
 
-**Firestore**: `plants` — `name`, `zoneId`, `metadata{}`, `profilePhotoData?`, `createdAt`
+**Firestore**: `plants` — `name`, `alias?`, `zoneId`, `metadata{}`, `profilePhotoData?`, `createdAt`
+
+**Common Name (alias)**: Optional informal name stored as `alias` on the plant doc. When set, zone screens and the detail page header show the common name instead of the formal name; the formal name appears as a small italic subtitle. The alias is included in the SecondBrain LLM context so AI commands can match plants by informal name (e.g. "trimmed the Japanese Maple" matches a plant named "Acer palmatum" with alias "Japanese Maple"). Set via the Common Name field at the top of the Plant Care Info section. The "Find from picture" LLM flow also suggests a common name pre-filled in the review modal.
 
 **Metadata fields**: `heatTolerance`, `coldTolerance`, `sunShade`, `wateringNeeds`, `bloomMonth`, `dormantMonth` (all optional, set via dropdowns/pickers)
 
@@ -2771,7 +2773,7 @@ All collections live under `/users/{uid}/`. Every module uses `userCol('collecti
 | Collection | Key Fields |
 |------------|------------|
 | `zones` | name, parentId, level (1/2/3), createdAt |
-| `plants` | name, zoneId, metadata{}, profilePhotoData?, createdAt |
+| `plants` | name, alias?, zoneId, metadata{}, profilePhotoData?, createdAt |
 | `weeds` | name, treatmentMethod, applicationTiming, notes, zoneIds[], profilePhotoData?, createdAt |
 | `chemicals` | name, notes, createdAt |
 | `activities` | targetType, targetId, description, notes, date, chemicalIds[], savedActionId?, placeId? |

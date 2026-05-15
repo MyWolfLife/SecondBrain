@@ -506,6 +506,12 @@ button {
     color: #666;
     margin-bottom: 16px;
 }
+.plant-formal-name {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    font-style: italic;
+    margin: -12px 0 8px 0;
+}
 
 .metadata-form {
     background: white;

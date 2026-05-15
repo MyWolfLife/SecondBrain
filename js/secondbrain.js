@@ -168,13 +168,24 @@ async function _sbBuildContext() {
         }
 
         // --- Plants ---
+        function _sbZonePath(zoneId) {
+            var parts = [];
+            var z = zonesById[zoneId];
+            while (z) {
+                parts.unshift(z.name);
+                z = z.parentId ? zonesById[z.parentId] : null;
+            }
+            return parts.join(' > ');
+        }
+
         var plants = [];
         plantsSnap.forEach(function(d) {
             var p = d.data();
             plants.push({
                 id: d.id, name: p.name || '',
+                alias: p.alias || '',
                 zoneId: p.zoneId || null,
-                zoneName: (p.zoneId && zonesById[p.zoneId]) ? zonesById[p.zoneId].name : null
+                zonePath: p.zoneId ? _sbZonePath(p.zoneId) : null
             });
         });
 
@@ -357,7 +368,10 @@ function _sbFlattenTargets(allowedTypes) {
     }
     (ctx.zones    || []).forEach(function(z) { walkZone(z, ''); });
     (ctx.plants   || []).forEach(function(p) {
-        add('plant', p.id, p.name + (p.zoneName ? ' (' + p.zoneName + ')' : ''));
+        var label = p.alias || p.name;
+        if (p.alias) label += ' [' + p.name + ']';
+        if (p.zonePath) label += ' (' + p.zonePath + ')';
+        add('plant', p.id, label);
     });
     (ctx.people   || []).forEach(function(p) { add('person',  p.id, p.name); });
     (ctx.vehicles || []).forEach(function(v) {
@@ -445,6 +459,7 @@ function _sbBuildSystemPrompt(ctx) {
 'Today is ' + ctx.today + '. Current time is ' + ctx.currentTime + '.',
 '',
 "Use the user's data below to resolve names to IDs. Pick the closest match.",
+'For plants: match against both "name" (formal) and "alias" (common name). Also use "zonePath" for spatial descriptions like "the tree by the mailbox".',
 'Set "ambiguous":true if you are not confident. Full house paths in targetLabel (e.g. "1st Floor / Office").',
 '',
 ctxJson,
@@ -490,7 +505,7 @@ ctxJson,
 '{"action":"LOG_INTERACTION","payload":{"personId":"id or null","personName":"name","personFound":true,"date":"YYYY-MM-DD","notes":"summary"}}',
 '',
 'ADD_PLANT — adding a new physical plant to a zone. Identify from photo if provided. Check plants list: if a plant with same/similar name already exists in that zone, set duplicateExists:true and existingPlantId/existingPlantName.',
-'{"action":"ADD_PLANT","payload":{"name":"plant name","zoneId":"id","zoneLabel":"zone name","notes":"","duplicateExists":false,"existingPlantId":"id or null","existingPlantName":"name or null","ambiguous":false}}',
+'{"action":"ADD_PLANT","payload":{"name":"formal/scientific plant name","alias":"common informal name (leave blank if same as name)","zoneId":"id","zoneLabel":"zone name","notes":"","duplicateExists":false,"existingPlantId":"id or null","existingPlantName":"name or null","ambiguous":false}}',
 '',
 'ADD_WEED — finding/adding a weed. If photos attached try to identify species. If the weed name matches an existing weed in context, set alreadyExists:true and existingWeedId. Include zoneIds even when alreadyExists.',
 '{"action":"ADD_WEED","payload":{"name":"weed name","existingWeedId":"id or null","alreadyExists":false,"zoneIds":[],"zoneLabels":[],"treatmentMethod":"","applicationTiming":"","notes":""}}',
@@ -1292,8 +1307,10 @@ function _sbRenderConfirmFields(action, payload) {
             if (p.ambiguous) {
                 plantZoneSel += '<div class="sb-ambiguous-note">⚠ Zone was uncertain — please verify</div>';
             }
-            html += _sbFieldRow('Plant Name',
+            html += _sbFieldRow('Formal Name',
                 '<input type="text" class="sb-field" data-field="name" value="' + _sbEsc(p.name || '') + '">');
+            html += _sbFieldRow('Common Name',
+                '<input type="text" class="sb-field" data-field="alias" placeholder="Optional — used for AI matching" value="' + _sbEsc(p.alias || '') + '">');
             html += _sbFieldRow('Zone', plantZoneSel);
             html += _sbFieldRow('Notes',
                 '<textarea class="sb-field" data-field="notes" rows="2">' + _sbEsc(p.notes || '') + '</textarea>');
@@ -1994,6 +2011,7 @@ async function _sbWrite(action, payload) {
         case 'ADD_PLANT': {
             ref = await userCol('plants').add({
                 name:      payload.name   || '',
+                alias:     payload.alias  || '',
                 zoneId:    payload.zoneId || '',
                 notes:     payload.notes  || '',
                 metadata:  {},

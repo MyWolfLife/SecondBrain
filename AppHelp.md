@@ -70,6 +70,7 @@ It is used by the in-app AI assistant to answer your questions.
 - **Photos**: Attach a photo before sending to include it with the result (plant ID, weed ID, item add, etc.)
 - **Tap the ? button** on the QuickLog screen to see the full command list with examples inside the app
 - **Duration shorthand for exercise**: A 4-digit number like "5303" is read as MM:SS (53 minutes 03 seconds)
+- **Plant matching by common name**: Set a Common Name on a plant (in Plant Care Info) and the AI will match it by that name. Say "I trimmed the Japanese Maple" and it will find a plant named "Acer palmatum" with common name "Japanese Maple". Without a common name, the AI matches on the formal name and zone location.
 
 ---
 
@@ -177,7 +178,10 @@ It is used by the in-app AI assistant to answer your questions.
 
 The health indicator also appears on the plant card in the zone view, so you can spot struggling plants at a glance without opening each one.
 
+**Common Name:** The first field in the Plant Care Info section. This is the informal, everyday name you use for the plant — set it so AI QuickLog commands like "I trimmed the Japanese Maple" can match the plant even if its formal name is "Acer palmatum". When set, the common name appears as the plant's title on zone screens and the detail page header; the formal name shows as a small subtitle. Leave blank and everything works exactly as before.
+
 **Metadata tab:** Tap **Edit** to record care preferences:
+- **Common Name** — informal/everyday name for AI matching (optional)
 - Heat/cold tolerance, watering needs, sun/shade preference
 - Bloom months, dormancy months
 - Free-form notes about this plant
