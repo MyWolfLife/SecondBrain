@@ -14039,6 +14039,15 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     color: #6b7280;
     font-weight: 400;
 }
+.ex-card-note {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-style: italic;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 /* ── Empty / loading / error state ─────────────────────────── */
 .ex-status {

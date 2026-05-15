@@ -412,17 +412,23 @@ function _exBuildCards(activities) {
             }
         }
         if (a.calories != null && a.calories !== '') parts.push(a.calories + ' cal');
-        if (a.comment) parts.push(a.comment);
 
         if (parts.length > 0) {
             var line2 = document.createElement('div');
             line2.className = 'ex-card-line ex-card-line--sub';
-            parts.slice(0, 3).forEach(function(txt) {
+            parts.forEach(function(txt) {
                 var span = document.createElement('span');
                 span.textContent = txt;
                 line2.appendChild(span);
             });
             card.appendChild(line2);
+        }
+
+        if (a.comment) {
+            var line3 = document.createElement('div');
+            line3.className = 'ex-card-note';
+            line3.textContent = a.comment;
+            card.appendChild(line3);
         }
 
         wrap.appendChild(card);
