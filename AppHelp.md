@@ -432,16 +432,17 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **What activities are:** An activity is a logged event — a record of something you did and when. Examples: watered the roses, sprayed for weeds, pruned the hydrangeas, fertilized the lawn.
 
-**Where to log activities:** On any zone, plant, or weed detail page, tap **Log Activity**.
+**Where to log activities:** On any zone, plant, or weed detail page, tap **Log Activity**. Activities can also be logged from journal entries, life events, and other entity types.
 
 **Activity fields:**
 - **Description** — What was done (required)
 - **Date** — When it was done (defaults to today)
 - **Notes** — Free-form notes about the activity
-- **Chemicals** — One or more products used (selected from your Chemicals list)
-- **Amount Used** — Appears when chemicals are selected; record how much you used
+- **Use Saved Action** — Pick a reusable template to pre-fill description, product, and notes (see below)
+- **Product** — One or more products/chemicals used (selected from your Chemicals list; not shown for all entity types)
+- **Amount Used** — Appears when a product is selected; record how much you used
 
-**Saved Actions:** Pick a saved action from the dropdown to pre-fill the description, chemicals, and notes. Saves you time for activities you repeat often.
+**Saved Actions:** The **Use Saved Action** dropdown lets you pick a pre-configured template. Selecting one fills in the description, product, and notes automatically — useful for activities you repeat often (e.g., "Spray front beds with Roundup"). You can still edit the pre-filled values before saving.
 
 **Viewing history:** Activities appear newest-first in the Activities section of each zone, plant, or weed. The Activity Report shows all activities across the entire yard.
 

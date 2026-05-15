@@ -461,6 +461,11 @@ async function openLogActivityModal(targetType, targetId) {
     modal.dataset.targetType = targetType;
     modal.dataset.targetId = targetId;
 
+    // Hide Place field for yard entities — it only makes sense for life/journal contexts
+    var yardType = (targetType === 'plant' || targetType === 'zone' || targetType === 'weed');
+    var placeGroup = document.getElementById('activityPlaceGroup');
+    if (placeGroup) placeGroup.style.display = yardType ? 'none' : '';
+
     // Hide chemical/product section for target types that don't use chemicals
     var hideChemicals = (targetType === 'vehicle');
     var chemicalGroup = document.getElementById('activityChemicalGroup');

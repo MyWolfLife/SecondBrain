@@ -230,7 +230,13 @@ Bishop/
 - This is an active evaluation step, not just "update if you notice it changed." Read the diff and ask: "Would a user reading the help for this screen be confused or misled by what's there now?"
 - This applies to ALL changes — new buttons, renamed fields, changed flows, removed features, reworded labels.
 - `AppHelp.md` feeds BOTH the per-screen Help Page display AND the LLM Q&A — there is only one file, so one update keeps both in sync automatically.
-- Shared concept sections (`## concept:activities`, etc.) must also be updated if the shared behavior changes.
+- Shared concept sections (`## concept:X`) must also be updated if the shared behavior changes. These are NOT covered by the screen-name check alone — you must explicitly evaluate them based on which JS file changed. Use this mapping:
+  - `activities.js` → check `## concept:activities`
+  - `photos.js` → check `## concept:photos`
+  - `problems.js` → check `## concept:problems`
+  - `facts.js` → check `## concept:facts`
+  - `projects.js` → check `## concept:projects`
+  - `chemicals.js` → check any concept section that references chemicals/products
 - **Always tell the user** when you update AppHelp.md — state which section(s) changed and what was updated. If you evaluated and no update was needed, say that too.
 - **If a screen does not yet have a `## screen:X` section and you add significant new functionality to it, author the section in the same commit.**
 
