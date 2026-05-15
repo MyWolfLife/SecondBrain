@@ -960,7 +960,10 @@ function openVisitJournalEntryPreFilled(visitDate, visitTime, preText, visitId) 
 
     if (titleEl)   titleEl.textContent = 'New Journal Entry';
     if (dateEl)    dateEl.value  = visitDate || journalFormatDate(new Date());
-    if (timeEl)    timeEl.value  = visitTime || '';
+    if (timeEl) {
+        var _n = new Date();
+        timeEl.value = visitTime || (String(_n.getHours()).padStart(2, '0') + ':' + String(_n.getMinutes()).padStart(2, '0'));
+    }
     if (textEl)    textEl.value  = preText || '';
     if (deleteBtn) deleteBtn.classList.add('hidden');
     _journalUpdateDayOfWeek(dateEl ? dateEl.value : '');
