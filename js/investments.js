@@ -2437,6 +2437,29 @@ async function _investSaveCashBalance() {
 
 // ---------- Inline Cash Editing (in holdings table) ----------
 
+/**
+ * If qty-edit mode is active, read the current input values back into
+ * _investCurrentHoldings so that a full re-render preserves unsaved edits.
+ * Called before any re-render that happens while qty-edit mode may be open.
+ */
+function _investCaptureQtyEdits() {
+    if (!_investQtyEditMode) return;
+    document.querySelectorAll('.iht-qty-input').forEach(function(inp) {
+        var id = inp.dataset.id;
+        var h  = _investCurrentHoldings.find(function(x) { return x.id === id; });
+        if (!h) return;
+        var v = inp.value.trim();
+        h.shares = v !== '' ? parseFloat(v) : null;
+    });
+    document.querySelectorAll('.iht-cost-input').forEach(function(inp) {
+        var id = inp.dataset.id;
+        var h  = _investCurrentHoldings.find(function(x) { return x.id === id; });
+        if (!h) return;
+        var v = inp.value.trim();
+        h.costBasis = v !== '' ? parseFloat(v) : null;
+    });
+}
+
 function _investEditCashInline() {
     var cell    = document.getElementById('investCashValueCell');
     var editBtn = document.getElementById('investCashEditBtn');
@@ -2476,6 +2499,9 @@ async function _investCommitCashInline() {
         ? { cashBalance: val }
         : { cashBalance: firebase.firestore.FieldValue.delete() };
     await userCol('investments').doc(ns).collection('accounts').doc(aid).update(update);
+
+    // Preserve any unsaved qty edits before re-rendering
+    _investCaptureQtyEdits();
 
     // Re-render to update totals card and % acct column
     var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
@@ -2530,6 +2556,9 @@ async function _investCommitPendingInline() {
         ? { pendingActivity: val }
         : { pendingActivity: firebase.firestore.FieldValue.delete() };
     await userCol('investments').doc(ns).collection('accounts').doc(aid).update(update);
+
+    // Preserve any unsaved qty edits before re-rendering
+    _investCaptureQtyEdits();
 
     var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
     _investRenderAccountDetail(Object.assign({ id: aid, _ns: ns }, acctDoc.data()));
