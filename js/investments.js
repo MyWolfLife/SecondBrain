@@ -2974,7 +2974,7 @@ function _investSnapshotRowHtml(s, opts) {
             _investSnapAccountsHtml(s.perAccount) +
             (!noDelete
                 ? '<div class="invest-snap-detail-actions">' +
-                      '<button class="btn btn-danger btn-small" onclick="_investDeleteSnapshot(\'' + s.id + '\')">Delete</button>' +
+                      '<button class="btn btn-danger btn-small" onclick="_investDeleteSnapshot(\'' + s.id + '\',\'' + (s.type || '') + '\',\'' + (s.date || '') + '\')">Delete</button>' +
                   '</div>'
                 : '') +
         '</div>' +
@@ -3031,8 +3031,9 @@ function _investToggleSnapDetail(snapId) {
     if (chevron) chevron.textContent = detail.classList.contains('hidden') ? '›' : '⌄';
 }
 
-async function _investDeleteSnapshot(snapId) {
-    if (!confirm('Delete this snapshot? This cannot be undone.')) return;
+async function _investDeleteSnapshot(snapId, type, date) {
+    var label = (type && date) ? (type.charAt(0).toUpperCase() + type.slice(1) + ' snapshot ' + date) : 'this snapshot';
+    if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
     await _investSnapshotCol().doc(snapId).delete();
     closeModal('investSnapMoreModal');
     await _investRenderSnapshotsPage();
