@@ -1507,7 +1507,7 @@ Point-in-time portfolio recordings used to compute period performance on the Sum
 
 **Snapshot doc fields**: `groupId`, `type` (daily/weekly/monthly/yearly), `date` (YYYY-MM-DD), `netWorth`, `invested`, `perAccount` (map: accountId → total value), `perCategory` (roth/preTax/brokerage/cash/invCash), `notes` (nullable), `createdAt`.
 
-**Snapshot list**: Grouped by type (Yearly → Monthly → Weekly → Daily), most recent first within each group. Each accordion section header shows a count badge (e.g. "Monthly · 12"). Sections are collapsible; open/closed state persisted in localStorage as investSnapOpenSections. Default view is filtered to a recent window per type:
+**Snapshot list**: Grouped by type (Yearly → Monthly → Weekly → Daily), most recent first within each group. Each accordion section header shows the most-recent value and count (e.g. "$1,234,567 (12)"). Sections are collapsible; open/closed state persisted in localStorage as investSnapOpenSections. Default view is filtered to a recent window per type:
 - **Yearly / Monthly**: current calendar year only
 - **Weekly**: last 3 snapshots
 - **Daily**: all since the most-recent Sunday (start of current week)

@@ -1927,7 +1927,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - Tap **+ Capture** — you'll be warned if prices haven't been updated today; you can update them right from the dialog
 - Tap **↑ Import** to bulk-load historical snapshots from a spreadsheet screenshot using AI
 - Sections (Yearly/Monthly/Weekly/Daily) are collapsible — tap the header to expand or collapse; your open/closed state is remembered across visits
-- Each section header shows a **count badge** (e.g. "Monthly · 12") so you can see totals without expanding
+- Each section header shows the **most-recent value and count** (e.g. "$1,234,567 (12)") so you can see totals at a glance without expanding
 - Each expanded section shows recent snapshots and a **Show all** card at the bottom — tap it to open the full history screen for that type
 - Daily rows show the day of the week beside the date (e.g. "2026-05-05 · Tuesday")
 - **All-Time Highs** show the highest Net Worth ever recorded for each snapshot type

@@ -2981,8 +2981,12 @@ async function _investRenderSnapshotsPage() {
         var label    = type.charAt(0).toUpperCase() + type.slice(1);
         var isOpen   = _investSnapOpenSections.has(type);
         var chevron  = '<span class="invest-snap-type-chevron">' + (isOpen ? '⌄' : '›') + '</span>';
-        // Count badge shown in header so users can see totals without expanding
-        var countBadge = '<span class="invest-snap-type-count">' + all.length + '</span>';
+        // Header badge: most-recent value + count, e.g. "$1,234,567 (12)"
+        var latestVal  = (all[0] && all[0].netWorth != null) ? _investFmtCurrency(all[0].netWorth) : '';
+        var countBadge = '<span class="invest-snap-type-count">' +
+                             (latestVal ? latestVal + ' ' : '') +
+                             '(' + all.length + ')' +
+                         '</span>';
         listHtml += '<div class="invest-snap-type-section">';
         listHtml += '<div class="invest-snap-type-header" onclick="_investToggleSnapSection(\'' + type + '\')">' +
                         chevron +
