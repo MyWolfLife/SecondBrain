@@ -15124,6 +15124,22 @@ a.invest-hub-card:hover {
     align-items: center;
     gap: 10px;
     margin-bottom: 6px;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+}
+.invest-snap-type-header:hover .invest-snap-type-title {
+    color: #555;
+}
+.invest-snap-type-chevron {
+    font-size: 1rem;
+    color: #aaa;
+    width: 14px;
+    display: inline-block;
+    transition: color 0.15s;
+}
+.invest-snap-type-header:hover .invest-snap-type-chevron {
+    color: #666;
 }
 .invest-snap-type-title {
     font-size: 0.78rem;

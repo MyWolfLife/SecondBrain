@@ -1356,6 +1356,14 @@ var _investDefaultBudgetId = null; // from settings/app.defaultBudgetId
 // Caches full snapshot arrays (per type) for the "More" modal
 var _investSnapshotsAll = {};
 
+// Which snapshot type sections are currently expanded — persisted in localStorage
+var _investSnapOpenSections = (function() {
+    try {
+        var saved = localStorage.getItem('investSnapOpenSections');
+        return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch(e) { return new Set(); }
+})();
+
 // Returns the ISO date string (YYYY-MM-DD) of the most-recent Sunday <= today.
 function _investWeekStart() {
     var d = new Date();
@@ -2888,19 +2896,27 @@ async function _investRenderSnapshotsPage() {
         var filtered = typeFilters[type](all);
         var hasMore  = all.length > filtered.length;
         var label    = type.charAt(0).toUpperCase() + type.slice(1);
+        var isOpen   = _investSnapOpenSections.has(type);
+        var chevron  = '<span class="invest-snap-type-chevron">' + (isOpen ? '⌄' : '›') + '</span>';
         var moreBtn  = hasMore
-            ? '<button class="invest-snap-more-btn" onclick="_investOpenSnapMoreModal(\'' + type + '\')">More ›</button>'
+            ? '<button class="invest-snap-more-btn" onclick="event.stopPropagation();_investOpenSnapMoreModal(\'' + type + '\')">More ›</button>'
             : '';
         listHtml += '<div class="invest-snap-type-section">';
-        listHtml += '<div class="invest-snap-type-header"><span class="invest-snap-type-title">' +
-                        escapeHtml(label) + '</span>' + moreBtn + '</div>';
+        listHtml += '<div class="invest-snap-type-header" onclick="_investToggleSnapSection(\'' + type + '\')">' +
+                        chevron +
+                        '<span class="invest-snap-type-title">' + escapeHtml(label) + '</span>' +
+                        moreBtn +
+                    '</div>';
+        listHtml += '<div class="invest-snap-type-body" id="snap-body-' + type + '"' +
+                    (isOpen ? '' : ' style="display:none"') + '>';
         if (filtered.length === 0) {
             listHtml += '<div class="invest-snap-empty-period">No ' + label.toLowerCase() +
                         ' snapshots for the current period.</div>';
         } else {
             filtered.forEach(function(s) { listHtml += _investSnapshotRowHtml(s); });
         }
-        listHtml += '</div>';
+        listHtml += '</div>';  // close invest-snap-type-body
+        listHtml += '</div>';  // close invest-snap-type-section
     });
     if (snapshots.length === 0) {
         listHtml = '<div class="empty-state">No snapshots yet — tap "+ Capture" to record your first.</div>';
@@ -3029,6 +3045,19 @@ function _investToggleSnapDetail(snapId) {
     if (!detail) return;
     detail.classList.toggle('hidden');
     if (chevron) chevron.textContent = detail.classList.contains('hidden') ? '›' : '⌄';
+}
+
+function _investToggleSnapSection(type) {
+    var body = document.getElementById('snap-body-' + type);
+    if (!body) return;
+    var hdr  = body.previousElementSibling;
+    var chev = hdr ? hdr.querySelector('.invest-snap-type-chevron') : null;
+    var isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : '';
+    if (chev) chev.textContent = isOpen ? '›' : '⌄';
+    if (isOpen) { _investSnapOpenSections.delete(type); }
+    else        { _investSnapOpenSections.add(type); }
+    try { localStorage.setItem('investSnapOpenSections', JSON.stringify(Array.from(_investSnapOpenSections))); } catch(e) {}
 }
 
 async function _investDeleteSnapshot(snapId, type, date) {
