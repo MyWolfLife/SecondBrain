@@ -11,17 +11,77 @@ var _helpLlmConfigured  = null;  // null = unchecked, true/false after first che
 var _helpCurrentScreen  = null;  // screenName last loaded -- used by Topics button
 var HELP_COMPACT_AT     = 3;     // collapse older Q&A after this many visible pairs
 
-// Maps URL route names to AppHelp.md section keys where they differ
+// Maps URL route slugs to AppHelp.md section keys.
+//
+// Two purposes:
+//   1. Remapping — when a route slug doesn't directly match the help section key
+//      (e.g. 'investments-ai-analysis' → 'investments-ai')
+//   2. Anchor points — multi-segment routes whose slug DOES match the section key
+//      are listed here so openHelpForCurrentScreen knows to stop truncating
+//      (e.g. 'investments-snapshots' → 'investments-snapshots').
+//
+// openHelpForCurrentScreen uses longest-prefix-match against this map, trying
+// progressively shorter slug prefixes until it finds an entry or reaches the
+// first segment. This correctly resolves sub-page routes (investments/snapshots
+// → investments-snapshots help) without breaking entity-detail routes that have
+// dynamic IDs (contact/{id} → falls back to just "contact").
 var HELP_SECTION_MAP = {
-    'zones'             : 'zones',
-    'home'              : 'zones',   // legacy alias
+    // Single-segment remaps (existing)
+    'zones'               : 'zones',
+    'home'                : 'zones',   // legacy alias
     'concept-activities'  : 'concept:activities',
     'concept-photos'      : 'concept:photos',
     'concept-facts'       : 'concept:facts',
     'concept-problems'    : 'concept:problems',
     'concept-quicktasks'  : 'concept:quicktasks',
     'health-concern'      : 'health-concern',
-    'health-condition'    : 'health-condition'
+    'health-condition'    : 'health-condition',
+
+    // ── Investments sub-routes ──────────────────────────────────
+    'investments-snapshots'          : 'investments-snapshots',
+    'investments-accounts'           : 'investments-accounts',
+    'investments-accounts-add'       : 'investments-accounts',
+    'investments-accounts-edit'      : 'investments-accounts',  // trailing id stripped
+    'investments-account'            : 'investments-account',   // trailing {ns}/{id} stripped
+    'investments-groups'             : 'investments-groups',
+    'investments-group-new'          : 'investments-groups',
+    'investments-group-edit'         : 'investments-groups',    // trailing id stripped
+    'investments-stocks'             : 'investments-stocks',
+    'investments-summary'            : 'investments-summary',
+    'investments-ss-benefits'        : 'investments-ss-benefits',
+    'investments-ss-benefits-new'    : 'investments-ss-form',
+    'investments-ss-benefits-edit'   : 'investments-ss-form',   // trailing person key stripped
+    'investments-import'             : 'investments-import',
+    'investments-ai-analysis'        : 'investments-ai',        // route slug differs from section key
+
+    // ── Budget sub-routes ───────────────────────────────────────
+    'budget-nonmonthly'              : 'budget-nonmonthly',     // trailing id stripped
+
+    // ── Legacy sub-routes ───────────────────────────────────────
+    'legacy-burial'                  : 'legacy-burial',
+    'legacy-service'                 : 'legacy-service',
+    'legacy-obituary'                : 'legacy-obituary',
+    'legacy-social'                  : 'legacy',
+    'legacy-accounts'                : 'legacy-accounts',
+    'legacy-accounts-accounts'       : 'legacy-accounts',
+    'legacy-accounts-loans'          : 'legacy-financial-loans',
+    'legacy-accounts-loans-add'      : 'legacy-loans-form',
+    'legacy-accounts-loans-edit'     : 'legacy-loans-form',     // trailing id stripped
+    'legacy-accounts-bills'          : 'legacy-financial-bills',
+    'legacy-accounts-bills-add'      : 'legacy-bills-form',
+    'legacy-accounts-bills-edit'     : 'legacy-bills-form',     // trailing id stripped
+    'legacy-accounts-insurance'      : 'legacy-financial-insurance',
+    'legacy-accounts-insurance-add'  : 'legacy-insurance-form',
+    'legacy-accounts-insurance-edit' : 'legacy-insurance-form', // trailing id stripped
+    'legacy-accounts-plan'           : 'legacy-financial-plan',
+    'legacy-documents'               : 'legacy-documents',
+    'legacy-household'               : 'legacy',
+    'legacy-pets'                    : 'legacy-pets',
+    'legacy-notify'                  : 'legacy-notify',
+    'legacy-letters'                 : 'legacy-letters',
+    'legacy-letter'                  : 'legacy-letter',         // trailing id stripped
+    'legacy-intro'                   : 'legacy',
+    'legacy-message'                 : 'legacy-message'
 };
 
 // Topic index — shown on #help/main as a clickable hub
@@ -708,10 +768,22 @@ function openHelpForCurrentScreen(e) {
     var hash = window.location.hash.slice(1) || 'main';
     // Don't recurse into help/help
     if (hash.split('/')[0] === 'help') return;
-    // Convert slash-separated sub-routes to dash-separated help keys.
-    // e.g. "investments/snapshots" → "investments-snapshots"
-    var screenName = hash.replace(/\//g, '-');
-    window.location.hash = '#help/' + screenName;
+
+    // Longest-prefix match against HELP_SECTION_MAP.
+    // We convert slashes to dashes and try progressively shorter prefixes
+    // until we find an entry in the map or fall back to the first segment.
+    //
+    // This handles two cases correctly:
+    //   Sub-page routes:   investments/snapshots  → investments-snapshots (has a map entry)
+    //   Entity-id routes:  contact/{id}           → contact (no match, falls to 1st segment)
+    var parts = hash.split('/');
+    for (var i = parts.length; i >= 1; i--) {
+        var candidate = parts.slice(0, i).join('-');
+        if (candidate in HELP_SECTION_MAP || i === 1) {
+            window.location.hash = '#help/' + candidate;
+            return;
+        }
+    }
 }
 
 // ── Init ─────────────────────────────────────────────────────
