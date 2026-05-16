@@ -705,10 +705,12 @@ async function _helpCallLLM(question) {
  */
 function openHelpForCurrentScreen(e) {
     e.preventDefault();
-    var hash       = window.location.hash.slice(1) || 'main';
-    var screenName = hash.split('/')[0];
+    var hash = window.location.hash.slice(1) || 'main';
     // Don't recurse into help/help
-    if (screenName === 'help') return;
+    if (hash.split('/')[0] === 'help') return;
+    // Convert slash-separated sub-routes to dash-separated help keys.
+    // e.g. "investments/snapshots" → "investments-snapshots"
+    var screenName = hash.replace(/\//g, '-');
     window.location.hash = '#help/' + screenName;
 }
 
