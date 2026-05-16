@@ -1964,26 +1964,37 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 ## screen:investments-import
 
 ### Quick Help
-- Upload a screenshot of your spreadsheet — AI reads the numbers and maps each column to your accounts
-- Choose the snapshot type (Weekly, Monthly, or Yearly) before parsing
-- Review the grid: adjust any column header dropdowns if the AI mapped something incorrectly
-- Columns highlighted **yellow** are ones the AI wasn't confident about — check those dropdowns
-- Rows tagged **overwrite** already have a snapshot for that date — they'll be replaced on import
+- **One-time tool** — designed for loading historical data when you first set up the app; you won't need it regularly once you're capturing snapshots manually
+- Upload a **screenshot image** of your tracking spreadsheet — not a PDF, CSV, or text file; it must be a visual image (PNG, JPG, etc.)
+- The spreadsheet needs to follow a specific layout the AI expects — a screenshot of Fidelity, Schwab, or any brokerage website will not work
+- Choose the snapshot type before parsing — the AI uses this to interpret the dates correctly
+- Review the grid after parsing; yellow columns are ones the AI wasn't sure about — fix those dropdowns before importing
 - Click **Import N Snapshots** when the grid looks right
 
 ### Details
 
-**Step 1 — Upload**: Select the snapshot type, then load your screenshot — either choose a file from your device or click **+ Paste** to paste directly from the clipboard (after copying a screenshot with Print Screen or Snipping Tool). A thumbnail preview appears so you can confirm the right image is loaded.
+**When to use this**: Import is a one-time bootstrap tool for loading historical snapshot data you already have in a spreadsheet. Once you're capturing snapshots regularly inside the app, you'll never need Import again. It's not meant for ongoing use.
 
-**Step 2 — Parse with AI**: Click **Parse with AI**. The app sends the screenshot plus your full account list (names and IDs) to your configured LLM. The AI identifies each column — Net Worth, category totals (Roth, Pre-Tax, Brokerage, Cash, Inv Cash), and individual accounts — and returns structured data.
+**What kind of image works**: The file must be an image — PNG, JPG, GIF, or any standard image format. Take a screenshot of your spreadsheet using the Snipping Tool, Print Screen, or your phone camera. PDFs, exported CSV files, and text documents are not supported. A screenshot of your brokerage's website (Fidelity, Schwab, Vanguard, etc.) will not work — the layout won't match what the AI expects.
 
-**Step 3 — Review grid**: Every column from the screenshot gets a dropdown in the header. The AI pre-selects the most likely match. Yellow-highlighted columns are uncertain — click the dropdown to pick the correct account or category. The bottom of each column header shows the original spreadsheet text so you can cross-check.
+**What the spreadsheet needs to look like**: The AI is trained on a specific two-section layout:
+- **Left section** — summary/category totals: Date, Net Worth, then category columns labeled exactly **Roth**, **PreTax**, **Brokerage**, **Cash**, **Inv Cash**
+- **Right section** — individual account columns, one per account, with the account name in the header; a blank column separates the two sections
+- Headers that use different labels (e.g. "Traditional" instead of "PreTax", or "Savings" instead of "Cash") will likely come back as yellow uncertain columns — you can correct them in the review grid
 
-**Duplicate dates**: If a snapshot already exists for a date in the screenshot (same type), that row is tagged "overwrite" and highlighted. The existing snapshot will be deleted and replaced when you import.
+**How many rows**: One row or fifty rows — it doesn't matter. The entire visible portion of the screenshot is parsed at once, which is the whole point. Capture a wide date range in one screenshot to bulk-load months or years of history in a single import.
 
-**Importing**: Click **Import N Snapshots**. Each snapshot is written with the full perCategory breakdown, per-account totals, and Net Worth. Holdings detail (shares, cost basis) is not imported — only the total balance per account.
+**Step 1 — Upload**: Select the snapshot type, then load your image — choose a file from your device or click **+ Paste** to paste directly from the clipboard. A thumbnail preview confirms the right image is loaded.
 
-**After import**: A confirmation message appears with links to view the snapshots or import more. The newly imported snapshots appear immediately on the Snapshots page under their respective type sections.
+**Step 2 — Parse with AI**: Click **Parse with AI**. The app sends the image plus your full account list to your configured AI. The AI reads every column header and every number, then returns a structured mapping of columns to your accounts.
+
+**Step 3 — Review grid**: Every column gets a dropdown in the header showing what the AI thinks it is. Yellow-highlighted columns are uncertain — the AI couldn't confidently identify them. Click the dropdown on each yellow column and pick the correct account or category. The original spreadsheet label is shown below the dropdown to help you cross-check. Set a column to **Ignore** if it shouldn't be imported (e.g. a "Cost Basis" or running total column).
+
+**Duplicate dates**: If a snapshot already exists for a date in the screenshot (same type), that row is tagged "overwrite." The existing snapshot will be deleted and replaced when you click Import. This lets you safely re-import a corrected screenshot without creating duplicates.
+
+**Importing**: Click **Import N Snapshots**. Each row becomes one snapshot with Net Worth, all category totals, and per-account balances. Holdings detail (shares, cost basis, purchase dates) is not imported — only the total dollar balance per account.
+
+**After import**: A confirmation shows how many snapshots were written. They appear immediately on the Snapshots page under their respective type sections (Yearly, Monthly, Weekly, Daily).
 
 ---
 
