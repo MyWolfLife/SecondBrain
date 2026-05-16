@@ -1507,18 +1507,21 @@ Point-in-time portfolio recordings used to compute period performance on the Sum
 
 **Snapshot doc fields**: `groupId`, `type` (daily/weekly/monthly/yearly), `date` (YYYY-MM-DD), `netWorth`, `invested`, `perAccount` (map: accountId → total value), `perCategory` (roth/preTax/brokerage/cash/invCash), `notes` (nullable), `createdAt`.
 
-**Snapshot list**: Grouped by type (Yearly → Monthly → Weekly → Daily), most recent first within each group. Default view is filtered to a recent window per type:
+**Snapshot list**: Grouped by type (Yearly → Monthly → Weekly → Daily), most recent first within each group. Each accordion section header shows a count badge (e.g. "Monthly · 12"). Sections are collapsible; open/closed state persisted in localStorage as investSnapOpenSections. Default view is filtered to a recent window per type:
 - **Yearly / Monthly**: current calendar year only
 - **Weekly**: last 3 snapshots
 - **Daily**: all since the most-recent Sunday (start of current week)
 
 Each row shows date (daily rows also show day-of-week, e.g. "2026-05-05 · Tuesday"), notes (if any), Net Worth, and Invested. Tap to expand → shows category breakdown + per-account breakdown + Delete button.
 
-**More button**: When a section has snapshots outside the default window, a "More ›" link appears next to the section heading. Opens the `investSnapMoreModal` showing full history for that type:
-- Default: last 10 snapshots
+**Show all card**: At the bottom of each expanded accordion section, a "Show all {type} snapshots (N) ›" card links to #investments/snapshots/{type} -- the dedicated full-history screen for that type.
+
+**Snapshot type page** (#investments/snapshots/{type}): Dedicated screen with breadcrumbs (Financial > Snapshots > Monthly). Shows all snapshots for that type with filter controls:
+- Default: last 25 snapshots
 - "Show last N" number input to change count
-- "Since date" date input to show all snapshots on or after a date (takes precedence over count when set)
-- Rows are read-only expand/collapse (Delete still works; closes modal and re-renders page)
+- "Since date" date input to show all on or after a date (takes precedence over count); total count shown in hint
+- Route: loadInvestmentsSnapshotTypePage(type) / _investRenderSnapshotTypePage(type). Reloads snapshot cache on entry.
+- Delete from type page re-renders the type page in-place.
 
 **Prices last updated**: `investmentConfig/main.lastUpdateAllDate` (YYYY-MM-DD) and `lastUpdateAllTimestamp` (ISO string) are written every time `_investUpdateAllPrices()` or `_investUpdateStocksAllPrices()` completes successfully. Displayed formatted as "M/D h:mmam/pm" (e.g. "5/5 10:15am") via `_investFmtUpdateTime()`. Shown on: Summary page status note, Snapshots page, Stock Rollup button area, and main hub update bar.
 
@@ -1526,7 +1529,7 @@ Each row shows date (daily rows also show day-of-week, e.g. "2026-05-05 · Tuesd
 
 **All-Time Highs**: One ATH per snapshot type per group, stored in `investmentConfig/main` as `allTimeHighDaily_<groupId>`, `allTimeHighWeekly_<groupId>`, etc. — each `{value, date}`. Updated automatically on each capture via `_investCheckAndUpdateATH(type, netWorth, date, groupId)` using a targeted `set({merge:true})`. Group-scoped so capturing a snapshot for one group never affects another group's ATH display. Shown as orange cards at the top of the page.
 
-**Delete**: Confirm dialog → removes doc from Firestore → closes More modal if open → re-renders page. Note: deleting a snapshot used as a period baseline causes the corresponding period row on Summary to revert to "—".
+**Delete**: Confirm dialog (shows type and date, e.g. "Delete Monthly snapshot 2026-05-01?") → removes doc from Firestore → if on type page re-renders type page, else re-renders main snapshots page. Note: deleting a snapshot used as a period baseline causes the corresponding period row on Summary to revert to "—".
 
 **Import button**: `↑ Import` button in the page header navigates to `#investments/import`.
 

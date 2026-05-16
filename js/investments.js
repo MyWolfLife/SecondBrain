@@ -2768,6 +2768,90 @@ async function loadInvestmentsSnapshotsPage() {
     await _investRenderSnapshotsPage();
 }
 
+// ---------- Snapshot Type Page (dedicated full-history screen) ----------
+
+// Navigated to via #investments/snapshots/{type}
+// Loads snapshot data (or reuses cache) and renders the full-history view.
+async function loadInvestmentsSnapshotTypePage(type) {
+    var label = type.charAt(0).toUpperCase() + type.slice(1);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#investments">Financial</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#investments/snapshots">Snapshots</a><span class="separator">&rsaquo;</span>' +
+        '<span>' + escapeHtml(label) + '</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + escapeHtml(window.appName || 'My Life') + '</a>';
+
+    var page = document.getElementById('page-investments-snapshots-type');
+    if (!page) return;
+    page.innerHTML = '<div class="invest-summary-loading">Loading…</div>';
+
+    // Ensure groups/config loaded (in case user navigated directly to this URL)
+    if (!_investGroups.length) {
+        await Promise.all([_investLoadGroups(), _investLoadConfig(), _investLoadAll()]);
+        if (!_investSnapshotsGroupId) {
+            _investSnapshotsGroupId = _investActiveGroupId || (_investGroups.length > 0 ? _investGroups[0].id : null);
+        }
+    }
+
+    // Always refresh the cache so the list is current
+    if (_investSnapshotsGroupId) {
+        var snapshots = await _investLoadSnapshots(_investSnapshotsGroupId);
+        _investSnapshotsAll = {};
+        ['yearly', 'monthly', 'weekly', 'daily'].forEach(function(t) { _investSnapshotsAll[t] = []; });
+        snapshots.forEach(function(s) { if (_investSnapshotsAll[s.type]) _investSnapshotsAll[s.type].push(s); });
+    }
+
+    _investRenderSnapshotTypePage(type);
+}
+
+// Renders the snapshot type page content with filter controls.
+// Called on first load and again when the user changes a filter.
+function _investRenderSnapshotTypePage(type) {
+    var label = type.charAt(0).toUpperCase() + type.slice(1);
+    var page  = document.getElementById('page-investments-snapshots-type');
+    if (!page) return;
+    page.dataset.type = type;
+
+    var all = _investSnapshotsAll[type] || [];
+
+    // Read filter values from DOM if they already exist (preserved across re-renders)
+    var countEl = document.getElementById('investSnapTypeCount');
+    var sinceEl = document.getElementById('investSnapTypeSince');
+    var since   = sinceEl ? sinceEl.value.trim() : '';
+    var count   = parseInt(countEl ? countEl.value : '25') || 25;
+
+    var filtered;
+    if (since) {
+        filtered = all.filter(function(s) { return s.date >= since; });
+    } else {
+        filtered = all.slice(0, count);
+    }
+
+    var rowsHtml = filtered.length === 0
+        ? '<div class="empty-state">No snapshots match the filter.</div>'
+        : filtered.map(function(s) { return _investSnapshotRowHtml(s); }).join('');
+
+    page.innerHTML =
+        '<div class="page-header">' +
+            '<h2>📷 ' + escapeHtml(label) + ' Snapshots</h2>' +
+        '</div>' +
+        '<div class="invest-snap-more-filters">' +
+            '<div class="invest-snap-more-filter-row">' +
+                '<label class="invest-snap-more-filter-label">Show last:</label>' +
+                '<input type="number" id="investSnapTypeCount" class="invest-snap-more-filter-input"' +
+                       ' min="1" max="500" value="' + count + '"' +
+                       ' oninput="_investRenderSnapshotTypePage(\'' + type + '\')">' +
+                '<span class="invest-snap-more-filter-sep">or</span>' +
+                '<label class="invest-snap-more-filter-label">Since date:</label>' +
+                '<input type="date" id="investSnapTypeSince" class="invest-snap-more-filter-input"' +
+                       (since ? ' value="' + escapeHtml(since) + '"' : '') +
+                       ' oninput="_investRenderSnapshotTypePage(\'' + type + '\')">' +
+            '</div>' +
+            '<p class="invest-snap-more-filter-hint">If a date is entered it overrides the count. ' + all.length + ' total.</p>' +
+        '</div>' +
+        '<div class="invest-snap-list">' + rowsHtml + '</div>';
+}
+
 async function _investLoadSnapshots(groupId) {
     // Single-field orderBy (auto-indexed); filter by groupId client-side to avoid composite index
     var snap = await _investSnapshotCol().orderBy('date', 'desc').get();
@@ -2894,18 +2978,16 @@ async function _investRenderSnapshotsPage() {
         var all = grouped[type];
         if (all.length === 0) return;
         var filtered = typeFilters[type](all);
-        var hasMore  = all.length > filtered.length;
         var label    = type.charAt(0).toUpperCase() + type.slice(1);
         var isOpen   = _investSnapOpenSections.has(type);
         var chevron  = '<span class="invest-snap-type-chevron">' + (isOpen ? '⌄' : '›') + '</span>';
-        var moreBtn  = hasMore
-            ? '<button class="invest-snap-more-btn" onclick="event.stopPropagation();_investOpenSnapMoreModal(\'' + type + '\')">More ›</button>'
-            : '';
+        // Count badge shown in header so users can see totals without expanding
+        var countBadge = '<span class="invest-snap-type-count">' + all.length + '</span>';
         listHtml += '<div class="invest-snap-type-section">';
         listHtml += '<div class="invest-snap-type-header" onclick="_investToggleSnapSection(\'' + type + '\')">' +
                         chevron +
                         '<span class="invest-snap-type-title">' + escapeHtml(label) + '</span>' +
-                        moreBtn +
+                        countBadge +
                     '</div>';
         listHtml += '<div class="invest-snap-type-body" id="snap-body-' + type + '"' +
                     (isOpen ? '' : ' style="display:none"') + '>';
@@ -2915,6 +2997,12 @@ async function _investRenderSnapshotsPage() {
         } else {
             filtered.forEach(function(s) { listHtml += _investSnapshotRowHtml(s); });
         }
+        // "Show all" card — links to the dedicated type page with full history + filters
+        listHtml += '<div class="invest-snap-show-all-card">' +
+                        '<a href="#investments/snapshots/' + type + '" class="invest-snap-show-all-link">' +
+                            'Show all ' + escapeHtml(label.toLowerCase()) + ' snapshots (' + all.length + ') ›' +
+                        '</a>' +
+                    '</div>';
         listHtml += '</div>';  // close invest-snap-type-body
         listHtml += '</div>';  // close invest-snap-type-section
     });
@@ -3065,7 +3153,21 @@ async function _investDeleteSnapshot(snapId, type, date) {
     if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
     await _investSnapshotCol().doc(snapId).delete();
     closeModal('investSnapMoreModal');
-    await _investRenderSnapshotsPage();
+
+    // Refresh whichever page is currently visible
+    var typePage = document.getElementById('page-investments-snapshots-type');
+    if (typePage && !typePage.classList.contains('hidden')) {
+        // On the dedicated type page — reload the snapshot cache then re-render
+        if (_investSnapshotsGroupId) {
+            var fresh = await _investLoadSnapshots(_investSnapshotsGroupId);
+            _investSnapshotsAll = {};
+            ['yearly', 'monthly', 'weekly', 'daily'].forEach(function(t) { _investSnapshotsAll[t] = []; });
+            fresh.forEach(function(s) { if (_investSnapshotsAll[s.type]) _investSnapshotsAll[s.type].push(s); });
+        }
+        _investRenderSnapshotTypePage(type);
+    } else {
+        await _investRenderSnapshotsPage();
+    }
 }
 
 // ---------- Snapshot "More" Modal ----------

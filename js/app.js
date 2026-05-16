@@ -206,7 +206,7 @@ const ALL_PAGES = [
     'memory-create', 'memory-edit',
     'view', 'view-history', 'views-categories',
     'credentials-add', 'credentials-edit', 'credentials-categories',
-    'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-stocks',
+    'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
     'exercise-activity', 'exercise-metric',
@@ -247,7 +247,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'legacy-pets', 'legacy-notify', 'legacy-letters', 'legacy-letter', 'legacy-message',
                      'private', 'private-bookmarks', 'private-documents', 'private-photos', 'private-photos-gallery',
                      'credentials', 'credentials-add', 'credentials-edit', 'credentials-categories',
-                     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-stocks',
+                     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
@@ -876,6 +876,9 @@ function handleRoute() {
     } else if (page === 'investments' && id === 'stocks') {
         showPage('investments-stocks');
         loadInvestmentsStocksPage();
+    } else if (page === 'investments' && id === 'snapshots' && parts[2]) {
+        showPage('investments-snapshots-type');
+        loadInvestmentsSnapshotTypePage(parts[2]);
     } else if (page === 'investments' && id === 'snapshots') {
         showPage('investments-snapshots');
         loadInvestmentsSnapshotsPage();

@@ -39,6 +39,10 @@ var HELP_SECTION_MAP = {
 
     // ── Investments sub-routes ──────────────────────────────────
     'investments-snapshots'          : 'investments-snapshots',
+    'investments-snapshots-daily'    : 'investments-snapshots',   // dedicated type page
+    'investments-snapshots-weekly'   : 'investments-snapshots',
+    'investments-snapshots-monthly'  : 'investments-snapshots',
+    'investments-snapshots-yearly'   : 'investments-snapshots',
     'investments-accounts'           : 'investments-accounts',
     'investments-accounts-add'       : 'investments-accounts',
     'investments-accounts-edit'      : 'investments-accounts',  // trailing id stripped

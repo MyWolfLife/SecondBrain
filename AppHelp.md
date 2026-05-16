@@ -1927,7 +1927,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - Tap **+ Capture** — you'll be warned if prices haven't been updated today; you can update them right from the dialog
 - Tap **↑ Import** to bulk-load historical snapshots from a spreadsheet screenshot using AI
 - Sections (Yearly/Monthly/Weekly/Daily) are collapsible — tap the header to expand or collapse; your open/closed state is remembered across visits
-- Each expanded section shows only recent snapshots by default; tap **More ›** to see the full history
+- Each section header shows a **count badge** (e.g. "Monthly · 12") so you can see totals without expanding
+- Each expanded section shows recent snapshots and a **Show all** card at the bottom — tap it to open the full history screen for that type
 - Daily rows show the day of the week beside the date (e.g. "2026-05-05 · Tuesday")
 - **All-Time Highs** show the highest Net Worth ever recorded for each snapshot type
 
@@ -1944,17 +1945,18 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - Weekly: last 3 snapshots
 - Daily: all snapshots since the most recent Sunday (current week)
 
-**More ›**: Appears next to a section heading when there is history beyond the default window. Tap it to open a full-history panel:
-- Shows the last 10 snapshots by default
+**Show all (full history screen)**: Tap the **Show all** card at the bottom of any expanded section to navigate to a dedicated full-history screen for that type (e.g. Financial › Snapshots › Monthly). That screen shows:
+- Shows the last 25 snapshots by default
 - **Show last N** — change the count
-- **Since date** — enter a date to see all snapshots on or after that day (overrides the count)
-- Tap any row to expand the detail view; tap Delete to remove (same as the main list)
+- **Since date** — enter a date to see all snapshots on or after that day (overrides the count); total count shown in the hint
+- Tap any row to expand the detail view; tap Delete to remove a snapshot
+- Breadcrumbs at the top let you navigate back to Snapshots or Financial
 
 **Expanded view**: Tap any snapshot row to see the full category breakdown (Roth, Pre-Tax, Brokerage, Cash, Uninvested Cash) with values and % of Net Worth at that moment.
 
 **All-Time Highs**: Updated automatically whenever a new snapshot exceeds the previous ATH for that type. Shown in the orange cards at the top. Each type (Daily/Weekly/Monthly/Yearly) tracks its own high-water mark.
 
-**Deleting a snapshot**: Expand the row → tap **Delete** → confirm. Deleting a snapshot that was used as a period baseline will cause that period's gain/loss on the Summary page to show "—" again until a new snapshot of that type is captured.
+**Deleting a snapshot**: Expand the row → tap **Delete** → confirm (prompt shows type and date, e.g. "Delete Monthly snapshot 2026-05-01?"). Deleting a snapshot that was used as a period baseline will cause that period's gain/loss on the Summary page to show "—" again until a new snapshot of that type is captured.
 
 **Group switcher**: If more than one group exists, a dropdown appears to switch between groups. Each group has its own snapshot history.
 

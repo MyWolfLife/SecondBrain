@@ -15148,6 +15148,32 @@ a.invest-hub-card:hover {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+/* Count badge in accordion header — e.g. "Monthly · 12" */
+.invest-snap-type-count {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #aaa;
+    background: #f3f4f6;
+    border-radius: 10px;
+    padding: 1px 8px;
+}
+/* "Show all" card at bottom of each expanded accordion section */
+.invest-snap-show-all-card {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    text-align: center;
+}
+.invest-snap-show-all-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6366f1;
+    text-decoration: none;
+}
+.invest-snap-show-all-link:hover { color: #4338ca; text-decoration: underline; }
 .invest-snap-more-btn {
     font-size: 0.75rem;
     font-weight: 600;
