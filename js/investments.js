@@ -2816,16 +2816,26 @@ function _investRenderSnapshotTypePage(type) {
 
     // Read filter values from DOM if they already exist (preserved across re-renders)
     var countEl = document.getElementById('investSnapTypeCount');
-    var sinceEl = document.getElementById('investSnapTypeSince');
-    var since   = sinceEl ? sinceEl.value.trim() : '';
+    var startEl = document.getElementById('investSnapTypeStart');
+    var endEl   = document.getElementById('investSnapTypeEnd');
+    var start   = startEl ? startEl.value.trim() : '';
+    var end     = endEl   ? endEl.value.trim()   : '';
     var count   = parseInt(countEl ? countEl.value : '25') || 25;
 
+    // Date range overrides count when start is set.
+    // End date is optional — blank means "through today".
     var filtered;
-    if (since) {
-        filtered = all.filter(function(s) { return s.date >= since; });
+    if (start) {
+        filtered = all.filter(function(s) {
+            return s.date >= start && (!end || s.date <= end);
+        });
     } else {
         filtered = all.slice(0, count);
     }
+
+    var hint = start
+        ? (filtered.length + ' of ' + all.length + ' shown')
+        : (all.length + ' total — showing last ' + count);
 
     var rowsHtml = filtered.length === 0
         ? '<div class="empty-state">No snapshots match the filter.</div>'
@@ -2841,13 +2851,16 @@ function _investRenderSnapshotTypePage(type) {
                 '<input type="number" id="investSnapTypeCount" class="invest-snap-more-filter-input"' +
                        ' min="1" max="500" value="' + count + '"' +
                        ' oninput="_investRenderSnapshotTypePage(\'' + type + '\')">' +
-                '<span class="invest-snap-more-filter-sep">or</span>' +
-                '<label class="invest-snap-more-filter-label">Since date:</label>' +
-                '<input type="date" id="investSnapTypeSince" class="invest-snap-more-filter-input"' +
-                       (since ? ' value="' + escapeHtml(since) + '"' : '') +
+                '<span class="invest-snap-more-filter-sep">or date range:</span>' +
+                '<input type="date" id="investSnapTypeStart" class="invest-snap-more-filter-input"' +
+                       (start ? ' value="' + escapeHtml(start) + '"' : '') +
+                       ' oninput="_investRenderSnapshotTypePage(\'' + type + '\')">' +
+                '<span class="invest-snap-more-filter-sep">–</span>' +
+                '<input type="date" id="investSnapTypeEnd" class="invest-snap-more-filter-input"' +
+                       (end ? ' value="' + escapeHtml(end) + '"' : '') +
                        ' oninput="_investRenderSnapshotTypePage(\'' + type + '\')">' +
             '</div>' +
-            '<p class="invest-snap-more-filter-hint">If a date is entered it overrides the count. ' + all.length + ' total.</p>' +
+            '<p class="invest-snap-more-filter-hint">Date range overrides count. End date optional — blank means through today. ' + hint + '.</p>' +
         '</div>' +
         '<div class="invest-snap-list">' + rowsHtml + '</div>';
 }
