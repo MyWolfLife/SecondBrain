@@ -1926,7 +1926,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - Records a point-in-time snapshot of your portfolio — Net Worth, Invested, and per-category breakdown
 - Tap **+ Capture** — you'll be warned if prices haven't been updated today; you can update them right from the dialog
 - Tap **↑ Import** to bulk-load historical snapshots from a spreadsheet screenshot using AI
-- Each section (Yearly/Monthly/Weekly/Daily) shows only recent snapshots by default; tap **More ›** to see the full history
+- Sections (Yearly/Monthly/Weekly/Daily) are collapsible — tap the header to expand or collapse; your open/closed state is remembered across visits
+- Each expanded section shows only recent snapshots by default; tap **More ›** to see the full history
 - Daily rows show the day of the week beside the date (e.g. "2026-05-05 · Tuesday")
 - **All-Time Highs** show the highest Net Worth ever recorded for each snapshot type
 
