@@ -2213,7 +2213,7 @@ function _investHoldingsHtml() {
                     '</div>' +
                 '</td>' +
                 (_investQtyEditMode
-                    ? '<td><input class="iht-qty-input" type="number" data-id="' + h.id + '" value="' + (h.shares != null ? h.shares : '') + '" step="any" min="0"></td>'
+                    ? '<td><input class="iht-qty-input" type="number" data-id="' + h.id + '" data-price="' + (h.lastPrice != null ? h.lastPrice : '') + '" value="' + (h.shares != null ? h.shares : '') + '" step="any" min="0" oninput="_investQtyInputChanged(this)"></td>'
                     : '<td>' + (h.shares != null ? Number(h.shares).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—') + '</td>') +
                 '<td>' + (h.lastPrice != null ? '$' + h.lastPrice.toFixed(2) : '—') + '</td>' +
                 (_investQtyEditMode
@@ -2223,7 +2223,7 @@ function _investHoldingsHtml() {
                     ? '<td class="iht-dim">—</td><td class="iht-dim">—</td>'
                     : fmtGainCell(gainVal, function(v) { return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }) +
                       fmtGainCell(gainPct, function(v) { return v.toFixed(2) + '%'; })) +
-                '<td>' + (value != null ? _investFmtCurrency(value) : '—') + '</td>' +
+                '<td id="iht-val-' + h.id + '">' + (value != null ? _investFmtCurrency(value) : '—') + '</td>' +
                 '<td>' + (pctAcct != null ? pctAcct.toFixed(1) + '%' : '—') + '</td>' +
                 '<td class="iht-actions-cell">' +
                     (!_investQtyEditMode ? '<button class="iht-btn" title="Edit" onclick="_investOpenHoldingModal(\'' + h.id + '\')">✏</button>' : '') +
@@ -2398,7 +2398,9 @@ async function _investSaveHolding() {
 }
 
 async function _investDeleteHolding(holdingId) {
-    if (!confirm('Delete this holding? This cannot be undone.')) return;
+    var h     = _investCurrentHoldings.find(function(x) { return x.id === holdingId; });
+    var label = h ? (h.ticker || h.companyName || 'this holding') : 'this holding';
+    if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
     var ns  = _investCurrentAccountNs;
     var aid = _investCurrentAccountId;
     await _investHoldingCol(ns, aid).doc(holdingId).delete();
@@ -2442,6 +2444,22 @@ async function _investSaveCashBalance() {
  * _investCurrentHoldings so that a full re-render preserves unsaved edits.
  * Called before any re-render that happens while qty-edit mode may be open.
  */
+/**
+ * Called oninput on a qty field — updates the Value cell for that row in real time.
+ */
+function _investQtyInputChanged(inp) {
+    var id    = inp.dataset.id;
+    var price = parseFloat(inp.dataset.price);
+    var qty   = parseFloat(inp.value);
+    var cell  = document.getElementById('iht-val-' + id);
+    if (!cell) return;
+    if (!isNaN(price) && !isNaN(qty) && qty >= 0) {
+        cell.textContent = _investFmtCurrency(price * qty);
+    } else {
+        cell.textContent = '—';
+    }
+}
+
 function _investCaptureQtyEdits() {
     if (!_investQtyEditMode) return;
     document.querySelectorAll('.iht-qty-input').forEach(function(inp) {
