@@ -1768,7 +1768,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **Copy & reveal**: 📋 copies the value to clipboard and shows "Copied!" for 2 seconds. The clipboard is automatically cleared after 60 seconds. 👁 toggles the masked/revealed view for the credential value and previous credential.
 
-**Reordering**: Drag credentials within a category using the ≡ handle. Reorder categories on the Category Management page.
+**Reordering**: Drag credentials using the ≡ handle to reorder within a category or move to a different category. Reorder categories on the Category Management page.
 
 **Search**: The search box filters by credential name or URL across all categories for the current person. Non-matching categories are hidden while searching.
 

@@ -854,15 +854,52 @@ function _credItemDragLeave(e, targetId) {
 
 async function _credItemDrop(e, targetId, catKey) {
     e.preventDefault();
-    var sourceId = _credDragItemId;
-    var before   = false;
-    var tgtEl = document.querySelector('.cred-item[data-item-id="' + targetId + '"]');
+    var sourceId     = _credDragItemId;
+    var sourceCatKey = _credDragItemCat;
+    var before = false;
+    var tgtEl  = document.querySelector('.cred-item[data-item-id="' + targetId + '"]');
     if (tgtEl) before = tgtEl.classList.contains('cred-drop-before');
     _credItemDragEnd();
     if (!sourceId || sourceId === targetId) return;
 
-    var catId   = (catKey === '__uncategorized') ? null : catKey;
-    var pid     = _credPersonFilter || null;
+    var catId    = (catKey === '__uncategorized') ? null : catKey;
+    var srcCatId = (sourceCatKey === '__uncategorized') ? null : sourceCatKey;
+    var pid      = _credPersonFilter || null;
+
+    // Cross-category move
+    if (sourceCatKey !== catKey) {
+        var srcItem = _credentials.find(function(c) { return c.id === sourceId; });
+        if (!srcItem) return;
+
+        var targetItems = _credentials.filter(function(c) {
+            return (c.personId || null) === pid && (c.categoryId || null) === catId;
+        }).sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+        var ti2     = targetItems.findIndex(function(c) { return c.id === targetId; });
+        var insIdx  = (ti2 < 0) ? targetItems.length : (before ? ti2 : ti2 + 1);
+        targetItems.splice(insIdx, 0, srcItem);
+
+        var srcItems = _credentials.filter(function(c) {
+            return (c.personId || null) === pid && (c.categoryId || null) === srcCatId && c.id !== sourceId;
+        }).sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+
+        srcItem.categoryId = catId;
+        var batch = db.batch();
+        batch.update(userCol('credentials').doc(sourceId), { categoryId: catId });
+        targetItems.forEach(function(item, i) {
+            item.order = i;
+            batch.update(userCol('credentials').doc(item.id), { order: i });
+        });
+        srcItems.forEach(function(item, i) {
+            item.order = i;
+            batch.update(userCol('credentials').doc(item.id), { order: i });
+        });
+        await batch.commit();
+        _credRefreshCatList();
+        return;
+    }
+
+    // Same-category reorder
     var items   = _credentials.filter(function(c) {
         return (c.personId || null) === pid && (c.categoryId || null) === catId;
     }).sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
