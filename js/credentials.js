@@ -533,6 +533,12 @@ function _credRenderForm(cred, prefilledCatKey) {
     var page    = document.getElementById(pageId);
     if (!page) return;
 
+    // Clear the other form page to prevent stale duplicate field IDs (cfName, cfUrl, etc.)
+    // from being returned first by document.getElementById when saving.
+    var otherPageId = isEdit ? 'page-credentials-add' : 'page-credentials-edit';
+    var otherPage = document.getElementById(otherPageId);
+    if (otherPage) otherPage.innerHTML = '';
+
     var c = cred || {};
 
     // Category preselect
