@@ -533,7 +533,8 @@ async function loadNeighborHousePage(id) {
         await Promise.all([
             _nbLoadResidents(id),
             _nbLoadHouseNotes(id),
-            _nbLoadPreviousFamilies(id)
+            _nbLoadPreviousFamilies(id),
+            _nbLoadJournalMentions(id)
         ]);
     } catch (e) {
         console.error('loadNeighborHousePage:', e);
@@ -1117,6 +1118,62 @@ function _nbBuildArchiveCardHtml(archive) {
             (archive.notes ? '<div class="nb-archive-note">' + escapeHtml(archive.notes) + '</div>' : '') +
         '</div>' +
         '<div class="nb-archive-arrow">&#8250;</div>' +
+    '</div>';
+}
+
+// ============================================================
+// JOURNAL MENTIONS  (Phase 4)
+// Shows journal entries that mention any current resident.
+// ============================================================
+
+async function _nbLoadJournalMentions(houseId) {
+    var section   = document.getElementById('nbJournalMentionsSection');
+    var container = document.getElementById('nbJournalMentionsContainer');
+
+    try {
+        // Get current resident person IDs for this house
+        var resSnap = await userCol('neighborHouseResidents')
+            .where('houseId', '==', houseId)
+            .where('archived', '==', false)
+            .get();
+
+        if (resSnap.empty) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        // Firestore array-contains-any supports max 10 values
+        var personIds = resSnap.docs.map(function(d) { return d.data().personId; }).slice(0, 10);
+
+        var entriesSnap = await userCol('journalEntries')
+            .where('mentionedPersonIds', 'array-contains-any', personIds)
+            .orderBy('date', 'desc')
+            .limit(20)
+            .get();
+
+        if (entriesSnap.empty) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        section.classList.remove('hidden');
+        container.innerHTML = entriesSnap.docs.map(function(d) {
+            return _nbBuildJournalMentionCardHtml(Object.assign({ id: d.id }, d.data()));
+        }).join('');
+
+    } catch (e) {
+        console.error('_nbLoadJournalMentions:', e);
+        section.classList.add('hidden');
+    }
+}
+
+function _nbBuildJournalMentionCardHtml(entry) {
+    var dateStr = _nbFormatDate(entry.date);
+    var preview = (entry.entryText || '').trim();
+    if (preview.length > 140) preview = preview.slice(0, 140) + '…';
+    return '<div class="nb-journal-mention-card" onclick="window.location.hash=\'#journal-entry/' + entry.id + '\'">' +
+        '<div class="nb-journal-mention-date">' + escapeHtml(dateStr) + '</div>' +
+        '<div class="nb-journal-mention-text">' + escapeHtml(preview) + '</div>' +
     '</div>';
 }
 

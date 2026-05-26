@@ -2454,6 +2454,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Previous Families:** If a family was archived, a "Previous Families" section appears at the bottom of the house detail page. Tap an entry to open a read-only view showing who used to live there, their roles, and the archive date. You can still tap "View Contact" to see their full contact record.
 
+**Journal Mentions:** If any current resident has been @-mentioned in a journal entry, a "Journal Mentions" section appears on the house detail page. It shows the 20 most recent journal entries that mention anyone in the house — date and a text preview. Tap a card to open the full journal entry. This section is hidden if no residents are linked or none have journal mentions.
+
 **Pin colors update automatically** — whenever you log an interaction with a contact who is linked to a house, the pin color updates to reflect the most recent interaction date. You do not need to do anything extra.
 
 **Tips:**

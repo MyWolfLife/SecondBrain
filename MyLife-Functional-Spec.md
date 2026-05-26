@@ -824,7 +824,7 @@ Track the people who live near you, organized by named neighborhoods, with a vis
 - `neighborhoods` — `name`, `notes`, `imageData` (Base64 compressed image), `imageWidth`, `imageHeight`, `createdAt`
 - `neighborHouses` — `neighborhoodId`, `nickname`, `address`, `notes`, `pinX` (0.0–1.0 fraction of image width), `pinY` (0.0–1.0 fraction of image height), `lastInteractionAt` (denormalized timestamp; updated when any current resident logs an interaction), `archivedFamilies[]` (array of archived family snapshots), `createdAt`
 
-**Routes**: `#neighbors` (neighborhoods list), `#neighborhood/{id}` (map view), `#neighborhouse/{id}` (house detail)
+**Routes**: `#neighbors` (neighborhoods list), `#neighborhood/{id}` (map view), `#neighborhouse/{id}` (house detail), `#neighborarchive/{id}` (archived family view)
 
 **Neighborhoods list** (`#neighbors`): Cards showing each neighborhood's name, notes snippet, and house count. **+ Add Neighborhood** button opens a modal to enter name, notes, and upload a map image (static screenshot — e.g. from Google Maps). Save is disabled until an image is uploaded. Editing a neighborhood allows name/notes changes; image can be replaced. Deleting a neighborhood removes it and all its houses.
 
@@ -854,6 +854,8 @@ Track the people who live near you, organized by named neighborhoods, with a vis
 **Previous Families section**: Shown on the house detail page when at least one `neighborArchivedFamilies` record exists. Each entry shows the archive date and optional move note. Tapping opens the archived family view.
 
 **Archived family view** (`#neighborarchive/{id}`): Read-only page. Amber banner shows "This family no longer lives here — archived [date]". Move note displayed in italics if recorded. Resident cards show name, role, and a "View Contact" link to the live contact record. Breadcrumb: Neighborhoods › Map › [House name].
+
+**Journal Mentions section**: Shown on the house detail page when any current resident has been @-mentioned in at least one journal entry. Queries `journalEntries` where `mentionedPersonIds array-contains-any [current resident person IDs]` (Firestore supports up to 10 values). Displays the 20 most recent matching entries, newest first. Each card shows the entry date and a 140-character preview of the text. Tapping navigates to `#journal-entry/{id}` to view/edit the full entry. Section is hidden if no residents exist or no mentions are found.
 
 **Firestore collection `neighborArchivedFamilies`**: `houseId`, `address` (snapshot at archive time), `archivedAt` (timestamp), `notes` (optional move note). `neighborHouseResidents` records gain `archived: true` and `archivedGroupId` when archived.
 

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=717">
+    <link rel="stylesheet" href="css/styles.css?v=718">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -9750,6 +9750,14 @@ service firebase.storage {
                 </div>
                 <div id="nbPreviousFamiliesContainer"></div>
             </div>
+
+            <!-- Journal Mentions (Phase 4) — hidden until entries mentioning a resident exist -->
+            <div id="nbJournalMentionsSection" class="hidden">
+                <div class="section-header" style="margin-top:28px;">
+                    <h3 class="section-heading">Journal Mentions</h3>
+                </div>
+                <div id="nbJournalMentionsContainer"></div>
+            </div>
         </section>
 
         <!-- Page: Archived Family View (#neighborarchive/{id}) -->
@@ -11120,7 +11128,7 @@ export default {
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
     <script src="js/contacts.js?v=549"></script>
-    <script src="js/neighbors.js?v=3"></script>
+    <script src="js/neighbors.js?v=4"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>

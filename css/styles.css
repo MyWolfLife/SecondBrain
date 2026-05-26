@@ -18822,6 +18822,30 @@ a.legacy-fin-card:hover {
     margin-bottom: 5px;
 }
 
+/* ---- Journal Mentions (house detail, Phase 4) ---- */
+.nb-journal-mention-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.nb-journal-mention-card:hover { background: #f9fafb; }
+.nb-journal-mention-date {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+.nb-journal-mention-text {
+    font-size: 0.9rem;
+    color: #374151;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
 /* Responsive — smaller map on mobile */
 @media (max-width: 480px) {
     .nb-map-container {
