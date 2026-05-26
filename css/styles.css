@@ -827,6 +827,8 @@ button {
 }
 
 /* ---------- Modal / Dialog ---------- */
+/* z-index 1000 clears Leaflet's highest internal layer (controls at 800)   */
+/* so modals always appear in front of the neighborhood map.                 */
 .modal-overlay {
     display: none;
     position: fixed;
@@ -835,7 +837,7 @@ button {
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 200;
+    z-index: 1000;
     justify-content: center;
     align-items: center;
     padding: 16px;
@@ -848,14 +850,14 @@ button {
 /* Facts modal and chemical picker can open on top of another modal */
 #factModal,
 #chemicalPickerModal {
-    z-index: 300;
+    z-index: 1100;
 }
 
 /* Crop modals must always appear on top of photo staging and other modals
    (they sit earlier in the DOM but need to overlay photoStagingModal) */
 #cropPreviewModal,
 #stagingCropModal {
-    z-index: 400;
+    z-index: 1200;
 }
 
 /* Chemical modal is wider to make facts/URLs easier to read */
