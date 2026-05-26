@@ -30,6 +30,10 @@ var _nbCurrentResidentHouseId = null;  // houseId for resident add flow
 var _nbCurrentNoteHouseId     = null;  // houseId for note add/edit
 var _nbEditingNoteId          = null;  // noteId being edited (null = new)
 
+// Archive / delete state (Phase 3)
+var _nbDeleteTargetHouse      = null;  // house being deleted or archived
+var _nbDeleteChoice           = 'archive'; // 'archive' | 'hard'
+
 // ---------- Pin color constants ----------
 var NB_GREEN = '#16a34a';   // interacted within 60 days
 var NB_AMBER = '#d97706';   // interacted 61–365 days ago
@@ -528,7 +532,8 @@ async function loadNeighborHousePage(id) {
 
         await Promise.all([
             _nbLoadResidents(id),
-            _nbLoadHouseNotes(id)
+            _nbLoadHouseNotes(id),
+            _nbLoadPreviousFamilies(id)
         ]);
     } catch (e) {
         console.error('loadNeighborHousePage:', e);
@@ -545,7 +550,7 @@ function _nbRenderHouseHeader(house) {
         _nbOpenEditHouseFromDetail();
     };
     document.getElementById('nbHouseDeleteBtn').onclick = function() {
-        _nbConfirmDeleteHouse(house);
+        _nbOpenDeleteHouseModal(house);
     };
 }
 
@@ -971,18 +976,246 @@ async function _nbDeleteHouseNote(noteId, houseId) {
 }
 
 // ============================================================
-// DELETE HOUSE  (Phase 2 — hard-delete only; Phase 3 adds archive)
+// DELETE / ARCHIVE MODAL  (Phase 3)
 // ============================================================
 
-async function _nbConfirmDeleteHouse(house) {
-    if (!confirm('Delete this house pin?\n\nAll house notes and resident links will be permanently removed. Contacts will not be deleted.')) return;
-    try {
-        await _nbDeleteHouseData(house.id);
-        window.location.hash = '#neighborhood/' + house.neighborhoodId;
-    } catch (e) {
-        alert('Delete failed. Please try again.');
-        console.error('_nbConfirmDeleteHouse:', e);
+function _nbOpenDeleteHouseModal(house) {
+    _nbDeleteTargetHouse = house;
+    _nbDeleteChoice      = 'archive';
+    document.getElementById('nbDeleteMoveNote').value = '';
+    document.getElementById('nbDeleteArchiveExtra').style.display = '';
+    // Reset visual selection to archive
+    document.getElementById('nbDeleteOptionArchive').classList.add('nb-delete-option--active');
+    document.getElementById('nbDeleteOptionHard').classList.remove('nb-delete-option--active');
+    document.getElementById('nbDeleteRadioArchive').textContent = '●';
+    document.getElementById('nbDeleteRadioHard').textContent = '○';
+    openModal('nbDeleteHouseModal');
+}
+
+function _nbSelectDeleteOption(choice) {
+    _nbDeleteChoice = choice;
+    var archiveEl = document.getElementById('nbDeleteOptionArchive');
+    var hardEl    = document.getElementById('nbDeleteOptionHard');
+    var radioA    = document.getElementById('nbDeleteRadioArchive');
+    var radioH    = document.getElementById('nbDeleteRadioHard');
+    var extra     = document.getElementById('nbDeleteArchiveExtra');
+
+    if (choice === 'archive') {
+        archiveEl.classList.add('nb-delete-option--active');
+        hardEl.classList.remove('nb-delete-option--active');
+        radioA.textContent = '●';
+        radioH.textContent = '○';
+        extra.style.display = '';
+    } else {
+        hardEl.classList.add('nb-delete-option--active');
+        archiveEl.classList.remove('nb-delete-option--active');
+        radioH.textContent = '●';
+        radioA.textContent = '○';
+        extra.style.display = 'none';
     }
+}
+
+async function _nbConfirmHouseAction() {
+    if (!_nbDeleteTargetHouse) return;
+    var btn = document.getElementById('nbDeleteHouseConfirmBtn');
+    btn.disabled = true; btn.textContent = 'Working…';
+    try {
+        if (_nbDeleteChoice === 'archive') {
+            await _nbArchiveFamily(_nbDeleteTargetHouse);
+        } else {
+            await _nbHardDeleteHouse(_nbDeleteTargetHouse);
+        }
+    } catch (e) {
+        alert('Action failed. Please try again.');
+        console.error('_nbConfirmHouseAction:', e);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Confirm';
+    }
+}
+
+// Archive flow: snapshot current residents, mark them archived, clear lastInteractionAt
+async function _nbArchiveFamily(house) {
+    var moveNote = document.getElementById('nbDeleteMoveNote').value.trim();
+
+    // Snapshot all current residents
+    var residentsSnap = await userCol('neighborHouseResidents')
+        .where('houseId', '==', house.id)
+        .where('archived', '==', false)
+        .get();
+
+    // Create archived family record
+    var archiveRef = await userCol('neighborArchivedFamilies').add({
+        houseId:    house.id,
+        address:    house.address || house.nickname || '',
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        notes:      moveNote
+    });
+
+    // Batch: mark all current residents archived + clear house lastInteractionAt
+    var batch = db.batch();
+    residentsSnap.forEach(function(d) {
+        batch.update(d.ref, { archived: true, archivedGroupId: archiveRef.id });
+    });
+    batch.update(userCol('neighborHouses').doc(house.id), { lastInteractionAt: null });
+    await batch.commit();
+
+    closeModal('nbDeleteHouseModal');
+    // Reload the house page to show empty residents + new Previous Families entry
+    loadNeighborHousePage(house.id);
+}
+
+// Hard delete: remove pin, all notes, resident links, archived family records
+async function _nbHardDeleteHouse(house) {
+    await _nbDeleteHouseData(house.id);
+    closeModal('nbDeleteHouseModal');
+    window.location.hash = '#neighborhood/' + house.neighborhoodId;
+}
+
+// ============================================================
+// PREVIOUS FAMILIES (Phase 3)
+// ============================================================
+
+async function _nbLoadPreviousFamilies(houseId) {
+    var section   = document.getElementById('nbPreviousFamiliesSection');
+    var container = document.getElementById('nbPreviousFamiliesContainer');
+
+    try {
+        var snap = await userCol('neighborArchivedFamilies')
+            .where('houseId', '==', houseId)
+            .get();
+
+        if (snap.empty) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        var archives = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+        archives.sort(function(a, b) {
+            var ta = a.archivedAt && a.archivedAt.toMillis ? a.archivedAt.toMillis() : 0;
+            var tb = b.archivedAt && b.archivedAt.toMillis ? b.archivedAt.toMillis() : 0;
+            return tb - ta;
+        });
+
+        section.classList.remove('hidden');
+        container.innerHTML = archives.map(function(a) {
+            return _nbBuildArchiveCardHtml(a);
+        }).join('');
+    } catch (e) {
+        console.error('_nbLoadPreviousFamilies:', e);
+    }
+}
+
+function _nbBuildArchiveCardHtml(archive) {
+    var dateStr = '';
+    if (archive.archivedAt) {
+        var d = archive.archivedAt.toDate ? archive.archivedAt.toDate() : new Date(archive.archivedAt);
+        dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return '<div class="nb-archive-card" onclick="window.location.hash=\'#neighborarchive/' + archive.id + '\'">' +
+        '<div class="nb-archive-card-body">' +
+            '<div class="nb-archive-date">Archived ' + escapeHtml(dateStr || 'unknown date') + '</div>' +
+            (archive.notes ? '<div class="nb-archive-note">' + escapeHtml(archive.notes) + '</div>' : '') +
+        '</div>' +
+        '<div class="nb-archive-arrow">&#8250;</div>' +
+    '</div>';
+}
+
+// ============================================================
+// ARCHIVED FAMILY VIEW  (#neighborarchive/{archivedGroupId})
+// ============================================================
+
+async function loadNeighborArchivePage(archivedGroupId) {
+    try {
+        var archiveSnap = await userCol('neighborArchivedFamilies').doc(archivedGroupId).get();
+        if (!archiveSnap.exists) { window.location.hash = '#neighbors'; return; }
+        var archive = Object.assign({ id: archiveSnap.id }, archiveSnap.data());
+
+        // Load house for breadcrumb + name
+        var houseSnap = await userCol('neighborHouses').doc(archive.houseId).get();
+        var house = houseSnap.exists
+            ? Object.assign({ id: houseSnap.id }, houseSnap.data())
+            : { id: archive.houseId, nickname: 'House', neighborhoodId: '' };
+
+        // Breadcrumb
+        document.getElementById('breadcrumbBar').innerHTML =
+            '<a href="#neighbors">Neighborhoods</a> &rsaquo; ' +
+            '<a href="#neighborhood/' + house.neighborhoodId + '">Map</a> &rsaquo; ' +
+            '<a href="#neighborhouse/' + archive.houseId + '">' + escapeHtml(house.nickname || 'House') + '</a>';
+
+        // Header
+        document.getElementById('nbArchiveHouseName').textContent = house.nickname || 'House';
+
+        var dateStr = '';
+        if (archive.archivedAt) {
+            var d = archive.archivedAt.toDate ? archive.archivedAt.toDate() : new Date(archive.archivedAt);
+            dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+        document.getElementById('nbArchiveBannerDate').textContent =
+            'This family no longer lives here' + (dateStr ? ' — archived ' + dateStr : '');
+
+        var noteEl = document.getElementById('nbArchiveMoveNote');
+        if (archive.notes) {
+            noteEl.textContent = '"' + archive.notes + '"';
+            noteEl.style.display = '';
+        } else {
+            noteEl.style.display = 'none';
+        }
+
+        // Load residents in this archive group
+        var residentsSnap = await userCol('neighborHouseResidents')
+            .where('archivedGroupId', '==', archivedGroupId)
+            .get();
+
+        var container = document.getElementById('nbArchiveResidentsContainer');
+        var emptyEl   = document.getElementById('nbArchiveResidentsEmpty');
+
+        if (residentsSnap.empty) {
+            container.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        emptyEl.classList.add('hidden');
+        var residents = residentsSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+
+        var personSnaps = await Promise.all(residents.map(function(r) {
+            return userCol('people').doc(r.personId).get();
+        }));
+
+        container.innerHTML = residents.map(function(resident, i) {
+            var snap   = personSnaps[i];
+            var person = snap.exists
+                ? Object.assign({ id: snap.id }, snap.data())
+                : { id: resident.personId, name: '(Unknown)' };
+            return _nbBuildArchivedResidentHtml(resident, person);
+        }).join('');
+
+    } catch (e) {
+        console.error('loadNeighborArchivePage:', e);
+    }
+}
+
+function _nbBuildArchivedResidentHtml(resident, person) {
+    var avatarHtml;
+    if (person.profilePhotoData) {
+        avatarHtml = '<img class="nb-resident-avatar" src="' + person.profilePhotoData + '" alt="">';
+    } else {
+        var initials = (person.name || '?')
+            .split(' ').map(function(w) { return w[0] || ''; }).slice(0, 2).join('').toUpperCase();
+        avatarHtml = '<div class="nb-resident-avatar nb-resident-avatar--initials">' + escapeHtml(initials) + '</div>';
+    }
+    return '<div class="nb-resident-card">' +
+        '<div class="nb-resident-header">' +
+            avatarHtml +
+            '<div class="nb-resident-info">' +
+                '<div class="nb-resident-name">' + escapeHtml(person.name || '') + '</div>' +
+                '<span class="nb-resident-role-badge">' + escapeHtml(resident.role || 'Resident') + '</span>' +
+            '</div>' +
+            '<div class="nb-resident-actions">' +
+                '<button class="btn btn-link" onclick="window.location.hash=\'#contact/' + resident.personId + '\'">View Contact</button>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
 }
 
 // ============================================================

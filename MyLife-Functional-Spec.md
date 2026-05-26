@@ -847,7 +847,15 @@ Track the people who live near you, organized by named neighborhoods, with a vis
 - **House Notes section**: Chronological list (newest first) of free-form observations about the property (e.g., "Their landscaper is Green Thumb Co"). Add, edit (re-fetches note from Firestore), and delete with confirm.
 - **`lastInteractionAt` sync**: When any interaction is saved via `contacts.js`, `_nbUpdateHouseLastInteraction(personId, date)` is called. It checks if that person is a current resident of any house and batch-updates `lastInteractionAt` on those house docs. This keeps map pin colors accurate without extra reads at map load time.
 
-**Archive / delete flow** (Phase 3 — planned): When a family moves away, user can archive the current residents as a named "previous family" snapshot preserved on the house doc. Hard-delete removes the house and all its data.
+**Archive / delete flow**: Tapping **Delete** on a house detail page opens a two-option modal:
+- **Archive — Family Moved Away** (default): Snapshots current residents into a `neighborArchivedFamilies` doc, marks all their `neighborHouseResidents` records as `archived = true` with the archive group ID, clears `lastInteractionAt` on the house (pin goes gray), and reloads the house page. The pin stays on the map; a new family can be added.
+- **Hard Delete**: Removes the house doc, all resident links, house notes, and archived family records. Contacts are not deleted. Navigates back to the map.
+
+**Previous Families section**: Shown on the house detail page when at least one `neighborArchivedFamilies` record exists. Each entry shows the archive date and optional move note. Tapping opens the archived family view.
+
+**Archived family view** (`#neighborarchive/{id}`): Read-only page. Amber banner shows "This family no longer lives here — archived [date]". Move note displayed in italics if recorded. Resident cards show name, role, and a "View Contact" link to the live contact record. Breadcrumb: Neighborhoods › Map › [House name].
+
+**Firestore collection `neighborArchivedFamilies`**: `houseId`, `address` (snapshot at archive time), `archivedAt` (timestamp), `notes` (optional move note). `neighborHouseResidents` records gain `archived: true` and `archivedGroupId` when archived.
 
 ### Health (`health.js`)
 

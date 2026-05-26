@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=716">
+    <link rel="stylesheet" href="css/styles.css?v=717">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -4084,6 +4084,44 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('nbHouseModal')">Cancel</button>
                 <button class="btn btn-primary" id="nbHouseSaveBtn" onclick="_nbSaveHouse()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete / Archive House -->
+    <div class="modal-overlay" id="nbDeleteHouseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Remove This House?</h3>
+                <button class="modal-close" onclick="closeModal('nbDeleteHouseModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <div class="nb-delete-option nb-delete-option--active" id="nbDeleteOptionArchive" onclick="_nbSelectDeleteOption('archive')">
+                    <div class="nb-delete-option-header">
+                        <span class="nb-delete-radio" id="nbDeleteRadioArchive">&#9679;</span>
+                        <div>
+                            <div class="nb-delete-option-title">Archive — Family Moved Away</div>
+                            <div class="nb-delete-option-desc">They moved, but you want to keep the history. The pin stays on the map; add a new family when ready.</div>
+                        </div>
+                    </div>
+                    <div class="nb-delete-option-extra" id="nbDeleteArchiveExtra">
+                        <label for="nbDeleteMoveNote">Note about the move <span class="optional-label">(optional)</span></label>
+                        <input type="text" id="nbDeleteMoveNote" class="form-control" placeholder="e.g. Moved to Florida, May 2026">
+                    </div>
+                </div>
+                <div class="nb-delete-option" id="nbDeleteOptionHard" onclick="_nbSelectDeleteOption('hard')">
+                    <div class="nb-delete-option-header">
+                        <span class="nb-delete-radio" id="nbDeleteRadioHard">&#9675;</span>
+                        <div>
+                            <div class="nb-delete-option-title">Hard Delete</div>
+                            <div class="nb-delete-option-desc">Removes this pin and all its data permanently. People remain in your Contacts.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('nbDeleteHouseModal')">Cancel</button>
+                <button class="btn btn-danger" id="nbDeleteHouseConfirmBtn" onclick="_nbConfirmHouseAction()">Confirm</button>
             </div>
         </div>
     </div>
@@ -9704,6 +9742,28 @@ service firebase.storage {
             </div>
             <div id="nbHouseNotesContainer"></div>
             <p id="nbHouseNotesEmpty" class="empty-state hidden">No notes yet.</p>
+
+            <!-- Previous Families (Phase 3) — hidden until archives exist -->
+            <div id="nbPreviousFamiliesSection" class="hidden">
+                <div class="section-header" style="margin-top:28px;">
+                    <h3 class="section-heading">Previous Families</h3>
+                </div>
+                <div id="nbPreviousFamiliesContainer"></div>
+            </div>
+        </section>
+
+        <!-- Page: Archived Family View (#neighborarchive/{id}) -->
+        <section class="page hidden" id="page-neighborarchive">
+            <div class="page-header">
+                <h2 id="nbArchiveHouseName"></h2>
+            </div>
+            <div class="nb-archive-banner" id="nbArchiveBannerDate"></div>
+            <p id="nbArchiveMoveNote" class="nb-archive-move-note"></p>
+            <div class="section-header" style="margin-top:20px;">
+                <h3 class="section-heading">Who lived here</h3>
+            </div>
+            <div id="nbArchiveResidentsContainer"></div>
+            <p id="nbArchiveResidentsEmpty" class="empty-state hidden">No residents recorded.</p>
         </section>
 
         <!-- Page: Contact Detail (#contact/{id}) -->
@@ -11060,7 +11120,7 @@ export default {
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
     <script src="js/contacts.js?v=549"></script>
-    <script src="js/neighbors.js?v=2"></script>
+    <script src="js/neighbors.js?v=3"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>
@@ -11090,7 +11150,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=664"></script>
+    <script src="js/app.js?v=665"></script>
 
 </body>
 </html>

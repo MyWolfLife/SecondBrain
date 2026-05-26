@@ -2448,7 +2448,11 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Notes can be edited or deleted
 - Notes are separate from person intel — they describe the house, not the residents
 
-**Deleting a house:** Tap **Delete** on the house detail page. This permanently removes the pin, all notes, and resident links. Your contacts are not affected.
+**When a family moves away:** Tap **Delete** on the house detail page. A dialog gives you two choices:
+- **Archive — Family Moved Away**: Preserves all the history. The pin stays on the map (goes gray). You can add a note about the move (e.g., "Moved to Florida"). Then add a new family to the same pin when someone new moves in.
+- **Hard Delete**: Permanently removes the pin, all house notes, all resident links, and all archived family history. Your contacts are not affected.
+
+**Previous Families:** If a family was archived, a "Previous Families" section appears at the bottom of the house detail page. Tap an entry to open a read-only view showing who used to live there, their roles, and the archive date. You can still tap "View Contact" to see their full contact record.
 
 **Pin colors update automatically** — whenever you log an interaction with a contact who is linked to a house, the pin color updates to reflect the most recent interaction date. You do not need to do anything extra.
 

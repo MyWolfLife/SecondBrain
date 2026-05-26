@@ -190,7 +190,7 @@ const ALL_PAGES = [
     'collection', 'collectionitem', 'beneficiaries',
     'place',
     'person', 'contact',
-    'neighborhood', 'neighborhouse',
+    'neighborhood', 'neighborhouse', 'neighborarchive',
     'notebook', 'note',
     'devnote',
     'health-allergies', 'health-supplements', 'health-vaccinations', 'health-eye',
@@ -232,7 +232,7 @@ const THOUGHTS_PAGES = ['thoughts', 'top10lists', 'top10list-create', 'top10list
 const SETTINGS_PAGES = ['settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'changepassword', 'backup', 'devnotes', 'devnote', 'sb-issues'];
 
 const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
-                     'neighbors', 'neighborhood', 'neighborhouse',
+                     'neighbors', 'neighborhood', 'neighborhouse', 'neighborarchive',
                      'notes', 'notebook', 'note',
                      'health', 'health-visits', 'health-visit', 'health-visit-step2',
                      'health-medications', 'health-conditions', 'health-concerns', 'health-concern', 'health-condition',
@@ -367,8 +367,9 @@ function showPage(page) {
     if (page === 'item')       navPage = 'house';
     if (page === 'person')        navPage = 'people';   // Sub-page of people (legacy)
     if (page === 'contact')       navPage = 'contacts'; // Sub-page of contacts
-    if (page === 'neighborhood')  navPage = 'contacts'; // Neighbor map — contacts section
-    if (page === 'neighborhouse') navPage = 'contacts'; // House detail — contacts section
+    if (page === 'neighborhood')    navPage = 'contacts'; // Neighbor map — contacts section
+    if (page === 'neighborhouse')   navPage = 'contacts'; // House detail — contacts section
+    if (page === 'neighborarchive') navPage = 'contacts'; // Archived family view — contacts section
     if (page === 'notebook')   navPage = 'notes';  // Sub-page of notes
     if (page === 'note')       navPage = 'notes';  // Sub-page of notes
     if (page === 'main')           navPage = '';       // No link highlighted on the landing page
@@ -636,6 +637,9 @@ function handleRoute() {
     } else if (page === 'neighborhouse' && id) {
         showPage('neighborhouse');
         loadNeighborHousePage(id);
+    } else if (page === 'neighborarchive' && id) {
+        showPage('neighborarchive');
+        loadNeighborArchivePage(id);
     // ---------- Life / People routes (legacy aliases — redirect to contacts) ----------
     } else if (page === 'people') {
         window.location.replace('#contacts');
