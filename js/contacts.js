@@ -1275,13 +1275,18 @@ async function handleInteractionSave() {
 
     try {
         if (modal.dataset.mode === 'add') {
+            var interactionDate = date || new Date().toISOString().split('T')[0];
             await userCol('peopleInteractions').add({
                 personId:   personId,
-                date:       date || new Date().toISOString().split('T')[0],
+                date:       interactionDate,
                 text:       text,
                 sourceType: 'direct',
                 createdAt:  firebase.firestore.FieldValue.serverTimestamp()
             });
+            // Keep house lastInteractionAt in sync for neighbor residents
+            if (typeof _nbUpdateHouseLastInteraction === 'function') {
+                _nbUpdateHouseLastInteraction(personId, interactionDate);
+            }
         } else {
             await userCol('peopleInteractions').doc(modal.dataset.editId).update({ date: date, text: text });
         }

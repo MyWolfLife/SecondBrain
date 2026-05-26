@@ -2432,12 +2432,30 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Moving a pin:** Drag any pin to reposition it. The new location is saved automatically.
 
-**House detail:** Tap a pin to open the house detail page (Residents, Notes, and interaction history — Phase 2).
+**House detail:** Tap a pin to open the house detail page. It has two sections:
+
+**Residents section:**
+- Each resident card shows their name, role (Owner, Spouse, Kid, etc.), and last interaction date
+- Tap **▼ Intel** to expand a panel showing their last 2 facts and last 2 recent interactions at a glance
+- Tap **Full Profile** to open their full Contact page
+- Tap **×** to remove them from this house (does not delete their contact record)
+- **+ From Contacts**: search your existing contacts by name, pick one, assign a role, and add them
+- **+ New Person**: create a brand-new contact (saved as a Personal / Neighbor contact) and link them in one step
+
+**House Notes section:**
+- Free-form observations about the property itself — e.g., "Their landscaper is Green Thumb Co", "Ring doorbell on left side"
+- Tap **+ Add Note** to log a note with a date
+- Notes can be edited or deleted
+- Notes are separate from person intel — they describe the house, not the residents
+
+**Deleting a house:** Tap **Delete** on the house detail page. This permanently removes the pin, all notes, and resident links. Your contacts are not affected.
+
+**Pin colors update automatically** — whenever you log an interaction with a contact who is linked to a house, the pin color updates to reflect the most recent interaction date. You do not need to do anything extra.
 
 **Tips:**
 - Use a zoomed-in Google Maps screenshot for best pin placement precision
 - The nickname is shown on the pin label — keep it short (e.g., "The Smiths", "Wayne & Linda")
-- Pin colors update automatically as you log interactions with residents
+- Log interactions via the contact's page or directly from their resident card's Full Profile link — both update the house pin color
 
 ### See Also
 - [Contacts](#help/contacts)

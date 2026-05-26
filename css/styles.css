@@ -18517,12 +18517,210 @@ a.legacy-fin-card:hover {
     background: #f9fafb;
 }
 
-/* House stub page */
-.nb-house-stub-address {
+/* House detail address line */
+.nb-house-address {
     font-size: 0.9rem;
     color: #6b7280;
     padding: 0 16px;
     margin-top: 4px;
+    margin-bottom: 0;
+}
+
+/* ---- Resident cards ---- */
+.nb-resident-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.nb-resident-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+}
+.nb-resident-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.nb-resident-avatar--initials {
+    background: #6b7280;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.nb-resident-info {
+    flex: 1;
+    min-width: 0;
+}
+.nb-resident-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.nb-resident-role-badge {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 3px;
+}
+.nb-resident-last-contact {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 3px;
+}
+.nb-resident-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.nb-intel-toggle {
+    font-size: 0.78rem !important;
+    color: #6b7280 !important;
+    padding: 2px 0 !important;
+}
+.nb-remove-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+}
+.nb-remove-btn:hover { color: #ef4444; }
+
+/* ---- Intel panel ---- */
+.nb-intel-panel {
+    border-top: 1px solid #f3f4f6;
+    padding: 10px 14px 12px;
+    background: #fafafa;
+}
+.nb-intel-group {
+    margin-bottom: 10px;
+}
+.nb-intel-group:last-child { margin-bottom: 0; }
+.nb-intel-group-label {
+    font-size: 0.73rem;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+.nb-intel-row {
+    display: flex;
+    gap: 8px;
+    font-size: 0.84rem;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+}
+.nb-intel-key {
+    font-weight: 600;
+    color: #374151;
+    flex-shrink: 0;
+}
+.nb-intel-val { color: #4b5563; }
+.nb-intel-int-date {
+    color: #6b7280;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+    min-width: 80px;
+}
+.nb-intel-int-text { color: #374151; }
+.nb-intel-empty {
+    font-size: 0.84rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* ---- House notes ---- */
+.nb-note-item {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 8px;
+    padding: 10px 14px;
+}
+.nb-note-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.nb-note-date {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+.nb-note-actions { display: flex; gap: 4px; }
+.nb-note-text {
+    font-size: 0.88rem;
+    color: #1f2937;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ---- Resident search results ---- */
+.nb-search-results {
+    margin-top: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.nb-search-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.nb-search-result:hover { background: #f3f4f6; }
+.nb-search-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.nb-search-avatar--initials {
+    background: #6b7280;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.nb-search-empty {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    padding: 8px 10px;
+    margin: 0;
+}
+
+/* Resident picker — selected name row */
+.nb-picker-selected-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0 0 14px;
+    color: #111827;
 }
 
 /* Responsive — smaller map on mobile */
@@ -18534,5 +18732,8 @@ a.legacy-fin-card:hover {
         flex-direction: column;
         align-items: flex-start;
         gap: 6px;
+    }
+    .nb-resident-actions {
+        gap: 2px;
     }
 }

@@ -824,20 +824,28 @@ Track the people who live near you, organized by named neighborhoods, with a vis
 - `neighborhoods` — `name`, `notes`, `imageData` (Base64 compressed image), `imageWidth`, `imageHeight`, `createdAt`
 - `neighborHouses` — `neighborhoodId`, `nickname`, `address`, `notes`, `pinX` (0.0–1.0 fraction of image width), `pinY` (0.0–1.0 fraction of image height), `lastInteractionAt` (denormalized timestamp; updated when any current resident logs an interaction), `archivedFamilies[]` (array of archived family snapshots), `createdAt`
 
-**Routes**: `#neighbors` (neighborhoods list), `#neighborhood/{id}` (map view), `#neighborhouse/{id}` (house detail — Phase 2)
+**Routes**: `#neighbors` (neighborhoods list), `#neighborhood/{id}` (map view), `#neighborhouse/{id}` (house detail)
 
 **Neighborhoods list** (`#neighbors`): Cards showing each neighborhood's name, notes snippet, and house count. **+ Add Neighborhood** button opens a modal to enter name, notes, and upload a map image (static screenshot — e.g. from Google Maps). Save is disabled until an image is uploaded. Editing a neighborhood allows name/notes changes; image can be replaced. Deleting a neighborhood removes it and all its houses.
 
 **Map view** (`#neighborhood/{id}`): Uses **Leaflet.js CRS.Simple** (no geo-tiles) — the uploaded image is rendered as an `L.imageOverlay` in pixel coordinate space. Pins are `L.divIcon` custom markers positioned via `pinX`/`pinY` fractions converted to Leaflet lat/lng (`lat = (1 − pinY) × h`, `lng = pinX × w`). The map fills the viewport and supports pan/zoom; pins scale and stay in correct position relative to the image.
 
 **Pin colors** (driven by `lastInteractionAt`):
-- **Green** (`#4caf50`): last interaction ≤ 60 days ago
-- **Amber** (`#ff9800`): last interaction 61 days – 1 year ago
-- **Gray** (`#9e9e9e`): never interacted or > 1 year ago
+- **Green** (`#16a34a`): last interaction ≤ 60 days ago
+- **Amber** (`#d97706`): last interaction 61 days – 1 year ago
+- **Gray** (`#6b7280`): never interacted or > 1 year ago
 
 **Pin icon**: House-shaped SVG (color-filled circle with white house polygon). Nickname label shown below each pin.
 
 **Placement mode**: Tap **+ Add House** to enter placement mode (amber banner shown, crosshair cursor). Tapping the map places a new pin. A modal then prompts for nickname and address; saving writes to Firestore and renders the marker. Pins are draggable; drag-end updates `pinX`/`pinY` in Firestore.
+
+**House detail page** (`#neighborhouse/{id}`):
+- **Header**: nickname, address (if set), Edit and Delete buttons. Edit opens the same modal used for pin editing. Delete (Phase 2: hard-delete only) confirms and removes the pin, all resident links, and house notes — contacts are not deleted.
+- **Residents section**: Lists current residents from `neighborHouseResidents` (where `archived = false`). Each card shows: initials/photo avatar, name, role badge, last interaction date. A **▼ Intel** button (shown only when facts or interactions exist) expands an inline panel showing the resident's last 2 facts and last 2 interactions. **Full Profile** navigates to `#contact/{personId}`. **×** unlinks the resident from the house (does not delete the contact).
+  - **+ From Contacts**: Opens a two-step picker — search by name → select role → save to `neighborHouseResidents`.
+  - **+ New Person**: Creates a new contact (`category: Personal`, `personalType: Neighbor`) and links them in one step.
+- **House Notes section**: Chronological list (newest first) of free-form observations about the property (e.g., "Their landscaper is Green Thumb Co"). Add, edit (re-fetches note from Firestore), and delete with confirm.
+- **`lastInteractionAt` sync**: When any interaction is saved via `contacts.js`, `_nbUpdateHouseLastInteraction(personId, date)` is called. It checks if that person is a current resident of any house and batch-updates `lastInteractionAt` on those house docs. This keeps map pin colors accurate without extra reads at map load time.
 
 **Archive / delete flow** (Phase 3 — planned): When a family moves away, user can archive the current residents as a named "previous family" snapshot preserved on the house doc. Hard-delete removes the house and all its data.
 

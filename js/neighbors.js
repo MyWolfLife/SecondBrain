@@ -13,13 +13,22 @@
 // ============================================================
 
 // ---------- State ----------
-var _nbCurrentNeighborhood = null;  // neighborhood doc being viewed
-var _nbMap                 = null;  // Leaflet map instance
-var _nbImageOverlay        = null;  // Leaflet imageOverlay
-var _nbMarkers             = {};    // houseId -> L.Marker
-var _nbHouseDocs           = {};    // houseId -> house data obj
-var _nbPlacementMode       = false; // true while user is tapping to place a pin
-var _nbViewSaveTimer       = null;  // debounce timer for saving map view
+var _nbCurrentNeighborhood    = null;  // neighborhood doc being viewed on map page
+var _nbMap                    = null;  // Leaflet map instance
+var _nbImageOverlay           = null;  // Leaflet imageOverlay
+var _nbMarkers                = {};    // houseId -> L.Marker
+var _nbHouseDocs              = {};    // houseId -> house data obj
+var _nbPlacementMode          = false; // true while user is tapping to place a pin
+var _nbViewSaveTimer          = null;  // debounce timer for saving map view
+
+// House detail page state (Phase 2)
+var _nbCurrentHouse           = null;  // house doc on house detail page
+var _nbPickedContactId        = null;  // selected contact in resident picker
+var _nbPickedContactName      = null;
+var _nbResidentPickerStep     = 'search'; // 'search' | 'role'
+var _nbCurrentResidentHouseId = null;  // houseId for resident add flow
+var _nbCurrentNoteHouseId     = null;  // houseId for note add/edit
+var _nbEditingNoteId          = null;  // noteId being edited (null = new)
 
 // ---------- Pin color constants ----------
 var NB_GREEN = '#16a34a';   // interacted within 60 days
@@ -405,12 +414,19 @@ async function _nbSaveHouse() {
     try {
         if (_nbEditingHouseId) {
             await userCol('neighborHouses').doc(_nbEditingHouseId).update({ nickname: nickname, address: address });
+            // Update map pin if we're on the map page
             var house = _nbHouseDocs[_nbEditingHouseId];
             if (house) {
                 house.nickname = nickname;
                 house.address  = address;
                 var marker = _nbMarkers[_nbEditingHouseId];
                 if (marker) marker.setIcon(_nbPinIcon(nickname, _nbPinColor(house.lastInteractionAt)));
+            }
+            // Update house detail page header if we're viewing this house
+            if (_nbCurrentHouse && _nbCurrentHouse.id === _nbEditingHouseId) {
+                _nbCurrentHouse.nickname = nickname;
+                _nbCurrentHouse.address  = address;
+                _nbRenderHouseHeader(_nbCurrentHouse);
             }
             closeModal('nbHouseModal');
 
@@ -483,30 +499,532 @@ function _nbExitPlacementModeSilent() {
 }
 
 // ============================================================
-// HOUSE DETAIL STUB  (#neighborhouse/{id})  — Phase 1 placeholder
-// Full implementation in Phase 2
+// HOUSE DETAIL PAGE  (#neighborhouse/{id})  — Phase 2
 // ============================================================
 
 async function loadNeighborHousePage(id) {
+    _nbCurrentHouse = null;
     try {
         var snap = await userCol('neighborHouses').doc(id).get();
         if (!snap.exists) { window.location.hash = '#neighbors'; return; }
-        var house = Object.assign({ id: snap.id }, snap.data());
+        _nbCurrentHouse = Object.assign({ id: snap.id }, snap.data());
+        var house = _nbCurrentHouse;
 
-        document.getElementById('nbHouseStubName').textContent = house.nickname || 'House';
-        document.getElementById('nbHouseStubAddress').textContent = house.address || '';
-        document.getElementById('nbHouseStubBackBtn').onclick = function() {
-            window.location.hash = '#neighborhood/' + house.neighborhoodId;
-        };
-
-        // Breadcrumb
         document.getElementById('breadcrumbBar').innerHTML =
             '<a href="#neighbors">Neighborhoods</a> &rsaquo; ' +
             '<a href="#neighborhood/' + house.neighborhoodId + '">Map</a>';
 
+        _nbRenderHouseHeader(house);
+
+        document.getElementById('nbAddExistingResidentBtn').onclick = function() {
+            _nbOpenAddResidentModal(id);
+        };
+        document.getElementById('nbAddNewResidentBtn').onclick = function() {
+            _nbOpenNewPersonModal(id);
+        };
+        document.getElementById('nbAddHouseNoteBtn').onclick = function() {
+            _nbOpenHouseNoteModal(id, null);
+        };
+
+        await Promise.all([
+            _nbLoadResidents(id),
+            _nbLoadHouseNotes(id)
+        ]);
     } catch (e) {
         console.error('loadNeighborHousePage:', e);
     }
+}
+
+function _nbRenderHouseHeader(house) {
+    document.getElementById('nbHouseName').textContent = house.nickname || 'House';
+    var addrEl = document.getElementById('nbHouseDetailAddress');
+    addrEl.textContent = house.address || '';
+    addrEl.style.display = house.address ? '' : 'none';
+
+    document.getElementById('nbHouseEditBtn').onclick = function() {
+        _nbOpenEditHouseFromDetail();
+    };
+    document.getElementById('nbHouseDeleteBtn').onclick = function() {
+        _nbConfirmDeleteHouse(house);
+    };
+}
+
+// Open the edit-house modal when on the house detail page
+function _nbOpenEditHouseFromDetail() {
+    if (!_nbCurrentHouse) return;
+    _nbEditingHouseId   = _nbCurrentHouse.id;
+    _nbPendingPinLatLng = null;
+    document.getElementById('nbHouseModalTitle').textContent = 'Edit House';
+    document.getElementById('nbHouseNickname').value = _nbCurrentHouse.nickname || '';
+    document.getElementById('nbHouseAddress').value  = _nbCurrentHouse.address  || '';
+    openModal('nbHouseModal');
+}
+
+// ============================================================
+// RESIDENTS
+// ============================================================
+
+async function _nbLoadResidents(houseId) {
+    var container = document.getElementById('nbResidentsContainer');
+    var emptyEl   = document.getElementById('nbResidentsEmpty');
+    container.innerHTML = '<p class="loading-text">Loading…</p>';
+    emptyEl.classList.add('hidden');
+
+    try {
+        var snap = await userCol('neighborHouseResidents')
+            .where('houseId', '==', houseId)
+            .where('archived', '==', false)
+            .get();
+
+        if (snap.empty) {
+            container.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        var residents = snap.docs.map(function(d) {
+            return Object.assign({ id: d.id }, d.data());
+        });
+
+        var residentData = await Promise.all(residents.map(function(r) {
+            return _nbLoadResidentData(r);
+        }));
+
+        container.innerHTML = residentData.map(function(d) {
+            return _nbBuildResidentCardHtml(d.resident, d.person, d.facts, d.interactions);
+        }).join('');
+
+    } catch (e) {
+        container.innerHTML = '<p class="error-text">Failed to load residents.</p>';
+        console.error('_nbLoadResidents:', e);
+    }
+}
+
+async function _nbLoadResidentData(resident) {
+    try {
+        var [personSnap, factsSnap, intSnap] = await Promise.all([
+            userCol('people').doc(resident.personId).get(),
+            userCol('facts')
+                .where('targetType', '==', 'person')
+                .where('targetId', '==', resident.personId)
+                .get(),
+            userCol('peopleInteractions')
+                .where('personId', '==', resident.personId)
+                .get()
+        ]);
+
+        var person = personSnap.exists
+            ? Object.assign({ id: personSnap.id }, personSnap.data())
+            : { id: resident.personId, name: '(Unknown)' };
+
+        var facts = factsSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+        facts.sort(function(a, b) {
+            var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return tb - ta;
+        });
+        facts = facts.slice(0, 2);
+
+        var interactions = [];
+        intSnap.forEach(function(d) { interactions.push(Object.assign({ id: d.id }, d.data())); });
+        interactions.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+        interactions = interactions.slice(0, 2);
+
+        return { resident: resident, person: person, facts: facts, interactions: interactions };
+    } catch (e) {
+        console.error('_nbLoadResidentData:', resident.personId, e);
+        return { resident: resident, person: { id: resident.personId, name: '(Load error)' }, facts: [], interactions: [] };
+    }
+}
+
+function _nbBuildResidentCardHtml(resident, person, facts, interactions) {
+    var avatarHtml;
+    if (person.profilePhotoData) {
+        avatarHtml = '<img class="nb-resident-avatar" src="' + person.profilePhotoData + '" alt="">';
+    } else {
+        var initials = (person.name || '?')
+            .split(' ').map(function(w) { return w[0] || ''; }).slice(0, 2).join('').toUpperCase();
+        avatarHtml = '<div class="nb-resident-avatar nb-resident-avatar--initials">' + escapeHtml(initials) + '</div>';
+    }
+
+    var lastContactText = interactions.length > 0
+        ? 'Last contact: ' + _nbFormatDate(interactions[0].date)
+        : 'No interactions yet';
+
+    var intelHtml = '';
+    if (facts.length > 0) {
+        intelHtml += '<div class="nb-intel-group"><div class="nb-intel-group-label">Facts</div>' +
+            facts.map(function(f) {
+                return '<div class="nb-intel-row"><span class="nb-intel-key">' + escapeHtml(f.label || '') + ':</span>' +
+                    '<span class="nb-intel-val">' + escapeHtml(f.value || '') + '</span></div>';
+            }).join('') + '</div>';
+    }
+    if (interactions.length > 0) {
+        intelHtml += '<div class="nb-intel-group"><div class="nb-intel-group-label">Recent Interactions</div>' +
+            interactions.map(function(i) {
+                return '<div class="nb-intel-row">' +
+                    '<span class="nb-intel-int-date">' + escapeHtml(_nbFormatDate(i.date)) + '</span>' +
+                    '<span class="nb-intel-int-text">' + escapeHtml(i.text || '') + '</span></div>';
+            }).join('') + '</div>';
+    }
+    if (!intelHtml) {
+        intelHtml = '<div class="nb-intel-empty">No facts or interactions logged yet.</div>';
+    }
+
+    var hasIntel = facts.length > 0 || interactions.length > 0;
+
+    return '<div class="nb-resident-card">' +
+        '<div class="nb-resident-header">' +
+            avatarHtml +
+            '<div class="nb-resident-info">' +
+                '<div class="nb-resident-name">' + escapeHtml(person.name || '') + '</div>' +
+                '<span class="nb-resident-role-badge">' + escapeHtml(resident.role || 'Resident') + '</span>' +
+                '<div class="nb-resident-last-contact">' + escapeHtml(lastContactText) + '</div>' +
+            '</div>' +
+            '<div class="nb-resident-actions">' +
+                (hasIntel ? '<button class="btn btn-link nb-intel-toggle" onclick="_nbToggleIntelPanel(this)">&#9660; Intel</button>' : '') +
+                '<button class="btn btn-link" onclick="window.location.hash=\'#contact/' + resident.personId + '\'">Full Profile</button>' +
+                '<button class="nb-remove-btn" onclick="_nbRemoveResident(\'' + resident.id + '\')" title="Remove from house">&times;</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="nb-intel-panel hidden">' + intelHtml + '</div>' +
+    '</div>';
+}
+
+function _nbToggleIntelPanel(btn) {
+    var card  = btn.closest('.nb-resident-card');
+    var panel = card.querySelector('.nb-intel-panel');
+    var open  = !panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', open);
+    btn.innerHTML = open ? '&#9660; Intel' : '&#9650; Intel';
+}
+
+async function _nbRemoveResident(residentId) {
+    if (!confirm('Remove this person from the house? Their contact record will not be deleted.')) return;
+    try {
+        await userCol('neighborHouseResidents').doc(residentId).delete();
+        if (_nbCurrentHouse) _nbLoadResidents(_nbCurrentHouse.id);
+    } catch (e) {
+        alert('Failed to remove resident.');
+        console.error('_nbRemoveResident:', e);
+    }
+}
+
+// ============================================================
+// ADD EXISTING CONTACT — resident picker modal
+// ============================================================
+
+function _nbOpenAddResidentModal(houseId) {
+    _nbCurrentResidentHouseId = houseId;
+    _nbPickedContactId    = null;
+    _nbPickedContactName  = null;
+    _nbResidentPickerStep = 'search';
+    document.getElementById('nbResidentSearchInput').value = '';
+    document.getElementById('nbResidentSearchResults').innerHTML = '';
+    document.getElementById('nbResidentRoleInput').value = '';
+    document.getElementById('nbResidentSearchStep').classList.remove('hidden');
+    document.getElementById('nbResidentRoleStep').classList.add('hidden');
+    document.getElementById('nbResidentPickerSaveBtn').classList.add('hidden');
+    document.getElementById('nbResidentPickerBackBtn').classList.add('hidden');
+    openModal('nbResidentPickerModal');
+    setTimeout(function() { document.getElementById('nbResidentSearchInput').focus(); }, 100);
+}
+
+async function _nbSearchContactsForResident() {
+    var query   = document.getElementById('nbResidentSearchInput').value.trim().toLowerCase();
+    var results = document.getElementById('nbResidentSearchResults');
+    if (!query) { results.innerHTML = ''; return; }
+
+    try {
+        var snap = await userCol('people').orderBy('name').get();
+        var matches = [];
+        snap.forEach(function(d) {
+            var p = Object.assign({ id: d.id }, d.data());
+            if ((p.name || '').toLowerCase().includes(query)) matches.push(p);
+        });
+        matches = matches.slice(0, 8);
+
+        if (matches.length === 0) {
+            results.innerHTML = '<p class="nb-search-empty">No contacts found.</p>';
+            return;
+        }
+
+        results.innerHTML = matches.map(function(p) {
+            var avatarHtml;
+            if (p.profilePhotoData) {
+                avatarHtml = '<img class="nb-search-avatar" src="' + p.profilePhotoData + '" alt="">';
+            } else {
+                var initials = (p.name || '?')
+                    .split(' ').map(function(w) { return w[0] || ''; }).slice(0, 2).join('').toUpperCase();
+                avatarHtml = '<div class="nb-search-avatar nb-search-avatar--initials">' + escapeHtml(initials) + '</div>';
+            }
+            return '<div class="nb-search-result" onclick="_nbSelectContact(\'' + p.id + '\',\'' + encodeURIComponent(p.name || '') + '\')">' +
+                avatarHtml +
+                '<span>' + escapeHtml(p.name || '(No name)') + '</span>' +
+            '</div>';
+        }).join('');
+    } catch (e) {
+        results.innerHTML = '<p class="error-text">Search failed.</p>';
+        console.error('_nbSearchContactsForResident:', e);
+    }
+}
+
+function _nbSelectContact(personId, encodedName) {
+    _nbPickedContactId   = personId;
+    _nbPickedContactName = decodeURIComponent(encodedName);
+    document.getElementById('nbResidentRolePersonName').textContent = 'Adding: ' + _nbPickedContactName;
+    document.getElementById('nbResidentRoleInput').value = '';
+    document.getElementById('nbResidentSearchStep').classList.add('hidden');
+    document.getElementById('nbResidentRoleStep').classList.remove('hidden');
+    document.getElementById('nbResidentPickerSaveBtn').classList.remove('hidden');
+    document.getElementById('nbResidentPickerBackBtn').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('nbResidentRoleInput').focus(); }, 80);
+}
+
+function _nbResidentPickerBack() {
+    document.getElementById('nbResidentSearchStep').classList.remove('hidden');
+    document.getElementById('nbResidentRoleStep').classList.add('hidden');
+    document.getElementById('nbResidentPickerSaveBtn').classList.add('hidden');
+    document.getElementById('nbResidentPickerBackBtn').classList.add('hidden');
+}
+
+async function _nbSaveResident() {
+    var role = document.getElementById('nbResidentRoleInput').value.trim();
+    if (!role) { alert('Please enter a role.'); return; }
+    if (!_nbPickedContactId || !_nbCurrentResidentHouseId) return;
+
+    var btn = document.getElementById('nbResidentPickerSaveBtn');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+        await userCol('neighborHouseResidents').add({
+            houseId:         _nbCurrentResidentHouseId,
+            personId:        _nbPickedContactId,
+            role:            role,
+            archived:        false,
+            archivedGroupId: null,
+            createdAt:       firebase.firestore.FieldValue.serverTimestamp()
+        });
+        closeModal('nbResidentPickerModal');
+        _nbLoadResidents(_nbCurrentResidentHouseId);
+    } catch (e) {
+        alert('Failed to add resident.');
+        console.error('_nbSaveResident:', e);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Add Resident';
+    }
+}
+
+// ============================================================
+// ADD NEW PERSON — create contact + link to house
+// ============================================================
+
+function _nbOpenNewPersonModal(houseId) {
+    _nbCurrentResidentHouseId = houseId;
+    document.getElementById('nbNewNeighborName').value  = '';
+    document.getElementById('nbNewNeighborRole').value  = '';
+    document.getElementById('nbNewNeighborPhone').value = '';
+    document.getElementById('nbNewNeighborEmail').value = '';
+    openModal('nbNewNeighborModal');
+    setTimeout(function() { document.getElementById('nbNewNeighborName').focus(); }, 100);
+}
+
+async function _nbSaveNewNeighbor() {
+    var name  = document.getElementById('nbNewNeighborName').value.trim();
+    var role  = document.getElementById('nbNewNeighborRole').value.trim();
+    var phone = document.getElementById('nbNewNeighborPhone').value.trim();
+    var email = document.getElementById('nbNewNeighborEmail').value.trim();
+
+    if (!name) { alert('Please enter a name.'); return; }
+    if (!role) { alert('Please enter a role.'); return; }
+
+    var btn = document.getElementById('nbNewNeighborSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+        var personRef = await userCol('people').add({
+            name:          name,
+            category:      'Personal',
+            personalType:  'Neighbor',
+            phone:         phone || '',
+            email:         email || '',
+            quickMention:  false,
+            isMe:          false,
+            createdAt:     firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await userCol('neighborHouseResidents').add({
+            houseId:         _nbCurrentResidentHouseId,
+            personId:        personRef.id,
+            role:            role,
+            archived:        false,
+            archivedGroupId: null,
+            createdAt:       firebase.firestore.FieldValue.serverTimestamp()
+        });
+        closeModal('nbNewNeighborModal');
+        _nbLoadResidents(_nbCurrentResidentHouseId);
+    } catch (e) {
+        alert('Failed to save. Please try again.');
+        console.error('_nbSaveNewNeighbor:', e);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Add Person';
+    }
+}
+
+// ============================================================
+// HOUSE NOTES
+// ============================================================
+
+async function _nbLoadHouseNotes(houseId) {
+    var container = document.getElementById('nbHouseNotesContainer');
+    var emptyEl   = document.getElementById('nbHouseNotesEmpty');
+    container.innerHTML = '<p class="loading-text">Loading…</p>';
+    emptyEl.classList.add('hidden');
+
+    try {
+        var snap = await userCol('neighborHouseNotes')
+            .where('houseId', '==', houseId)
+            .get();
+
+        if (snap.empty) {
+            container.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        var notes = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+        notes.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+        container.innerHTML = notes.map(function(note) {
+            return '<div class="nb-note-item">' +
+                '<div class="nb-note-meta">' +
+                    '<span class="nb-note-date">' + escapeHtml(_nbFormatDate(note.date)) + '</span>' +
+                    '<div class="nb-note-actions">' +
+                        '<button class="btn btn-link" onclick="_nbOpenHouseNoteModal(\'' + houseId + '\',\'' + note.id + '\')">Edit</button>' +
+                        '<button class="btn btn-link btn-link--danger" onclick="_nbDeleteHouseNote(\'' + note.id + '\',\'' + houseId + '\')">Delete</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="nb-note-text">' + escapeHtml(note.text || '') + '</div>' +
+            '</div>';
+        }).join('');
+    } catch (e) {
+        container.innerHTML = '<p class="error-text">Failed to load notes.</p>';
+        console.error('_nbLoadHouseNotes:', e);
+    }
+}
+
+async function _nbOpenHouseNoteModal(houseId, noteId) {
+    _nbCurrentNoteHouseId = houseId;
+    _nbEditingNoteId      = noteId || null;
+
+    if (noteId) {
+        document.getElementById('nbHouseNoteModalTitle').textContent = 'Edit Note';
+        try {
+            var snap = await userCol('neighborHouseNotes').doc(noteId).get();
+            var note = snap.data() || {};
+            document.getElementById('nbHouseNoteDate').value = note.date || '';
+            document.getElementById('nbHouseNoteText').value = note.text || '';
+        } catch (e) { console.error('_nbOpenHouseNoteModal fetch:', e); }
+    } else {
+        document.getElementById('nbHouseNoteModalTitle').textContent = 'Add House Note';
+        document.getElementById('nbHouseNoteDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('nbHouseNoteText').value = '';
+    }
+    openModal('nbHouseNoteModal');
+    setTimeout(function() { document.getElementById('nbHouseNoteText').focus(); }, 100);
+}
+
+async function _nbSaveHouseNote() {
+    var date = document.getElementById('nbHouseNoteDate').value;
+    var text = document.getElementById('nbHouseNoteText').value.trim();
+    if (!text) { alert('Please enter a note.'); return; }
+
+    var btn = document.getElementById('nbHouseNoteSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+        if (_nbEditingNoteId) {
+            await userCol('neighborHouseNotes').doc(_nbEditingNoteId).update({ date: date, text: text });
+        } else {
+            await userCol('neighborHouseNotes').add({
+                houseId:   _nbCurrentNoteHouseId,
+                date:      date || new Date().toISOString().split('T')[0],
+                text:      text,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        closeModal('nbHouseNoteModal');
+        _nbLoadHouseNotes(_nbCurrentNoteHouseId);
+    } catch (e) {
+        alert('Save failed. Please try again.');
+        console.error('_nbSaveHouseNote:', e);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save';
+    }
+}
+
+async function _nbDeleteHouseNote(noteId, houseId) {
+    if (!confirm('Delete this note?')) return;
+    try {
+        await userCol('neighborHouseNotes').doc(noteId).delete();
+        _nbLoadHouseNotes(houseId);
+    } catch (e) {
+        alert('Failed to delete note.');
+        console.error('_nbDeleteHouseNote:', e);
+    }
+}
+
+// ============================================================
+// DELETE HOUSE  (Phase 2 — hard-delete only; Phase 3 adds archive)
+// ============================================================
+
+async function _nbConfirmDeleteHouse(house) {
+    if (!confirm('Delete this house pin?\n\nAll house notes and resident links will be permanently removed. Contacts will not be deleted.')) return;
+    try {
+        await _nbDeleteHouseData(house.id);
+        window.location.hash = '#neighborhood/' + house.neighborhoodId;
+    } catch (e) {
+        alert('Delete failed. Please try again.');
+        console.error('_nbConfirmDeleteHouse:', e);
+    }
+}
+
+// ============================================================
+// lastInteractionAt UPDATE HOOK
+// Called by contacts.js after a new peopleInteraction is saved.
+// Updates lastInteractionAt on any house where this person is a
+// current (non-archived) resident.
+// ============================================================
+
+async function _nbUpdateHouseLastInteraction(personId, date) {
+    try {
+        var snap = await userCol('neighborHouseResidents')
+            .where('personId', '==', personId)
+            .where('archived', '==', false)
+            .get();
+        if (snap.empty) return;
+
+        var ts = date ? new Date(date) : new Date();
+        var batch = db.batch();
+        snap.forEach(function(d) {
+            batch.update(userCol('neighborHouses').doc(d.data().houseId), { lastInteractionAt: ts });
+        });
+        await batch.commit();
+
+        // Update in-memory house if we're currently on that house detail page
+        if (_nbCurrentHouse) {
+            var match = snap.docs.find(function(d) { return d.data().houseId === _nbCurrentHouse.id; });
+            if (match) _nbCurrentHouse.lastInteractionAt = ts;
+        }
+    } catch (e) {
+        console.error('_nbUpdateHouseLastInteraction:', e);
+    }
+}
+
+// ============================================================
+// DATE HELPER
+// ============================================================
+
+function _nbFormatDate(dateStr) {
+    if (!dateStr) return '';
+    var d = new Date(dateStr + 'T12:00:00'); // noon prevents timezone-off-by-one
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // ============================================================

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=715">
+    <link rel="stylesheet" href="css/styles.css?v=716">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -4084,6 +4084,113 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('nbHouseModal')">Cancel</button>
                 <button class="btn btn-primary" id="nbHouseSaveBtn" onclick="_nbSaveHouse()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Existing Contact as Resident -->
+    <div class="modal-overlay" id="nbResidentPickerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Resident from Contacts</h3>
+                <button class="modal-close" onclick="closeModal('nbResidentPickerModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: search -->
+                <div id="nbResidentSearchStep">
+                    <div class="form-group">
+                        <label for="nbResidentSearchInput">Search contacts</label>
+                        <input type="text" id="nbResidentSearchInput" placeholder="Type a name…" class="form-control" oninput="_nbSearchContactsForResident()">
+                    </div>
+                    <div id="nbResidentSearchResults" class="nb-search-results"></div>
+                </div>
+                <!-- Step 2: role -->
+                <div id="nbResidentRoleStep" class="hidden">
+                    <p id="nbResidentRolePersonName" class="nb-picker-selected-name"></p>
+                    <div class="form-group">
+                        <label for="nbResidentRoleInput">Role <span class="required-star">*</span></label>
+                        <input type="text" id="nbResidentRoleInput" placeholder="Owner, Spouse, Kid…" class="form-control" list="nbResidentRoleList">
+                        <datalist id="nbResidentRoleList">
+                            <option value="Owner">
+                            <option value="Spouse">
+                            <option value="Partner">
+                            <option value="Kid">
+                            <option value="Pet">
+                            <option value="Tenant">
+                            <option value="Unknown">
+                        </datalist>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary hidden" id="nbResidentPickerBackBtn" onclick="_nbResidentPickerBack()">← Back</button>
+                <button class="btn btn-secondary" onclick="closeModal('nbResidentPickerModal')">Cancel</button>
+                <button class="btn btn-primary hidden" id="nbResidentPickerSaveBtn" onclick="_nbSaveResident()">Add Resident</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Person as Resident -->
+    <div class="modal-overlay" id="nbNewNeighborModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add New Person</h3>
+                <button class="modal-close" onclick="closeModal('nbNewNeighborModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="nbNewNeighborName">Name <span class="required-star">*</span></label>
+                    <input type="text" id="nbNewNeighborName" class="form-control" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label for="nbNewNeighborRole">Role <span class="required-star">*</span></label>
+                    <input type="text" id="nbNewNeighborRole" class="form-control" placeholder="Owner, Spouse, Kid…" list="nbNewNeighborRoleList">
+                    <datalist id="nbNewNeighborRoleList">
+                        <option value="Owner">
+                        <option value="Spouse">
+                        <option value="Partner">
+                        <option value="Kid">
+                        <option value="Pet">
+                        <option value="Tenant">
+                        <option value="Unknown">
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label for="nbNewNeighborPhone">Phone <span class="optional-label">(optional)</span></label>
+                    <input type="text" id="nbNewNeighborPhone" class="form-control" placeholder="555-1234">
+                </div>
+                <div class="form-group">
+                    <label for="nbNewNeighborEmail">Email <span class="optional-label">(optional)</span></label>
+                    <input type="email" id="nbNewNeighborEmail" class="form-control" placeholder="email@example.com">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('nbNewNeighborModal')">Cancel</button>
+                <button class="btn btn-primary" id="nbNewNeighborSaveBtn" onclick="_nbSaveNewNeighbor()">Add Person</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit House Note -->
+    <div class="modal-overlay" id="nbHouseNoteModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="nbHouseNoteModalTitle">Add House Note</h3>
+                <button class="modal-close" onclick="closeModal('nbHouseNoteModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="nbHouseNoteDate">Date</label>
+                    <input type="date" id="nbHouseNoteDate" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="nbHouseNoteText">Note <span class="required-star">*</span></label>
+                    <textarea id="nbHouseNoteText" class="form-control" rows="3" placeholder="e.g. Their landscaper is Green Thumb Co"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('nbHouseNoteModal')">Cancel</button>
+                <button class="btn btn-primary" id="nbHouseNoteSaveBtn" onclick="_nbSaveHouseNote()">Save</button>
             </div>
         </div>
     </div>
@@ -9568,14 +9675,35 @@ service firebase.storage {
             <div id="nbMapContainer" class="nb-map-container"></div>
         </section>
 
-        <!-- Page: House Detail (#neighborhouse/{id}) — Phase 1 stub -->
+        <!-- Page: House Detail (#neighborhouse/{id}) -->
         <section class="page hidden" id="page-neighborhouse">
             <div class="page-header">
-                <h2 id="nbHouseStubName"></h2>
-                <button class="btn btn-secondary btn-small" id="nbHouseStubBackBtn">← Map</button>
+                <h2 id="nbHouseName"></h2>
+                <div class="page-header-actions">
+                    <button class="btn btn-secondary btn-small" id="nbHouseEditBtn">Edit</button>
+                    <button class="btn btn-danger btn-small" id="nbHouseDeleteBtn">Delete</button>
+                </div>
             </div>
-            <p id="nbHouseStubAddress" class="nb-house-stub-address"></p>
-            <p class="empty-state" style="margin-top:40px;">Residents, notes, and history coming in the next phase.</p>
+            <p id="nbHouseDetailAddress" class="nb-house-address"></p>
+
+            <!-- Residents -->
+            <div class="section-header" style="margin-top:20px;">
+                <h3 class="section-heading">Residents</h3>
+                <div class="section-header-actions">
+                    <button class="btn btn-secondary btn-small" id="nbAddExistingResidentBtn">+ From Contacts</button>
+                    <button class="btn btn-primary btn-small" id="nbAddNewResidentBtn">+ New Person</button>
+                </div>
+            </div>
+            <div id="nbResidentsContainer"></div>
+            <p id="nbResidentsEmpty" class="empty-state hidden">No current residents — add someone above.</p>
+
+            <!-- House Notes -->
+            <div class="section-header" style="margin-top:28px;">
+                <h3 class="section-heading">House Notes</h3>
+                <button class="btn btn-secondary btn-small" id="nbAddHouseNoteBtn">+ Add Note</button>
+            </div>
+            <div id="nbHouseNotesContainer"></div>
+            <p id="nbHouseNotesEmpty" class="empty-state hidden">No notes yet.</p>
         </section>
 
         <!-- Page: Contact Detail (#contact/{id}) -->
@@ -10931,8 +11059,8 @@ export default {
     <script src="js/structures.js?v=537"></script>
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
-    <script src="js/contacts.js?v=548"></script>
-    <script src="js/neighbors.js?v=1"></script>
+    <script src="js/contacts.js?v=549"></script>
+    <script src="js/neighbors.js?v=2"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>
