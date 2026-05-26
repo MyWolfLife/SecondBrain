@@ -4074,7 +4074,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="nbHouseNickname">Name / Nickname <span class="required-star">*</span></label>
-                    <input type="text" id="nbHouseNickname" placeholder="e.g. The Smiths, Corner house, Wayne's" class="form-control">
+                    <input type="text" id="nbHouseNickname" placeholder="e.g. The Smiths, Corner house, Wayne's" class="form-control" oninput="document.getElementById('nbHouseSaveBtn').disabled=!this.value.trim()">
                 </div>
                 <div class="form-group">
                     <label for="nbHouseAddress">Address <span class="optional-label">(optional)</span></label>
@@ -4178,11 +4178,11 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="nbNewNeighborName">Name <span class="required-star">*</span></label>
-                    <input type="text" id="nbNewNeighborName" class="form-control" placeholder="Full name">
+                    <input type="text" id="nbNewNeighborName" class="form-control" placeholder="Full name" oninput="_nbUpdateNewNeighborSaveBtn()">
                 </div>
                 <div class="form-group">
                     <label for="nbNewNeighborRole">Role <span class="required-star">*</span></label>
-                    <input type="text" id="nbNewNeighborRole" class="form-control" placeholder="Owner, Spouse, Kid…" list="nbNewNeighborRoleList">
+                    <input type="text" id="nbNewNeighborRole" class="form-control" placeholder="Owner, Spouse, Kid…" list="nbNewNeighborRoleList" oninput="_nbUpdateNewNeighborSaveBtn()">
                     <datalist id="nbNewNeighborRoleList">
                         <option value="Owner">
                         <option value="Spouse">
@@ -11128,7 +11128,7 @@ export default {
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
     <script src="js/contacts.js?v=549"></script>
-    <script src="js/neighbors.js?v=4"></script>
+    <script src="js/neighbors.js?v=5"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>

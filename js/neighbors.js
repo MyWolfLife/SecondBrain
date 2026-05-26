@@ -392,6 +392,7 @@ function _nbOpenAddHouseModal(latlng) {
     document.getElementById('nbHouseModalTitle').textContent = 'Name This House';
     document.getElementById('nbHouseNickname').value = '';
     document.getElementById('nbHouseAddress').value  = '';
+    document.getElementById('nbHouseSaveBtn').disabled = true;
     openModal('nbHouseModal');
     setTimeout(function() { document.getElementById('nbHouseNickname').focus(); }, 100);
 }
@@ -404,6 +405,7 @@ function _nbOpenEditHouseModal(houseId) {
     document.getElementById('nbHouseModalTitle').textContent = 'Edit House';
     document.getElementById('nbHouseNickname').value = house.nickname || '';
     document.getElementById('nbHouseAddress').value  = house.address  || '';
+    document.getElementById('nbHouseSaveBtn').disabled = !(house.nickname || '').trim();
     openModal('nbHouseModal');
 }
 
@@ -563,6 +565,7 @@ function _nbOpenEditHouseFromDetail() {
     document.getElementById('nbHouseModalTitle').textContent = 'Edit House';
     document.getElementById('nbHouseNickname').value = _nbCurrentHouse.nickname || '';
     document.getElementById('nbHouseAddress').value  = _nbCurrentHouse.address  || '';
+    document.getElementById('nbHouseSaveBtn').disabled = !(_nbCurrentHouse.nickname || '').trim();
     openModal('nbHouseModal');
 }
 
@@ -830,8 +833,15 @@ function _nbOpenNewPersonModal(houseId) {
     document.getElementById('nbNewNeighborRole').value  = '';
     document.getElementById('nbNewNeighborPhone').value = '';
     document.getElementById('nbNewNeighborEmail').value = '';
+    document.getElementById('nbNewNeighborSaveBtn').disabled = true;
     openModal('nbNewNeighborModal');
     setTimeout(function() { document.getElementById('nbNewNeighborName').focus(); }, 100);
+}
+
+function _nbUpdateNewNeighborSaveBtn() {
+    var name = document.getElementById('nbNewNeighborName').value.trim();
+    var role = document.getElementById('nbNewNeighborRole').value.trim();
+    document.getElementById('nbNewNeighborSaveBtn').disabled = !(name && role);
 }
 
 async function _nbSaveNewNeighbor() {
