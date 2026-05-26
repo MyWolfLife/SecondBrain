@@ -2417,7 +2417,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Tap the **✏️** button on a neighborhood card to edit its name, notes, or replace the image
 - Tap the **🗑** button to delete the neighborhood and all its houses
 
-**Map view:** Your uploaded image fills the screen as a pannable, zoomable map. House pins appear at the positions you placed them. The pin label shows the house nickname.
+**Map view:** Your uploaded image fills the screen as a pannable, zoomable map. House pins appear at the positions you placed them. Hover (or tap on mobile) a pin to see the house nickname as a tooltip.
 
 **Pin colors:**
 - **Green**: you interacted with a resident within the last 60 days

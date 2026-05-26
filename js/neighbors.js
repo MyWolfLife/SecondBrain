@@ -374,8 +374,14 @@ function _nbAddMarkerToMap(house) {
 
     var color  = _nbPinColor(house.lastInteractionAt);
     var marker = L.marker([lat, lng], {
-        icon:      _nbPinIcon(house.nickname, color),
+        icon:      _nbPinIcon(color),
         draggable: true
+    });
+    marker.bindTooltip(house.nickname || '', {
+        permanent:  false,
+        direction:  'top',
+        offset:     L.point(0, -14),
+        className:  'nb-pin-tooltip'
     });
 
     marker.on('dragend', function(e) {
@@ -459,7 +465,10 @@ async function _nbSaveHouse() {
                 house.nickname = nickname;
                 house.address  = address;
                 var marker = _nbMarkers[_nbEditingHouseId];
-                if (marker) marker.setIcon(_nbPinIcon(nickname, _nbPinColor(house.lastInteractionAt)));
+                if (marker) {
+                    marker.setIcon(_nbPinIcon(_nbPinColor(house.lastInteractionAt)));
+                    marker.setTooltipContent(nickname);
+                }
             }
             // Update house detail page header if we're viewing this house
             if (_nbCurrentHouse && _nbCurrentHouse.id === _nbEditingHouseId) {
@@ -1373,17 +1382,16 @@ function _nbPinColor(lastInteractionAt) {
     return NB_GRAY;
 }
 
-function _nbPinIcon(nickname, color) {
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">' +
+function _nbPinIcon(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
         '<circle cx="12" cy="12" r="11" fill="' + color + '" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>' +
         '<polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>' +
         '</svg>';
     return L.divIcon({
-        html:      '<div class="nb-pin-wrap">' + svg +
-                   '<div class="nb-pin-label">' + escapeHtml(nickname) + '</div></div>',
+        html:      '<div class="nb-pin-wrap">' + svg + '</div>',
         className: 'nb-pin',
-        iconSize:  [32, 54],
-        iconAnchor:[16, 16]
+        iconSize:  [24, 24],
+        iconAnchor:[12, 12]
     });
 }
 

@@ -18487,25 +18487,24 @@ a.legacy-fin-card:hover {
 .nb-pin { background: none !important; border: none !important; }
 .nb-pin-wrap {
     display: flex;
-    flex-direction: column;
     align-items: center;
+    justify-content: center;
     pointer-events: none;
 }
-.nb-pin-label {
-    margin-top: 2px;
-    background: rgba(255,255,255,0.9);
-    border: 1px solid rgba(0,0,0,0.15);
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #111;
-    white-space: nowrap;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    pointer-events: auto;
+
+/* Tooltip shown on hover over a house pin */
+.nb-pin-tooltip {
+    background: rgba(17, 17, 17, 0.85) !important;
+    border: none !important;
+    border-radius: 5px !important;
+    color: #fff !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    padding: 3px 8px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
 }
+.nb-pin-tooltip::before { display: none !important; }
 
 /* Image preview in neighborhood modal */
 .nb-image-preview {

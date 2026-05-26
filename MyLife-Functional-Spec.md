@@ -835,7 +835,7 @@ Track the people who live near you, organized by named neighborhoods, with a vis
 - **Amber** (`#d97706`): last interaction 61 days – 1 year ago
 - **Gray** (`#6b7280`): never interacted or > 1 year ago
 
-**Pin icon**: House-shaped SVG (color-filled circle with white house polygon). Nickname label shown below each pin.
+**Pin icon**: House-shaped SVG (color-filled circle with white house polygon), 24×24px. Nickname shown as a hover tooltip (dark pill above the pin) rather than a persistent label.
 
 **Placement mode**: Tap **+ Add House** to enter placement mode (amber banner shown, crosshair cursor). Tapping the map places a new pin. A modal then prompts for nickname and address; saving writes to Firestore and renders the marker. Pins are draggable; drag-end updates `pinX`/`pinY` in Firestore.
 
