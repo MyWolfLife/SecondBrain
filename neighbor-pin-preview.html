@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neighbor Pin Icon Options</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f4f8;
+    padding: 32px;
+    margin: 0;
+  }
+  h2 { text-align: center; color: #333; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 32px; }
+
+  .comparison {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .option {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    width: 360px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  }
+  .option h3 { margin: 0 0 6px; color: #222; font-size: 17px; }
+  .option .desc { font-size: 13px; color: #777; margin-bottom: 16px; }
+
+  /* Fake map background */
+  .map-mock {
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    height: 240px;
+    background-color: #e8f0e8;
+  }
+  .map-mock svg.map-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Pin examples row */
+  .pin-row {
+    display: flex;
+    gap: 28px;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px 0 8px;
+    border-top: 1px solid #eee;
+    margin-top: 16px;
+  }
+  .pin-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .pin-item span {
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    max-width: 70px;
+  }
+
+  /* Color key */
+  .color-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .key-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #555;
+  }
+  .key-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  .pros { margin-top: 14px; }
+  .pros li { font-size: 12px; color: #555; margin: 3px 0; }
+
+  .verdict {
+    margin-top: 24px;
+    background: #fffbea;
+    border: 1px solid #f0d060;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #555;
+    text-align: center;
+  }
+  .verdict strong { color: #333; }
+</style>
+</head>
+<body>
+
+<h2>Neighbor Map — Pin Icon Options</h2>
+<p class="subtitle">Both are draggable on the real map. Pick the style you prefer.</p>
+
+<div class="comparison">
+
+  <!-- OPTION A: Default Leaflet teardrop -->
+  <div class="option">
+    <h3>Option A — Classic Teardrop</h3>
+    <p class="desc">The familiar map pin shape. Simple, universally understood. No color coding — always blue.</p>
+
+    <div class="map-mock">
+      <svg class="map-layer" viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg">
+        <!-- Ground -->
+        <rect width="360" height="240" fill="#e8f0e8"/>
+        <!-- Road horizontal -->
+        <rect x="0" y="115" width="360" height="14" fill="#d0d0d0"/>
+        <!-- Road vertical -->
+        <rect x="170" y="0" width="14" height="240" fill="#d0d0d0"/>
+        <!-- Road center lines -->
+        <line x1="0" y1="122" x2="360" y2="122" stroke="white" stroke-width="1" stroke-dasharray="18,12"/>
+        <line x1="177" y1="0" x2="177" y2="240" stroke="white" stroke-width="1" stroke-dasharray="18,12"/>
+        <!-- Lots -->
+        <rect x="20" y="20" width="130" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="200" y="20" width="140" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="20" y="145" width="130" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="200" y="145" width="140" height="80" fill="#d8ead8" rx="3"/>
+
+        <!-- Pin 1 (blue, upper left) -->
+        <g transform="translate(70, 32)">
+          <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 20 10 20s10-12.5 10-20C20 4.5 15.5 0 10 0z" fill="#2563eb" stroke="#1d4ed8" stroke-width="1"/>
+          <circle cx="10" cy="10" r="4" fill="white" opacity="0.9"/>
+          <!-- Label -->
+          <rect x="-18" y="32" width="56" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="10" y="43" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">The Smiths</text>
+        </g>
+
+        <!-- Pin 2 (blue, upper right) -->
+        <g transform="translate(255, 25)">
+          <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 20 10 20s10-12.5 10-20C20 4.5 15.5 0 10 0z" fill="#2563eb" stroke="#1d4ed8" stroke-width="1"/>
+          <circle cx="10" cy="10" r="4" fill="white" opacity="0.9"/>
+          <rect x="-14" y="32" width="48" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="10" y="43" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">Wayne's</text>
+        </g>
+
+        <!-- Pin 3 (blue, lower left) -->
+        <g transform="translate(60, 155)">
+          <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 20 10 20s10-12.5 10-20C20 4.5 15.5 0 10 0z" fill="#2563eb" stroke="#1d4ed8" stroke-width="1"/>
+          <circle cx="10" cy="10" r="4" fill="white" opacity="0.9"/>
+          <rect x="-16" y="32" width="52" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="10" y="43" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">Corner House</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Isolated examples -->
+    <div class="pin-row">
+      <div class="pin-item">
+        <svg width="22" height="32" viewBox="0 0 20 30" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 20 10 20s10-12.5 10-20C20 4.5 15.5 0 10 0z" fill="#2563eb" stroke="#1d4ed8" stroke-width="1"/>
+          <circle cx="10" cy="10" r="4" fill="white" opacity="0.9"/>
+        </svg>
+        <span>All houses same color</span>
+      </div>
+    </div>
+
+    <ul class="pros">
+      <li>✓ Instantly recognizable as a map pin</li>
+      <li>✓ Zero visual clutter</li>
+      <li>✗ No visual difference between houses</li>
+      <li>✗ No "at a glance" recency info</li>
+    </ul>
+  </div>
+
+  <!-- OPTION B: House icon, color-coded -->
+  <div class="option">
+    <h3>Option B — House Icon, Color-Coded</h3>
+    <p class="desc">House-shaped icon. Color shows how recently you've logged anything about someone in that house.</p>
+
+    <div class="map-mock">
+      <svg class="map-layer" viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg">
+        <!-- Ground -->
+        <rect width="360" height="240" fill="#e8f0e8"/>
+        <!-- Road horizontal -->
+        <rect x="0" y="115" width="360" height="14" fill="#d0d0d0"/>
+        <!-- Road vertical -->
+        <rect x="170" y="0" width="14" height="240" fill="#d0d0d0"/>
+        <!-- Center lines -->
+        <line x1="0" y1="122" x2="360" y2="122" stroke="white" stroke-width="1" stroke-dasharray="18,12"/>
+        <line x1="177" y1="0" x2="177" y2="240" stroke="white" stroke-width="1" stroke-dasharray="18,12"/>
+        <!-- Lots -->
+        <rect x="20" y="20" width="130" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="200" y="20" width="140" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="20" y="145" width="130" height="80" fill="#d8ead8" rx="3"/>
+        <rect x="200" y="145" width="140" height="80" fill="#d8ead8" rx="3"/>
+
+        <!-- House pin: GREEN (recent interaction) upper left -->
+        <g transform="translate(62, 28)">
+          <!-- Circle bg -->
+          <circle cx="12" cy="12" r="13" fill="#16a34a" stroke="#15803d" stroke-width="1.5"/>
+          <!-- House icon white -->
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+          <!-- Label -->
+          <rect x="-18" y="27" width="60" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="12" y="38" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">The Smiths</text>
+        </g>
+
+        <!-- House pin: AMBER (moderate) upper right -->
+        <g transform="translate(248, 22)">
+          <circle cx="12" cy="12" r="13" fill="#d97706" stroke="#b45309" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+          <rect x="-14" y="27" width="52" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="12" y="38" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">Wayne's</text>
+        </g>
+
+        <!-- House pin: GRAY (no activity) lower left -->
+        <g transform="translate(55, 152)">
+          <circle cx="12" cy="12" r="13" fill="#6b7280" stroke="#4b5563" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+          <rect x="-14" y="27" width="52" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="12" y="38" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">Corner House</text>
+        </g>
+
+        <!-- House pin: GREEN lower right (added example) -->
+        <g transform="translate(245, 158)">
+          <circle cx="12" cy="12" r="13" fill="#16a34a" stroke="#15803d" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+          <rect x="-10" y="27" width="44" height="14" rx="3" fill="white" opacity="0.85"/>
+          <text x="12" y="38" text-anchor="middle" font-size="9" fill="#333" font-family="sans-serif">Jenkins</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Color key -->
+    <div class="color-key">
+      <div class="key-item">
+        <div class="key-dot" style="background:#16a34a; border-radius:50%;"></div>
+        <span>Interacted within 30 days</span>
+      </div>
+      <div class="key-item">
+        <div class="key-dot" style="background:#d97706; border-radius:50%;"></div>
+        <span>31–90 days ago</span>
+      </div>
+      <div class="key-item">
+        <div class="key-dot" style="background:#6b7280; border-radius:50%;"></div>
+        <span>90+ days / no log yet</span>
+      </div>
+    </div>
+
+    <!-- Isolated examples -->
+    <div class="pin-row">
+      <div class="pin-item">
+        <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="12" fill="#16a34a" stroke="#15803d" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+        </svg>
+        <span>Recent</span>
+      </div>
+      <div class="pin-item">
+        <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="12" fill="#d97706" stroke="#b45309" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+        </svg>
+        <span>31–90 days</span>
+      </div>
+      <div class="pin-item">
+        <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="12" fill="#6b7280" stroke="#4b5563" stroke-width="1.5"/>
+          <polygon points="12,3 3,10 3,20 9,20 9,14 15,14 15,20 21,20 21,10" fill="white"/>
+        </svg>
+        <span>Stale / new</span>
+      </div>
+    </div>
+
+    <ul class="pros">
+      <li>✓ House shape makes it feel like a neighborhood</li>
+      <li>✓ Color tells you at a glance who you've been keeping up with</li>
+      <li>✓ Gray pins = "I haven't talked to these people in a while"</li>
+      <li>✗ Slightly more visual complexity</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="verdict">
+  <strong>My lean:</strong> Option B — the color coding turns the map into a useful "relationship health" dashboard, not just a directory.
+  But Option A is cleaner if you don't want that mental overhead.
+</div>
+
+</body>
+</html>

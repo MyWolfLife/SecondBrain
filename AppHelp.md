@@ -2385,10 +2385,62 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - For Medical Facilities, add staff members as sub-contacts (Medical Professionals) with the facility as parent. Then in the appointment form, selecting the facility will show its staff in the provider dropdown automatically.
 - Important dates with a year set show a "turns N" age calculation in the Coming Up section -- great for tracking milestone birthdays.
 
+**Neighbors:** Tap **🏘 Neighbors** (below the "Contacts" heading on the contacts list) to open the Neighborhoods section. There you can create named neighborhoods, upload a map image, and drop pins on houses to track who lives there and when you last interacted.
+
 ### See Also
 - [Life Home](#help/life)
 - [Journal](#help/journal)
 - [My Care Team](#help/health-care-team)
+- [Neighbors](#help/neighbors)
+
+---
+
+## screen:neighbors
+
+### Quick Help
+- Create named **neighborhoods** (e.g., "Townside", "Lake House Area") and upload a map image for each
+- Drop draggable **pins** on houses in the map image
+- Pin colors show interaction recency: **green** ≤ 60 days, **amber** 61 days – 1 year, **gray** never / stale
+- Tap a pin to open the house detail page
+
+### Details
+
+**What Neighbors is:** A visual map for tracking the people who live around you. You upload a screenshot of your neighborhood (e.g. from Google Maps), place pins on houses, and log who lives there and when you last interacted.
+
+**Neighborhoods list:** Tap **🏘 Neighbors** on the Contacts screen. Each card shows the neighborhood name, a notes snippet, and house count. Tap a card to open the map.
+
+**Adding a neighborhood:**
+- Tap **+ Add Neighborhood**
+- Enter a name (required) and optional notes
+- Tap **Upload Map Image** and pick a screenshot from your device — the image is compressed and stored
+- Save is disabled until an image is chosen
+- Tap the **✏️** button on a neighborhood card to edit its name, notes, or replace the image
+- Tap the **🗑** button to delete the neighborhood and all its houses
+
+**Map view:** Your uploaded image fills the screen as a pannable, zoomable map. House pins appear at the positions you placed them. The pin label shows the house nickname.
+
+**Pin colors:**
+- **Green**: you interacted with a resident within the last 60 days
+- **Amber**: last interaction was 61 days to 1 year ago
+- **Gray**: never interacted, or it has been over a year
+
+**Adding a house pin:**
+1. Tap **+ Add House** — an amber banner appears and the cursor changes to a crosshair
+2. Tap anywhere on the map image to place the pin
+3. A form appears — enter the house nickname (required) and street address (optional)
+4. Tap Save — the pin appears on the map
+
+**Moving a pin:** Drag any pin to reposition it. The new location is saved automatically.
+
+**House detail:** Tap a pin to open the house detail page (Residents, Notes, and interaction history — Phase 2).
+
+**Tips:**
+- Use a zoomed-in Google Maps screenshot for best pin placement precision
+- The nickname is shown on the pin label — keep it short (e.g., "The Smiths", "Wayne & Linda")
+- Pin colors update automatically as you log interactions with residents
+
+### See Also
+- [Contacts](#help/contacts)
 
 ---
 

@@ -18396,3 +18396,143 @@ a.legacy-fin-card:hover {
     color: #ef4444;
     background: #fef2f2;
 }
+
+/* ============================================================
+   Neighbors — Neighborhoods list, map, pins
+   ============================================================ */
+
+/* Entry link on Contacts page */
+.nb-contacts-entry-link {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: #16a34a;
+    text-decoration: none;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+.nb-contacts-entry-link:hover { text-decoration: underline; }
+
+/* Neighborhood list cards */
+.nb-neighborhood-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nb-neighborhood-card:hover {
+    border-color: #16a34a;
+    box-shadow: 0 2px 8px rgba(22,163,74,0.1);
+}
+.nb-neighborhood-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.nb-neighborhood-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+.nb-neighborhood-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #111;
+}
+.nb-neighborhood-meta {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+.nb-neighborhood-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* Map container */
+.nb-map-container {
+    width: 100%;
+    height: calc(100vh - 140px);
+    min-height: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #e5e7eb;
+}
+.nb-map-container.nb-crosshair { cursor: crosshair !important; }
+.nb-map-container.nb-crosshair .leaflet-container { cursor: crosshair !important; }
+
+/* Placement mode banner */
+.nb-placement-banner {
+    display: flex;
+    align-items: center;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #92400e;
+    font-weight: 500;
+}
+
+/* Pin icon — Leaflet divIcon wrapper */
+.nb-pin { background: none !important; border: none !important; }
+.nb-pin-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+}
+.nb-pin-label {
+    margin-top: 2px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #111;
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: auto;
+}
+
+/* Image preview in neighborhood modal */
+.nb-image-preview {
+    display: block;
+    margin-top: 10px;
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+/* House stub page */
+.nb-house-stub-address {
+    font-size: 0.9rem;
+    color: #6b7280;
+    padding: 0 16px;
+    margin-top: 4px;
+}
+
+/* Responsive — smaller map on mobile */
+@media (max-width: 480px) {
+    .nb-map-container {
+        height: calc(100vh - 160px);
+    }
+    .nb-placement-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}

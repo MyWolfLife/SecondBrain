@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=714">
+    <link rel="stylesheet" href="css/styles.css?v=715">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -4035,6 +4035,58 @@
         </section>
 
     </main>
+
+    <!-- ========== NEIGHBORS MODALS ========== -->
+
+    <!-- Add / Edit Neighborhood -->
+    <div class="modal-overlay hidden" id="nbNeighborhoodModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="nbNeighborhoodModalTitle">Add Neighborhood</h3>
+                <button class="modal-close" onclick="closeModal('nbNeighborhoodModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="nbNeighborhoodName">Name</label>
+                    <input type="text" id="nbNeighborhoodName" placeholder="e.g. Townside, Lake House Area" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Map Image</label>
+                    <p id="nbNeighborhoodImageHint" class="form-hint">Upload a screenshot of your neighborhood map (required)</p>
+                    <input type="file" id="nbNeighborhoodImageFile" accept="image/*" onchange="_nbHandleImageSelect(this)" style="margin-top:6px;">
+                    <img id="nbNeighborhoodImagePreview" class="nb-image-preview hidden" alt="Map preview">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('nbNeighborhoodModal')">Cancel</button>
+                <button class="btn btn-primary" id="nbNeighborhoodSaveBtn" onclick="_nbSaveNeighborhood()" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit House Pin -->
+    <div class="modal-overlay hidden" id="nbHouseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="nbHouseModalTitle">Name This House</h3>
+                <button class="modal-close" onclick="closeModal('nbHouseModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="nbHouseNickname">Name / Nickname <span class="required-star">*</span></label>
+                    <input type="text" id="nbHouseNickname" placeholder="e.g. The Smiths, Corner house, Wayne's" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="nbHouseAddress">Address <span class="optional-label">(optional)</span></label>
+                    <input type="text" id="nbHouseAddress" placeholder="e.g. 123 Townside Dr" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('nbHouseModal')">Cancel</button>
+                <button class="btn btn-primary" id="nbHouseSaveBtn" onclick="_nbSaveHouse()">Save</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ========== MODALS ========== -->
 
@@ -9468,7 +9520,10 @@ service firebase.storage {
         <!-- Page: Contacts List (#contacts) -->
         <section class="page hidden" id="page-contacts">
             <div class="page-header">
-                <h2>Contacts</h2>
+                <div>
+                    <h2>Contacts</h2>
+                    <a href="#neighbors" class="nb-contacts-entry-link">&#127968; Neighbors</a>
+                </div>
                 <button class="btn btn-primary btn-small" id="addContactBtn">+ Add Contact</button>
             </div>
             <!-- Filter / search bar -->
@@ -9481,6 +9536,46 @@ service firebase.storage {
             <!-- Contacts list — filled dynamically -->
             <div id="contactsListContainer"></div>
             <p class="empty-state" id="contactsListEmpty" style="display:none;"></p>
+        </section>
+
+        <!-- =====================================================
+             NEIGHBORS PAGES
+             ===================================================== -->
+
+        <!-- Page: Neighborhoods List (#neighbors) -->
+        <section class="page hidden" id="page-neighbors">
+            <div class="page-header">
+                <h2>Neighborhoods</h2>
+                <button class="btn btn-primary btn-small" onclick="openAddNeighborhoodModal()">+ Add</button>
+            </div>
+            <div id="nbNeighborhoodsListContainer"></div>
+            <p class="empty-state hidden" id="nbNeighborhoodsEmpty">No neighborhoods yet — tap + Add to create one.</p>
+        </section>
+
+        <!-- Page: Neighborhood Map (#neighborhood/{id}) -->
+        <section class="page hidden" id="page-neighborhood">
+            <div class="page-header">
+                <h2 id="nbMapNeighborhoodName"></h2>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-secondary btn-small" id="nbEditNeighborhoodBtn">Edit</button>
+                    <button class="btn btn-primary btn-small" id="nbAddHouseBtn" onclick="_nbEnterPlacementMode()">+ Add House</button>
+                </div>
+            </div>
+            <div id="nbPlacementBanner" class="nb-placement-banner hidden">
+                Tap the map to place a house pin
+                <button class="btn btn-secondary btn-small" style="margin-left:10px;" onclick="_nbExitPlacementMode()">Cancel</button>
+            </div>
+            <div id="nbMapContainer" class="nb-map-container"></div>
+        </section>
+
+        <!-- Page: House Detail (#neighborhouse/{id}) — Phase 1 stub -->
+        <section class="page hidden" id="page-neighborhouse">
+            <div class="page-header">
+                <h2 id="nbHouseStubName"></h2>
+                <button class="btn btn-secondary btn-small" id="nbHouseStubBackBtn">← Map</button>
+            </div>
+            <p id="nbHouseStubAddress" class="nb-house-stub-address"></p>
+            <p class="empty-state" style="margin-top:40px;">Residents, notes, and history coming in the next phase.</p>
         </section>
 
         <!-- Page: Contact Detail (#contact/{id}) -->
@@ -10837,6 +10932,7 @@ export default {
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
     <script src="js/contacts.js?v=548"></script>
+    <script src="js/neighbors.js?v=1"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>
@@ -10866,7 +10962,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=663"></script>
+    <script src="js/app.js?v=664"></script>
 
 </body>
 </html>

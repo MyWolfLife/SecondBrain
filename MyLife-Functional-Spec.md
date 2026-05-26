@@ -798,6 +798,8 @@ Renamed from "People". Tracks personal contacts and medical/service professional
 
 **Routes**: `#contacts` (list), `#contact/{id}` (detail). Legacy `#people` / `#person/{id}` redirect to the new routes.
 
+**Neighbors entry point**: A **🏘 Neighbors** link appears below the "Contacts" heading on the contacts list page. Tapping it navigates to the Neighborhoods list (`#neighbors`). See the Neighbors section below for full detail.
+
 **Hierarchy**: Sub-contacts (`parentPersonId`) allow grouping (e.g., family members under a parent record). The sub-contacts section heading dynamically adapts: **"Family Members"** for Personal/other categories, **"Staff"** for Medical Facility contacts. The empty-state text also adapts accordingly.
 
 **Contact detail sections**:
@@ -811,6 +813,33 @@ Renamed from "People". Tracks personal contacts and medical/service professional
 **ContactPicker component** (`buildContactPicker(containerId, options)`): Reusable searchable dropdown that filters contacts by category. Used by Care Team (Phase 2), Appointments (Phase 3), and other health features. Supports inline contact creation via `allowCreate: true`. When `filterCategory` is set, queries all contacts with that category (including sub-contacts like staff under a Medical Facility) — a staff member with `category: 'Medical Professional'` will appear in the provider picker even if they have a `parentPersonId`. Supports `facilityPickerId` option: when the provider field is focused with an empty query and a facility is already selected, the dropdown immediately shows all staff sub-contacts of that facility (filtered by category) under a "Staff at [Facility]" header — single tap to select.
 
 **List view**: Category badge with color coding (green = Personal, blue = Medical Professional, purple = Medical Facility, orange = Service Professional, grey = Other). Specialty shown as subline for Medical Professionals; address shown for Medical Facilities.
+
+### Neighbors (`neighbors.js`)
+
+**Plan document**: `NeighborsPlan.md`
+
+Track the people who live near you, organized by named neighborhoods, with a visual map and pins.
+
+**Firestore collections**:
+- `neighborhoods` — `name`, `notes`, `imageData` (Base64 compressed image), `imageWidth`, `imageHeight`, `createdAt`
+- `neighborHouses` — `neighborhoodId`, `nickname`, `address`, `notes`, `pinX` (0.0–1.0 fraction of image width), `pinY` (0.0–1.0 fraction of image height), `lastInteractionAt` (denormalized timestamp; updated when any current resident logs an interaction), `archivedFamilies[]` (array of archived family snapshots), `createdAt`
+
+**Routes**: `#neighbors` (neighborhoods list), `#neighborhood/{id}` (map view), `#neighborhouse/{id}` (house detail — Phase 2)
+
+**Neighborhoods list** (`#neighbors`): Cards showing each neighborhood's name, notes snippet, and house count. **+ Add Neighborhood** button opens a modal to enter name, notes, and upload a map image (static screenshot — e.g. from Google Maps). Save is disabled until an image is uploaded. Editing a neighborhood allows name/notes changes; image can be replaced. Deleting a neighborhood removes it and all its houses.
+
+**Map view** (`#neighborhood/{id}`): Uses **Leaflet.js CRS.Simple** (no geo-tiles) — the uploaded image is rendered as an `L.imageOverlay` in pixel coordinate space. Pins are `L.divIcon` custom markers positioned via `pinX`/`pinY` fractions converted to Leaflet lat/lng (`lat = (1 − pinY) × h`, `lng = pinX × w`). The map fills the viewport and supports pan/zoom; pins scale and stay in correct position relative to the image.
+
+**Pin colors** (driven by `lastInteractionAt`):
+- **Green** (`#4caf50`): last interaction ≤ 60 days ago
+- **Amber** (`#ff9800`): last interaction 61 days – 1 year ago
+- **Gray** (`#9e9e9e`): never interacted or > 1 year ago
+
+**Pin icon**: House-shaped SVG (color-filled circle with white house polygon). Nickname label shown below each pin.
+
+**Placement mode**: Tap **+ Add House** to enter placement mode (amber banner shown, crosshair cursor). Tapping the map places a new pin. A modal then prompts for nickname and address; saving writes to Firestore and renders the marker. Pins are draggable; drag-end updates `pinX`/`pinY` in Firestore.
+
+**Archive / delete flow** (Phase 3 — planned): When a family moves away, user can archive the current residents as a named "previous family" snapshot preserved on the house doc. Hard-delete removes the house and all its data.
 
 ### Health (`health.js`)
 

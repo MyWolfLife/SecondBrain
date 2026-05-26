@@ -165,7 +165,7 @@ function _pwaDismiss() {
  * List of top-level pages that map to nav links.
  * These pages clear the breadcrumb bar when shown.
  */
-const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'places', 'devnotes',
+const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'devnotes',
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
@@ -190,6 +190,7 @@ const ALL_PAGES = [
     'collection', 'collectionitem', 'beneficiaries',
     'place',
     'person', 'contact',
+    'neighborhood', 'neighborhouse',
     'notebook', 'note',
     'devnote',
     'health-allergies', 'health-supplements', 'health-vaccinations', 'health-eye',
@@ -231,6 +232,7 @@ const THOUGHTS_PAGES = ['thoughts', 'top10lists', 'top10list-create', 'top10list
 const SETTINGS_PAGES = ['settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'changepassword', 'backup', 'devnotes', 'devnote', 'sb-issues'];
 
 const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
+                     'neighbors', 'neighborhood', 'neighborhouse',
                      'notes', 'notebook', 'note',
                      'health', 'health-visits', 'health-visit', 'health-visit-step2',
                      'health-medications', 'health-conditions', 'health-concerns', 'health-concern', 'health-condition',
@@ -363,8 +365,10 @@ function showPage(page) {
     if (page === 'panel')         navPage = 'house';
     if (page === 'subthing')   navPage = 'house';
     if (page === 'item')       navPage = 'house';
-    if (page === 'person')     navPage = 'people';   // Sub-page of people (legacy)
-    if (page === 'contact')    navPage = 'contacts'; // Sub-page of contacts
+    if (page === 'person')        navPage = 'people';   // Sub-page of people (legacy)
+    if (page === 'contact')       navPage = 'contacts'; // Sub-page of contacts
+    if (page === 'neighborhood')  navPage = 'contacts'; // Neighbor map — contacts section
+    if (page === 'neighborhouse') navPage = 'contacts'; // House detail — contacts section
     if (page === 'notebook')   navPage = 'notes';  // Sub-page of notes
     if (page === 'note')       navPage = 'notes';  // Sub-page of notes
     if (page === 'main')           navPage = '';       // No link highlighted on the landing page
@@ -406,6 +410,11 @@ function handleRoute() {
     const parts = hash.split('/');
     const page  = parts[0];
     const id    = parts[1] || null;
+
+    // Clean up the neighbor map when navigating away from it
+    if (page !== 'neighborhood' && typeof _nbCleanupMap === 'function') {
+        _nbCleanupMap();
+    }
 
     if (page === 'zone' && id) {
         window.clLastEntityType = 'zone';
@@ -617,6 +626,16 @@ function handleRoute() {
     } else if (page === 'contact' && id) {
         showPage('contact');
         loadContactDetail(id);
+    // ---------- Neighbors routes ----------
+    } else if (page === 'neighbors') {
+        showPage('neighbors');
+        loadNeighborhoodsPage();
+    } else if (page === 'neighborhood' && id) {
+        showPage('neighborhood');
+        loadNeighborhoodMapPage(id);
+    } else if (page === 'neighborhouse' && id) {
+        showPage('neighborhouse');
+        loadNeighborHousePage(id);
     // ---------- Life / People routes (legacy aliases — redirect to contacts) ----------
     } else if (page === 'people') {
         window.location.replace('#contacts');
