@@ -4053,8 +4053,14 @@
                 <div class="form-group">
                     <label>Map Image</label>
                     <p id="nbNeighborhoodImageHint" class="form-hint">Upload a screenshot of your neighborhood map (required)</p>
-                    <input type="file" id="nbNeighborhoodImageFile" accept="image/*" onchange="_nbHandleImageSelect(this)" style="margin-top:6px;">
-                    <img id="nbNeighborhoodImagePreview" class="nb-image-preview hidden" alt="Map preview">
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+                        <label class="btn btn-secondary btn-small" style="margin:0; cursor:pointer;">
+                            Choose File
+                            <input type="file" id="nbNeighborhoodImageFile" accept="image/*" onchange="_nbHandleImageSelect(this)" style="display:none;">
+                        </label>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="_nbPasteMapImage()">&#128203; Paste</button>
+                    </div>
+                    <img id="nbNeighborhoodImagePreview" class="nb-image-preview hidden" alt="Map preview" style="margin-top:8px;">
                 </div>
             </div>
             <div class="modal-footer">
@@ -11128,7 +11134,7 @@ export default {
     <script src="js/moveThings.js?v=350"></script>
     <script src="js/journal.js?v=548"></script>
     <script src="js/contacts.js?v=549"></script>
-    <script src="js/neighbors.js?v=5"></script>
+    <script src="js/neighbors.js?v=6"></script>
     <script src="js/favorites.js?v=1"></script>
     <script src="js/beneficiaries.js?v=543"></script>
     <script src="js/collections.js?v=537"></script>

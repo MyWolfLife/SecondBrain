@@ -144,7 +144,10 @@ async function openEditNeighborhoodModal(id) {
 async function _nbHandleImageSelect(input) {
     var file = input.files[0];
     if (!file) return;
+    await _nbProcessImageFile(file);
+}
 
+async function _nbProcessImageFile(file) {
     document.getElementById('nbNeighborhoodImageHint').textContent = 'Compressing image…';
     try {
         _nbPendingImage = await _nbCompressMapImage(file);
@@ -156,7 +159,37 @@ async function _nbHandleImageSelect(input) {
         document.getElementById('nbNeighborhoodSaveBtn').disabled = false;
     } catch (e) {
         document.getElementById('nbNeighborhoodImageHint').textContent = 'Error loading image — please try again';
-        console.error('_nbHandleImageSelect:', e);
+        console.error('_nbProcessImageFile:', e);
+    }
+}
+
+async function _nbPasteMapImage() {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+        alert('Clipboard paste is not supported in this browser. Use Choose File instead.');
+        return;
+    }
+    document.getElementById('nbNeighborhoodImageHint').textContent = 'Reading clipboard…';
+    try {
+        var items = await navigator.clipboard.read();
+        var imageBlob = null;
+        for (var i = 0; i < items.length; i++) {
+            var imageType = items[i].types.find(function(t) { return t.startsWith('image/'); });
+            if (imageType) { imageBlob = await items[i].getType(imageType); break; }
+        }
+        if (!imageBlob) {
+            document.getElementById('nbNeighborhoodImageHint').textContent = 'No image on clipboard — right-click an image and choose "Copy image", then try again.';
+            return;
+        }
+        var ext  = imageBlob.type === 'image/png' ? '.png' : '.jpg';
+        var file = new File([imageBlob], 'pasted-map' + ext, { type: imageBlob.type });
+        await _nbProcessImageFile(file);
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            document.getElementById('nbNeighborhoodImageHint').textContent = 'Clipboard access denied — click Allow when prompted, then try again.';
+        } else {
+            document.getElementById('nbNeighborhoodImageHint').textContent = 'Could not read clipboard. Use Choose File instead.';
+            console.error('_nbPasteMapImage:', err);
+        }
     }
 }
 
