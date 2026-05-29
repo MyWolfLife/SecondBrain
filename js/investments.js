@@ -1422,7 +1422,14 @@ async function _investSaveConfig() {
     _investConfig.selectedBudgetId = budgetSel ? (budgetSel.value || null) : _investConfig.selectedBudgetId;
 
     await _investConfigCol().doc('main').set(_investConfig);
-    await _investRenderSummaryPage();
+
+    // Re-render whichever investment page is currently visible
+    var hubPage = document.getElementById('page-investments');
+    if (hubPage && !hubPage.classList.contains('hidden')) {
+        await _investRenderHubBody(_investHubGroupId);
+    } else {
+        await _investRenderSummaryPage();
+    }
 }
 
 function _investGroupCol() {
