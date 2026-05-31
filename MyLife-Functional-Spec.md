@@ -1182,7 +1182,7 @@ Create or edit a single day's metric record. One record per date (date is the Fi
 
 - **Date field**: Displayed inline (label + picker on one line). The day of the week (e.g. "Monday") appears beside the picker and updates as the date changes. Defaults to today (new) or the date being edited. Changing the date checks for an existing record: if one exists it reloads the form pre-filled with that record's data; if no record exists the in-progress form values are preserved (only the date changes).
 - **Sections**: **Body** (Weight decimal, Sleep Score, Body Battery) | **Activity** (Daily Steps, Total Actual Burn with helper text, Food Calories) | **Habits & Custom** (all non-archived custom metric defs in sort order).
-- **Custom field types**: boolean → checkbox; number → text input with optional unit label; text → text input.
+- **Custom field types**: boolean → checkbox; number → text input with optional unit label; text → text input. If a custom metric has a tooltip defined, it appears as a hover title on the field label.
 - **📝 note toggle** on every field: clicking the button opens/closes a 2-row textarea for that field. If a note already exists the button is highlighted yellow and the textarea opens pre-filled.
 - **Buttons**: Save (primary) | Cancel → `#exercise-metrics` | Delete (danger — edit mode only, soft deletes and navigates back).
 - **Save**: writes full document via `.set()` (safe overwrite since date = doc ID). Null for blank standard fields; boolean/number/null for custom values; only non-empty note strings stored.

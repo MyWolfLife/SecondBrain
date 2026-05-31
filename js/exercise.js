@@ -2095,7 +2095,7 @@ function _dmBuildEntryForm(el) {
         // Text fields: the textarea IS the note — no separate toggle or note area
         if (def.type === 'text') {
             return '<div class="dm-entry-group dm-entry-group--text">' +
-                '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
+                '<label class="ex-label" for="dmf-' + def.id + '"' + (def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '') + '>' + _exEsc(def.name) + '</label>' +
                 '<textarea id="dmf-' + def.id + '" class="dm-text-field" rows="4" ' +
                     'placeholder="…">' + _exEsc(String(val)) + '</textarea>' +
             '</div>';
@@ -2116,7 +2116,7 @@ function _dmBuildEntryForm(el) {
         }
         return '<div class="dm-entry-group">' +
             '<div class="dm-entry-field-row">' +
-                '<label class="ex-label" for="dmf-' + def.id + '">' + _exEsc(def.name) + '</label>' +
+                '<label class="ex-label" for="dmf-' + def.id + '"' + (def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '') + '>' + _exEsc(def.name) + '</label>' +
                 '<div class="dm-entry-input-wrap">' +
                     inputHtml +
                     '<button type="button" class="dm-note-toggle' + (hasNote ? ' dm-note-has-note' : '') + '" ' +
