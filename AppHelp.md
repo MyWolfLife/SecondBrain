@@ -3513,8 +3513,10 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Use the **year dropdown** to switch between years or add a new one
 - **Add New Year** opens a popup defaulting to next year — confirm or type a different year
-- The full planning grid (weight targets, exercise goals, calorie projections, color thresholds) is added in upcoming phases
-- Color thresholds you define here will automatically color-code your Daily Metrics entries for that month
+- **Year Constants** (top section): enter Starting Weight, Base Daily Burn, and Calories Per Mile — these drive the plan calculations. Saved automatically when you tab away.
+- **Tracked Exercises**: click **+ Add Exercise** to add an exercise type you want to goal-track. Pick from your existing exercise types (or add a new one inline), then enter your average calories burned per session. Use ↑/↓ to reorder and **Remove** to stop tracking one.
+- The full monthly goals grid (weight targets, session counts, calorie projections, color thresholds) is added in upcoming phases.
+- Color thresholds you define here will automatically color-code your Daily Metrics entries for that month.
 
 ---
 

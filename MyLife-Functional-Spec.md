@@ -1170,7 +1170,9 @@ Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthl
 - **Add New Year** opens a popup defaulting to next year; user can confirm or override. Creates a Firestore doc at `exerciseGoals/:year`.
 - **Empty state** shown when no years exist — user must click "Add Year" to start.
 - Years cannot be deleted once created.
-- Full grid (columns, inline editing, calculations) built in subsequent phases. See `ExerciseGoals.md` for full design.
+- **Year Constants** section: Starting Weight (lbs), Base Daily Burn (cal), Calories Per Mile — entered once per year, saved on blur.
+- **Tracked Exercises** section: add exercises from existing types (or create inline), enter avg cal/session, reorder with ↑/↓, remove. Stored in `trackedExercises[]` on the year doc.
+- Full monthly grid (columns, inline editing, calculations) built in subsequent phases. See `ExerciseGoals.md` for full design.
 
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
 Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.

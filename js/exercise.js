@@ -2540,7 +2540,10 @@ async function _dmMoveDef(defId, direction) {
 
 // ─── Goals module-level state ─────────────────────────────────────────────────
 
-var _egYears = [];   // sorted array of year numbers that have been created
+var _egYears       = [];    // sorted array of year numbers that have been created
+var _egCurrentYear = null;  // year number currently displayed
+var _egYearData    = null;  // full data object from the exerciseGoals/:year Firestore doc
+var _egAllTypes    = [];    // all non-archived exerciseTypes (for the add-exercise dropdown)
 
 // ─── Goals landing / year grid page ──────────────────────────────────────────
 
@@ -2604,9 +2607,10 @@ function _egRenderEmptyState(el, defaultNewYear) {
         _egAddYearPopupHtml(defaultNewYear);
 }
 
-// ─── Year grid page ───────────────────────────────────────────────────────────
+// ─── Year page shell ──────────────────────────────────────────────────────────
 
 function _egRenderYearPage(el, year) {
+    _egCurrentYear = year;
     var nextYear = new Date().getFullYear() + 1;
 
     var options = _egYears.map(function(y) {
@@ -2620,10 +2624,309 @@ function _egRenderYearPage(el, year) {
             '<label class="eg-year-label">Year:</label>' +
             '<select id="egYearSelect" onchange="_egOnYearSelect(this.value)">' + options + '</select>' +
         '</div>' +
-        '<div id="egYearContent">' +
-            '<p class="eg-placeholder">Year <strong>' + year + '</strong> goals — grid coming in Phase 3.</p>' +
-        '</div>' +
+        '<div id="egYearContent"><p class="loading-text">Loading...</p></div>' +
         _egAddYearPopupHtml(nextYear);
+
+    _egLoadYearContent(year);
+}
+
+// ─── Load year data + exercise types ─────────────────────────────────────────
+
+async function _egLoadYearContent(year) {
+    var content = document.getElementById('egYearContent');
+    if (!content) return;
+
+    try {
+        var [yearSnap, typeSnap] = await Promise.all([
+            userCol('exerciseGoals').doc(String(year)).get(),
+            userCol('exerciseTypes').where('archived', '==', false).get()
+        ]);
+
+        _egYearData = yearSnap.exists ? yearSnap.data() : { trackedExercises: [], months: {} };
+        if (!_egYearData.trackedExercises) _egYearData.trackedExercises = [];
+
+        _egAllTypes = [];
+        typeSnap.forEach(function(doc) {
+            _egAllTypes.push(Object.assign({ id: doc.id }, doc.data()));
+        });
+        _egAllTypes.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    } catch (err) {
+        console.error('Goals: failed to load year content:', err);
+        content.innerHTML = '<p class="error-text">Failed to load. Please try again.</p>';
+        return;
+    }
+
+    _egRenderYearContent();
+}
+
+// ─── Render year content (constants + tracked exercises + grid stub) ──────────
+
+function _egRenderYearContent() {
+    var content = document.getElementById('egYearContent');
+    if (!content) return;
+
+    var d = _egYearData;
+
+    content.innerHTML =
+        // ── Year constants ──────────────────────────────────────────────────
+        '<div class="eg-section">' +
+            '<div class="eg-section-title">Year Constants</div>' +
+            '<div class="eg-constants-grid">' +
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label">Starting Weight (lbs)</label>' +
+                    '<input class="eg-constant-input" type="number" id="egStartingWeight" value="' + (d.startingWeight || '') + '" placeholder="e.g. 218" onblur="_egSaveConstant(\'startingWeight\', this.value)">' +
+                '</div>' +
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label">Base Daily Burn (cal)</label>' +
+                    '<input class="eg-constant-input" type="number" id="egBaseDailyBurn" value="' + (d.baseDailyBurn || '') + '" placeholder="e.g. 2200" onblur="_egSaveConstant(\'baseDailyBurn\', this.value)">' +
+                '</div>' +
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label">Calories Per Mile</label>' +
+                    '<input class="eg-constant-input" type="number" id="egCalPerMile" value="' + (d.calPerMile || '') + '" placeholder="e.g. 110" onblur="_egSaveConstant(\'calPerMile\', this.value)">' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+
+        // ── Tracked exercises ───────────────────────────────────────────────
+        '<div class="eg-section">' +
+            '<div class="eg-section-header">' +
+                '<span class="eg-section-title">Tracked Exercises</span>' +
+                '<button class="btn btn-primary btn-small" onclick="_egShowAddExerciseForm()">+ Add Exercise</button>' +
+            '</div>' +
+            '<div id="egTrackedList"></div>' +
+            '<div id="egAddExerciseForm" class="eg-add-exercise-form hidden"></div>' +
+        '</div>' +
+
+        // ── Grid placeholder ────────────────────────────────────────────────
+        '<div class="eg-section">' +
+            '<div class="eg-section-title">Monthly Goals Grid</div>' +
+            '<p class="eg-placeholder">Goal grid coming in Phase 3.</p>' +
+        '</div>';
+
+    _egRenderTrackedList();
+}
+
+// ─── Save a year-level constant on blur ───────────────────────────────────────
+
+async function _egSaveConstant(field, rawValue) {
+    var val = rawValue.trim() === '' ? null : parseFloat(rawValue);
+    if (val !== null && isNaN(val)) return;
+
+    if (!_egYearData) _egYearData = {};
+    _egYearData[field] = val;
+
+    try {
+        var update = {};
+        update[field] = val;
+        update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update(update);
+    } catch (err) {
+        console.error('Goals: failed to save constant:', err);
+    }
+}
+
+// ─── Tracked exercise list ────────────────────────────────────────────────────
+
+function _egRenderTrackedList() {
+    var list = document.getElementById('egTrackedList');
+    if (!list) return;
+
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+    if (exercises.length === 0) {
+        list.innerHTML = '<p class="eg-empty-note">No exercises tracked yet. Add one above.</p>';
+        return;
+    }
+
+    list.innerHTML = exercises.map(function(te, i) {
+        var isFirst = i === 0;
+        var isLast  = i === exercises.length - 1;
+        return '<div class="eg-te-row">' +
+            '<div class="eg-te-info">' +
+                '<span class="eg-te-name">' + escapeHtml(te.typeName) + '</span>' +
+                '<span class="eg-te-cal">' + (te.calPerSession || 0) + ' cal/session</span>' +
+            '</div>' +
+            '<div class="eg-te-actions">' +
+                '<button class="btn btn-icon" title="Move up" onclick="_egMoveExercise(\'' + te.typeId + '\', -1)"' + (isFirst ? ' disabled' : '') + '>↑</button>' +
+                '<button class="btn btn-icon" title="Move down" onclick="_egMoveExercise(\'' + te.typeId + '\', 1)"' + (isLast ? ' disabled' : '') + '>↓</button>' +
+                '<button class="btn btn-danger btn-small" onclick="_egDeleteExercise(\'' + te.typeId + '\')">Remove</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+// ─── Add exercise form ────────────────────────────────────────────────────────
+
+function _egShowAddExerciseForm() {
+    var form = document.getElementById('egAddExerciseForm');
+    if (!form) return;
+    form.classList.remove('hidden');
+
+    // Build dropdown: non-archived types not already tracked
+    var trackedIds = (_egYearData.trackedExercises || []).map(function(te) { return te.typeId; });
+    var available  = _egAllTypes.filter(function(t) { return trackedIds.indexOf(t.id) === -1; });
+
+    var opts = '<option value="">— Select exercise type —</option>';
+    available.forEach(function(t) {
+        opts += '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>';
+    });
+    opts += '<option value="__new__">+ Add new type...</option>';
+
+    form.innerHTML =
+        '<div class="eg-add-form-inner">' +
+            '<div class="form-group">' +
+                '<label>Exercise Type</label>' +
+                '<select id="egAddTypeSelect" onchange="_egOnAddTypeChange(this.value)">' + opts + '</select>' +
+            '</div>' +
+            '<div id="egNewTypeFields" class="hidden">' +
+                '<div class="form-group">' +
+                    '<label>New Type Name</label>' +
+                    '<input type="text" id="egNewTypeName" placeholder="e.g. Yoga">' +
+                '</div>' +
+                '<div class="eg-checkbox-row">' +
+                    '<label><input type="checkbox" id="egNewTypeTracksMiles"> Track Miles</label>' +
+                    '<label><input type="checkbox" id="egNewTypeWithDogs"> With Dogs toggle</label>' +
+                '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+                '<label>Avg Calories Per Session</label>' +
+                '<input type="number" id="egAddCalPerSession" placeholder="e.g. 300" style="width:120px">' +
+            '</div>' +
+            '<div class="eg-form-actions">' +
+                '<button class="btn btn-primary btn-small" onclick="_egConfirmAddExercise()">Add</button>' +
+                '<button class="btn btn-secondary btn-small" onclick="_egHideAddExerciseForm()">Cancel</button>' +
+            '</div>' +
+        '</div>';
+}
+
+function _egHideAddExerciseForm() {
+    var form = document.getElementById('egAddExerciseForm');
+    if (form) { form.classList.add('hidden'); form.innerHTML = ''; }
+}
+
+function _egOnAddTypeChange(val) {
+    var newFields = document.getElementById('egNewTypeFields');
+    if (!newFields) return;
+    newFields.classList.toggle('hidden', val !== '__new__');
+}
+
+async function _egConfirmAddExercise() {
+    var typeSelect = document.getElementById('egAddTypeSelect');
+    var calInput   = document.getElementById('egAddCalPerSession');
+    if (!typeSelect || !calInput) return;
+
+    var typeId    = typeSelect.value;
+    var calPerSes = parseInt(calInput.value, 10);
+
+    if (!typeId) { alert('Please select an exercise type.'); return; }
+    if (!calPerSes || calPerSes < 1) { alert('Please enter avg calories per session.'); return; }
+
+    var typeName = '';
+
+    if (typeId === '__new__') {
+        // Create a new exerciseType first
+        var nameInput = document.getElementById('egNewTypeName');
+        var newName   = nameInput ? nameInput.value.trim() : '';
+        if (!newName) { alert('Please enter a name for the new type.'); return; }
+
+        var tracksMiles = document.getElementById('egNewTypeTracksMiles').checked;
+        var withDogs    = document.getElementById('egNewTypeWithDogs').checked;
+
+        try {
+            var newRef = await userCol('exerciseTypes').add({
+                name: newName, tracksMiles: tracksMiles, withDogs: withDogs,
+                isDefault: false, archived: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            typeId   = newRef.id;
+            typeName = newName;
+            _egAllTypes.push({ id: typeId, name: newName, tracksMiles: tracksMiles, withDogs: withDogs });
+            _egAllTypes.sort(function(a, b) { return a.name.localeCompare(b.name); });
+        } catch (err) {
+            console.error('Goals: failed to create new type:', err);
+            alert('Failed to create type. Please try again.');
+            return;
+        }
+    } else {
+        var found = _egAllTypes.find(function(t) { return t.id === typeId; });
+        typeName = found ? found.name : typeId;
+    }
+
+    // Append to trackedExercises with next sortOrder
+    var existing   = _egYearData.trackedExercises || [];
+    var nextOrder  = existing.length > 0
+        ? Math.max.apply(null, existing.map(function(te) { return te.sortOrder || 0; })) + 1
+        : 0;
+
+    var newEntry = { typeId: typeId, typeName: typeName, calPerSession: calPerSes, sortOrder: nextOrder };
+    existing.push(newEntry);
+    _egYearData.trackedExercises = existing;
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update({
+            trackedExercises: existing,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _egHideAddExerciseForm();
+        _egRenderTrackedList();
+    } catch (err) {
+        console.error('Goals: failed to save tracked exercise:', err);
+        alert('Failed to save. Please try again.');
+        existing.pop();
+        _egYearData.trackedExercises = existing;
+    }
+}
+
+// ─── Reorder tracked exercise ─────────────────────────────────────────────────
+
+async function _egMoveExercise(typeId, direction) {
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+    var idx = exercises.findIndex(function(te) { return te.typeId === typeId; });
+    var swapIdx = idx + direction;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= exercises.length) return;
+
+    // Swap sortOrder values
+    var tmp = exercises[idx].sortOrder;
+    exercises[idx].sortOrder   = exercises[swapIdx].sortOrder;
+    exercises[swapIdx].sortOrder = tmp;
+
+    _egYearData.trackedExercises = exercises;
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update({
+            trackedExercises: exercises,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _egRenderTrackedList();
+    } catch (err) {
+        console.error('Goals: failed to reorder exercise:', err);
+    }
+}
+
+// ─── Delete tracked exercise ──────────────────────────────────────────────────
+
+async function _egDeleteExercise(typeId) {
+    var te = (_egYearData.trackedExercises || []).find(function(t) { return t.typeId === typeId; });
+    if (!te) return;
+    if (!confirm('Remove "' + te.typeName + '" from tracked exercises? Monthly session counts for this exercise will also be removed.')) return;
+
+    var updated = (_egYearData.trackedExercises || []).filter(function(t) { return t.typeId !== typeId; });
+    _egYearData.trackedExercises = updated;
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update({
+            trackedExercises: updated,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _egRenderTrackedList();
+    } catch (err) {
+        console.error('Goals: failed to remove exercise:', err);
+        alert('Failed to remove. Please try again.');
+    }
 }
 
 // ─── Year dropdown handler ────────────────────────────────────────────────────
