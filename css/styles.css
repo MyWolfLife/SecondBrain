@@ -19099,3 +19099,18 @@ a.legacy-fin-card:hover {
 
 /* Copy Prev button */
 .eg-copy-btn { font-size: 0.72rem; padding: 2px 8px; white-space: nowrap; }
+
+/* ── Threshold columns (Phase 4) ─────────────────────────────────────────────── */
+
+/* Color-coded header backgrounds by threshold type */
+.eg-th-y  { background: #fde68a; }   /* yellow threshold */
+.eg-th-g  { background: #86efac; }   /* green threshold  */
+.eg-th-b  { background: #93c5fd; }   /* blue threshold   */
+.eg-th-ly { background: #fff2cc; }   /* light yellow (food bad) */
+
+/* Group separator — thicker left border between metric groups */
+.eg-th-group-start { border-left: 2px solid #9ca3af !important; }
+.eg-td-group-start { border-left: 2px solid #e5e7eb !important; }
+
+/* Threshold inputs slightly narrower than regular cell inputs */
+.eg-threshold-input { width: 58px; }

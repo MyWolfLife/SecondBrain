@@ -3519,7 +3519,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Goal Weight cascade**: when you enter a goal weight for a month, it automatically fills all later months that haven't been set yet. Change a later month to override just that month forward.
 - **Copy Prev button**: on any month row (except January), copies all values from the prior month in one click — useful when most months are the same.
 - **Calculated columns**: Weight Loss and Daily Calorie Loss Needed are computed automatically from your goal weights and update as you type.
-- Color threshold columns (food ranges, steps, burn, etc.) are added in an upcoming phase.
+- **Color threshold columns**: the right portion of the grid holds 18 threshold input columns grouped by metric (Food, Battery, Steps, Burn, Exercise, Cal Loss, Miles). Header colors show which color each threshold controls — yellow headers set the yellow cutoff, green headers set green, blue headers set blue. Enter the boundary values for each metric per month. These thresholds automatically color-code your Daily Metrics entries for that month once wired up.
 - Color thresholds you define here will automatically color-code your Daily Metrics entries for that month.
 
 ---

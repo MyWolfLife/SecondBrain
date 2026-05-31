@@ -1176,7 +1176,7 @@ Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthl
 - **Goal weight cascade**: entering a value propagates forward to all subsequent months that are still null. Months already set are not overridden.
 - **Copy Prev**: copies all entered fields from the prior month (goal weight, miles, session counts) into the current month.
 - Calculated cols update reactively: Weight Loss = prev effective weight − this month's weight; Daily Cal Loss = |Wt Loss| × 3500 ÷ days in month. Both round to whole numbers.
-- Threshold columns (food, battery, steps, etc.) added in Phase 4. See `ExerciseGoals.md` for full design.
+- **Threshold columns** (Phase 4): 18 color-coded input columns appended to the right of the grid, grouped by metric — Food (3), Battery (2), Steps (3), Burn (2), Exercise (2), Cal Loss (3), Miles (3). Column headers are color-coded yellow/green/blue to show which threshold tier each controls. Group separators (thicker border) visually divide the groups. All save on blur. Copy Prev includes threshold values. These drive Daily Metrics color coding (Phase 7).
 
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
 Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.

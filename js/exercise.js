@@ -2715,6 +2715,30 @@ var _egMonths = {};  // month number (1-12) → month data object
 
 var _EG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// Threshold column definitions — drives Phase 4 grid columns and Phase 7 Daily Metrics color coding.
+// color: 'y'=yellow threshold, 'g'=green threshold, 'b'=blue threshold, 'ly'=light-yellow (food bad)
+// groupStart: true adds a visual separator to the left of this column
+var _EG_THRESHOLD_COLS = [
+    { field: 'foodYellow1',    label: 'Food<',   color: 'y',  group: 'Food',     groupStart: true  },
+    { field: 'foodYellow2',    label: 'Food≥',   color: 'y',  group: 'Food',     groupStart: false },
+    { field: 'foodBad',        label: 'Food≥',   color: 'ly', group: 'Food',     groupStart: false },
+    { field: 'batteryYellow',  label: 'Bat≤',    color: 'y',  group: 'Battery',  groupStart: true  },
+    { field: 'batteryBlue',    label: 'Bat≥',    color: 'b',  group: 'Battery',  groupStart: false },
+    { field: 'stepsYellow',    label: 'Steps<',  color: 'y',  group: 'Steps',    groupStart: true  },
+    { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false },
+    { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false },
+    { field: 'burnGreen',      label: 'Burn≥',   color: 'g',  group: 'Burn',     groupStart: true  },
+    { field: 'burnBlue',       label: 'Burn≥',   color: 'b',  group: 'Burn',     groupStart: false },
+    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true  },
+    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false },
+    { field: 'calLossYellow',  label: 'Cal≤',    color: 'y',  group: 'Cal Loss', groupStart: true  },
+    { field: 'calLossGreen',   label: 'Cal≥',    color: 'g',  group: 'Cal Loss', groupStart: false },
+    { field: 'calLossBlue',    label: 'Cal≥',    color: 'b',  group: 'Cal Loss', groupStart: false },
+    { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true  },
+    { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false },
+    { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false },
+];
+
 function _egInitMonths() {
     _egMonths = {};
     var stored = _egYearData.months || {};
@@ -2767,6 +2791,28 @@ function _egFmtCalc(val) {
 
 // ─── Build the full goals grid ────────────────────────────────────────────────
 
+// Updates all input DOM elements for a month from _egMonths[month]. Called after Copy Prev.
+function _egUpdateMonthInputs(month) {
+    var mData    = _egMonths[month] || {};
+    var sessions = mData.exerciseSessions || {};
+
+    var gwInp = document.querySelector('[data-month="' + month + '"][data-field="goalWeight"]');
+    if (gwInp) { gwInp.value = mData.goalWeight != null ? mData.goalWeight : ''; gwInp.classList.remove('eg-inherited'); }
+
+    var milesInp = document.querySelector('[data-month="' + month + '"][data-field="avgMilesPerDay"]');
+    if (milesInp) milesInp.value = mData.avgMilesPerDay != null ? mData.avgMilesPerDay : '';
+
+    (_egYearData.trackedExercises || []).forEach(function(te) {
+        var inp = document.querySelector('[data-month="' + month + '"][data-typeid="' + te.typeId + '"]');
+        if (inp) inp.value = sessions[te.typeId] != null ? sessions[te.typeId] : '';
+    });
+
+    _EG_THRESHOLD_COLS.forEach(function(col) {
+        var inp = document.querySelector('[data-month="' + month + '"][data-field="' + col.field + '"]');
+        if (inp) inp.value = mData[col.field] != null ? mData[col.field] : '';
+    });
+}
+
 function _egRenderGrid() {
     var container = document.getElementById('egGridContainer');
     if (!container) return;
@@ -2786,6 +2832,15 @@ function _egRenderGrid() {
         hdr += '<th class="eg-th">' + escapeHtml(te.typeName) +
                '<br><span class="eg-th-sub">' + te.calPerSession + ' cal/ses</span></th>';
     });
+
+    // Threshold columns
+    _EG_THRESHOLD_COLS.forEach(function(col) {
+        var colorCls = 'eg-th-' + col.color;
+        var borderCls = col.groupStart ? ' eg-th-group-start' : '';
+        hdr += '<th class="eg-th ' + colorCls + borderCls + '">' +
+               col.label + '<br><span class="eg-th-sub">' + col.group + '</span></th>';
+    });
+
     hdr += '<th class="eg-th eg-th-copy"></th>';  // Copy Prev column
 
     // ── Rows ─────────────────────────────────────────────────────────────────
@@ -2834,6 +2889,18 @@ function _egRenderGrid() {
                 ' data-month="' + m + '" data-typeid="' + te.typeId + '"' +
                 ' value="' + sesVal + '"' +
                 ' onblur="_egSaveMonthSession(' + m + ',\'' + te.typeId + '\',this.value)">' +
+                '</td>';
+        });
+
+        // Threshold input columns
+        _EG_THRESHOLD_COLS.forEach(function(col) {
+            var fieldVal = mData[col.field] != null ? mData[col.field] : '';
+            var borderCls = col.groupStart ? ' eg-td-group-start' : '';
+            rows += '<td class="eg-td' + borderCls + '">' +
+                '<input class="eg-cell-input eg-threshold-input" type="number"' +
+                ' data-month="' + m + '" data-field="' + col.field + '"' +
+                ' value="' + fieldVal + '"' +
+                ' onblur="_egSaveMonthField(' + m + ',\'' + col.field + '\',this.value)">' +
                 '</td>';
         });
 
@@ -2938,18 +3005,8 @@ async function _egCopyPreviousMonth(month) {
     var merged = Object.assign(existing, prev);
     _egMonths[month] = merged;
 
-    // Update DOM inputs for this month
-    var gwInp = document.querySelector('[data-month="' + month + '"][data-field="goalWeight"]');
-    if (gwInp) { gwInp.value = merged.goalWeight != null ? merged.goalWeight : ''; gwInp.classList.remove('eg-inherited'); }
-
-    var milesInp = document.querySelector('[data-month="' + month + '"][data-field="avgMilesPerDay"]');
-    if (milesInp) milesInp.value = merged.avgMilesPerDay != null ? merged.avgMilesPerDay : '';
-
-    var sessions = merged.exerciseSessions || {};
-    Object.keys(sessions).forEach(function(tid) {
-        var sesInp = document.querySelector('[data-month="' + month + '"][data-typeid="' + tid + '"]');
-        if (sesInp) sesInp.value = sessions[tid] != null ? sessions[tid] : '';
-    });
+    // Update all DOM inputs for this month (goal weight, miles, sessions, thresholds)
+    _egUpdateMonthInputs(month);
 
     // Write entire month object to Firestore
     var update = {};
