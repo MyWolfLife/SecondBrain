@@ -774,7 +774,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'legacyFinancial',
 
     // Exercise
-    'exerciseActivities', 'exerciseTypes', 'exerciseDailyMetrics', 'exerciseMetricDefs',
+    'exerciseActivities', 'exerciseTypes', 'exerciseDailyMetrics', 'exerciseMetricDefs', 'exerciseGoals',
 
     // Private Vault (exported as ciphertext — useful for Firestore disaster recovery)
     'privateVault', 'privateBookmarks', 'privateDocuments', 'privatePhotoAlbums', 'privatePhotos'

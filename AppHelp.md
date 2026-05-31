@@ -3501,7 +3501,20 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Tap **Activities** to log and view your workouts
 - Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
-- **Goals** and **Summary** are coming soon
+- Tap **Goals** to set and manage your yearly exercise and weight goals
+- **Summary** is coming soon
+
+---
+
+## screen:exercise-goals
+
+**What this screen is for:** Plan your yearly exercise and weight goals — one row per month. Also defines the color thresholds that highlight your Daily Metrics entries.
+
+### Quick Help
+- Use the **year dropdown** to switch between years or add a new one
+- **Add New Year** opens a popup defaulting to next year — confirm or type a different year
+- The full planning grid (weight targets, exercise goals, calorie projections, color thresholds) is added in upcoming phases
+- Color thresholds you define here will automatically color-code your Daily Metrics entries for that month
 
 ---
 

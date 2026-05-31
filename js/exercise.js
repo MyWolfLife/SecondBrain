@@ -119,11 +119,10 @@ function loadExercisePage() {
                 '<span class="landing-tile-icon">📋</span>' +
                 '<span class="landing-tile-label">Daily Metrics</span>' +
             '</a>' +
-            '<div class="landing-tile landing-tile--coming-soon">' +
+            '<a href="#exercise-goals" class="landing-tile landing-tile--exercise-goals">' +
                 '<span class="landing-tile-icon">🎯</span>' +
                 '<span class="landing-tile-label">Goals</span>' +
-                '<span class="coming-soon-badge">Coming Soon</span>' +
-            '</div>' +
+            '</a>' +
             '<div class="landing-tile landing-tile--coming-soon">' +
                 '<span class="landing-tile-icon">📊</span>' +
                 '<span class="landing-tile-label">Summary</span>' +
@@ -2533,6 +2532,199 @@ async function _dmMoveDef(defId, direction) {
         console.error('DailyMetrics: failed to reorder metric defs:', err);
         alert('Failed to reorder. Please try again.');
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXERCISE GOALS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Goals module-level state ─────────────────────────────────────────────────
+
+var _egYears = [];   // sorted array of year numbers that have been created
+
+// ─── Goals landing / year grid page ──────────────────────────────────────────
+
+/**
+ * Entry point for #exercise-goals and #exercise-goals/:year.
+ * If yearParam is provided, loads that year's grid.
+ * If omitted, defaults to the current calendar year (or most recent if none).
+ * Shows empty state when no years exist at all.
+ */
+async function loadExerciseGoalsPage(yearParam) {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Goals</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-goals');
+    if (!el) return;
+    el.innerHTML = '<p class="loading-text">Loading...</p>';
+
+    // Load all created years from Firestore
+    try {
+        var snap = await userCol('exerciseGoals').orderBy('year', 'asc').get();
+        _egYears = [];
+        snap.forEach(function(doc) { _egYears.push(doc.data().year); });
+    } catch (err) {
+        console.error('Goals: failed to load years:', err);
+        el.innerHTML = '<p class="error-text">Failed to load goals. Please try again.</p>';
+        return;
+    }
+
+    var currentYear = new Date().getFullYear();
+
+    if (_egYears.length === 0) {
+        _egRenderEmptyState(el, currentYear + 1);
+        return;
+    }
+
+    // Determine which year to display
+    var targetYear = yearParam ? parseInt(yearParam, 10) : null;
+    if (!targetYear) {
+        // Default to current calendar year if it exists, else the most recent year
+        targetYear = (_egYears.indexOf(currentYear) !== -1) ? currentYear : _egYears[_egYears.length - 1];
+        // Update URL without adding a history entry so Back works correctly
+        history.replaceState(null, '', '#exercise-goals/' + targetYear);
+    }
+
+    _egRenderYearPage(el, targetYear);
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function _egRenderEmptyState(el, defaultNewYear) {
+    el.innerHTML =
+        '<div class="page-header"><h2>Goals</h2></div>' +
+        '<div class="empty-state">' +
+            '<p>No yearly goals yet.</p>' +
+            '<button class="btn btn-primary" onclick="_egShowAddYearPopup()">Add Year</button>' +
+        '</div>' +
+        _egAddYearPopupHtml(defaultNewYear);
+}
+
+// ─── Year grid page ───────────────────────────────────────────────────────────
+
+function _egRenderYearPage(el, year) {
+    var nextYear = new Date().getFullYear() + 1;
+
+    var options = _egYears.map(function(y) {
+        return '<option value="' + y + '"' + (y === year ? ' selected' : '') + '>' + y + '</option>';
+    }).join('');
+    options += '<option value="__add__">+ Add New Year</option>';
+
+    el.innerHTML =
+        '<div class="page-header"><h2>Goals</h2></div>' +
+        '<div class="eg-toolbar">' +
+            '<label class="eg-year-label">Year:</label>' +
+            '<select id="egYearSelect" onchange="_egOnYearSelect(this.value)">' + options + '</select>' +
+        '</div>' +
+        '<div id="egYearContent">' +
+            '<p class="eg-placeholder">Year <strong>' + year + '</strong> goals — grid coming in Phase 3.</p>' +
+        '</div>' +
+        _egAddYearPopupHtml(nextYear);
+}
+
+// ─── Year dropdown handler ────────────────────────────────────────────────────
+
+function _egOnYearSelect(val) {
+    if (val === '__add__') {
+        // Reset the dropdown to the currently displayed year
+        var parts = window.location.hash.slice(1).split('/');
+        var cur = parseInt(parts[1], 10);
+        var sel = document.getElementById('egYearSelect');
+        if (sel && cur) sel.value = cur;
+        _egShowAddYearPopup();
+        return;
+    }
+    window.location.hash = '#exercise-goals/' + val;
+}
+
+// ─── Add Year popup ───────────────────────────────────────────────────────────
+
+function _egAddYearPopupHtml(defaultYear) {
+    return '<div id="egAddYearPopup" class="modal-overlay">' +
+        '<div class="modal">' +
+            '<h3>Add Year</h3>' +
+            '<div class="form-group">' +
+                '<label>Year</label>' +
+                '<input type="number" id="egNewYearInput" value="' + defaultYear + '" min="2020" max="2050" style="width:100px">' +
+            '</div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-primary" onclick="_egConfirmAddYear()">Add</button>' +
+                '<button class="btn btn-secondary" onclick="_egHideAddYearPopup()">Cancel</button>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+}
+
+function _egShowAddYearPopup() {
+    var popup = document.getElementById('egAddYearPopup');
+    if (popup) popup.classList.add('open');
+}
+
+function _egHideAddYearPopup() {
+    var popup = document.getElementById('egAddYearPopup');
+    if (popup) popup.classList.remove('open');
+}
+
+async function _egConfirmAddYear() {
+    var input = document.getElementById('egNewYearInput');
+    if (!input) return;
+    var year = parseInt(input.value, 10);
+    if (!year || year < 2020 || year > 2050) {
+        alert('Please enter a year between 2020 and 2050.');
+        return;
+    }
+    if (_egYears.indexOf(year) !== -1) {
+        alert('Goals for ' + year + ' already exist.');
+        return;
+    }
+
+    try {
+        await userCol('exerciseGoals').doc(String(year)).set({
+            year:             year,
+            startingWeight:   null,
+            baseDailyBurn:    null,
+            calPerMile:       null,
+            trackedExercises: [],
+            months:           {},
+            createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _egYears.push(year);
+        _egYears.sort(function(a, b) { return a - b; });
+        _egHideAddYearPopup();
+        window.location.hash = '#exercise-goals/' + year;
+    } catch (err) {
+        console.error('Goals: failed to create year:', err);
+        alert('Failed to create goals for ' + year + '. Please try again.');
+    }
+}
+
+// ─── Mobile month edit page ───────────────────────────────────────────────────
+
+/** Stub — fully implemented in Phase 6. */
+async function loadExerciseGoalsMonthPage(year, month) {
+    window.scrollTo(0, 0);
+    var monthNames = ['','January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+    var monthName = monthNames[parseInt(month, 10)] || month;
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-goals/' + year + '">Goals</a><span class="separator">&rsaquo;</span>' +
+        '<span>' + year + ' – ' + monthName + '</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-goals-month');
+    if (!el) return;
+    el.innerHTML =
+        '<div class="page-header"><h2>' + monthName + ' ' + year + '</h2></div>' +
+        '<p class="eg-placeholder">Month edit screen — coming in Phase 6.</p>';
 }
 
 // ─── Delete metric def ────────────────────────────────────────────────────────

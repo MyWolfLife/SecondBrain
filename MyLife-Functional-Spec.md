@@ -1157,11 +1157,20 @@ Tracks major life events — trips, milestones, goals, relationships.
 
 **Plan document**: `ExercisePlan.md`
 
-Exercise tracking lives in the Life section. Activities and Daily Metrics are built; Goals and Summary show "Coming Soon" placeholders.
+Exercise tracking lives in the Life section. Activities, Daily Metrics, and Goals are built; Summary shows "Coming Soon".
 
 ### Exercise Hub (`#exercise`)
-Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (coming soon), **Summary** (coming soon).
+Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (active), **Summary** (coming soon).
 Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
+
+### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
+Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
+
+- **Year dropdown** at top — always defaults to current year on every visit. Includes "+ Add New Year" option.
+- **Add New Year** opens a popup defaulting to next year; user can confirm or override. Creates a Firestore doc at `exerciseGoals/:year`.
+- **Empty state** shown when no years exist — user must click "Add Year" to start.
+- Years cannot be deleted once created.
+- Full grid (columns, inline editing, calculations) built in subsequent phases. See `ExerciseGoals.md` for full design.
 
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
 Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.

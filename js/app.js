@@ -170,6 +170,7 @@ const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'h
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
                          'exercise', 'exercise-activities', 'exercise-types', 'exercise-metrics', 'exercise-metric-defs',
+                         'exercise-goals',
                          'legacy',
                          'private', 'private-bookmarks', 'private-documents', 'private-photos', 'private-photos-gallery',
                          'credentials',
@@ -210,7 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'exercise-activity', 'exercise-metric',
+    'exercise-activity', 'exercise-metric', 'exercise-goals-month',
     'help'
 ];
 
@@ -253,7 +254,8 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
-                     'exercise-metrics', 'exercise-metric', 'exercise-metric-defs'];
+                     'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
+                     'exercise-goals', 'exercise-goals-month'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -800,6 +802,12 @@ function handleRoute() {
     } else if (page === 'exercise-metric-defs') {
         showPage('exercise-metric-defs');
         loadExerciseMetricDefsPage();
+    } else if (page === 'exercise-goals' && id && parts[2]) {
+        showPage('exercise-goals-month');
+        loadExerciseGoalsMonthPage(id, parts[2]);
+    } else if (page === 'exercise-goals') {
+        showPage('exercise-goals');
+        loadExerciseGoalsPage(id);
     // ---------- My Legacy routes ----------
     } else if (page === 'legacy' && id === 'burial') {
         showPage('legacy-burial');
