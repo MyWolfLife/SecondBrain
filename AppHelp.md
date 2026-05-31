@@ -3653,7 +3653,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Number type**: check "Allow Decimals" if you need fractional values (e.g. 7.5 hours), and optionally add a unit label shown next to the field
 - **Type cannot be changed** after a metric is saved — this preserves the format of historical entries
 - **↑ / ↓ buttons**: change the display order of metrics on the entry form
-- **Edit**: rename the metric or update its unit label — type stays fixed
+- **Edit**: rename the metric, update its unit label, or add/edit a **Tooltip** description — type stays fixed. The tooltip appears when you hover over that metric's column header in the desktop daily metrics table.
 - **Delete**: removes the metric from future entry forms (soft delete — historical data is preserved)
 
 ### When to use this

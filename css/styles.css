@@ -17909,6 +17909,15 @@ a.legacy-fin-card:hover {
     font-size: 0.9rem;
     width: 180px;
 }
+.dm-tooltip-input {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+    color: #555;
+}
 
 .dm-checkbox-label {
     display: flex;

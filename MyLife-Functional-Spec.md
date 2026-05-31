@@ -1190,9 +1190,9 @@ Create or edit a single day's metric record. One record per date (date is the Fi
 #### Manage Metrics (`#exercise-metric-defs`)
 Accessible via a "Manage Metrics" link on the Daily Metrics list screen. Manages user-defined custom metric definitions only — standard metrics are always present and not editable here.
 
-- **Add form**: Name (required), Type (YES/NO | Number | Text), and for Number type: Allow Decimals checkbox + optional Unit Label (e.g. "oz", "cal"). Saved to `exerciseMetricDefs` collection with `sortOrder` assigned as max existing + 1.
+- **Add form**: Name (required), Type (YES/NO | Number | Text), and for Number type: Allow Decimals checkbox + optional Unit Label (e.g. "oz", "cal"). Optional **Tooltip** field (any type) — free-text description shown as a hover tooltip on the column header in the desktop daily metrics table. Saved to `exerciseMetricDefs` collection with `sortOrder` assigned as max existing + 1.
 - **Metric row**: Shows name, type badge (colored: blue=YES/NO, green=Number, purple=Text), unit label in parentheses if set, and ↑/↓ sort buttons + Edit + Delete actions.
-- **Edit**: Inline form replaces the row — name editable, type shown as read-only badge (type cannot change after creation to preserve historical data). Save writes to Firestore; Cancel restores the row.
+- **Edit**: Inline form replaces the row — name editable, type shown as read-only badge (type cannot change after creation to preserve historical data), optional **Tooltip** field editable. Save writes to Firestore; Cancel restores the row.
 - **Sort (↑/↓)**: Swaps `sortOrder` values between adjacent items via Firestore batch write. Re-renders list after swap.
 - **Delete**: Confirms before deleting. Sets `archived: true` in Firestore (soft delete). Row removed from list.
 - **Seeding**: On first visit, 5 default metrics are written if collection is empty: Stand 1 Hour (boolean), Drinking (boolean), Eat Before 7 (boolean), Device Off by 10pm (boolean), Alcohol Calories (number, unit: cal).

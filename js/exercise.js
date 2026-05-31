@@ -1813,7 +1813,8 @@ function _dmBuildTable(records, summary) {
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
-        thead += '<th' + cls + '>' + _exEsc(def.name) + '</th>';
+        var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
+        thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
     });
     thead += '</tr></thead>';
 
@@ -2334,6 +2335,9 @@ function _dmRenderDefsList() {
                 '</label>' +
                 '<input type="text" id="dmAddUnit" class="dm-unit-input" placeholder="Unit label (e.g. cal, lbs)" maxlength="20">' +
             '</div>' +
+            '<div class="dm-form-row">' +
+                '<input type="text" id="dmAddTooltip" class="dm-tooltip-input" placeholder="Tooltip / description (shown on hover over column header)" maxlength="200">' +
+            '</div>' +
             '<div class="dm-form-btns">' +
                 '<button class="btn btn-primary btn-small" id="dmSaveNewBtn">Add Metric</button>' +
                 '<button class="btn btn-secondary btn-small" id="dmCancelNewBtn">Cancel</button>' +
@@ -2396,6 +2400,7 @@ async function _dmSaveNewDef() {
     var type         = document.getElementById('dmAddType').value;
     var allowDecimal = type === 'number' && document.getElementById('dmAddDecimal').checked;
     var unitLabel    = type === 'number' ? (document.getElementById('dmAddUnit').value || '').trim() : '';
+    var tooltip      = (document.getElementById('dmAddTooltip').value || '').trim();
 
     var maxOrder = _dmDefsAll.reduce(function(m, d) { return Math.max(m, d.sortOrder || 0); }, -1);
 
@@ -2410,13 +2415,14 @@ async function _dmSaveNewDef() {
             type:         type,
             allowDecimal: allowDecimal,
             unitLabel:    unitLabel,
+            tooltip:      tooltip,
             sortOrder:    maxOrder + 1,
             archived:     false,
             createdAt:    firebase.firestore.FieldValue.serverTimestamp()
         });
 
         _dmDefsAll.push({ id: ref.id, name: name, type: type, allowDecimal: allowDecimal,
-                          unitLabel: unitLabel, sortOrder: maxOrder + 1, archived: false });
+                          unitLabel: unitLabel, tooltip: tooltip, sortOrder: maxOrder + 1, archived: false });
         _dmRenderDefsList();
     } catch (err) {
         console.error('DailyMetrics: failed to save metric def:', err);
@@ -2453,6 +2459,11 @@ function _dmStartEditDef(defId) {
             badge +
         '</div>' +
         numberOpts +
+        '<div class="dm-form-row">' +
+            '<input type="text" class="dm-tooltip-input" id="dmEditTooltip-' + defId + '" ' +
+                'placeholder="Tooltip / description (shown on hover over column header)" ' +
+                'value="' + _exEsc(def.tooltip || '') + '" maxlength="200">' +
+        '</div>' +
         '<div class="dm-def-actions">' +
             '<button class="btn btn-primary btn-small" onclick="_dmSaveEditDef(\'' + defId + '\')">Save</button>' +
             '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>' +
@@ -2474,17 +2485,19 @@ async function _dmSaveEditDef(defId) {
         ? !!(document.getElementById('dmEditDecimal-' + defId) || {}).checked : false;
     var unitLabel = def.type === 'number'
         ? ((document.getElementById('dmEditUnit-' + defId) || {}).value || '').trim() : '';
+    var tooltip = ((document.getElementById('dmEditTooltip-' + defId) || {}).value || '').trim();
 
     var saveBtn = document.querySelector('#dmDefRow-' + defId + ' .btn-primary');
     if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
 
     try {
-        var updates = { name: newName };
+        var updates = { name: newName, tooltip: tooltip };
         if (def.type === 'number') { updates.allowDecimal = allowDecimal; updates.unitLabel = unitLabel; }
 
         await userCol('exerciseMetricDefs').doc(defId).update(updates);
 
         def.name = newName;
+        def.tooltip = tooltip;
         if (def.type === 'number') { def.allowDecimal = allowDecimal; def.unitLabel = unitLabel; }
 
         _dmRenderDefsList();
