@@ -3755,3 +3755,381 @@ async function _dmDeleteDef(defId) {
         alert('Failed to delete. Please try again.');
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// END-TO-END TEST RUNNER
+// Call: await _egRunE2ETests()  (from browser console or preview_eval)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function _egRunE2ETests() {
+    var pass = 0, fail = 0, results = [];
+
+    function ok(id, desc) {
+        pass++;
+        results.push('[PASS] ' + id + ' — ' + desc);
+    }
+    function ko(id, desc, reason) {
+        fail++;
+        results.push('[FAIL] ' + id + ' — ' + desc + ' :: ' + reason);
+    }
+    function check(id, desc, condition, reason) {
+        condition ? ok(id, desc) : ko(id, desc, reason || 'condition false');
+    }
+    function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+    // ── T1: Year Management ────────────────────────────────────────────────────
+    results.push('');
+    results.push('── T1: Year Management ──');
+
+    window.location.hash = '#exercise-goals';
+    await sleep(900);
+    var hash = window.location.hash;
+    check('T1.1', 'Auto-redirects to current year',
+        hash === '#exercise-goals/2026' || hash.startsWith('#exercise-goals/2026'),
+        'hash=' + hash);
+
+    var sel = document.getElementById('egYearSelect');
+    check('T1.2a', 'Year dropdown exists', !!sel, 'select not found');
+    if (sel) {
+        check('T1.2b', '2026 is selected', sel.value === '2026', 'value=' + sel.value);
+        var opts = Array.from(sel.options).map(function(o) { return o.value; });
+        check('T1.2c', 'Add New Year option present', opts.indexOf('__add__') !== -1, 'opts=' + opts.join(','));
+    }
+
+    // Simulate opening Add Year popup
+    _egShowAddYearPopup();
+    await sleep(100);
+    var popup = document.getElementById('egAddYearPopup');
+    var yearInput = document.getElementById('egNewYearInput');
+    check('T1.3a', 'Add Year popup appears', popup && popup.classList.contains('open'), 'popup class=' + (popup ? popup.className : 'null'));
+    check('T1.3b', 'Default year is next year', yearInput && parseInt(yearInput.value, 10) === new Date().getFullYear() + 1,
+        'value=' + (yearInput ? yearInput.value : 'null'));
+
+    // Cancel without creating
+    _egHideAddYearPopup();
+    await sleep(100);
+    check('T1.4', 'Cancel closes popup', popup && !popup.classList.contains('open'), 'still open');
+
+    // ── T2: Year Constants ──────────────────────────────────────────────────────
+    results.push('');
+    results.push('── T2: Year Constants ──');
+
+    window.location.hash = '#exercise-goals/2026';
+    await sleep(900);
+
+    var swInp = document.getElementById('egStartingWeight');
+    check('T2.1a', 'Starting weight input exists', !!swInp, 'not found');
+    if (swInp) {
+        swInp.value = '218';
+        swInp.dispatchEvent(new Event('blur'));
+        await sleep(500);
+        check('T2.1b', 'Starting weight saved to state', _egYearData && _egYearData.startingWeight === 218,
+            'got=' + (_egYearData ? _egYearData.startingWeight : 'no data'));
+    }
+
+    var bdbInp = document.getElementById('egBaseDailyBurn');
+    if (bdbInp) {
+        bdbInp.value = '2200';
+        bdbInp.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        check('T2.2', 'Base daily burn saved', _egYearData && _egYearData.baseDailyBurn === 2200,
+            'got=' + (_egYearData ? _egYearData.baseDailyBurn : 'no data'));
+    }
+
+    var cpmInp = document.getElementById('egCalPerMile');
+    if (cpmInp) {
+        cpmInp.value = '110';
+        cpmInp.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        check('T2.3', 'Cal/mile saved', _egYearData && _egYearData.calPerMile === 110,
+            'got=' + (_egYearData ? _egYearData.calPerMile : 'no data'));
+
+        // T2.4: clear and verify F shows dash
+        cpmInp.value = '';
+        cpmInp.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        var fCell = document.querySelector('.eg-proj-f[data-month="1"]');
+        check('T2.4', 'Clearing calPerMile shows dash in F', fCell && fCell.textContent.trim() === '—',
+            'F text=' + (fCell ? fCell.textContent.trim() : 'null'));
+
+        // T2.5: restore and verify F calculates
+        cpmInp.value = '110';
+        cpmInp.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        var milesInp = document.querySelector('[data-month="1"][data-field="avgMilesPerDay"]');
+        if (milesInp && parseFloat(milesInp.value) > 0) {
+            var expectedF = Math.round(parseFloat(milesInp.value) * 110);
+            fCell = document.querySelector('.eg-proj-f[data-month="1"]');
+            var fText = fCell ? fCell.textContent.replace(/,/g, '').trim() : '';
+            check('T2.5', 'Restoring calPerMile recalculates F', fText === String(expectedF),
+                'expected=' + expectedF + ' got=' + fText);
+        } else {
+            results.push('[SKIP] T2.5 — no miles entered for Jan yet');
+        }
+    }
+
+    // ── T3: Tracked Exercises ───────────────────────────────────────────────────
+    results.push('');
+    results.push('── T3: Tracked Exercises ──');
+
+    var exercises = _egYearData ? (_egYearData.trackedExercises || []) : [];
+    check('T3.1a', 'At least one tracked exercise exists', exercises.length > 0,
+        'count=' + exercises.length);
+
+    if (exercises.length > 0) {
+        var firstEx = exercises.sort(function(a,b){return (a.sortOrder||0)-(b.sortOrder||0);})[0];
+        var colHeader = document.querySelector('.eg-grid thead th:not(.eg-col-month):not(.eg-th-calc):not(.eg-th-copy)');
+        // Check first non-special header is an exercise name
+        var gridHeaders = Array.from(document.querySelectorAll('.eg-grid thead th')).map(function(th) { return th.textContent.trim(); });
+        check('T3.1b', 'Tracked exercise appears as grid column',
+            gridHeaders.some(function(h) { return h.indexOf(firstEx.typeName) !== -1; }),
+            'headers=' + gridHeaders.slice(0,8).join('|'));
+
+        // T3.2: Session count save
+        var typeId = firstEx.typeId;
+        var sesInput = document.querySelector('[data-month="1"][data-typeid="' + typeId + '"]');
+        if (sesInput) {
+            sesInput.value = '12';
+            sesInput.dispatchEvent(new Event('blur'));
+            await sleep(500);
+            var saved = _egMonths[1] && _egMonths[1].exerciseSessions && _egMonths[1].exerciseSessions[typeId];
+            check('T3.2', 'Session count saves to state', saved === 12, 'got=' + saved);
+        }
+    }
+
+    // T3.4: G recalculates
+    var gCell = document.querySelector('.eg-proj-g[data-month="1"]');
+    var gText = gCell ? gCell.textContent.replace(/,/g, '').trim() : null;
+    check('T3.4', 'G column shows value (sessions * cal/session / days)', gText !== null && gText !== '—',
+        'G text=' + gText);
+
+    // ── T4: Monthly Goals Grid ──────────────────────────────────────────────────
+    results.push('');
+    results.push('── T4: Monthly Goals Grid ──');
+
+    // Set Jan goal weight and check cascade
+    var janGW = document.querySelector('[data-month="1"][data-field="goalWeight"]');
+    if (janGW) {
+        // Reset months 2-12 to null first for a clean cascade test
+        for (var m2 = 2; m2 <= 12; m2++) {
+            if (_egMonths[m2]) _egMonths[m2].goalWeight = null;
+        }
+        janGW.value = '210';
+        janGW.dispatchEvent(new Event('blur'));
+        await sleep(600);
+
+        // Check cascade: months 2-12 that were null should now show 210
+        var febInp = document.querySelector('[data-month="2"][data-field="goalWeight"]');
+        check('T4.1', 'Goal weight cascades to blank months', febInp && febInp.value === '210',
+            'Feb value=' + (febInp ? febInp.value : 'null'));
+
+        // Set Mar explicitly to test cascade stop
+        var marGW = document.querySelector('[data-month="3"][data-field="goalWeight"]');
+        if (marGW) {
+            marGW.value = '200';
+            marGW.dispatchEvent(new Event('blur'));
+            await sleep(500);
+            // Now change Jan — Mar should stay 200
+            janGW.value = '212';
+            janGW.dispatchEvent(new Event('blur'));
+            await sleep(600);
+            check('T4.2', 'Cascade stops at explicitly set months',
+                marGW.value === '200', 'Mar value=' + marGW.value);
+            // Reset
+            janGW.value = '210';
+            janGW.dispatchEvent(new Event('blur'));
+            await sleep(400);
+        }
+    }
+
+    // T4.3 Weight Loss
+    var wtLossCell = document.querySelector('.eg-wt-loss-cell[data-month="1"]');
+    var sw = _egYearData ? _egYearData.startingWeight : null;
+    if (wtLossCell && sw != null && _egMonths[1] && _egMonths[1].goalWeight != null) {
+        var expectedWtLoss = Math.round(sw - _egMonths[1].goalWeight);
+        check('T4.3', 'Weight Loss = startingWeight - goalWeight',
+            wtLossCell.textContent.trim() === String(expectedWtLoss),
+            'expected=' + expectedWtLoss + ' got=' + wtLossCell.textContent.trim());
+    }
+
+    // T4.4 Daily Cal Loss
+    var calCell = document.querySelector('.eg-daily-cal-cell[data-month="1"]');
+    if (calCell && _egMonths[1] && _egMonths[1].goalWeight != null && sw != null) {
+        var wtLoss = Math.abs(Math.round(sw - _egMonths[1].goalWeight));
+        var expectedCal = Math.round(wtLoss * 3500 / 31);
+        var calText = calCell.textContent.replace(/,/g, '').trim();
+        check('T4.4', 'Daily Cal Loss = abs(WtLoss)*3500/days',
+            calText === String(expectedCal), 'expected=' + expectedCal + ' got=' + calText);
+    }
+
+    // T4.5 F = miles * calPerMile
+    var milesInput = document.querySelector('[data-month="1"][data-field="avgMilesPerDay"]');
+    if (milesInput) {
+        milesInput.value = '6';
+        milesInput.dispatchEvent(new Event('blur'));
+        await sleep(400);
+    }
+    var projF = document.querySelector('.eg-proj-f[data-month="1"]');
+    check('T4.5', 'F = avgMiles * calPerMile',
+        projF && projF.textContent.replace(/,/g,'').trim() === '660',
+        'F=' + (projF ? projF.textContent.trim() : 'null'));
+
+    // T4.7 H = F + G
+    var projH = document.querySelector('.eg-proj-h[data-month="1"]');
+    var projG = document.querySelector('.eg-proj-g[data-month="1"]');
+    if (projF && projG && projH) {
+        var fVal = parseInt(projF.textContent.replace(/,/g,''), 10);
+        var gVal = parseInt(projG.textContent.replace(/,/g,''), 10);
+        var hVal = parseInt(projH.textContent.replace(/,/g,''), 10);
+        check('T4.7', 'H = F + G', hVal === fVal + gVal,
+            'F=' + fVal + ' G=' + gVal + ' H=' + hVal);
+    }
+
+    // T4.8 I formula
+    var fy1Input = document.querySelector('[data-month="1"][data-field="foodYellow1"]');
+    var fy2Input = document.querySelector('[data-month="1"][data-field="foodYellow2"]');
+    if (fy1Input && fy2Input) {
+        fy1Input.value = '1200'; fy1Input.dispatchEvent(new Event('blur'));
+        fy2Input.value = '1700'; fy2Input.dispatchEvent(new Event('blur'));
+        await sleep(500);
+        var projI = document.querySelector('.eg-proj-i[data-month="1"]');
+        if (projI && projH) {
+            var hv = parseInt(projH.textContent.replace(/,/g,''), 10);
+            var baseBurn = _egYearData ? (_egYearData.baseDailyBurn || 0) : 0;
+            var avgFood = (1200 + 1700) / 2;
+            var expectedI = Math.round((baseBurn + hv - avgFood) * 31 / 3500);
+            var iText = projI.textContent.replace(/,/g,'').trim();
+            check('T4.8', 'I formula = ((baseBurn+H) - avgFood) * days / 3500',
+                iText === String(expectedI), 'expected=' + expectedI + ' got=' + iText);
+        }
+    }
+
+    // T4.9 J chain
+    var projJ = document.querySelector('.eg-proj-j[data-month="1"]');
+    if (projJ && projI) {
+        var iVal = parseInt(projI.textContent.replace(/,/g,''), 10);
+        var jVal = parseInt(projJ.textContent.replace(/,/g,''), 10);
+        var expectedJ = Math.round((sw || 218) - iVal);
+        check('T4.9', 'J = startingWeight - I for Jan',
+            jVal === expectedJ, 'expected=' + expectedJ + ' got=' + jVal);
+    }
+
+    // T4.10 J warning when J > goal weight
+    var janGWVal = _egMonths[1] ? _egMonths[1].goalWeight : null;
+    var jNum = projJ ? parseInt(projJ.textContent.replace(/,/g,''), 10) : null;
+    if (jNum != null && janGWVal != null) {
+        var expectedWarn = jNum > janGWVal;
+        var hasWarn = projJ.classList.contains('eg-td-warn');
+        check('T4.10', 'J warning matches J > goalWeight', hasWarn === expectedWarn,
+            'jNum=' + jNum + ' goalWt=' + janGWVal + ' hasWarn=' + hasWarn);
+    }
+
+    // T4.12 Copy Previous Month
+    var sepMiles = parseFloat(document.querySelector('[data-month="1"][data-field="avgMilesPerDay"]').value || '0');
+    await _egCopyPreviousMonth(2);
+    await sleep(500);
+    var febMiles = document.querySelector('[data-month="2"][data-field="avgMilesPerDay"]');
+    check('T4.12', 'Copy Prev copies avgMilesPerDay', febMiles && parseFloat(febMiles.value) === sepMiles,
+        'expected=' + sepMiles + ' got=' + (febMiles ? febMiles.value : 'null'));
+
+    // ── T5: Threshold Columns ───────────────────────────────────────────────────
+    results.push('');
+    results.push('── T5: Threshold Columns ──');
+
+    var thHeaders = document.querySelectorAll('.eg-th-y, .eg-th-g, .eg-th-b, .eg-th-ly');
+    check('T5.1', '18 threshold column headers present', thHeaders.length === 18,
+        'found=' + thHeaders.length);
+
+    var fy1Cell = document.querySelector('[data-month="1"][data-field="foodYellow1"]');
+    if (fy1Cell) {
+        fy1Cell.value = '1300';
+        fy1Cell.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        check('T5.2', 'Threshold value saves to state', _egMonths[1] && _egMonths[1].foodYellow1 === 1300,
+            'got=' + (_egMonths[1] ? _egMonths[1].foodYellow1 : 'null'));
+        // Reset
+        fy1Cell.value = '1200';
+        fy1Cell.dispatchEvent(new Event('blur'));
+        await sleep(300);
+    }
+
+    var fy2Cell = document.querySelector('[data-month="1"][data-field="foodYellow2"]');
+    if (fy1Cell && fy2Cell) {
+        var iBeforeText = (document.querySelector('.eg-proj-i[data-month="1"]') || {}).textContent;
+        fy2Cell.value = '2000'; // much higher — food budget doubles
+        fy2Cell.dispatchEvent(new Event('blur'));
+        await sleep(400);
+        var iAfterText = (document.querySelector('.eg-proj-i[data-month="1"]') || {}).textContent;
+        check('T5.3', 'Changing food threshold recalculates I', iBeforeText !== iAfterText,
+            'before=' + iBeforeText + ' after=' + iAfterText);
+        // Reset
+        fy2Cell.value = '1700';
+        fy2Cell.dispatchEvent(new Event('blur'));
+        await sleep(300);
+    }
+
+    // ── T6: Mobile Month Edit ───────────────────────────────────────────────────
+    results.push('');
+    results.push('── T6: Mobile Month Edit ──');
+
+    window.location.hash = '#exercise-goals/2026/3';
+    await sleep(900);
+    var monthEl = document.getElementById('page-exercise-goals-month');
+    var sections = monthEl ? monthEl.querySelectorAll('.eg-month-section') : [];
+    var inputs   = monthEl ? monthEl.querySelectorAll('.eg-month-field-input') : [];
+    check('T6.1a', 'Month edit renders 9 sections', sections.length === 9, 'count=' + sections.length);
+    check('T6.1b', 'Month edit renders 22 inputs', inputs.length === 22, 'count=' + inputs.length);
+
+    window.location.hash = '#exercise-goals/2026/1';
+    await sleep(700);
+    var copyTopDiv = document.querySelector('.eg-month-edit-top');
+    check('T6.2', 'January has no Copy Previous button', !copyTopDiv, 'element found when it should be absent');
+
+    window.location.hash = '#exercise-goals/2026/3';
+    await sleep(700);
+    var firstInput = document.querySelector('.eg-month-field-input');
+    if (firstInput) {
+        firstInput.value = '195';
+        firstInput.dispatchEvent(new Event('blur'));
+        await sleep(500);
+        check('T6.3', 'Month edit field saves on blur', _egMonths[3] && _egMonths[3].goalWeight === 195,
+            'got=' + (_egMonths[3] ? _egMonths[3].goalWeight : 'null'));
+    }
+
+    // ── T7: Daily Metrics Color Wiring ──────────────────────────────────────────
+    results.push('');
+    results.push('── T7: Daily Metrics Color Wiring ──');
+
+    window.location.hash = '#exercise-metrics';
+    await sleep(1200);
+    check('T7.1', 'Goals data loaded with metrics page', _dmGoalsData !== null, '_dmGoalsData is null');
+
+    var mockT = {
+        batteryYellow: 75, batteryBlue: 85,
+        stepsYellow: 6000, stepsGreen: 12000, stepsBlue: 15000,
+        burnGreen: 2800, burnBlue: 3100,
+        foodYellow1: 1200, foodYellow2: 1700, foodBad: 2000,
+        calLossYellow: 0, calLossGreen: 1500, calLossBlue: 2000
+    };
+
+    check('T7.2',  'Battery low → yellow',      _dmThresholdBg(70,    mockT, 'bodyBattery')   === '#fde68a', _dmThresholdBg(70, mockT, 'bodyBattery'));
+    check('T7.3',  'Battery high → blue',        _dmThresholdBg(90,    mockT, 'bodyBattery')   === '#93c5fd', _dmThresholdBg(90, mockT, 'bodyBattery'));
+    check('T7.4',  'Steps low → yellow',         _dmThresholdBg(4000,  mockT, 'dailySteps')    === '#fde68a', _dmThresholdBg(4000, mockT, 'dailySteps'));
+    check('T7.5',  'Steps mid → green',          _dmThresholdBg(13000, mockT, 'dailySteps')    === '#86efac', _dmThresholdBg(13000, mockT, 'dailySteps'));
+    check('T7.6',  'Steps high → blue',          _dmThresholdBg(16000, mockT, 'dailySteps')    === '#93c5fd', _dmThresholdBg(16000, mockT, 'dailySteps'));
+    check('T7.7',  'Food below min → yellow',    _dmThresholdBg(800,   mockT, 'foodCalories')  === '#fde68a', _dmThresholdBg(800, mockT, 'foodCalories'));
+    check('T7.8',  'Food over max → yellow',     _dmThresholdBg(1800,  mockT, 'foodCalories')  === '#fde68a', _dmThresholdBg(1800, mockT, 'foodCalories'));
+    check('T7.9',  'Food bad day → light yellow', _dmThresholdBg(2100,  mockT, 'foodCalories') === '#fff2cc', _dmThresholdBg(2100, mockT, 'foodCalories'));
+    check('T7.10', 'Cal loss green range',        _dmThresholdBg(1600,  mockT, 'calLoss')       === '#86efac', _dmThresholdBg(1600, mockT, 'calLoss'));
+    check('T7.11', 'Cal loss → blue',             _dmThresholdBg(2200,  mockT, 'calLoss')       === '#93c5fd', _dmThresholdBg(2200, mockT, 'calLoss'));
+    check('T7.12', 'No goals → no color',         _dmThresholdBg(1600,  null,  'calLoss')       === '',        _dmThresholdBg(1600, null, 'calLoss'));
+
+    // ── Summary ────────────────────────────────────────────────────────────────
+    results.push('');
+    results.push('══════════════════════════════════');
+    results.push('RESULT: ' + pass + ' passed, ' + fail + ' failed of ' + (pass + fail) + ' tests');
+    results.push('══════════════════════════════════');
+
+    console.log(results.join('\n'));
+    return { pass: pass, fail: fail, total: pass + fail, results: results };
+}

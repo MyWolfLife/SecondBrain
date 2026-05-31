@@ -1,6 +1,6 @@
 # Exercise Goals Feature Plan
 
-## Status: Design Discussion — Feature Complete, Ready for Development Planning
+## Status: Complete — All 7 Phases Shipped ✅
 
 ---
 
@@ -277,3 +277,125 @@ One document per year:
 | Actuals vs goals | Out of scope — pure planning screen. Deferred to Summary screen (future). |
 | Miles/Exercise threshold display | Captured in goals now; display location on Daily Metrics deferred |
 | Calorie Loss on Daily Metrics | Calculated at render time: Actual Burn − Food Calories |
+
+---
+
+---
+
+# End-to-End Test Plan
+
+## Overview
+
+Validates the full Goals feature chain: year management → constants → tracked exercises → monthly grid data entry → projection calculations → threshold color wiring into Daily Metrics. Tests run entirely in the browser via the preview server using `_egRunE2ETests()`.
+
+---
+
+## Prerequisites
+
+- Test account logged in (skasputi@pattersoncompanies.com)
+- Year 2026 goals doc exists in Firestore with starting weight and constants set
+- At least two tracked exercises configured
+- At least one daily metric record exists in the current month
+
+---
+
+## T1 — Year Management
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T1.1 | Navigate to #exercise-goals auto-redirects to current year | URL becomes #exercise-goals/2026; 2026 selected in dropdown |
+| T1.2 | Year dropdown lists all years + Add New Year option | 2026 present; option text "+ Add New Year" present |
+| T1.3 | Add New Year popup defaults to next year | Popup renders; input value = 2027 |
+| T1.4 | Creating a year navigates to that year | After creating 2027, hash becomes #exercise-goals/2027 |
+| T1.5 | Revisiting #exercise-goals resets to current year | Hash becomes #exercise-goals/2026, not 2027 |
+
+---
+
+## T2 — Year Constants
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T2.1 | Starting weight saves on blur | _egYearData.startingWeight matches entered value |
+| T2.2 | Base daily burn saves on blur | _egYearData.baseDailyBurn matches entered value |
+| T2.3 | Cal/mile saves on blur | _egYearData.calPerMile matches entered value |
+| T2.4 | Clearing cal/mile blanks projection col F | F cell shows dash after calPerMile cleared |
+| T2.5 | Re-entering cal/mile restores F calculation | F cell shows avgMiles * calPerMile immediately |
+
+---
+
+## T3 — Tracked Exercises
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T3.1 | Add tracked exercise creates grid column | Column header shows exercise name and cal/session |
+| T3.2 | Session count saves on blur | _egMonths[m].exerciseSessions[typeId] matches entered value |
+| T3.3 | Reorder changes column order | Exercise A column appears left of Exercise B after moving up |
+| T3.4 | G and H recalculate after session entry | G = sum(sessions * cal/session) / daysInMonth; H = F + G |
+
+---
+
+## T4 — Monthly Goals Grid
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T4.1 | Goal weight cascades to null months | All subsequent null months show the entered value |
+| T4.2 | Cascade stops at explicitly set months | Months with explicit values are not overridden |
+| T4.3 | Weight Loss = previous weight - this weight | Shows correct signed difference |
+| T4.4 | Daily Cal Loss = abs(WtLoss) * 3500 / days | Matches formula; rounded to whole number |
+| T4.5 | F = avgMilesPerDay * calPerMile | Correct value when both entered |
+| T4.6 | G = sum(sessions * cal/session) / days | Correct daily average from exercise sessions |
+| T4.7 | H = F + G | Sum of miles burn and extra burn |
+| T4.8 | I formula: ((baseBurn + H) - avgFood) * days / 3500 | Correct rounded result |
+| T4.9 | J chain: prev J - I (Jan uses starting weight) | Correct rolling chain across months |
+| T4.10 | J > goal weight triggers yellow background | Cell has background-color:#fde68a |
+| T4.11 | I negative triggers red text | Span has eg-val-warn class |
+| T4.12 | Copy Previous Month copies all fields | Goal weight, miles, sessions, all 18 thresholds match prior month |
+
+---
+
+## T5 — Threshold Columns
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T5.1 | 18 threshold column headers present | All 18 color-coded headers render to the right of exercise columns |
+| T5.2 | Threshold value saves on blur | _egMonths[m][field] matches entered value |
+| T5.3 | Food thresholds feed col I formula | Changing foodYellow1/foodYellow2 recalculates col I |
+| T5.4 | Copy Prev copies thresholds | All 18 threshold fields copied from prior month |
+
+---
+
+## T6 — Mobile Month Edit Screen
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T6.1 | Month edit screen renders | 9 sections and 22 inputs present for March 2026 |
+| T6.2 | January has no Copy Previous button | .eg-month-edit-top absent on month 1 |
+| T6.3 | Field saves on blur | _egMonths[m][field] updated |
+| T6.4 | Copy Previous on mobile re-renders form | Form shows prior month values after copy |
+
+---
+
+## T7 — Daily Metrics Color Wiring
+
+| ID | Description | Pass Criteria |
+|---|---|---|
+| T7.1 | Goals data loads with metrics page | _dmGoalsData !== null after navigating to #exercise-metrics |
+| T7.2 | Battery <= yellow threshold → #fde68a | _dmThresholdBg(70, thresholds, bodyBattery) === #fde68a |
+| T7.3 | Battery >= blue threshold → #93c5fd | _dmThresholdBg(90, thresholds, bodyBattery) === #93c5fd |
+| T7.4 | Steps < yellow → #fde68a | _dmThresholdBg(4000, thresholds, dailySteps) === #fde68a |
+| T7.5 | Steps in green range → #86efac | _dmThresholdBg(13000, thresholds, dailySteps) === #86efac |
+| T7.6 | Steps >= blue → #93c5fd | _dmThresholdBg(16000, thresholds, dailySteps) === #93c5fd |
+| T7.7 | Food < min → #fde68a | _dmThresholdBg(800, thresholds, foodCalories) === #fde68a |
+| T7.8 | Food over max → #fde68a | _dmThresholdBg(1800, thresholds, foodCalories) === #fde68a |
+| T7.9 | Food >= bad day → #fff2cc | _dmThresholdBg(2100, thresholds, foodCalories) === #fff2cc |
+| T7.10 | Cal loss in green range → #86efac | _dmThresholdBg(1600, thresholds, calLoss) === #86efac |
+| T7.11 | Cal loss >= blue → #93c5fd | _dmThresholdBg(2200, thresholds, calLoss) === #93c5fd |
+| T7.12 | No goals → no color | _dmThresholdBg(1600, null, calLoss) === empty string |
+
+---
+
+## Test Runner Implementation
+
+Run `await _egRunE2ETests()` in the browser console on the Goals or Metrics page.
+
+Results report: PASS/FAIL per test ID with failure reasons.
