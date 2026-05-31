@@ -17534,6 +17534,11 @@ a.legacy-fin-card:hover {
     margin-bottom: 6px;
 }
 
+/* Last 7 Days accordion */
+.dm-last7-section { margin-bottom: 10px; }
+.dm-last7-section .dm-accordion-hdr { background: #e8f5e9; }
+.dm-last7-section .dm-accordion-hdr:hover { background: #d0ebd2; }
+
 /* Year accordion */
 .dm-year-accordion { display: flex; flex-direction: column; gap: 4px; }
 .dm-accordion-section { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }

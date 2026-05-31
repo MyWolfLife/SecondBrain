@@ -1386,12 +1386,13 @@ async function _exHandleFromPicture(files) {
 
 // ─── Module-level state ──────────────────────────────────────────────────────
 
-var _dmDefsAll     = [];            // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
-var _dmMetricDefs  = [];            // same data, used by list + entry form
-var _dmSelMonth    = -1;            // 0-11 = specific month, -1 = full year view; set on page load
-var _dmSelYear     = 0;             // 4-digit year; set on page load
-var _dmEditDate    = null;          // null = new entry; 'YYYY-MM-DD' = editing existing
-var _dmExistingDoc = null;          // loaded doc data or null
+var _dmDefsAll        = [];         // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
+var _dmMetricDefs     = [];         // same data, used by list + entry form
+var _dmSelMonth       = -1;         // 0-11 = specific month, -1 = full year view; set on page load
+var _dmSelYear        = 0;          // 4-digit year; set on page load
+var _dmLast7Expanded  = false;      // sticky accordion state — loaded from settings/exercisePrefs
+var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
+var _dmExistingDoc    = null;       // loaded doc data or null
 
 // No default seeding — each user creates their own custom metrics via Manage Metrics.
 function seedExerciseMetricDefsIfNeeded() { return Promise.resolve(); }
@@ -1416,11 +1417,17 @@ async function loadExerciseMetricsPage() {
 
     await seedExerciseMetricDefsIfNeeded();
 
-    var snap = await userCol('exerciseMetricDefs').get();
-    _dmMetricDefs = snap.docs
+    // Load metric defs and sticky Last 7 preference in parallel
+    var results = await Promise.all([
+        userCol('exerciseMetricDefs').get(),
+        userCol('settings').doc('exercisePrefs').get()
+    ]);
+    _dmMetricDefs = results[0].docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
         .filter(function(d) { return !d.archived; })
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+    var prefs = results[1].exists ? results[1].data() : {};
+    _dmLast7Expanded = prefs.dmLast7Expanded === true;
 
     _dmRenderMetricsPage(el);
 }
@@ -1556,14 +1563,87 @@ async function _dmApplyFilter() {
         });
     } else {
         // ── Month view: standard table or cards ───────────────────────────────
-        if (records.length === 0) {
-            listEl.innerHTML = '<p class="ex-status">No entries for this period.</p>';
-            return;
+
+        // Determine if we should show the Last 7 Days accordion (current month + current year only)
+        var todayD = new Date();
+        var isCurrentPeriod = (_dmSelMonth === todayD.getMonth() && _dmSelYear === todayD.getFullYear());
+
+        var last7Html = '';
+        if (isCurrentPeriod) {
+            // Compute last-7 date range (may span into prior month)
+            var l7End = new Date(todayD); l7End.setHours(0,0,0,0);
+            var l7Start = new Date(l7End); l7Start.setDate(l7End.getDate() - 6);
+            function _fmtD(dt) {
+                var mm = dt.getMonth()+1, dd = dt.getDate();
+                return dt.getFullYear() + '-' + (mm<10?'0':'') + mm + '-' + (dd<10?'0':'') + dd;
+            }
+            var l7StartStr = _fmtD(l7Start), l7EndStr = _fmtD(l7End);
+
+            // Fetch last-7 records separately (separate query — never touches monthly data)
+            var l7Snap;
+            try {
+                l7Snap = await userCol('exerciseDailyMetrics')
+                    .orderBy('date', 'desc')
+                    .limit(7)
+                    .get();
+            } catch(e) { l7Snap = null; }
+
+            var l7Records = l7Snap ? l7Snap.docs
+                .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+                .filter(function(r) { return r.date >= l7StartStr && r.date <= l7EndStr; })
+                : [];
+
+            var l7Summary = _dmComputeSummary(l7Records, 7);
+            var l7RecCount = l7Records.length;
+            var l7CountLabel = l7RecCount === 0 ? 'No records'
+                             : l7RecCount + ' record' + (l7RecCount === 1 ? '' : 's');
+            var l7Open = _dmLast7Expanded;
+            last7Html =
+                '<div class="dm-accordion-section dm-last7-section">' +
+                    '<button class="dm-accordion-hdr" id="dmLast7Hdr" aria-expanded="' + (l7Open ? 'true' : 'false') + '">' +
+                        '<span class="dm-accordion-title">Last 7 Days</span>' +
+                        '<span class="dm-accordion-count">' + l7CountLabel + '</span>' +
+                        '<span class="dm-accordion-arrow">' + (l7Open ? '▼' : '▶') + '</span>' +
+                    '</button>' +
+                    '<div class="dm-accordion-body" id="dmLast7Body" style="display:' + (l7Open ? 'block' : 'none') + '">' +
+                        (l7RecCount === 0
+                            ? '<p class="ex-status dm-accordion-empty">No entries in the last 7 days.</p>'
+                            : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days (' + l7RecCount + ' of 7 logged)')) +
+                    '</div>' +
+                '</div>';
         }
-        var summary = _dmComputeSummary(records);
-        listEl.innerHTML = isDesktop
-            ? _dmBuildTable(records, summary)
-            : _dmBuildCards(records, summary);
+
+        // Monthly content
+        var monthlyHtml = '';
+        if (records.length === 0) {
+            monthlyHtml = '<p class="ex-status">No entries for this period.</p>';
+        } else {
+            var summary = _dmComputeSummary(records);
+            monthlyHtml = isDesktop
+                ? _dmBuildTable(records, summary)
+                : _dmBuildCards(records, summary);
+        }
+
+        listEl.innerHTML = last7Html + monthlyHtml;
+
+        // Wire Last 7 accordion toggle — persists state to Firestore
+        if (isCurrentPeriod) {
+            var l7Hdr = document.getElementById('dmLast7Hdr');
+            var l7Body = document.getElementById('dmLast7Body');
+            if (l7Hdr) {
+                l7Hdr.addEventListener('click', function() {
+                    var open = l7Hdr.getAttribute('aria-expanded') === 'true';
+                    _dmLast7Expanded = !open;
+                    l7Hdr.setAttribute('aria-expanded', _dmLast7Expanded ? 'true' : 'false');
+                    l7Body.style.display = _dmLast7Expanded ? 'block' : 'none';
+                    l7Hdr.querySelector('.dm-accordion-arrow').textContent = _dmLast7Expanded ? '▼' : '▶';
+                    // Persist asynchronously — fire and forget
+                    userCol('settings').doc('exercisePrefs').set(
+                        { dmLast7Expanded: _dmLast7Expanded }, { merge: true }
+                    );
+                });
+            }
+        }
     }
 
     // Wire card/row clicks and note icons
@@ -1581,7 +1661,7 @@ async function _dmApplyFilter() {
     });
 }
 
-function _dmComputeSummary(records) {
+function _dmComputeSummary(records, denominator) {
     var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories'];
     var sums = {}, counts = {};
     stdFields.forEach(function(f) { sums[f] = 0; counts[f] = 0; });
@@ -1616,6 +1696,7 @@ function _dmComputeSummary(records) {
 
     var n = records.length;
     var result = {};
+    // denominator overrides n for boolean X/Y display (e.g. pass 7 for last-7-days widget)
     // Weight: 1 decimal; others: round to integer
     result.weight      = counts.weight      ? (sums.weight / counts.weight).toFixed(1) : '—';
 
@@ -1649,9 +1730,10 @@ function _dmComputeSummary(records) {
     result.diffSum = diffSum; // null if no rows had both values
 
     result.custom = {};
+    var boolDenom = (denominator !== undefined && denominator !== null) ? denominator : n;
     _dmMetricDefs.forEach(function(def) {
         if (def.type === 'boolean') {
-            result.custom[def.id] = customTrueCounts[def.id] + ' / ' + n;
+            result.custom[def.id] = customTrueCounts[def.id] + ' / ' + boolDenom;
         } else if (def.type === 'number') {
             result.custom[def.id] = customCounts[def.id] ? customSums[def.id].toLocaleString() : '—';
         } else {
@@ -1788,6 +1870,43 @@ function _dmBuildTable(records, summary) {
     return '<div class="dm-table-wrap"><table class="dm-table">' + thead + tbody + '</table></div>';
 }
 
+// Shared helper — renders a tinted summary card from a pre-computed summary object.
+// title: string shown as the card header (e.g. "Averages / Totals (31 records)")
+function _dmBuildSummaryCardHtml(summary, title) {
+    var wtDisplay = summary.weight;
+    if (summary.weightChange !== null && summary.weightChange !== undefined) {
+        var wc = summary.weightChange;
+        var wcColor = wc < 0 ? '#2e7d32' : '#c62828';
+        var wcSign = wc > 0 ? '+' : '';
+        wtDisplay += ' <span style="color:' + wcColor + ';font-weight:bold">(' + wcSign + wc.toFixed(1) + ')</span>';
+    }
+    var row1 = '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + wtDisplay + '</span>' +
+               '<span class="dm-card-metric"><span class="dm-card-label">Sleep</span> ' + summary.sleepScore + '</span>' +
+               '<span class="dm-card-metric"><span class="dm-card-label">Bat</span> ' + summary.bodyBattery + '</span>';
+    var row2 = '<span class="dm-card-metric"><span class="dm-card-label">Steps</span> ' + summary.dailySteps + '</span>' +
+               '<span class="dm-card-metric"><span class="dm-card-label">Burn</span> ' + summary.totalBurn + '</span>';
+    if (summary.diffSum !== null && summary.diffSum !== undefined) {
+        var ds = Math.round(summary.diffSum);
+        var lbs = (summary.diffSum / 3500).toFixed(1);
+        var diffBg = summary.diffSum < 0 ? 'background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px' : '';
+        row2 += '<span class="dm-card-metric" style="' + diffBg + '"><span class="dm-card-label" style="' + (diffBg ? 'color:#555' : '') + '">Diff</span> ' + ds.toLocaleString() + ' (' + lbs + ')</span>';
+    }
+    row2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + summary.foodCalories + '</span>';
+
+    var customRow = _dmMetricDefs.map(function(def) {
+        var val = summary.custom[def.id];
+        if (!val) return '';
+        return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + '</span> ' + val + '</span>';
+    }).join('');
+
+    return '<div class="dm-summary-card">' +
+        '<div class="dm-summary-card-title">' + _exEsc(title) + '</div>' +
+        '<div class="dm-card-row">' + row1 + '</div>' +
+        '<div class="dm-card-row">' + row2 + '</div>' +
+        (customRow ? '<div class="dm-card-row dm-card-custom">' + customRow + '</div>' : '') +
+    '</div>';
+}
+
 function _dmBuildCards(records, summary) {
     var stdLabels = [
         { key: 'weight',       label: 'Wt' },
@@ -1798,43 +1917,9 @@ function _dmBuildCards(records, summary) {
         { key: 'foodCalories', label: 'Food' }
     ];
 
-    // Summary card
-    var summaryHtml = '';
-    if (summary) {
-        // Weight: show avg + net change
-        var wtDisplay = summary.weight;
-        if (summary.weightChange !== null && summary.weightChange !== undefined) {
-            var wc = summary.weightChange;
-            var wcColor = wc < 0 ? '#2e7d32' : '#c62828';
-            var wcSign = wc > 0 ? '+' : '';
-            wtDisplay += ' <span style="color:' + wcColor + ';font-weight:bold">(' + wcSign + wc.toFixed(1) + ')</span>';
-        }
-        var row1 = '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + wtDisplay + '</span>' +
-                   '<span class="dm-card-metric"><span class="dm-card-label">Sleep</span> ' + summary.sleepScore + '</span>' +
-                   '<span class="dm-card-metric"><span class="dm-card-label">Bat</span> ' + summary.bodyBattery + '</span>';
-        var row2 = '<span class="dm-card-metric"><span class="dm-card-label">Steps</span> ' + summary.dailySteps + '</span>' +
-                   '<span class="dm-card-metric"><span class="dm-card-label">Burn</span> ' + summary.totalBurn + '</span>';
-        if (summary.diffSum !== null && summary.diffSum !== undefined) {
-            var ds = Math.round(summary.diffSum);
-            var lbs = (summary.diffSum / 3500).toFixed(1);
-            var diffBg = summary.diffSum < 0 ? 'background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px' : '';
-            row2 += '<span class="dm-card-metric" style="' + diffBg + '"><span class="dm-card-label" style="' + (diffBg ? 'color:#555' : '') + '">Diff</span> ' + ds.toLocaleString() + ' (' + lbs + ')</span>';
-        }
-        row2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + summary.foodCalories + '</span>';
-
-        var customRow = _dmMetricDefs.map(function(def) {
-            var val = summary.custom[def.id];
-            if (!val) return '';
-            return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + '</span> ' + val + '</span>';
-        }).join('');
-
-        summaryHtml = '<div class="dm-summary-card">' +
-            '<div class="dm-summary-card-title">Averages / Totals (' + records.length + ' record' + (records.length === 1 ? '' : 's') + ')</div>' +
-            '<div class="dm-card-row">' + row1 + '</div>' +
-            '<div class="dm-card-row">' + row2 + '</div>' +
-            (customRow ? '<div class="dm-card-row dm-card-custom">' + customRow + '</div>' : '') +
-        '</div>';
-    }
+    var summaryHtml = summary
+        ? _dmBuildSummaryCardHtml(summary, 'Averages / Totals (' + records.length + ' record' + (records.length === 1 ? '' : 's') + ')')
+        : '';
 
     var cardsHtml = records.map(function(r) {
         // Standard metrics — 2 rows of 3
