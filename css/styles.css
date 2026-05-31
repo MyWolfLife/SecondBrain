@@ -19118,3 +19118,70 @@ a.legacy-fin-card:hover {
 /* ── Projection columns (Phase 5) ────────────────────────────────────────────── */
 /* Warning background: col I (negative = weight gain) or col J (exceeds goal weight) */
 .eg-td-warn { background: #fef9c3 !important; }  /* light yellow — same as food bad */
+
+/* ── Mobile goals view (Phase 6) ─────────────────────────────────────────────── */
+
+/* Desktop: show grid, hide mobile cards */
+.eg-mobile-view { display: none; }
+
+/* Mobile: hide grid, show cards */
+@media (max-width: 767px) {
+    .eg-grid-wrap { display: none; }
+    .eg-mobile-view { display: block; }
+}
+
+/* Month summary cards */
+.eg-mob-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+}
+.eg-mob-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.eg-mob-month-name { font-weight: 700; font-size: 0.95rem; color: #1f2937; }
+.eg-mob-card-data  { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.83rem; color: #374151; }
+.eg-mob-stat       { white-space: nowrap; }
+.eg-mob-stat-label { font-weight: 600; color: #6b7280; }
+
+/* Month edit form */
+.eg-month-edit-top     { padding: 8px 16px 0; }
+.eg-month-edit-actions { padding: 16px; }
+.eg-month-edit-form    { padding: 0 0 8px; }
+
+.eg-month-section { padding: 8px 16px 4px; }
+
+.eg-month-field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    gap: 12px;
+}
+.eg-month-field-row:last-child { border-bottom: none; }
+
+.eg-month-field-label {
+    font-size: 0.85rem;
+    color: #374151;
+    flex: 1;
+    line-height: 1.3;
+}
+.eg-month-field-input {
+    width: 90px;
+    padding: 5px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    text-align: right;
+    flex-shrink: 0;
+    -moz-appearance: textfield;
+}
+.eg-month-field-input::-webkit-outer-spin-button,
+.eg-month-field-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.eg-month-field-input:focus { outline: none; border-color: #2d6a2d; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }

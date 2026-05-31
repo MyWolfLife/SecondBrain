@@ -2632,25 +2632,34 @@ function _egRenderYearPage(el, year) {
 
 // ─── Load year data + exercise types ─────────────────────────────────────────
 
+// Fetches year doc and exercise types; populates _egYearData, _egAllTypes, _egMonths.
+// Skips the fetch if data for this year is already loaded.
+async function _egEnsureYearData(year) {
+    if (_egCurrentYear === year && _egYearData !== null) return;
+    _egCurrentYear = year;
+
+    var [yearSnap, typeSnap] = await Promise.all([
+        userCol('exerciseGoals').doc(String(year)).get(),
+        userCol('exerciseTypes').where('archived', '==', false).get()
+    ]);
+
+    _egYearData = yearSnap.exists ? yearSnap.data() : { trackedExercises: [], months: {} };
+    if (!_egYearData.trackedExercises) _egYearData.trackedExercises = [];
+
+    _egAllTypes = [];
+    typeSnap.forEach(function(doc) {
+        _egAllTypes.push(Object.assign({ id: doc.id }, doc.data()));
+    });
+    _egAllTypes.sort(function(a, b) { return a.name.localeCompare(b.name); });
+    _egInitMonths();
+}
+
 async function _egLoadYearContent(year) {
     var content = document.getElementById('egYearContent');
     if (!content) return;
 
     try {
-        var [yearSnap, typeSnap] = await Promise.all([
-            userCol('exerciseGoals').doc(String(year)).get(),
-            userCol('exerciseTypes').where('archived', '==', false).get()
-        ]);
-
-        _egYearData = yearSnap.exists ? yearSnap.data() : { trackedExercises: [], months: {} };
-        if (!_egYearData.trackedExercises) _egYearData.trackedExercises = [];
-
-        _egAllTypes = [];
-        typeSnap.forEach(function(doc) {
-            _egAllTypes.push(Object.assign({ id: doc.id }, doc.data()));
-        });
-        _egAllTypes.sort(function(a, b) { return a.name.localeCompare(b.name); });
-
+        await _egEnsureYearData(year);
     } catch (err) {
         console.error('Goals: failed to load year content:', err);
         content.innerHTML = '<p class="error-text">Failed to load. Please try again.</p>';
@@ -2698,15 +2707,16 @@ function _egRenderYearContent() {
             '<div id="egAddExerciseForm" class="eg-add-exercise-form hidden"></div>' +
         '</div>' +
 
-        // ── Monthly goals grid ──────────────────────────────────────────────
+        // ── Monthly goals (desktop grid + mobile cards) ─────────────────────
         '<div class="eg-section eg-section--grid">' +
             '<div class="eg-section-title">Monthly Goals</div>' +
-            '<div id="egGridContainer"></div>' +
+            '<div id="egGridContainer"></div>' +              // desktop grid (hidden on mobile via CSS)
+            '<div class="eg-mobile-view" id="egMobileView"></div>' +  // mobile cards (hidden on desktop)
         '</div>';
 
     _egRenderTrackedList();
-    _egInitMonths();
     _egRenderGrid();
+    _egRenderMobileView();
 }
 
 // ─── Phase 3: Monthly goals grid ─────────────────────────────────────────────
@@ -3441,11 +3451,89 @@ async function _egConfirmAddYear() {
 // ─── Mobile month edit page ───────────────────────────────────────────────────
 
 /** Stub — fully implemented in Phase 6. */
+// ─── Phase 6: Mobile view & month edit screen ────────────────────────────────
+
+// Human-readable labels for threshold fields on the mobile edit form
+var _EG_THRESHOLD_LABELS = {
+    foodYellow1:    'Min calories (below = too little)',
+    foodYellow2:    'Max calories (above = a little over)',
+    foodBad:        'Bad day calories (above = way over)',
+    batteryYellow:  'Low battery (at or below → yellow)',
+    batteryBlue:    'High battery (at or above → blue)',
+    stepsYellow:    'Low steps (below → yellow)',
+    stepsGreen:     'Good steps (at or above → green)',
+    stepsBlue:      'Great steps (at or above → blue)',
+    burnGreen:      'Good total burn (at or above → green)',
+    burnBlue:       'Great total burn (at or above → blue)',
+    exerciseYellow: 'Low exercise burn (below → yellow)',
+    exerciseBlue:   'High exercise burn (at or above → blue)',
+    calLossYellow:  'Warn if cal loss at or below → yellow',
+    calLossGreen:   'Good cal loss (at or above → green)',
+    calLossBlue:    'Great cal loss (at or above → blue)',
+    milesYellow:    'Low miles (below → yellow)',
+    milesGreen:     'Good miles (at or above → green)',
+    milesBlue:      'Great miles (at or above → blue)'
+};
+
+// ─── Mobile month summary cards ──────────────────────────────────────────────
+
+function _egRenderMobileView() {
+    var el = document.getElementById('egMobileView');
+    if (!el) return;
+
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+    var MAX_INLINE = 3;
+
+    var cards = '';
+    for (var m = 1; m <= 12; m++) {
+        var mData    = _egMonths[m] || {};
+        var sessions = mData.exerciseSessions || {};
+        var effGW    = _egEffectiveGoalWeight(m);
+
+        var gwDisplay    = effGW != null ? effGW + ' lbs' : '—';
+        var milesDisplay = mData.avgMilesPerDay != null ? mData.avgMilesPerDay + '/day' : '—';
+
+        var sessionHtml = '';
+        if (exercises.length > 0) {
+            if (exercises.length <= MAX_INLINE) {
+                sessionHtml = exercises.map(function(te) {
+                    var cnt = sessions[te.typeId] != null ? sessions[te.typeId] : '—';
+                    return '<span class="eg-mob-stat"><span class="eg-mob-stat-label">' +
+                           escapeHtml(te.typeName) + ':</span> ' + cnt + '</span>';
+                }).join('');
+            } else {
+                var total = 0;
+                exercises.forEach(function(te) { total += sessions[te.typeId] || 0; });
+                sessionHtml = '<span class="eg-mob-stat">' + total + ' sessions</span>';
+            }
+        }
+
+        cards +=
+            '<div class="eg-mob-card">' +
+                '<div class="eg-mob-card-header">' +
+                    '<span class="eg-mob-month-name">' + _EG_MONTH_NAMES[m - 1] + '</span>' +
+                    '<a href="#exercise-goals/' + _egCurrentYear + '/' + m + '" class="btn btn-secondary btn-small">Edit</a>' +
+                '</div>' +
+                '<div class="eg-mob-card-data">' +
+                    '<span class="eg-mob-stat"><span class="eg-mob-stat-label">Wt:</span> ' + gwDisplay + '</span>' +
+                    '<span class="eg-mob-stat"><span class="eg-mob-stat-label">Mi:</span> ' + milesDisplay + '</span>' +
+                    sessionHtml +
+                '</div>' +
+            '</div>';
+    }
+
+    el.innerHTML = cards;
+}
+
+// ─── Mobile month edit screen ─────────────────────────────────────────────────
+
 async function loadExerciseGoalsMonthPage(year, month) {
     window.scrollTo(0, 0);
-    var monthNames = ['','January','February','March','April','May','June',
-                      'July','August','September','October','November','December'];
-    var monthName = monthNames[parseInt(month, 10)] || month;
+    var yearNum  = parseInt(year, 10);
+    var monthNum = parseInt(month, 10);
+    var monthName = _EG_MONTH_NAMES[monthNum - 1] || ('Month ' + month);
+
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
@@ -3456,9 +3544,119 @@ async function loadExerciseGoalsMonthPage(year, month) {
 
     var el = document.getElementById('page-exercise-goals-month');
     if (!el) return;
-    el.innerHTML =
-        '<div class="page-header"><h2>' + monthName + ' ' + year + '</h2></div>' +
-        '<p class="eg-placeholder">Month edit screen — coming in Phase 6.</p>';
+    el.innerHTML = '<p class="loading-text">Loading...</p>';
+
+    try {
+        await _egEnsureYearData(yearNum);
+    } catch (err) {
+        console.error('Goals: failed to load month:', err);
+        el.innerHTML = '<p class="error-text">Failed to load. Please try again.</p>';
+        return;
+    }
+
+    _egRenderMonthEditForm(yearNum, monthNum);
+}
+
+function _egRenderMonthEditForm(year, month) {
+    var el = document.getElementById('page-exercise-goals-month');
+    if (!el) return;
+
+    var mData     = _egMonths[month] || {};
+    var sessions  = mData.exerciseSessions || {};
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+    var monthName = _EG_MONTH_NAMES[month - 1];
+
+    var html =
+        '<div class="page-header"><h2>' + monthName + ' ' + year + '</h2></div>';
+
+    // Copy Previous (hidden for January)
+    if (month > 1) {
+        html += '<div class="eg-month-edit-actions eg-month-edit-top">' +
+            '<button class="btn btn-secondary" onclick="_egMobileCopyPrev(' + year + ',' + month + ')">Copy Previous Month</button>' +
+        '</div>';
+    }
+
+    html += '<div class="eg-month-edit-form">';
+
+    // ── Weight ───────────────────────────────────────────────────────────────
+    html += _egMobileSection('Weight', [
+        { label: 'Goal Weight (lbs)', value: mData.goalWeight,
+          save: '_egSaveMonthField(' + month + ',\'goalWeight\',this.value)', step: '0.1', placeholder: 'e.g. 207' }
+    ]);
+
+    // ── Exercise Goals ────────────────────────────────────────────────────────
+    var exRows = [
+        { label: 'Avg Miles / Day', value: mData.avgMilesPerDay,
+          save: '_egSaveMonthField(' + month + ',\'avgMilesPerDay\',this.value)', step: '0.1', placeholder: 'e.g. 6' }
+    ];
+    exercises.forEach(function(te) {
+        exRows.push({
+            label: escapeHtml(te.typeName) + ' (sessions)',
+            value: sessions[te.typeId] != null ? sessions[te.typeId] : null,
+            save: '_egSaveMonthSession(' + month + ',\'' + te.typeId + '\',this.value)',
+            step: '1', placeholder: 'e.g. 12'
+        });
+    });
+    html += _egMobileSection('Exercise Goals', exRows);
+
+    // ── Threshold sections grouped from _EG_THRESHOLD_COLS ───────────────────
+    var currentGroup = null;
+    var groupRows    = [];
+
+    function flushGroup() {
+        if (currentGroup && groupRows.length > 0) {
+            html += _egMobileSection(currentGroup, groupRows);
+        }
+        groupRows = [];
+    }
+
+    _EG_THRESHOLD_COLS.forEach(function(col) {
+        if (col.groupStart && currentGroup !== null) flushGroup();
+        currentGroup = col.group;
+        groupRows.push({
+            label: _EG_THRESHOLD_LABELS[col.field] || col.label,
+            value: mData[col.field] != null ? mData[col.field] : null,
+            save:  '_egSaveMonthField(' + month + ',\'' + col.field + '\',this.value)',
+            step:  '1', placeholder: ''
+        });
+    });
+    flushGroup();
+
+    html += '</div>';  // eg-month-edit-form
+
+    // Back button
+    html +=
+        '<div class="eg-month-edit-actions">' +
+            '<a href="#exercise-goals/' + year + '" class="btn btn-primary">← Back to ' + year + ' Goals</a>' +
+        '</div>';
+
+    el.innerHTML = html;
+}
+
+// Renders one labeled form section with a list of field rows
+function _egMobileSection(title, rows) {
+    var html = '<div class="eg-month-section"><div class="dm-section-header">' + title + '</div>';
+    rows.forEach(function(r) {
+        var val = r.value != null ? r.value : '';
+        html +=
+            '<div class="eg-month-field-row">' +
+                '<label class="eg-month-field-label">' + r.label + '</label>' +
+                '<input class="eg-month-field-input" type="number"' +
+                (r.step ? ' step="' + r.step + '"' : '') +
+                ' value="' + val + '"' +
+                (r.placeholder ? ' placeholder="' + r.placeholder + '"' : '') +
+                ' onblur="' + r.save + '">' +
+            '</div>';
+    });
+    return html + '</div>';
+}
+
+// Copy previous month data then re-render the form
+async function _egMobileCopyPrev(year, month) {
+    if (month <= 1) return;
+    await _egCopyPreviousMonth(month);
+    _egRenderMonthEditForm(year, month);
 }
 
 // ─── Delete metric def ────────────────────────────────────────────────────────
