@@ -2698,13 +2698,272 @@ function _egRenderYearContent() {
             '<div id="egAddExerciseForm" class="eg-add-exercise-form hidden"></div>' +
         '</div>' +
 
-        // ── Grid placeholder ────────────────────────────────────────────────
-        '<div class="eg-section">' +
-            '<div class="eg-section-title">Monthly Goals Grid</div>' +
-            '<p class="eg-placeholder">Goal grid coming in Phase 3.</p>' +
+        // ── Monthly goals grid ──────────────────────────────────────────────
+        '<div class="eg-section eg-section--grid">' +
+            '<div class="eg-section-title">Monthly Goals</div>' +
+            '<div id="egGridContainer"></div>' +
         '</div>';
 
     _egRenderTrackedList();
+    _egInitMonths();
+    _egRenderGrid();
+}
+
+// ─── Phase 3: Monthly goals grid ─────────────────────────────────────────────
+
+var _egMonths = {};  // month number (1-12) → month data object
+
+var _EG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function _egInitMonths() {
+    _egMonths = {};
+    var stored = _egYearData.months || {};
+    for (var m = 1; m <= 12; m++) {
+        // Keys may be stored as numbers or strings depending on SDK version
+        _egMonths[m] = stored[m] || stored[String(m)] || {};
+    }
+}
+
+function _egDaysInMonth(month) {
+    return new Date(_egCurrentYear, month, 0).getDate();
+}
+
+// Returns the effective goal weight for a month:
+// uses the month's explicit value, or walks back to the last set month, or startingWeight.
+function _egEffectiveGoalWeight(month) {
+    for (var m = month; m >= 1; m--) {
+        if (_egMonths[m] && _egMonths[m].goalWeight != null) return _egMonths[m].goalWeight;
+    }
+    return (_egYearData && _egYearData.startingWeight != null) ? _egYearData.startingWeight : null;
+}
+
+// Weight loss for a month: positive = lost weight, negative = gained. Returns null if data missing.
+function _egWeightLoss(month) {
+    var curr = _egEffectiveGoalWeight(month);
+    var prev = month === 1
+        ? ((_egYearData && _egYearData.startingWeight != null) ? _egYearData.startingWeight : null)
+        : _egEffectiveGoalWeight(month - 1);
+    if (curr == null || prev == null) return null;
+    return Math.round(prev - curr);
+}
+
+// Daily calorie deficit needed to hit the weight loss goal.
+function _egDailyCalLoss(month) {
+    var loss = _egWeightLoss(month);
+    if (loss == null) return null;
+    return Math.round(Math.abs(loss) * 3500 / _egDaysInMonth(month));
+}
+
+function _egFmtWtLoss(val) {
+    if (val == null) return '<span class="eg-calc-blank">—</span>';
+    var cls = val < 0 ? ' eg-val-warn' : '';
+    return '<span class="eg-calc-num' + cls + '">' + val + '</span>';
+}
+
+function _egFmtCalc(val) {
+    if (val == null) return '<span class="eg-calc-blank">—</span>';
+    return '<span class="eg-calc-num">' + val.toLocaleString() + '</span>';
+}
+
+// ─── Build the full goals grid ────────────────────────────────────────────────
+
+function _egRenderGrid() {
+    var container = document.getElementById('egGridContainer');
+    if (!container) return;
+
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+    // ── Header ───────────────────────────────────────────────────────────────
+    var hdr =
+        '<th class="eg-th eg-col-month eg-th-corner">Month</th>' +
+        '<th class="eg-th">Goal<br><span class="eg-th-sub">Weight</span></th>' +
+        '<th class="eg-th eg-th-calc">Wt<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th eg-th-calc">Daily Cal<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th">Miles<br><span class="eg-th-sub">/ Day</span></th>';
+
+    exercises.forEach(function(te) {
+        hdr += '<th class="eg-th">' + escapeHtml(te.typeName) +
+               '<br><span class="eg-th-sub">' + te.calPerSession + ' cal/ses</span></th>';
+    });
+    hdr += '<th class="eg-th eg-th-copy"></th>';  // Copy Prev column
+
+    // ── Rows ─────────────────────────────────────────────────────────────────
+    var rows = '';
+    for (var m = 1; m <= 12; m++) {
+        var mData    = _egMonths[m] || {};
+        var sessions = mData.exerciseSessions || {};
+        var effGW    = _egEffectiveGoalWeight(m);
+        var gwVal    = mData.goalWeight != null ? mData.goalWeight : (effGW != null ? effGW : '');
+        var isInherited = mData.goalWeight == null && gwVal !== '';
+
+        rows += '<tr>' +
+            '<td class="eg-td eg-td-month">' + _EG_MONTH_NAMES[m - 1] + '</td>' +
+
+            // Goal Weight input
+            '<td class="eg-td">' +
+                '<input class="eg-cell-input' + (isInherited ? ' eg-inherited' : '') + '" type="number" step="0.1"' +
+                ' data-month="' + m + '" data-field="goalWeight"' +
+                ' value="' + gwVal + '"' +
+                ' onblur="_egSaveMonthField(' + m + ',\'goalWeight\',this.value)">' +
+            '</td>' +
+
+            // Weight Loss (calc)
+            '<td class="eg-td eg-td-calc eg-wt-loss-cell" data-month="' + m + '">' +
+                _egFmtWtLoss(_egWeightLoss(m)) +
+            '</td>' +
+
+            // Daily Cal Loss (calc)
+            '<td class="eg-td eg-td-calc eg-daily-cal-cell" data-month="' + m + '">' +
+                _egFmtCalc(_egDailyCalLoss(m)) +
+            '</td>' +
+
+            // Avg Miles / Day
+            '<td class="eg-td">' +
+                '<input class="eg-cell-input" type="number" step="0.1"' +
+                ' data-month="' + m + '" data-field="avgMilesPerDay"' +
+                ' value="' + (mData.avgMilesPerDay != null ? mData.avgMilesPerDay : '') + '"' +
+                ' onblur="_egSaveMonthField(' + m + ',\'avgMilesPerDay\',this.value)">' +
+            '</td>';
+
+        // Tracked exercise session counts
+        exercises.forEach(function(te) {
+            var sesVal = sessions[te.typeId] != null ? sessions[te.typeId] : '';
+            rows += '<td class="eg-td">' +
+                '<input class="eg-cell-input eg-session-input" type="number" min="0"' +
+                ' data-month="' + m + '" data-typeid="' + te.typeId + '"' +
+                ' value="' + sesVal + '"' +
+                ' onblur="_egSaveMonthSession(' + m + ',\'' + te.typeId + '\',this.value)">' +
+                '</td>';
+        });
+
+        // Copy Previous button (hidden for January)
+        rows += '<td class="eg-td eg-td-copy">' +
+            (m > 1 ? '<button class="btn btn-secondary eg-copy-btn" onclick="_egCopyPreviousMonth(' + m + ')">Copy Prev</button>' : '') +
+            '</td></tr>';
+    }
+
+    container.innerHTML =
+        '<div class="eg-grid-wrap">' +
+            '<table class="eg-grid">' +
+                '<thead><tr>' + hdr + '</tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+        '</div>';
+}
+
+// ─── Update calculated cells reactively ──────────────────────────────────────
+
+function _egUpdateCalcCells() {
+    for (var m = 1; m <= 12; m++) {
+        var wtCell  = document.querySelector('.eg-wt-loss-cell[data-month="' + m + '"]');
+        var calCell = document.querySelector('.eg-daily-cal-cell[data-month="' + m + '"]');
+        if (wtCell)  wtCell.innerHTML  = _egFmtWtLoss(_egWeightLoss(m));
+        if (calCell) calCell.innerHTML = _egFmtCalc(_egDailyCalLoss(m));
+    }
+}
+
+// ─── Save a monthly entered field on blur ────────────────────────────────────
+
+async function _egSaveMonthField(month, field, rawValue) {
+    var val = rawValue === '' ? null : parseFloat(rawValue);
+    if (val !== null && isNaN(val)) return;
+
+    if (!_egMonths[month]) _egMonths[month] = {};
+    _egMonths[month][field] = val;
+
+    var update = {};
+    update['months.' + month + '.' + field] =
+        val !== null ? val : firebase.firestore.FieldValue.delete();
+
+    // Cascade goal weight forward to subsequent months that are still null
+    if (field === 'goalWeight' && val !== null) {
+        for (var m2 = month + 1; m2 <= 12; m2++) {
+            if (!_egMonths[m2]) _egMonths[m2] = {};
+            if (_egMonths[m2].goalWeight == null) {
+                _egMonths[m2].goalWeight = val;
+                update['months.' + m2 + '.goalWeight'] = val;
+                var inp = document.querySelector('[data-month="' + m2 + '"][data-field="goalWeight"]');
+                if (inp && inp !== document.activeElement) {
+                    inp.value = val;
+                    inp.classList.add('eg-inherited');
+                }
+            }
+        }
+        // Remove inherited style from the cell that was just explicitly set
+        var thisInp = document.querySelector('[data-month="' + month + '"][data-field="goalWeight"]');
+        if (thisInp) thisInp.classList.remove('eg-inherited');
+    }
+
+    update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update(update);
+    } catch (err) {
+        console.error('Goals: failed to save month field:', err);
+    }
+    _egUpdateCalcCells();
+}
+
+// ─── Save a session count on blur ────────────────────────────────────────────
+
+async function _egSaveMonthSession(month, typeId, rawValue) {
+    var val = rawValue === '' ? null : parseInt(rawValue, 10);
+    if (val !== null && (isNaN(val) || val < 0)) return;
+
+    if (!_egMonths[month]) _egMonths[month] = {};
+    if (!_egMonths[month].exerciseSessions) _egMonths[month].exerciseSessions = {};
+    _egMonths[month].exerciseSessions[typeId] = val;
+
+    var update = {};
+    update['months.' + month + '.exerciseSessions.' + typeId] =
+        val !== null ? val : firebase.firestore.FieldValue.delete();
+    update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update(update);
+    } catch (err) {
+        console.error('Goals: failed to save session count:', err);
+    }
+}
+
+// ─── Copy previous month ──────────────────────────────────────────────────────
+
+async function _egCopyPreviousMonth(month) {
+    if (month <= 1) return;
+
+    // Deep copy the previous month's data
+    var prev = JSON.parse(JSON.stringify(_egMonths[month - 1] || {}));
+    // Merge into current month, preserving any fields not in prev (e.g., Phase 4 thresholds)
+    var existing = JSON.parse(JSON.stringify(_egMonths[month] || {}));
+    var merged = Object.assign(existing, prev);
+    _egMonths[month] = merged;
+
+    // Update DOM inputs for this month
+    var gwInp = document.querySelector('[data-month="' + month + '"][data-field="goalWeight"]');
+    if (gwInp) { gwInp.value = merged.goalWeight != null ? merged.goalWeight : ''; gwInp.classList.remove('eg-inherited'); }
+
+    var milesInp = document.querySelector('[data-month="' + month + '"][data-field="avgMilesPerDay"]');
+    if (milesInp) milesInp.value = merged.avgMilesPerDay != null ? merged.avgMilesPerDay : '';
+
+    var sessions = merged.exerciseSessions || {};
+    Object.keys(sessions).forEach(function(tid) {
+        var sesInp = document.querySelector('[data-month="' + month + '"][data-typeid="' + tid + '"]');
+        if (sesInp) sesInp.value = sessions[tid] != null ? sessions[tid] : '';
+    });
+
+    // Write entire month object to Firestore
+    var update = {};
+    update['months.' + month] = merged;
+    update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update(update);
+    } catch (err) {
+        console.error('Goals: failed to copy month:', err);
+        alert('Failed to copy. Please try again.');
+        return;
+    }
+    _egUpdateCalcCells();
 }
 
 // ─── Save a year-level constant on blur ───────────────────────────────────────

@@ -19010,3 +19010,92 @@ a.legacy-fin-card:hover {
 
 /* ── Placeholder text ────────────────────────────────────────────────────────── */
 .eg-placeholder { font-size: 0.9rem; color: #9ca3af; font-style: italic; padding: 8px 0; }
+
+/* ── Monthly goals grid (Phase 3) ────────────────────────────────────────────── */
+.eg-section--grid { padding-bottom: 24px; }
+
+.eg-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+.eg-grid {
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 100%;
+}
+
+/* Header cells */
+.eg-th {
+    position: sticky;
+    top: 0;
+    background: #f3f4f6;
+    padding: 7px 10px;
+    text-align: center;
+    white-space: nowrap;
+    border-bottom: 2px solid #d1d5db;
+    border-right: 1px solid #e5e7eb;
+    font-weight: 600;
+    line-height: 1.3;
+    z-index: 2;
+}
+.eg-th-calc { background: #eef0f3; }
+.eg-th-copy { border-right: none; }
+.eg-th-sub  { font-size: 0.70rem; font-weight: 400; color: #9ca3af; display: block; }
+.eg-th-corner {
+    position: sticky;
+    left: 0;
+    z-index: 4;  /* highest — top-left cell is both sticky dimensions */
+}
+
+/* Data cells */
+.eg-td {
+    padding: 3px 5px;
+    border-bottom: 1px solid #f0f0f0;
+    border-right: 1px solid #f3f4f6;
+    text-align: center;
+    vertical-align: middle;
+}
+.eg-td-calc  { background: #fafafa; font-size: 0.82rem; }
+.eg-td-copy  { border-right: none; white-space: nowrap; }
+.eg-td-month {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f9fafb;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: left;
+    padding: 6px 12px;
+    border-right: 2px solid #d1d5db;
+    white-space: nowrap;
+    min-width: 48px;
+}
+
+/* Cell inputs */
+.eg-cell-input {
+    width: 70px;
+    padding: 4px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: right;
+    font-size: 0.85rem;
+    background: transparent;
+    transition: border-color 0.12s, background 0.12s;
+    -moz-appearance: textfield;
+}
+.eg-cell-input::-webkit-outer-spin-button,
+.eg-cell-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.eg-cell-input:hover  { border-color: #d1d5db; background: #fff; }
+.eg-cell-input:focus  { border-color: #2d6a2d; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }
+.eg-session-input     { width: 50px; }
+.eg-inherited         { color: #9ca3af; }  /* goal weight inherited from prior month */
+
+/* Calculated value display */
+.eg-calc-num   { }
+.eg-calc-blank { color: #d1d5db; }
+.eg-val-warn   { color: #dc2626; font-weight: 600; }  /* negative = weight gain */
+
+/* Copy Prev button */
+.eg-copy-btn { font-size: 0.72rem; padding: 2px 8px; white-space: nowrap; }

@@ -3515,7 +3515,11 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Add New Year** opens a popup defaulting to next year — confirm or type a different year
 - **Year Constants** (top section): enter Starting Weight, Base Daily Burn, and Calories Per Mile — these drive the plan calculations. Saved automatically when you tab away.
 - **Tracked Exercises**: click **+ Add Exercise** to add an exercise type you want to goal-track. Pick from your existing exercise types (or add a new one inline), then enter your average calories burned per session. Use ↑/↓ to reorder and **Remove** to stop tracking one.
-- The full monthly goals grid (weight targets, session counts, calorie projections, color thresholds) is added in upcoming phases.
+- **Monthly Goals Grid**: one row per month (Jan–Dec). Enter Goal Weight, Miles/Day, and session counts for each tracked exercise. Tab between cells — values save automatically when you leave a field.
+- **Goal Weight cascade**: when you enter a goal weight for a month, it automatically fills all later months that haven't been set yet. Change a later month to override just that month forward.
+- **Copy Prev button**: on any month row (except January), copies all values from the prior month in one click — useful when most months are the same.
+- **Calculated columns**: Weight Loss and Daily Calorie Loss Needed are computed automatically from your goal weights and update as you type.
+- Color threshold columns (food ranges, steps, burn, etc.) are added in an upcoming phase.
 - Color thresholds you define here will automatically color-code your Daily Metrics entries for that month.
 
 ---

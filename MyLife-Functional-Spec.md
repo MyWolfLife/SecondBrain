@@ -1172,7 +1172,11 @@ Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthl
 - Years cannot be deleted once created.
 - **Year Constants** section: Starting Weight (lbs), Base Daily Burn (cal), Calories Per Mile — entered once per year, saved on blur.
 - **Tracked Exercises** section: add exercises from existing types (or create inline), enter avg cal/session, reorder with ↑/↓, remove. Stored in `trackedExercises[]` on the year doc.
-- Full monthly grid (columns, inline editing, calculations) built in subsequent phases. See `ExerciseGoals.md` for full design.
+- **Monthly Goals Grid**: 12-row inline-editing table (one row per month). Columns: Month (frozen), Goal Weight, Weight Loss (calc), Daily Cal Loss Needed (calc), Miles/Day, one column per tracked exercise (session count), Copy Prev button. Saves on blur. Jan has no Copy Prev button.
+- **Goal weight cascade**: entering a value propagates forward to all subsequent months that are still null. Months already set are not overridden.
+- **Copy Prev**: copies all entered fields from the prior month (goal weight, miles, session counts) into the current month.
+- Calculated cols update reactively: Weight Loss = prev effective weight − this month's weight; Daily Cal Loss = |Wt Loss| × 3500 ÷ days in month. Both round to whole numbers.
+- Threshold columns (food, battery, steps, etc.) added in Phase 4. See `ExerciseGoals.md` for full design.
 
 ### Daily Metrics (`#exercise-metrics`, `#exercise-metric/:date`, `#exercise-metric-defs`)
 Daily health and habit journal — one record per date. Tracks 6 hardcoded standard metrics (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) plus unlimited user-defined custom metrics (boolean, number, or text). Full detail in `ExercisePlan.md` Section 3.
