@@ -2833,6 +2833,14 @@ function _egRenderGrid() {
                '<br><span class="eg-th-sub">' + te.calPerSession + ' cal/ses</span></th>';
     });
 
+    // Projection column headers (between exercise goals and thresholds)
+    hdr +=
+        '<th class="eg-th eg-th-calc eg-th-group-start">Burn<br><span class="eg-th-sub">Miles/Day</span></th>' +
+        '<th class="eg-th eg-th-calc">Burn<br><span class="eg-th-sub">Extra/Day</span></th>' +
+        '<th class="eg-th eg-th-calc">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
+        '<th class="eg-th eg-th-calc">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th eg-th-calc">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
+
     // Threshold columns
     _EG_THRESHOLD_COLS.forEach(function(col) {
         var colorCls = 'eg-th-' + col.color;
@@ -2842,6 +2850,9 @@ function _egRenderGrid() {
     });
 
     hdr += '<th class="eg-th eg-th-copy"></th>';  // Copy Prev column
+
+    // Compute all projection values up front (sequential — J depends on previous J)
+    var projs = _egComputeProjections();
 
     // ── Rows ─────────────────────────────────────────────────────────────────
     var rows = '';
@@ -2892,6 +2903,19 @@ function _egRenderGrid() {
                 '</td>';
         });
 
+        // Projection cells (F, G, H, I, J)
+        var p     = projs[m - 1];
+        var iWarn = p.i != null && p.i < 0;
+        var jWarn = p.j != null && effGW != null && p.j > effGW;
+        rows +=
+            '<td class="eg-td eg-td-calc eg-proj-f eg-td-group-start" data-month="' + m + '">' + _egFmtCalc(p.f) + '</td>' +
+            '<td class="eg-td eg-td-calc eg-proj-g" data-month="' + m + '">' + _egFmtCalc(p.g) + '</td>' +
+            '<td class="eg-td eg-td-calc eg-proj-h" data-month="' + m + '">' + _egFmtCalc(p.h) + '</td>' +
+            '<td class="eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' + _egFmtProjI(p.i) + '</td>' +
+            '<td class="eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' +
+                (p.j != null ? '<span class="eg-calc-num">' + p.j + '</span>' : '<span class="eg-calc-blank">—</span>') +
+            '</td>';
+
         // Threshold input columns
         _EG_THRESHOLD_COLS.forEach(function(col) {
             var fieldVal = mData[col.field] != null ? mData[col.field] : '';
@@ -2919,14 +2943,103 @@ function _egRenderGrid() {
         '</div>';
 }
 
-// ─── Update calculated cells reactively ──────────────────────────────────────
+// ─── Phase 5: Projection column calculations ──────────────────────────────────
+
+// Computes all 5 projection values for all 12 months in one pass.
+// Returns array[0..11] of { f, g, h, i, j } (all may be null if data missing).
+function _egComputeProjections() {
+    var calPerMile = _egYearData ? (_egYearData.calPerMile   || null) : null;
+    var baseBurn   = _egYearData ? (_egYearData.baseDailyBurn || null) : null;
+    var exercises  = _egYearData ? (_egYearData.trackedExercises || []) : [];
+    var results    = [];
+    var prevJ      = null;
+
+    for (var m = 1; m <= 12; m++) {
+        var mData    = _egMonths[m] || {};
+        var sessions = mData.exerciseSessions || {};
+        var days     = _egDaysInMonth(m);
+
+        // F — Daily calorie burn from miles
+        var f = (calPerMile != null && mData.avgMilesPerDay != null)
+            ? Math.round(mData.avgMilesPerDay * calPerMile)
+            : null;
+
+        // G — Daily calorie burn from non-mile exercise sessions (always 0+)
+        var extraTotal = 0;
+        exercises.forEach(function(te) {
+            extraTotal += (sessions[te.typeId] != null ? sessions[te.typeId] : 0) * (te.calPerSession || 0);
+        });
+        var g = Math.round(extraTotal / days);
+
+        // H — Total daily exercise burn (null if F is null — calPerMile not set)
+        var h = f != null ? f + g : null;
+
+        // I — Estimated weight lost this month
+        var fy1 = mData.foodYellow1 != null ? mData.foodYellow1 : null;
+        var fy2 = mData.foodYellow2 != null ? mData.foodYellow2 : null;
+        var i = null;
+        if (baseBurn != null && h != null && fy1 != null && fy2 != null) {
+            i = Math.round(((baseBurn + h) - (fy1 + fy2) / 2) * days / 3500);
+        }
+
+        // J — Estimated end-of-month weight (rolling chain)
+        var startForJ = m === 1
+            ? (_egYearData && _egYearData.startingWeight != null ? _egYearData.startingWeight : null)
+            : prevJ;
+        var j = (startForJ != null && i != null) ? Math.round(startForJ - i) : null;
+        prevJ = j;
+
+        results.push({ f: f, g: g, h: h, i: i, j: j });
+    }
+    return results;
+}
+
+function _egFmtProjI(val) {
+    if (val == null) return '<span class="eg-calc-blank">—</span>';
+    var cls = val < 0 ? ' eg-val-warn' : '';
+    return '<span class="eg-calc-num' + cls + '">' + val + '</span>';
+}
+
+// ─── Update all calculated cells reactively ───────────────────────────────────
 
 function _egUpdateCalcCells() {
+    // Weight group calc cells (Wt Loss, Daily Cal Loss)
     for (var m = 1; m <= 12; m++) {
         var wtCell  = document.querySelector('.eg-wt-loss-cell[data-month="' + m + '"]');
         var calCell = document.querySelector('.eg-daily-cal-cell[data-month="' + m + '"]');
         if (wtCell)  wtCell.innerHTML  = _egFmtWtLoss(_egWeightLoss(m));
         if (calCell) calCell.innerHTML = _egFmtCalc(_egDailyCalLoss(m));
+    }
+
+    // Projection columns (F, G, H, I, J)
+    var projs = _egComputeProjections();
+    for (var m2 = 1; m2 <= 12; m2++) {
+        var p     = projs[m2 - 1];
+        var effGW = _egEffectiveGoalWeight(m2);
+        var iWarn = p.i != null && p.i < 0;
+        var jWarn = p.j != null && effGW != null && p.j > effGW;
+
+        var fCell = document.querySelector('.eg-proj-f[data-month="' + m2 + '"]');
+        var gCell = document.querySelector('.eg-proj-g[data-month="' + m2 + '"]');
+        var hCell = document.querySelector('.eg-proj-h[data-month="' + m2 + '"]');
+        var iCell = document.querySelector('.eg-proj-i[data-month="' + m2 + '"]');
+        var jCell = document.querySelector('.eg-proj-j[data-month="' + m2 + '"]');
+
+        if (fCell) fCell.innerHTML = _egFmtCalc(p.f);
+        if (gCell) gCell.innerHTML = _egFmtCalc(p.g);
+        if (hCell) hCell.innerHTML = _egFmtCalc(p.h);
+        if (iCell) {
+            iCell.className = 'eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '');
+            iCell.setAttribute('data-month', m2);
+            iCell.innerHTML = _egFmtProjI(p.i);
+        }
+        if (jCell) {
+            jCell.className = 'eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '');
+            jCell.setAttribute('data-month', m2);
+            jCell.innerHTML = p.j != null
+                ? '<span class="eg-calc-num">' + p.j + '</span>'
+                : '<span class="eg-calc-blank">—</span>';
+        }
     }
 }
 
@@ -2991,6 +3104,7 @@ async function _egSaveMonthSession(month, typeId, rawValue) {
     } catch (err) {
         console.error('Goals: failed to save session count:', err);
     }
+    _egUpdateCalcCells();  // session counts affect projection columns G, H, I, J
 }
 
 // ─── Copy previous month ──────────────────────────────────────────────────────
@@ -3040,6 +3154,7 @@ async function _egSaveConstant(field, rawValue) {
     } catch (err) {
         console.error('Goals: failed to save constant:', err);
     }
+    _egUpdateCalcCells();  // calPerMile and baseDailyBurn affect projection columns
 }
 
 // ─── Tracked exercise list ────────────────────────────────────────────────────

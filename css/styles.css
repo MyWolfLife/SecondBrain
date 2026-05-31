@@ -19114,3 +19114,7 @@ a.legacy-fin-card:hover {
 
 /* Threshold inputs slightly narrower than regular cell inputs */
 .eg-threshold-input { width: 58px; }
+
+/* ── Projection columns (Phase 5) ────────────────────────────────────────────── */
+/* Warning background: col I (negative = weight gain) or col J (exceeds goal weight) */
+.eg-td-warn { background: #fef9c3 !important; }  /* light yellow — same as food bad */
