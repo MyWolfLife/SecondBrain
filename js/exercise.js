@@ -1388,6 +1388,7 @@ async function _exHandleFromPicture(files) {
 var _dmDefsAll        = [];         // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
 var _dmMetricDefs     = [];         // same data, used by list + entry form
 var _dmSelMonth       = -1;         // 0-11 = specific month, -1 = full year view; set on page load
+var _dmGoalsData      = null;       // current year's exerciseGoals doc; drives color thresholds
 var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded  = false;      // sticky accordion state — loaded from settings/exercisePrefs
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
@@ -1416,10 +1417,11 @@ async function loadExerciseMetricsPage() {
 
     await seedExerciseMetricDefsIfNeeded();
 
-    // Load metric defs and sticky Last 7 preference in parallel
+    // Load metric defs, sticky prefs, and current year's goals doc in parallel
     var results = await Promise.all([
         userCol('exerciseMetricDefs').get(),
-        userCol('settings').doc('exercisePrefs').get()
+        userCol('settings').doc('exercisePrefs').get(),
+        userCol('exerciseGoals').doc(String(new Date().getFullYear())).get()
     ]);
     _dmMetricDefs = results[0].docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
@@ -1427,6 +1429,7 @@ async function loadExerciseMetricsPage() {
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     var prefs = results[1].exists ? results[1].data() : {};
     _dmLast7Expanded = prefs.dmLast7Expanded === true;
+    _dmGoalsData = results[2].exists ? results[2].data() : null;
 
     _dmRenderMetricsPage(el);
 }
@@ -1760,6 +1763,61 @@ function _dmNoteIcon(noteText, desktop) {
     return '<span class="dm-note-icon" data-note="' + escaped + '" role="button" tabindex="0">📝</span>';
 }
 
+// ─── Phase 7: Daily Metrics color threshold helpers ───────────────────────────
+
+// Returns the threshold object for a given YYYY-MM-DD date from the loaded goals doc.
+function _dmGetMonthThresholds(dateStr) {
+    if (!_dmGoalsData || !dateStr) return null;
+    var month = parseInt(dateStr.split('-')[1], 10);
+    var months = _dmGoalsData.months || {};
+    return months[month] || months[String(month)] || null;
+}
+
+// Returns a CSS background-color hex string (or '') for a metric value against its thresholds.
+function _dmThresholdBg(value, thresholds, field) {
+    if (value == null || !thresholds) return '';
+    var v = parseFloat(value);
+    if (isNaN(v)) return '';
+
+    var Y  = '#fde68a';   // yellow
+    var G  = '#86efac';   // green
+    var B  = '#93c5fd';   // blue
+    var LY = '#fff2cc';   // light yellow (food bad day)
+
+    switch (field) {
+        case 'bodyBattery':
+            if (thresholds.batteryYellow != null && v <= thresholds.batteryYellow) return Y;
+            if (thresholds.batteryBlue   != null && v >= thresholds.batteryBlue)   return B;
+            return '';
+
+        case 'dailySteps':
+            if (thresholds.stepsYellow != null && v < thresholds.stepsYellow) return Y;
+            if (thresholds.stepsBlue   != null && v >= thresholds.stepsBlue)  return B;
+            if (thresholds.stepsGreen  != null && v >= thresholds.stepsGreen) return G;
+            return '';
+
+        case 'totalBurn':
+            if (thresholds.burnBlue  != null && v >= thresholds.burnBlue)  return B;
+            if (thresholds.burnGreen != null && v >= thresholds.burnGreen) return G;
+            return '';
+
+        case 'foodCalories':
+            if (thresholds.foodYellow1 != null && v < thresholds.foodYellow1)  return Y;
+            if (thresholds.foodBad     != null && v >= thresholds.foodBad)     return LY;
+            if (thresholds.foodYellow2 != null && v >= thresholds.foodYellow2) return Y;
+            return '';
+
+        case 'calLoss':
+            if (thresholds.calLossYellow != null && v <= thresholds.calLossYellow) return Y;
+            if (thresholds.calLossBlue   != null && v >= thresholds.calLossBlue)   return B;
+            if (thresholds.calLossGreen  != null && v >= thresholds.calLossGreen)  return G;
+            return '';
+
+        default:
+            return '';
+    }
+}
+
 function _dmBuildTable(records, summary) {
     // +/- Diff column appears after Food Cal.
     var preDiffCols = [
@@ -1820,24 +1878,29 @@ function _dmBuildTable(records, summary) {
     // Body
     var tbody = '<tbody>';
     records.forEach(function(r) {
+        var thresholds = _dmGetMonthThresholds(r.date);
+
         tbody += '<tr class="dm-data-row" data-date="' + _exEsc(r.date) + '">';
         tbody += '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(r.date)) + '</td>';
         preDiffCols.forEach(function(c) {
-            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            var rawVal = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : null;
+            var v = rawVal !== null ? rawVal : '—';
             if (typeof v === 'number') v = v.toLocaleString();
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
-            tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
+            var bg = _dmThresholdBg(rawVal, thresholds, c.key);
+            var style = bg ? ' style="background-color:' + bg + '"' : '';
+            tbody += '<td class="dm-col-num"' + style + '>' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
         });
-        // +/- Diff: burn - food; yellow bg when negative (ate more than burned = fail)
+        // +/- Diff: burn - food, colored by calLoss thresholds (fallback: yellow if negative)
         var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var foodVal = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
         if (burnVal !== null && foodVal !== null) {
             var diff = burnVal - foodVal;
-            if (diff < 0) {
-                tbody += '<td class="dm-col-num" style="background-color:#ffeb3b;color:#000">' + diff.toLocaleString() + '</td>';
-            } else {
-                tbody += '<td class="dm-col-num">' + diff.toLocaleString() + '</td>';
-            }
+            var diffBg = thresholds
+                ? _dmThresholdBg(diff, thresholds, 'calLoss')
+                : (diff < 0 ? '#ffeb3b' : '');
+            var diffStyle = diffBg ? ' style="background-color:' + diffBg + (diffBg === '#ffeb3b' ? ';color:#000' : '') + '"' : '';
+            tbody += '<td class="dm-col-num"' + diffStyle + '>' + diff.toLocaleString() + '</td>';
         } else {
             tbody += '<td class="dm-col-num">—</td>';
         }
@@ -1922,34 +1985,51 @@ function _dmBuildCards(records, summary) {
         : '';
 
     var cardsHtml = records.map(function(r) {
+        var thresholds = _dmGetMonthThresholds(r.date);
+
+        // Helper: inline bg style string
+        function bg(val, field) {
+            var c = _dmThresholdBg(val, thresholds, field);
+            return c ? 'background-color:' + c + ';padding:0 3px;border-radius:2px' : '';
+        }
+
         // Standard metrics — 2 rows of 3
         var stdLine1 = '', stdLine2 = '';
         stdLabels.slice(0, 3).forEach(function(c) {
-            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            var rawVal = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : null;
+            var v = rawVal !== null ? rawVal : '—';
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
-            stdLine1 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
+            var s = rawVal !== null ? bg(rawVal, c.key) : '';
+            var style = s ? ' style="' + s + '"' : '';
+            stdLine1 += '<span class="dm-card-metric"' + style + '><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
-        // Row 2: Steps, Burn, +/-Diff (yellow when negative), Food
+        // Row 2: Steps, Burn colored; Diff with calLoss thresholds; Food colored
         stdLabels.slice(3, 5).forEach(function(c) {
-            var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            var rawVal = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : null;
+            var v = rawVal !== null ? rawVal : '—';
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
-            stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
+            var s = rawVal !== null ? bg(rawVal, c.key) : '';
+            var style = s ? ' style="' + s + '"' : '';
+            stdLine2 += '<span class="dm-card-metric"' + style + '><span class="dm-card-label">' + c.label + '</span> ' + _exEsc(String(v)) + _dmNoteIcon(note, false) + '</span>';
         });
         var cardBurn = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var cardFood = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
         if (cardBurn !== null && cardFood !== null) {
             var cardDiff = cardBurn - cardFood;
-            if (cardDiff < 0) {
-                stdLine2 += '<span class="dm-card-metric" style="background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px"><span class="dm-card-label" style="color:#555">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
-            } else {
-                stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
-            }
+            var diffBg = thresholds
+                ? _dmThresholdBg(cardDiff, thresholds, 'calLoss')
+                : (cardDiff < 0 ? '#ffeb3b' : '');
+            var diffStyle = diffBg ? ' style="background-color:' + diffBg + ';padding:0 3px;border-radius:2px"' : '';
+            stdLine2 += '<span class="dm-card-metric"' + diffStyle + '><span class="dm-card-label">Diff</span> ' + cardDiff.toLocaleString() + '</span>';
         } else {
             stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Diff</span> —</span>';
         }
-        var foodV = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? r.foodCalories : '—';
+        var foodRaw  = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? r.foodCalories : null;
+        var foodV    = foodRaw !== null ? foodRaw : '—';
         var foodNote = r.notes && r.notes.foodCalories ? r.notes.foodCalories : '';
-        stdLine2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + _exEsc(String(foodV)) + _dmNoteIcon(foodNote, false) + '</span>';
+        var foodStyle = foodRaw !== null ? bg(foodRaw, 'foodCalories') : '';
+        foodStyle = foodStyle ? ' style="' + foodStyle + '"' : '';
+        stdLine2 += '<span class="dm-card-metric"' + foodStyle + '><span class="dm-card-label">Food</span> ' + _exEsc(String(foodV)) + _dmNoteIcon(foodNote, false) + '</span>';
 
         // Custom metrics
         var customHtml = _dmMetricDefs.map(function(def) {
