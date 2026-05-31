@@ -3508,23 +3508,79 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:exercise-goals
 
-**What this screen is for:** Plan your yearly exercise and weight goals — one row per month. Also defines the color thresholds that highlight your Daily Metrics entries.
+**What this screen is for:** Plan your yearly exercise and weight goals — one row per month (Jan–Dec). Set weight targets, exercise session counts, and calorie thresholds. The plan math shows whether your goals will actually get you where you want to go. The color thresholds you enter here automatically highlight your Daily Metrics entries.
 
 ### Quick Help
-- Use the **year dropdown** to switch between years or add a new one
-- **Add New Year** opens a popup defaulting to next year — confirm or type a different year
-- **Year Constants** (top section): enter Starting Weight, Base Daily Burn, and Calories Per Mile — these drive the plan calculations. Saved automatically when you tab away.
-- **Tracked Exercises**: click **+ Add Exercise** to add an exercise type you want to goal-track. Pick from your existing exercise types (or add a new one inline), then enter your average calories burned per session. Use ↑/↓ to reorder and **Remove** to stop tracking one.
-- **Monthly Goals Grid**: one row per month (Jan–Dec). Enter Goal Weight, Miles/Day, and session counts for each tracked exercise. Tab between cells — values save automatically when you leave a field.
-- **Goal Weight cascade**: when you enter a goal weight for a month, it automatically fills all later months that haven't been set yet. Change a later month to override just that month forward.
-- **Copy Prev button**: on any month row (except January), copies all values from the prior month in one click — useful when most months are the same.
-- **Calculated columns**: Weight Loss and Daily Calorie Loss Needed are computed automatically from your goal weights and update as you type.
-- **Color coding from Goals**: if you have yearly goals set up for the current year, the Daily Metrics list automatically color-codes your entries based on the thresholds you defined per month. Body Battery, Steps, Total Burn, Food Calories, and the +/- Diff column are all color-coded. Yellow = warning range, green = good, blue = great. Food "bad day" shows in pale yellow. No colors shown if no goals are defined for the year.
-- **On mobile**: the grid is replaced by a compact card for each month showing Goal Weight, Miles/Day, and session counts. Tap **Edit** on any card to open the full month edit form.
-- **Month edit form**: all fields for one month in a vertical form, organized into sections — Weight, Exercise Goals, Food, Battery, Steps, Burn, Exercise, Cal Loss, Miles. Each field saves automatically when you move to the next. "Copy Previous Month" copies all values from the prior month. "Back" returns to the year grid.
-- **Projection columns** (between exercise and threshold sections): five read-only calculated columns show what your plan actually predicts — Daily Burn Miles, Daily Burn Extra, Total Exercise Burn, Estimated Weight Lost, and Estimated Weight at End of Month. These update automatically as you fill in your goals and constants. If Est Weight Lost goes negative (you'd gain weight), it shows in red — a sign to adjust your plan. If Est Weight End of Month is higher than your Goal Weight, the cell turns yellow — your plan won't hit your target.
-- **Color threshold columns**: the right portion of the grid holds 18 threshold input columns grouped by metric (Food, Battery, Steps, Burn, Exercise, Cal Loss, Miles). Header colors show which color each threshold controls — yellow headers set the yellow cutoff, green headers set green, blue headers set blue. Enter the boundary values for each metric per month. These thresholds automatically color-code your Daily Metrics entries for that month once wired up.
-- Color thresholds you define here will automatically color-code your Daily Metrics entries for that month.
+
+**Year management**
+- Use the **year dropdown** at the top to switch between years — always defaults to the current year when you open the screen
+- **+ Add New Year** in the dropdown opens a popup defaulting to next year — confirm or type a different year
+
+**Year Constants** (top section — enter once, applies to all calculations)
+- **Starting Weight**: your weight at the start of the year — anchors the January weight loss projection
+- **Base Daily Burn**: estimated calories you burn per day with no exercise (from your watch or a TDEE estimate — e.g. 2200)
+- **Calories Per Mile**: average calories you burn per mile running or walking (e.g. 110)
+- All three save automatically when you tab away
+
+**Tracked Exercises** (which exercises appear as grid columns)
+- Click **+ Add Exercise** → pick from your existing exercise types (or type a new name to create one inline) → enter your average calorie burn per session → the exercise appears as a column in the monthly grid
+- Use **↑/↓** to reorder — most important exercises first
+- **Remove** stops tracking that exercise (your historical activity data is unaffected)
+
+**Monthly Goals Grid** (one row per month)
+- Enter **Goal Weight** — what you want to weigh at the end of that month (not calculated — you set this)
+- **Goal Weight cascade**: typing a value automatically fills all later months that are still blank. Change a later month to override just that month forward.
+- Enter **Miles/Day** — your average daily miles goal for that month
+- Enter **session counts** for each tracked exercise — how many sessions you plan that month
+- All cells save automatically when you tab away or click elsewhere
+- **Copy Prev** button (on every row except January) — copies every value from the prior month in one click; ideal when goals don't change month to month
+
+**Calculated columns** (read-only — update automatically)
+- **Wt Loss** — difference between this month's goal weight and the previous month's (or starting weight for January)
+- **Daily Cal Loss** — how large a daily calorie deficit your weight goal requires: `|Wt Loss| × 3500 ÷ days in month`
+- **Burn Miles/Day** — daily calorie burn from your miles goal: `Miles/Day × Cal/Mile`
+- **Burn Extra/Day** — daily calorie burn from non-mileage exercise sessions: `sum(sessions × cal/session) ÷ days`
+- **Total Ex Burn** — Burn Miles + Burn Extra per day
+- **Est Wt Lost** — estimated pounds lost this month if you hit all goals and eat within your food range: `((Base Burn + Total Ex Burn) − avg food calories) × days ÷ 3500`. Shows in red if negative (plan predicts weight gain).
+- **Est End Weight** — rolling chain: previous month's estimated end weight minus Est Wt Lost. Shows **yellow** if higher than your Goal Weight — your plan won't hit your target. Adjust your exercise goals or food range until they align.
+
+**Color threshold columns** (right side of grid — 18 columns in 7 groups)
+- Each column defines a boundary value for one color tier on the Daily Metrics screen
+- Column header colors show which tier each threshold controls: **yellow header** = sets the yellow cutoff, **green** = green cutoff, **blue** = blue cutoff, **pale yellow** = food "bad day" cutoff
+- Groups: **Food** (min calories, max calories, bad day), **Battery** (low, high), **Steps** (low, good, great), **Burn** (good, great), **Exercise** (low, high), **Cal Loss** (warn, good, great), **Miles** (low, good, great — display location in Daily Metrics TBD)
+- Thresholds are per-month — you can ramp them up or down as your goals change throughout the year
+- Once set, any Daily Metrics entry for that month is automatically color-coded on the metrics list screen
+
+**On mobile**
+- The grid is replaced by compact month cards showing Goal Weight, Miles/Day, and session counts
+- Tap **Edit** on any card to open the full single-month form (see screen:exercise-goals-month)
+
+### When to use this
+- At the start of the year: set your starting weight, enter constants, add your tracked exercises, then fill in monthly weight targets — use Copy Prev to quickly fill similar months
+- Mid-year: update a month's goals when your situation changes (injury, vacation, hitting goal weight early)
+- Troubleshoot: if the Est End Weight turns yellow, adjust session counts, miles/day, or food thresholds until the projection aligns with your goal
+- Before checking Daily Metrics: set the threshold columns so your past entries are color-coded meaningfully
+
+---
+
+## screen:exercise-goals-month
+
+**What this screen is for:** Edit all goal and threshold values for a single month — the mobile-friendly vertical form equivalent of one row in the yearly goals grid.
+
+### Quick Help
+- **Copy Previous Month** button (at the top, hidden for January) — copies every value from the prior month in one click; faster than re-entering when months are similar
+- Fields are organized into 9 sections: **Weight**, **Exercise Goals**, **Food**, **Battery**, **Steps**, **Burn**, **Exercise**, **Cal Loss**, **Miles**
+- Every field saves automatically when you move to the next one (same as the desktop grid)
+- **Goal Weight** — what you want to weigh at the end of this month; not calculated, you set it
+- **Avg Miles / Day** — your daily miles goal for this month
+- **Session counts** — one field per tracked exercise; how many sessions you plan this month
+- **Threshold fields** — the boundary values for each color tier on Daily Metrics. Each label explains what color the threshold controls and which direction triggers it (e.g. "Low steps (below → yellow)")
+- **← Back to [Year] Goals** button at the bottom returns to the yearly grid
+
+### When to use this
+- On mobile — the full grid is desktop-only; this screen is how you edit goals on a phone
+- When you want to focus on one month without the visual noise of the full year grid
+- Quick updates mid-month when one value changes
 
 ---
 
