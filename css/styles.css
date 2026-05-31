@@ -17517,6 +17517,23 @@ a.legacy-fin-card:hover {
     font-size: 0.9rem;
 }
 
+/* Mobile summary card */
+.dm-summary-card {
+    background: #e8f0fe;
+    border: 1px solid #c5d4f5;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.dm-summary-card-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #3c4a6e;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
 /* Year accordion */
 .dm-year-accordion { display: flex; flex-direction: column; gap: 4px; }
 .dm-accordion-section { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }

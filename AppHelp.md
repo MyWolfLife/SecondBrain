@@ -3626,7 +3626,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **N records** label below the filter bar shows how many entries match
 - **Desktop**: data appears as a table with a tinted **summary row** at the top — Weight shows net change for the period (green = lost, red = gained); other columns show averages
 - **+/- Diff column** (between Burn and Food): shows `burn − food` for each day — a yellow cell means you ate more than you burned that day; "—" means you were in a deficit (good)
-- **Mobile**: each entry is a card showing the date, standard metrics (including a Diff value), and your custom metrics
+- **Mobile**: a blue **summary card** at the top shows averages and totals for the period (same as the desktop summary row), followed by individual day cards
 - **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
 - Click or tap any row/card to open that day's entry form
 - **+ Entry** button: create a new entry for today (or any date)

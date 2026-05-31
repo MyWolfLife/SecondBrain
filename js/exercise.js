@@ -1536,7 +1536,7 @@ async function _dmApplyFilter() {
                 var moSummary = _dmComputeSummary(moRecords);
                 html += isDesktop
                     ? _dmBuildTable(moRecords, moSummary)
-                    : _dmBuildCards(moRecords);
+                    : _dmBuildCards(moRecords, moSummary);
             }
             html += '</div></div>';
         }
@@ -1563,7 +1563,7 @@ async function _dmApplyFilter() {
         var summary = _dmComputeSummary(records);
         listEl.innerHTML = isDesktop
             ? _dmBuildTable(records, summary)
-            : _dmBuildCards(records);
+            : _dmBuildCards(records, summary);
     }
 
     // Wire card/row clicks and note icons
@@ -1788,7 +1788,7 @@ function _dmBuildTable(records, summary) {
     return '<div class="dm-table-wrap"><table class="dm-table">' + thead + tbody + '</table></div>';
 }
 
-function _dmBuildCards(records) {
+function _dmBuildCards(records, summary) {
     var stdLabels = [
         { key: 'weight',       label: 'Wt' },
         { key: 'sleepScore',   label: 'Sleep' },
@@ -1798,7 +1798,45 @@ function _dmBuildCards(records) {
         { key: 'foodCalories', label: 'Food' }
     ];
 
-    return records.map(function(r) {
+    // Summary card
+    var summaryHtml = '';
+    if (summary) {
+        // Weight: show avg + net change
+        var wtDisplay = summary.weight;
+        if (summary.weightChange !== null && summary.weightChange !== undefined) {
+            var wc = summary.weightChange;
+            var wcColor = wc < 0 ? '#2e7d32' : '#c62828';
+            var wcSign = wc > 0 ? '+' : '';
+            wtDisplay += ' <span style="color:' + wcColor + ';font-weight:bold">(' + wcSign + wc.toFixed(1) + ')</span>';
+        }
+        var row1 = '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + wtDisplay + '</span>' +
+                   '<span class="dm-card-metric"><span class="dm-card-label">Sleep</span> ' + summary.sleepScore + '</span>' +
+                   '<span class="dm-card-metric"><span class="dm-card-label">Bat</span> ' + summary.bodyBattery + '</span>';
+        var row2 = '<span class="dm-card-metric"><span class="dm-card-label">Steps</span> ' + summary.dailySteps + '</span>' +
+                   '<span class="dm-card-metric"><span class="dm-card-label">Burn</span> ' + summary.totalBurn + '</span>';
+        if (summary.diffSum !== null && summary.diffSum !== undefined) {
+            var ds = Math.round(summary.diffSum);
+            var lbs = (summary.diffSum / 3500).toFixed(1);
+            var diffBg = summary.diffSum < 0 ? 'background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px' : '';
+            row2 += '<span class="dm-card-metric" style="' + diffBg + '"><span class="dm-card-label" style="' + (diffBg ? 'color:#555' : '') + '">Diff</span> ' + ds.toLocaleString() + ' (' + lbs + ')</span>';
+        }
+        row2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + summary.foodCalories + '</span>';
+
+        var customRow = _dmMetricDefs.map(function(def) {
+            var val = summary.custom[def.id];
+            if (!val) return '';
+            return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + '</span> ' + val + '</span>';
+        }).join('');
+
+        summaryHtml = '<div class="dm-summary-card">' +
+            '<div class="dm-summary-card-title">Averages / Totals (' + records.length + ' record' + (records.length === 1 ? '' : 's') + ')</div>' +
+            '<div class="dm-card-row">' + row1 + '</div>' +
+            '<div class="dm-card-row">' + row2 + '</div>' +
+            (customRow ? '<div class="dm-card-row dm-card-custom">' + customRow + '</div>' : '') +
+        '</div>';
+    }
+
+    var cardsHtml = records.map(function(r) {
         // Standard metrics — 2 rows of 3
         var stdLine1 = '', stdLine2 = '';
         stdLabels.slice(0, 3).forEach(function(c) {
@@ -1850,6 +1888,8 @@ function _dmBuildCards(records) {
             (customHtml ? '<div class="dm-card-row dm-card-custom">' + customHtml + '</div>' : '') +
         '</div>';
     }).join('');
+
+    return summaryHtml + cardsHtml;
 }
 
 function _dmShowNoteOverlay(iconEl, noteText) {
