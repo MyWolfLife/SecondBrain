@@ -1388,9 +1388,8 @@ async function _exHandleFromPicture(files) {
 
 var _dmDefsAll     = [];            // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
 var _dmMetricDefs  = [];            // same data, used by list + entry form
-var _dmRangeFilter = 'thisMonth';   // always reset on page load — not persisted
-var _dmCustomStart = '';
-var _dmCustomEnd   = '';
+var _dmSelMonth    = -1;            // 0-11 = specific month, -1 = full year view; set on page load
+var _dmSelYear     = 0;             // 4-digit year; set on page load
 var _dmEditDate    = null;          // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc = null;          // loaded doc data or null
 
@@ -1411,9 +1410,9 @@ async function loadExerciseMetricsPage() {
     if (!el) return;
     el.innerHTML = '<p class="ex-status">Loading…</p>';
 
-    _dmRangeFilter = 'thisMonth';
-    _dmCustomStart = '';
-    _dmCustomEnd   = '';
+    var _now = new Date();
+    _dmSelMonth = _now.getMonth();   // 0-11
+    _dmSelYear  = _now.getFullYear();
 
     await seedExerciseMetricDefsIfNeeded();
 
@@ -1427,35 +1426,19 @@ async function loadExerciseMetricsPage() {
 }
 
 function _dmRenderMetricsPage(el) {
-    var today = new Date();
-    var thisYear = today.getFullYear();
-    var thisMonth = today.getMonth(); // 0-based
     var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    // Build <select> options
-    var opts = '';
-    var ranges = [
-        ['lastWeek','Last Week'], ['thisWeek','This Week'], ['thisMonth','This Month'],
-        ['lastMonth','Last Month'], ['thisYear','This Year'], ['lastYear','Last Year']
-    ];
-    ranges.forEach(function(r) {
-        var sel = _dmRangeFilter === r[0] ? ' selected' : '';
-        opts += '<option value="' + r[0] + '"' + sel + '>' + r[1] + '</option>';
-    });
-    opts += '<optgroup label="─────────────────"></optgroup>';
+    // Month combo: 'Year' at top, then Jan–Dec
+    var monthOpts = '<option value="-1"' + (_dmSelMonth === -1 ? ' selected' : '') + '>Year</option>';
     for (var m = 0; m < 12; m++) {
-        var isLastYear = (m > thisMonth);
-        var yr = isLastYear ? thisYear - 1 : thisYear;
-        var key = 'month-' + m + '-' + yr;
-        var label = monthNames[m] + (isLastYear ? ' \'' + String(yr).slice(2) : '');
-        var sel2 = _dmRangeFilter === key ? ' selected' : '';
-        opts += '<option value="' + key + '"' + sel2 + '>' + label + '</option>';
+        monthOpts += '<option value="' + m + '"' + (_dmSelMonth === m ? ' selected' : '') + '>' + monthNames[m] + '</option>';
     }
-    opts += '<optgroup label="─────────────────"></optgroup>';
-    var customSel = _dmRangeFilter === 'custom' ? ' selected' : '';
-    opts += '<option value="custom"' + customSel + '>Custom…</option>';
 
-    var customDisplay = _dmRangeFilter === 'custom' ? 'flex' : 'none';
+    // Year combo: 2020–2070
+    var yearOpts = '';
+    for (var y = 2020; y <= 2070; y++) {
+        yearOpts += '<option value="' + y + '"' + (_dmSelYear === y ? ' selected' : '') + '>' + y + '</option>';
+    }
 
     el.innerHTML =
         '<div class="dm-list-header">' +
@@ -1466,84 +1449,32 @@ function _dmRenderMetricsPage(el) {
             '</div>' +
         '</div>' +
         '<div class="dm-filter-bar">' +
-            '<select id="dmFilterSelect" class="dm-filter-select">' + opts + '</select>' +
-            '<div class="dm-custom-row" id="dmCustomRow" style="display:' + customDisplay + '">' +
-                '<input type="date" id="dmCustomStart" class="dm-date-input" value="' + _exEsc(_dmCustomStart) + '"> – ' +
-                '<input type="date" id="dmCustomEnd" class="dm-date-input" value="' + _exEsc(_dmCustomEnd) + '">' +
-                '<button id="dmCustomLoad" class="ex-action-btn">Load</button>' +
-            '</div>' +
+            '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
+            '<select id="dmYearSelect" class="dm-filter-select">' + yearOpts + '</select>' +
         '</div>' +
         '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
         '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
 
-    document.getElementById('dmFilterSelect').addEventListener('change', function() {
-        _dmRangeFilter = this.value;
-        var customRow = document.getElementById('dmCustomRow');
-        if (_dmRangeFilter === 'custom') {
-            customRow.style.display = 'flex';
-        } else {
-            customRow.style.display = 'none';
-            _dmApplyFilter();
-        }
+    document.getElementById('dmMonthSelect').addEventListener('change', function() {
+        _dmSelMonth = parseInt(this.value, 10);
+        _dmApplyFilter();
     });
-
-    document.getElementById('dmCustomLoad').addEventListener('click', function() {
-        _dmCustomStart = document.getElementById('dmCustomStart').value;
-        _dmCustomEnd   = document.getElementById('dmCustomEnd').value;
-        if (!_dmCustomStart || !_dmCustomEnd) { alert('Please select both a start and end date.'); return; }
+    document.getElementById('dmYearSelect').addEventListener('change', function() {
+        _dmSelYear = parseInt(this.value, 10);
         _dmApplyFilter();
     });
 
     _dmApplyFilter();
 }
 
-function _dmGetDateRange(filter) {
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    var y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
-
-    function fmt(dt) {
-        var mm = dt.getMonth() + 1, dd = dt.getDate();
-        return dt.getFullYear() + '-' + (mm < 10 ? '0' : '') + mm + '-' + (dd < 10 ? '0' : '') + dd;
-    }
-
-    if (filter === 'thisMonth') {
-        return { start: y + '-' + (m < 9 ? '0' : '') + (m + 1) + '-01', end: fmt(today) };
-    }
-    if (filter === 'lastMonth') {
-        var lm = new Date(y, m, 0); // last day of prev month
-        var fm = new Date(y, m - 1, 1);
-        return { start: fmt(fm), end: fmt(lm) };
-    }
-    if (filter === 'thisWeek') {
-        var dow = today.getDay(); // 0=Sun
-        var mon = new Date(today); mon.setDate(d - ((dow + 6) % 7));
-        return { start: fmt(mon), end: fmt(today) };
-    }
-    if (filter === 'lastWeek') {
-        var dow2 = today.getDay();
-        var thisMonday = new Date(today); thisMonday.setDate(d - ((dow2 + 6) % 7));
-        var lastMon = new Date(thisMonday); lastMon.setDate(thisMonday.getDate() - 7);
-        var lastSun = new Date(thisMonday); lastSun.setDate(thisMonday.getDate() - 1);
-        return { start: fmt(lastMon), end: fmt(lastSun) };
-    }
-    if (filter === 'thisYear') {
-        return { start: y + '-01-01', end: fmt(today) };
-    }
-    if (filter === 'lastYear') {
-        return { start: (y - 1) + '-01-01', end: (y - 1) + '-12-31' };
-    }
-    // Month shortcut: 'month-M-YYYY' (M is 0-based)
-    var monthMatch = filter.match(/^month-(\d+)-(\d+)$/);
-    if (monthMatch) {
-        var mm2 = parseInt(monthMatch[1], 10);
-        var yy2 = parseInt(monthMatch[2], 10);
-        var firstDay = new Date(yy2, mm2, 1);
-        var lastDay = new Date(yy2, mm2 + 1, 0);
-        return { start: fmt(firstDay), end: fmt(lastDay) };
-    }
-    // Custom
-    return { start: _dmCustomStart, end: _dmCustomEnd };
+function _dmFmtYM(year, month) {
+    // Returns 'YYYY-MM-DD' for first or last day of a given year/month (0-based month)
+    var mm = (month + 1 < 10 ? '0' : '') + (month + 1);
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    return {
+        start: year + '-' + mm + '-01',
+        end:   year + '-' + mm + '-' + (lastDay < 10 ? '0' : '') + lastDay
+    };
 }
 
 async function _dmApplyFilter() {
@@ -1552,7 +1483,17 @@ async function _dmApplyFilter() {
     if (!listEl) return;
     listEl.innerHTML = '<p class="ex-status">Loading…</p>';
 
-    var range = _dmGetDateRange(_dmRangeFilter);
+    // Determine query range
+    var rangeStart, rangeEnd;
+    if (_dmSelMonth === -1) {
+        rangeStart = _dmSelYear + '-01-01';
+        rangeEnd   = _dmSelYear + '-12-31';
+    } else {
+        var r = _dmFmtYM(_dmSelYear, _dmSelMonth);
+        rangeStart = r.start;
+        rangeEnd   = r.end;
+    }
+
     var snap;
     try {
         snap = await userCol('exerciseDailyMetrics')
@@ -1566,35 +1507,72 @@ async function _dmApplyFilter() {
 
     var records = snap.docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-        .filter(function(r) {
-            return r.date >= range.start && r.date <= range.end;
-        });
+        .filter(function(r) { return r.date >= rangeStart && r.date <= rangeEnd; });
 
     if (labelEl) labelEl.textContent = records.length + ' record' + (records.length === 1 ? '' : 's');
 
-    if (records.length === 0) {
-        listEl.innerHTML = '<p class="ex-status">No entries for this period.</p>';
-        return;
+    var isDesktop = window.innerWidth >= 700;
+
+    // ── Year view: collapsible monthly accordion ──────────────────────────────
+    if (_dmSelMonth === -1) {
+        var monthNames = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+        var html = '<div class="dm-year-accordion">';
+        for (var mo = 0; mo < 12; mo++) {
+            var r2 = _dmFmtYM(_dmSelYear, mo);
+            var moRecords = records.filter(function(rec) { return rec.date >= r2.start && rec.date <= r2.end; });
+            var countLabel = moRecords.length === 0 ? 'No records'
+                           : moRecords.length + ' record' + (moRecords.length === 1 ? '' : 's');
+            html += '<div class="dm-accordion-section">' +
+                '<button class="dm-accordion-hdr" data-mo="' + mo + '" aria-expanded="false">' +
+                    '<span class="dm-accordion-title">' + monthNames[mo] + ' ' + _dmSelYear + '</span>' +
+                    '<span class="dm-accordion-count">' + countLabel + '</span>' +
+                    '<span class="dm-accordion-arrow">▶</span>' +
+                '</button>' +
+                '<div class="dm-accordion-body" id="dmAccordion-' + mo + '" style="display:none">';
+            if (moRecords.length === 0) {
+                html += '<p class="ex-status dm-accordion-empty">No records for this month.</p>';
+            } else {
+                var moSummary = _dmComputeSummary(moRecords);
+                html += isDesktop
+                    ? _dmBuildTable(moRecords, moSummary)
+                    : _dmBuildCards(moRecords);
+            }
+            html += '</div></div>';
+        }
+        html += '</div>';
+        listEl.innerHTML = html;
+
+        // Wire accordion toggles
+        listEl.querySelectorAll('.dm-accordion-hdr').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var mo2 = btn.dataset.mo;
+                var body = document.getElementById('dmAccordion-' + mo2);
+                var open = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+                body.style.display = open ? 'none' : 'block';
+                btn.querySelector('.dm-accordion-arrow').textContent = open ? '▶' : '▼';
+            });
+        });
+    } else {
+        // ── Month view: standard table or cards ───────────────────────────────
+        if (records.length === 0) {
+            listEl.innerHTML = '<p class="ex-status">No entries for this period.</p>';
+            return;
+        }
+        var summary = _dmComputeSummary(records);
+        listEl.innerHTML = isDesktop
+            ? _dmBuildTable(records, summary)
+            : _dmBuildCards(records);
     }
 
-    // Compute summary values
-    var summary = _dmComputeSummary(records);
-
-    // Detect desktop vs mobile
-    var isDesktop = window.innerWidth >= 700;
-    listEl.innerHTML = isDesktop
-        ? _dmBuildTable(records, summary)
-        : _dmBuildCards(records);
-
-    // Wire card/row clicks
+    // Wire card/row clicks and note icons
     listEl.querySelectorAll('[data-date]').forEach(function(el) {
         el.addEventListener('click', function(e) {
-            if (e.target.closest('.dm-note-icon')) return; // let note icon handle it
+            if (e.target.closest('.dm-note-icon')) return;
             window.location.hash = 'exercise-metric/' + el.dataset.date;
         });
     });
-
-    // Wire note icon taps (mobile overlay)
     listEl.querySelectorAll('.dm-note-icon[data-note]').forEach(function(icon) {
         icon.addEventListener('click', function(e) {
             e.stopPropagation();

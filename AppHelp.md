@@ -3620,8 +3620,9 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Browse your daily health and habit journal entries. Filter by date range, see summary averages, and tap any record to view or edit it.
 
 ### Quick Help
-- **Filter pills** (Last Week, This Week, This Month, etc.) and **month shortcut buttons** change the date range — the list reloads automatically
-- Months that belong to last year show an abbreviated year tag (e.g. "Aug '25"); current-year months show no tag
+- **Month combo**: choose a specific month (Jan–Dec) or **Year** to see the whole year at once
+- **Year combo**: pick any year from 2020 to 2070 — changing either combo reloads the list automatically
+- Defaults to the current month and current year when you first open the screen
 - **N records** label below the filter bar shows how many entries match
 - **Desktop**: data appears as a table with a tinted **summary row** at the top — Weight shows net change for the period (green = lost, red = gained); other columns show averages
 - **+/- Diff column** (between Burn and Food): shows `burn − food` for each day — a yellow cell means you ate more than you burned that day; "—" means you were in a deficit (good)
@@ -3631,9 +3632,11 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **+ Entry** button: create a new entry for today (or any date)
 - **Manage Metrics** link: add, reorder, or remove your custom metric definitions
 
+- **Year view**: when you pick "Year" from the month combo, records are grouped into a **monthly accordion** — tap any month header to expand or collapse it; empty months show "No records for this month."
+
 ### When to use this
-- Review trends over the past week or month at a glance
-- Jump to a specific month using the shortcut buttons
+- Review trends for a specific month at a glance
+- Switch to Year view to scan the whole year and drill into individual months
 - Find a specific day's entry to edit or review
 
 ---

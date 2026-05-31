@@ -17517,6 +17517,28 @@ a.legacy-fin-card:hover {
     font-size: 0.9rem;
 }
 
+/* Year accordion */
+.dm-year-accordion { display: flex; flex-direction: column; gap: 4px; }
+.dm-accordion-section { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+.dm-accordion-hdr {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: #f5f7fa;
+    border: none;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    gap: 8px;
+    text-align: left;
+}
+.dm-accordion-hdr:hover { background: #eaf0fb; }
+.dm-accordion-title { font-weight: 600; flex: 1; }
+.dm-accordion-count { font-size: 0.82rem; color: #888; }
+.dm-accordion-arrow { font-size: 0.75rem; color: #666; }
+.dm-accordion-body { padding: 8px 4px; }
+.dm-accordion-empty { margin: 4px 10px; }
+
 /* Records label */
 .dm-records-label {
     font-size: 0.82rem;
