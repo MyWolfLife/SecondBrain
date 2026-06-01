@@ -3324,18 +3324,55 @@ function _egRenderTrackedList() {
     list.innerHTML = exercises.map(function(te, i) {
         var isFirst = i === 0;
         var isLast  = i === exercises.length - 1;
+        var tid = te.typeId;
         return '<div class="eg-te-row">' +
-            '<div class="eg-te-info">' +
-                '<span class="eg-te-name">' + escapeHtml(te.typeName) + '</span>' +
-                '<span class="eg-te-cal">' + (te.calPerSession || 0) + ' cal/session</span>' +
+            '<div class="eg-te-edit">' +
+                '<input class="eg-te-name-input" type="text" value="' + escapeHtml(te.typeName) + '"' +
+                    ' onblur="_egSaveTrackedExercise(\'' + tid + '\',\'typeName\',this.value)"' +
+                    ' title="Edit name">' +
+                '<div class="eg-te-cal-wrap">' +
+                    '<input class="eg-te-cal-input" type="text" inputmode="numeric" value="' + (te.calPerSession || 0) + '"' +
+                        ' onblur="_egSaveTrackedExercise(\'' + tid + '\',\'calPerSession\',this.value)"' +
+                        ' title="Edit calories per session">' +
+                    '<span class="eg-te-cal-label">cal/ses</span>' +
+                '</div>' +
             '</div>' +
             '<div class="eg-te-actions">' +
-                '<button class="btn btn-icon" title="Move up" onclick="_egMoveExercise(\'' + te.typeId + '\', -1)"' + (isFirst ? ' disabled' : '') + '>↑</button>' +
-                '<button class="btn btn-icon" title="Move down" onclick="_egMoveExercise(\'' + te.typeId + '\', 1)"' + (isLast ? ' disabled' : '') + '>↓</button>' +
-                '<button class="btn btn-danger btn-small" onclick="_egDeleteExercise(\'' + te.typeId + '\')">Remove</button>' +
+                '<button class="btn btn-icon" title="Move up" onclick="_egMoveExercise(\'' + tid + '\', -1)"' + (isFirst ? ' disabled' : '') + '>↑</button>' +
+                '<button class="btn btn-icon" title="Move down" onclick="_egMoveExercise(\'' + tid + '\', 1)"' + (isLast ? ' disabled' : '') + '>↓</button>' +
+                '<button class="btn btn-danger btn-small" onclick="_egDeleteExercise(\'' + tid + '\')">Remove</button>' +
             '</div>' +
         '</div>';
     }).join('');
+}
+
+// ─── Save tracked exercise field on blur ─────────────────────────────────────
+
+async function _egSaveTrackedExercise(typeId, field, rawValue) {
+    var te = (_egYearData.trackedExercises || []).find(function(t) { return t.typeId === typeId; });
+    if (!te) return;
+
+    var val;
+    if (field === 'typeName') {
+        val = rawValue.trim();
+        if (!val) return;  // don't allow blank name
+    } else if (field === 'calPerSession') {
+        val = parseInt(rawValue, 10);
+        if (isNaN(val) || val < 0) return;
+    }
+
+    te[field] = val;
+
+    try {
+        await userCol('exerciseGoals').doc(String(_egCurrentYear)).update({
+            trackedExercises: _egYearData.trackedExercises,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        // Refresh the summary on the year page if it's visible
+        _egRenderExerciseSummary();
+    } catch (err) {
+        console.error('Goals: failed to save tracked exercise:', err);
+    }
 }
 
 // ─── Add exercise form ────────────────────────────────────────────────────────

@@ -19191,3 +19191,38 @@ a.legacy-fin-card:hover {
 
 /* Tracked exercises summary line on year goals page */
 .eg-section-summary { font-size: 0.85rem; color: #6b7280; margin: 0 0 4px; }
+
+/* ── Tracked exercise inline edit (Tracked Exercises page) ───────────────────── */
+.eg-te-edit { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+.eg-te-name-input {
+    flex: 1;
+    min-width: 80px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1f2937;
+    background: transparent;
+    transition: border-color 0.12s, background 0.12s;
+}
+.eg-te-name-input:hover { border-color: #d1d5db; background: #fff; }
+.eg-te-name-input:focus { border-color: #2d6a2d; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }
+
+.eg-te-cal-wrap { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.eg-te-cal-input {
+    width: 55px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 0.85rem;
+    color: #6b7280;
+    background: transparent;
+    text-align: right;
+    transition: border-color 0.12s, background 0.12s;
+    -moz-appearance: textfield;
+}
+.eg-te-cal-input:hover { border-color: #d1d5db; background: #fff; }
+.eg-te-cal-input:focus { border-color: #2d6a2d; background: #fff; outline: none; color: #374151; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }
+.eg-te-cal-label { font-size: 0.82rem; color: #9ca3af; }
