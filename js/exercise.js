@@ -1572,9 +1572,10 @@ async function _dmApplyFilter() {
 
         var last7Html = '';
         if (isCurrentPeriod) {
-            // Compute last-7 date range (may span into prior month)
+            // Compute last-7 date range — ends yesterday, never includes today
             var l7End = new Date(todayD); l7End.setHours(0,0,0,0);
-            var l7Start = new Date(l7End); l7Start.setDate(l7End.getDate() - 6);
+            l7End.setDate(l7End.getDate() - 1);              // yesterday
+            var l7Start = new Date(l7End); l7Start.setDate(l7End.getDate() - 6); // 7 days total
             function _fmtD(dt) {
                 var mm = dt.getMonth()+1, dd = dt.getDate();
                 return dt.getFullYear() + '-' + (mm<10?'0':'') + mm + '-' + (dd<10?'0':'') + dd;
