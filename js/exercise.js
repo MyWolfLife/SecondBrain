@@ -1586,6 +1586,7 @@ async function _dmApplyFilter() {
             var l7Snap;
             try {
                 l7Snap = await userCol('exerciseDailyMetrics')
+                    .where('date', '<=', l7EndStr)   // exclude today before applying limit
                     .orderBy('date', 'desc')
                     .limit(7)
                     .get();
