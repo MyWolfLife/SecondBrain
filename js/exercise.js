@@ -1611,7 +1611,7 @@ async function _dmApplyFilter() {
                     '<div class="dm-accordion-body" id="dmLast7Body" style="display:' + (l7Open ? 'block' : 'none') + '">' +
                         (l7RecCount === 0
                             ? '<p class="ex-status dm-accordion-empty">No entries in the last 7 days.</p>'
-                            : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days (' + l7RecCount + ' of 7 logged)')) +
+                            : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days Avg (' + l7RecCount + ' of 7 logged)')) +
                     '</div>' +
                 '</div>';
         }
