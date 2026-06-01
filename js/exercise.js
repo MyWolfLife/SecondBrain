@@ -2856,9 +2856,9 @@ var _EG_THRESHOLD_COLS = [
     { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Green: if daily steps are AT OR ABOVE this, cell turns green (good step day)' },
     { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Blue: if daily steps are AT OR ABOVE this, cell turns blue (great step day)' },
     // Miles
-    { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true,  tooltip: 'Miles — Yellow: if daily miles are BELOW this (future Daily Metrics color use)' },
-    { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Green: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
-    { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Blue: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
+    { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true,  tooltip: 'Miles — Yellow: if daily miles are BELOW this (future Daily Metrics color use), goal-2' },
+    { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Green: if daily miles are AT OR ABOVE this (future Daily Metrics color use), =goal' },
+    { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Blue: if daily miles are AT OR ABOVE this (future Daily Metrics color use), =goal+2' },
     // Exercise (auto-calculated)
     { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  calculated: true, tooltip: 'Exercise Burn — Yellow (auto-calculated): Total Ex Burn − 300, minimum 200. If daily exercise burn is below this, Daily Metrics cell turns yellow.' },
     { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, calculated: true, tooltip: 'Exercise Burn — Blue (auto-calculated): Total Ex Burn + 200, minimum 500. If daily exercise burn is at or above this, Daily Metrics cell turns blue.' },
