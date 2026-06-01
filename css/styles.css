@@ -17591,7 +17591,9 @@ a.legacy-fin-card:hover {
     font-weight: 600;
     font-size: 0.76rem;
     color: #333;
+    text-align: right;
 }
+.dm-summary-row td:first-child { text-align: left; } /* date cell stays left */
 .dm-header-row th {
     background: #f5f5f5;
     font-weight: 600;
@@ -17674,10 +17676,14 @@ a.legacy-fin-card:hover {
 /* Note icon */
 .dm-note-icon {
     cursor: pointer;
-    margin-left: 3px;
     font-size: 0.75rem;
     vertical-align: middle;
     user-select: none;
+    /* Inline-block with fixed width so it never widens the column —
+       cells without a note stay the same width as cells with one */
+    display: inline-block;
+    width: 16px;
+    text-align: center;
 }
 
 /* Mobile note overlay */

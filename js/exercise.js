@@ -1848,17 +1848,17 @@ function _dmBuildTable(records, summary) {
                 thead += '<td>—</td>';
             }
         } else {
-            thead += '<td>' + summary[c.key] + '</td>';
+            thead += '<td class="dm-col-num">' + summary[c.key] + '</td>';
         }
     });
     // +/- Diff summary: total calories for the period
     if (summary.diffSum !== null && summary.diffSum !== undefined) {
         var ds = Math.round(summary.diffSum);
-        thead += '<td>' + ds.toLocaleString() + '</td>';
+        thead += '<td class="dm-col-num">' + ds.toLocaleString() + '</td>';
     } else {
-        thead += '<td>—</td>';
+        thead += '<td class="dm-col-num">—</td>';
     }
-    postDiffCols.forEach(function(c) { thead += '<td>' + summary[c.key] + '</td>'; });
+    postDiffCols.forEach(function(c) { thead += '<td class="dm-col-num">' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
