@@ -2840,24 +2840,31 @@ var _EG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oc
 // color: 'y'=yellow threshold, 'g'=green threshold, 'b'=blue threshold, 'ly'=light-yellow (food bad)
 // groupStart: true adds a visual separator to the left of this column
 var _EG_THRESHOLD_COLS = [
+    // Food
     { field: 'foodYellow1',    label: 'Food<',   color: 'y',  group: 'Food',     groupStart: true,  tooltip: 'Food — Yellow low: if daily food calories are BELOW this, Daily Metrics cell turns yellow (eating too little)' },
     { field: 'foodYellow2',    label: 'Food≥',   color: 'y',  group: 'Food',     groupStart: false, tooltip: 'Food — Yellow high: if daily food calories are AT OR ABOVE this, cell turns yellow (eating a little over goal)' },
     { field: 'foodBad',        label: 'Food≥',   color: 'ly', group: 'Food',     groupStart: false, tooltip: 'Food — Bad day: if daily food calories are AT OR ABOVE this, cell turns pale yellow (significantly over goal)' },
-    { field: 'batteryYellow',  label: 'Bat≤',    color: 'y',  group: 'Battery',  groupStart: true,  tooltip: 'Body Battery — Yellow: if battery is AT OR BELOW this, Daily Metrics cell turns yellow (low battery day)' },
-    { field: 'batteryBlue',    label: 'Bat≥',    color: 'b',  group: 'Battery',  groupStart: false, tooltip: 'Body Battery — Blue: if battery is AT OR ABOVE this, Daily Metrics cell turns blue (great battery day)' },
-    { field: 'stepsYellow',    label: 'Steps<',  color: 'y',  group: 'Steps',    groupStart: true,  tooltip: 'Steps — Yellow: if daily steps are BELOW this, Daily Metrics cell turns yellow (low step day)' },
-    { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Green: if daily steps are AT OR ABOVE this, cell turns green (good step day)' },
-    { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Blue: if daily steps are AT OR ABOVE this, cell turns blue (great step day)' },
+    // Burn (Actual Burn)
     { field: 'burnGreen',      label: 'Burn≥',   color: 'g',  group: 'Burn',     groupStart: true,  tooltip: 'Actual Burn — Green: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns green' },
     { field: 'burnBlue',       label: 'Burn≥',   color: 'b',  group: 'Burn',     groupStart: false, tooltip: 'Actual Burn — Blue: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns blue' },
-    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  calculated: true, tooltip: 'Exercise Burn — Yellow (auto-calculated): Total Ex Burn − 300, minimum 200. If daily exercise burn is below this, Daily Metrics cell turns yellow.' },
-    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, calculated: true, tooltip: 'Exercise Burn — Blue (auto-calculated): Total Ex Burn + 200, minimum 500. If daily exercise burn is at or above this, Daily Metrics cell turns blue.' },
+    // Cal Loss
     { field: 'calLossYellow',  label: 'Cal≤',    color: 'y',  group: 'Cal Loss', groupStart: true,  tooltip: 'Calorie Loss — Yellow: if burn minus food calories is AT OR BELOW this, Daily Metrics cell turns yellow (not enough deficit)' },
     { field: 'calLossGreen',   label: 'Cal≥',    color: 'g',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Green: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns green (good deficit)' },
     { field: 'calLossBlue',    label: 'Cal≥',    color: 'b',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Blue: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns blue (great deficit)' },
+    // Steps
+    { field: 'stepsYellow',    label: 'Steps<',  color: 'y',  group: 'Steps',    groupStart: true,  tooltip: 'Steps — Yellow: if daily steps are BELOW this, Daily Metrics cell turns yellow (low step day)' },
+    { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Green: if daily steps are AT OR ABOVE this, cell turns green (good step day)' },
+    { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Blue: if daily steps are AT OR ABOVE this, cell turns blue (great step day)' },
+    // Miles
     { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true,  tooltip: 'Miles — Yellow: if daily miles are BELOW this (future Daily Metrics color use)' },
     { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Green: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
     { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Blue: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
+    // Exercise (auto-calculated)
+    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  calculated: true, tooltip: 'Exercise Burn — Yellow (auto-calculated): Total Ex Burn − 300, minimum 200. If daily exercise burn is below this, Daily Metrics cell turns yellow.' },
+    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, calculated: true, tooltip: 'Exercise Burn — Blue (auto-calculated): Total Ex Burn + 200, minimum 500. If daily exercise burn is at or above this, Daily Metrics cell turns blue.' },
+    // Battery
+    { field: 'batteryYellow',  label: 'Bat≤',    color: 'y',  group: 'Battery',  groupStart: true,  tooltip: 'Body Battery — Yellow: if battery is AT OR BELOW this, Daily Metrics cell turns yellow (low battery day)' },
+    { field: 'batteryBlue',    label: 'Bat≥',    color: 'b',  group: 'Battery',  groupStart: false, tooltip: 'Body Battery — Blue: if battery is AT OR ABOVE this, Daily Metrics cell turns blue (great battery day)' },
 ];
 
 function _egInitMonths() {
