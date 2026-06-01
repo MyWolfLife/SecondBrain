@@ -2797,6 +2797,7 @@ function _egRenderYearContent() {
     _egRenderTrackedList();
     _egRenderGrid();
     _egRenderMobileView();
+    _egAddSelectOnFocus('egYearContent');
 }
 
 // ─── Phase 3: Monthly goals grid ─────────────────────────────────────────────
@@ -3532,6 +3533,18 @@ async function _egConfirmAddYear() {
 // ─── Mobile month edit page ───────────────────────────────────────────────────
 
 /** Stub — fully implemented in Phase 6. */
+// Auto-selects the full value of an input when focused — delegates from a container
+// so one listener covers every input inside, including dynamically rendered ones.
+// The _egFocusAdded flag prevents duplicate listeners if the container re-renders.
+function _egAddSelectOnFocus(containerId) {
+    var el = document.getElementById(containerId);
+    if (!el || el._egFocusAdded) return;
+    el.addEventListener('focus', function(e) {
+        if (e.target && e.target.tagName === 'INPUT') e.target.select();
+    }, true);
+    el._egFocusAdded = true;
+}
+
 // ─── Phase 6: Mobile view & month edit screen ────────────────────────────────
 
 // Human-readable labels for threshold fields on the mobile edit form
@@ -3713,6 +3726,7 @@ function _egRenderMonthEditForm(year, month) {
         '</div>';
 
     el.innerHTML = html;
+    _egAddSelectOnFocus('page-exercise-goals-month');
 }
 
 // Renders one labeled form section with a list of field rows
