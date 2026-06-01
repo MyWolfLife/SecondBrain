@@ -18971,7 +18971,10 @@ a.legacy-fin-card:hover {
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 0.9rem;
+    -moz-appearance: textfield;
 }
+.eg-constant-input::-webkit-outer-spin-button,
+.eg-constant-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .eg-constant-input:focus { outline: none; border-color: #2d6a2d; box-shadow: 0 0 0 2px rgba(45,106,45,0.15); }
 
 /* ── Tracked exercise list ───────────────────────────────────────────────────── */
