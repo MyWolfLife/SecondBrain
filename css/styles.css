@@ -17576,12 +17576,12 @@ a.legacy-fin-card:hover {
 .dm-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.86rem;
+    font-size: 0.82rem;
     min-width: 600px;
 }
 .dm-table th,
 .dm-table td {
-    padding: 4px 6px;
+    padding: 3px 4px;
     border-bottom: 1px solid #e0e0e0;
     text-align: left;
     white-space: nowrap;
@@ -17589,15 +17589,18 @@ a.legacy-fin-card:hover {
 .dm-summary-row td {
     background: #f0f4ff;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     color: #333;
 }
 .dm-header-row th {
     background: #f5f5f5;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     position: sticky;
     top: 0;
+    white-space: normal;       /* allow long custom metric names to wrap */
+    vertical-align: bottom;    /* align wrapped headers to the bottom */
+    line-height: 1.2;
 }
 .dm-data-row {
     cursor: pointer;
@@ -17611,14 +17614,20 @@ a.legacy-fin-card:hover {
 }
 .dm-col-num {
     text-align: right;
-    padding-right: 10px;
+    padding-right: 5px;
+}
+/* Boolean custom metric columns — data values are single chars so column can be very narrow */
+.dm-col-bool {
+    text-align: center;
+    width: 1px;          /* shrink-wrap to content */
+    white-space: nowrap;
 }
 .dm-col-text {
     white-space: normal;
     word-break: break-word;
-    min-width: 180px;
-    max-width: 280px;
-    font-size: 0.83rem;
+    min-width: 160px;
+    max-width: 260px;
+    font-size: 0.8rem;
     color: #444;
 }
 

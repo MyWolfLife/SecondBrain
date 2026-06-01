@@ -1748,12 +1748,12 @@ function _dmComputeSummary(records, denominator) {
 }
 
 function _dmFmtDate(dateStr) {
-    // 'YYYY-MM-DD' → '5/7/26 Wed'
+    // 'YYYY-MM-DD' → '5/7 Wed' (year omitted — visible in the year combo)
     if (!dateStr) return '';
     var parts = dateStr.split('-');
     var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    return (dt.getMonth() + 1) + '/' + dt.getDate() + '/' + String(dt.getFullYear()).slice(2) + ' ' + days[dt.getDay()];
+    return (dt.getMonth() + 1) + '/' + dt.getDate() + ' ' + days[dt.getDay()];
 }
 
 function _dmNoteIcon(noteText, desktop) {
@@ -1851,17 +1851,16 @@ function _dmBuildTable(records, summary) {
             thead += '<td>avg ' + summary[c.key] + '</td>';
         }
     });
-    // +/- Diff summary: total calories and equivalent pounds (÷3500)
+    // +/- Diff summary: total calories for the period
     if (summary.diffSum !== null && summary.diffSum !== undefined) {
         var ds = Math.round(summary.diffSum);
-        var lbs = (summary.diffSum / 3500).toFixed(1);
-        thead += '<td>' + ds.toLocaleString() + ' (' + lbs + ')</td>';
+        thead += '<td>' + ds.toLocaleString() + '</td>';
     } else {
         thead += '<td>—</td>';
     }
     postDiffCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
-        var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : '';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
     thead += '</tr>';
@@ -1871,7 +1870,7 @@ function _dmBuildTable(records, summary) {
     thead += '<th>+/- Diff</th>';
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
-        var cls = def.type === 'text' ? ' class="dm-col-text"' : '';
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : '';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
     });
@@ -1918,6 +1917,7 @@ function _dmBuildTable(records, summary) {
             var cls = '';
             if (def.type === 'boolean') {
                 display = cv === true ? 'Y' : '—';
+                cls = ' class="dm-col-bool"';
             } else if (def.type === 'number') {
                 display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) : '—';
             } else {
