@@ -1736,7 +1736,7 @@ function _dmComputeSummary(records, denominator) {
     var boolDenom = (denominator !== undefined && denominator !== null) ? denominator : n;
     _dmMetricDefs.forEach(function(def) {
         if (def.type === 'boolean') {
-            result.custom[def.id] = customTrueCounts[def.id] + ' / ' + boolDenom;
+            result.custom[def.id] = customTrueCounts[def.id] + '/' + boolDenom;
         } else if (def.type === 'number') {
             result.custom[def.id] = customCounts[def.id] ? customSums[def.id].toLocaleString() : '—';
         } else {
@@ -1960,7 +1960,7 @@ function _dmBuildSummaryCardHtml(summary, title) {
     var customRow = _dmMetricDefs.map(function(def) {
         var val = summary.custom[def.id];
         if (!val) return '';
-        return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + '</span> ' + val + '</span>';
+        return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + ':</span> ' + val + '</span>';
     }).join('');
 
     return '<div class="dm-summary-card">' +
