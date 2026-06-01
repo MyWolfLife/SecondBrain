@@ -1848,7 +1848,7 @@ function _dmBuildTable(records, summary) {
                 thead += '<td>—</td>';
             }
         } else {
-            thead += '<td>avg ' + summary[c.key] + '</td>';
+            thead += '<td>' + summary[c.key] + '</td>';
         }
     });
     // +/- Diff summary: total calories for the period
@@ -1858,9 +1858,9 @@ function _dmBuildTable(records, summary) {
     } else {
         thead += '<td>—</td>';
     }
-    postDiffCols.forEach(function(c) { thead += '<td>avg ' + summary[c.key] + '</td>'; });
+    postDiffCols.forEach(function(c) { thead += '<td>' + summary[c.key] + '</td>'; });
     _dmMetricDefs.forEach(function(def) {
-        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : '';
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
     thead += '</tr>';
@@ -1870,7 +1870,7 @@ function _dmBuildTable(records, summary) {
     thead += '<th>+/- Diff</th>';
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
-        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : '';
+        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
     });
@@ -1920,6 +1920,7 @@ function _dmBuildTable(records, summary) {
                 cls = ' class="dm-col-bool"';
             } else if (def.type === 'number') {
                 display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) : '—';
+                cls = ' class="dm-col-num-custom"';
             } else {
                 // text — show full value, allow wrapping
                 display = cv ? _exEsc(String(cv)) : '—';

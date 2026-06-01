@@ -17622,6 +17622,11 @@ a.legacy-fin-card:hover {
     width: 1px;          /* shrink-wrap to content */
     white-space: nowrap;
 }
+/* Number custom metric columns — cap width so long header names wrap */
+.dm-col-num-custom {
+    text-align: right;
+    max-width: 64px;
+}
 .dm-col-text {
     white-space: normal;
     word-break: break-word;
