@@ -3550,7 +3550,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **Color threshold columns** (right side of grid — 18 columns in 7 groups)
 - Each column defines a boundary value for one color tier on the Daily Metrics screen
 - Column header colors show which tier each threshold controls: **yellow header** = sets the yellow cutoff, **green** = green cutoff, **blue** = blue cutoff, **pale yellow** = food "bad day" cutoff
-- Groups: **Food** (min calories, max calories, bad day), **Battery** (low, high), **Steps** (low, good, great), **Burn** (good, great), **Exercise** (low, high), **Cal Loss** (warn, good, great), **Miles** (low, good, great — display location in Daily Metrics TBD)
+- Groups: **Food** (min calories, max calories, bad day), **Battery** (low, high), **Steps** (low, good, great), **Burn** (good, great), **Exercise** (auto-calculated — see below), **Cal Loss** (warn, good, great), **Miles** (low, good, great — display location in Daily Metrics TBD)
+- **Exercise thresholds are auto-calculated** (read-only, no typing needed): yellow = max(Total Ex Burn − 300, minimum 200) and blue = max(Total Ex Burn + 200, minimum 500). They update automatically whenever your Miles/Day or session counts change.
 - Thresholds are per-month — you can ramp them up or down as your goals change throughout the year
 - Once set, any Daily Metrics entry for that month is automatically color-coded on the metrics list screen
 

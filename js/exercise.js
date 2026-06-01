@@ -2850,8 +2850,8 @@ var _EG_THRESHOLD_COLS = [
     { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Blue: if daily steps are AT OR ABOVE this, cell turns blue (great step day)' },
     { field: 'burnGreen',      label: 'Burn≥',   color: 'g',  group: 'Burn',     groupStart: true,  tooltip: 'Actual Burn — Green: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns green' },
     { field: 'burnBlue',       label: 'Burn≥',   color: 'b',  group: 'Burn',     groupStart: false, tooltip: 'Actual Burn — Blue: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns blue' },
-    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  tooltip: 'Exercise Burn — Yellow: if total exercise calorie burn is BELOW this, Daily Metrics cell turns yellow' },
-    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, tooltip: 'Exercise Burn — Blue: if total exercise calorie burn is AT OR ABOVE this, Daily Metrics cell turns blue' },
+    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  calculated: true, tooltip: 'Exercise Burn — Yellow (auto-calculated): Total Ex Burn − 300, minimum 200. If daily exercise burn is below this, Daily Metrics cell turns yellow.' },
+    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, calculated: true, tooltip: 'Exercise Burn — Blue (auto-calculated): Total Ex Burn + 200, minimum 500. If daily exercise burn is at or above this, Daily Metrics cell turns blue.' },
     { field: 'calLossYellow',  label: 'Cal≤',    color: 'y',  group: 'Cal Loss', groupStart: true,  tooltip: 'Calorie Loss — Yellow: if burn minus food calories is AT OR BELOW this, Daily Metrics cell turns yellow (not enough deficit)' },
     { field: 'calLossGreen',   label: 'Cal≥',    color: 'g',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Green: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns green (good deficit)' },
     { field: 'calLossBlue',    label: 'Cal≥',    color: 'b',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Blue: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns blue (great deficit)' },
@@ -3039,16 +3039,24 @@ function _egRenderGrid() {
                 (p.j != null ? '<span class="eg-calc-num">' + p.j + '</span>' : '<span class="eg-calc-blank">—</span>') +
             '</td>';
 
-        // Threshold input columns
+        // Threshold columns — editable for most, read-only for calculated ones
         _EG_THRESHOLD_COLS.forEach(function(col) {
-            var fieldVal = mData[col.field] != null ? mData[col.field] : '';
             var borderCls = col.groupStart ? ' eg-td-group-start' : '';
-            rows += '<td class="eg-td' + borderCls + '">' +
-                '<input class="eg-cell-input eg-threshold-input" type="text" inputmode="numeric"' +
-                ' data-month="' + m + '" data-field="' + col.field + '"' +
-                ' value="' + fieldVal + '"' +
-                ' onblur="_egSaveMonthField(' + m + ',\'' + col.field + '\',this.value)">' +
-                '</td>';
+            if (col.calculated) {
+                // Auto-calculated from projection data — read-only calc cell
+                var calcVal = p[col.field];
+                var calcClass = 'eg-proj-ex-' + (col.color === 'y' ? 'yellow' : 'blue');
+                rows += '<td class="eg-td eg-td-calc ' + calcClass + borderCls + '" data-month="' + m + '">' +
+                    _egFmtCalc(calcVal) + '</td>';
+            } else {
+                var fieldVal = mData[col.field] != null ? mData[col.field] : '';
+                rows += '<td class="eg-td' + borderCls + '">' +
+                    '<input class="eg-cell-input eg-threshold-input" type="text" inputmode="numeric"' +
+                    ' data-month="' + m + '" data-field="' + col.field + '"' +
+                    ' value="' + fieldVal + '"' +
+                    ' onblur="_egSaveMonthField(' + m + ',\'' + col.field + '\',this.value)">' +
+                    '</td>';
+            }
         });
 
         // Copy Previous button (hidden for January)
@@ -3147,7 +3155,11 @@ function _egComputeProjections() {
         // Use estimated ending weight if available; otherwise fall back to goal weight.
         prevWeight = (j !== null) ? j : _egEffectiveGoalWeight(m);
 
-        results.push({ f: f, g: g, h: h, baseBurn: baseBurn, i: i, j: j });
+        // Exercise thresholds — auto-calculated from H so they scale with the plan
+        var exerciseYellow = h !== null ? Math.max(h - 300, 200) : null;
+        var exerciseBlue   = h !== null ? Math.max(h + 200, 500) : null;
+
+        results.push({ f: f, g: g, h: h, baseBurn: baseBurn, exerciseYellow: exerciseYellow, exerciseBlue: exerciseBlue, i: i, j: j });
     }
     return results;
 }
@@ -3188,6 +3200,12 @@ function _egUpdateCalcCells() {
         if (gCell)    gCell.innerHTML    = _egFmtCalc(p.g);
         if (hCell)    hCell.innerHTML    = _egFmtCalc(p.h);
         if (baseCell) baseCell.innerHTML = _egFmtCalc(p.baseBurn);
+
+        // Exercise threshold calc cells
+        var eyCell = document.querySelector('.eg-proj-ex-yellow[data-month="' + m2 + '"]');
+        var ebCell = document.querySelector('.eg-proj-ex-blue[data-month="' + m2 + '"]');
+        if (eyCell) eyCell.innerHTML = _egFmtCalc(p.exerciseYellow);
+        if (ebCell) ebCell.innerHTML = _egFmtCalc(p.exerciseBlue);
         if (iCell) {
             iCell.className = 'eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '');
             iCell.setAttribute('data-month', m2);
@@ -3199,6 +3217,35 @@ function _egUpdateCalcCells() {
             jCell.innerHTML = p.j != null
                 ? '<span class="eg-calc-num">' + p.j + '</span>'
                 : '<span class="eg-calc-blank">—</span>';
+        }
+    }
+    // Auto-save calculated exercise thresholds to Firestore so Daily Metrics color
+    // wiring can look them up without needing to re-derive them.
+    _egAutoSaveExerciseThresholds(projs);
+}
+
+// Saves exerciseYellow/Blue for months where H changed.  Fire-and-forget (no await).
+async function _egAutoSaveExerciseThresholds(projs) {
+    if (!_egCurrentYear || !_egYearData) return;
+    var update = {};
+    projs.forEach(function(p, idx) {
+        var m = idx + 1;
+        if (!_egMonths[m]) _egMonths[m] = {};
+        if (p.exerciseYellow !== null && _egMonths[m].exerciseYellow !== p.exerciseYellow) {
+            _egMonths[m].exerciseYellow = p.exerciseYellow;
+            update['months.' + m + '.exerciseYellow'] = p.exerciseYellow;
+        }
+        if (p.exerciseBlue !== null && _egMonths[m].exerciseBlue !== p.exerciseBlue) {
+            _egMonths[m].exerciseBlue = p.exerciseBlue;
+            update['months.' + m + '.exerciseBlue'] = p.exerciseBlue;
+        }
+    });
+    if (Object.keys(update).length > 0) {
+        update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        try {
+            await userCol('exerciseGoals').doc(String(_egCurrentYear)).update(update);
+        } catch (err) {
+            console.error('Goals: failed to auto-save exercise thresholds:', err);
         }
     }
 }
