@@ -3072,6 +3072,10 @@ function _egRenderGrid() {
                 '<tbody>' + rows + '</tbody>' +
             '</table>' +
         '</div>';
+
+    // Ensure exercise thresholds are saved on every page load, not just on input changes.
+    // This means visiting the Goals page once is sufficient to generate and persist the numbers.
+    _egAutoSaveExerciseThresholds(projs);
 }
 
 // ─── Phase 5: Projection column calculations ──────────────────────────────────
