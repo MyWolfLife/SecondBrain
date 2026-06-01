@@ -3146,11 +3146,12 @@ async function _egSaveMonthField(month, field, rawValue) {
     update['months.' + month + '.' + field] =
         val !== null ? val : firebase.firestore.FieldValue.delete();
 
-    // Cascade goal weight forward to subsequent months that are still null
+    // Cascade goal weight forward to: (a) months still null, or (b) months with a higher
+    // weight than the value just entered (keeps goals monotonically non-increasing).
     if (field === 'goalWeight' && val !== null) {
         for (var m2 = month + 1; m2 <= 12; m2++) {
             if (!_egMonths[m2]) _egMonths[m2] = {};
-            if (_egMonths[m2].goalWeight == null) {
+            if (_egMonths[m2].goalWeight == null || _egMonths[m2].goalWeight > val) {
                 _egMonths[m2].goalWeight = val;
                 update['months.' + m2 + '.goalWeight'] = val;
                 var inp = document.querySelector('[data-month="' + m2 + '"][data-field="goalWeight"]');
@@ -3923,21 +3924,32 @@ async function _egRunE2ETests() {
         check('T4.1', 'Goal weight cascades to blank months', febInp && febInp.value === '210',
             'Feb value=' + (febInp ? febInp.value : 'null'));
 
-        // Set Mar explicitly to test cascade stop
+        // T4.2: cascade overrides higher months but leaves lower months alone
         var marGW = document.querySelector('[data-month="3"][data-field="goalWeight"]');
         if (marGW) {
-            marGW.value = '200';
+            // Set Mar = 205 (lower than Jan 210) — Jan change should NOT override it
+            marGW.value = '205';
             marGW.dispatchEvent(new Event('blur'));
             await sleep(500);
-            // Now change Jan — Mar should stay 200
-            janGW.value = '212';
+            janGW.value = '208';
             janGW.dispatchEvent(new Event('blur'));
             await sleep(600);
-            check('T4.2', 'Cascade stops at explicitly set months',
-                marGW.value === '200', 'Mar value=' + marGW.value);
-            // Reset
+            // Mar is 205 < 208, so should NOT be overridden
+            check('T4.2a', 'Cascade does not override lower months',
+                marGW.value === '205', 'Mar value=' + marGW.value);
+            // Set Mar = 215 (higher than Jan 208) — cascade should update it
+            marGW.value = '215';
+            marGW.dispatchEvent(new Event('blur'));
+            await sleep(500);
             janGW.value = '210';
             janGW.dispatchEvent(new Event('blur'));
+            await sleep(600);
+            // Mar is 215 > 210, so should be updated to 210
+            check('T4.2b', 'Cascade overrides months with higher weight',
+                marGW.value === '210', 'Mar value=' + marGW.value);
+            // Reset Mar to a lower value
+            marGW.value = '205';
+            marGW.dispatchEvent(new Event('blur'));
             await sleep(400);
         }
     }

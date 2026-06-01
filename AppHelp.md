@@ -3529,7 +3529,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 **Monthly Goals Grid** (one row per month)
 - Enter **Goal Weight** — what you want to weigh at the end of that month (not calculated — you set this)
-- **Goal Weight cascade**: typing a value automatically fills all later months that are still blank. Change a later month to override just that month forward.
+- **Goal Weight cascade**: typing a value fills two kinds of later months — (1) months still blank, and (2) months where the existing goal is *higher* than what you just entered (inconsistent with a weight-loss plan). Months already set to a lower weight are left alone.
 - Enter **Miles/Day** — your average daily miles goal for that month
 - Enter **session counts** for each tracked exercise — how many sessions you plan that month
 - All cells save automatically when you tab away or click elsewhere

@@ -265,7 +265,7 @@ One document per year:
 | Column order | Weight inputs → Exercise goals → Projected burns/weight → Food thresholds → Remaining thresholds |
 | Starting weight | Entered at year level; defaults all 12 months on creation |
 | Blank month weight | Null in Firestore — inherits most recent non-null value above it (or Starting Weight) at render time |
-| Weight cascade | Setting a value cascades forward only to months that are still null — stops at any month already explicitly set |
+| Weight cascade | Setting a value cascades forward to: (a) months still null, or (b) months with a higher goal weight than the value just entered. Leaves months with a lower (better) goal weight alone. |
 | Copy Previous Month | Copies entire row (all values + thresholds) — hidden for January |
 | Cal/mile & cal/session scope | Per year |
 | Session count | Whole number only |
@@ -339,7 +339,8 @@ Validates the full Goals feature chain: year management → constants → tracke
 | ID | Description | Pass Criteria |
 |---|---|---|
 | T4.1 | Goal weight cascades to null months | All subsequent null months show the entered value |
-| T4.2 | Cascade stops at explicitly set months | Months with explicit values are not overridden |
+| T4.2a | Cascade does not override lower months | Set Mar=205, then Jan=208 — Mar stays 205 (already lower/better) |
+| T4.2b | Cascade overrides higher months | Set Mar=215, then Jan=210 — Mar updates to 210 (was inconsistently higher) |
 | T4.3 | Weight Loss = previous weight - this weight | Shows correct signed difference |
 | T4.4 | Daily Cal Loss = abs(WtLoss) * 3500 / days | Matches formula; rounded to whole number |
 | T4.5 | F = avgMilesPerDay * calPerMile | Correct value when both entered |
