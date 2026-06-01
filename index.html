@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=730">
+    <link rel="stylesheet" href="css/styles.css?v=731">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7187,6 +7187,11 @@ service firebase.storage {
             <!-- Populated by loadExerciseGoalsMonthPage() in exercise.js -->
         </section>
 
+        <!-- Page: Tracked Exercises Management (#exercise-goals/:year/exercises) -->
+        <section class="page hidden" id="page-exercise-goal-exercises">
+            <!-- Populated by loadExerciseGoalExercisesPage() in exercise.js -->
+        </section>
+
         <!-- Page: Life Calendar (#life-calendar) -->
         <section class="page hidden" id="page-life-calendar">
             <!-- Populated by loadLifeCalendarPage() in lifecalendar.js -->
@@ -11152,7 +11157,7 @@ export default {
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
     <script src="js/life-projects.js?v=458"></script>
-    <script src="js/exercise.js?v=45"></script>
+    <script src="js/exercise.js?v=46"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>
@@ -11174,7 +11179,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=666"></script>
+    <script src="js/app.js?v=667"></script>
 
 </body>
 </html>

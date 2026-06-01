@@ -2777,14 +2777,13 @@ function _egRenderYearContent() {
             '</div>' +
         '</div>' +
 
-        // ── Tracked exercises ───────────────────────────────────────────────
+        // ── Tracked exercises (summary + link to management screen) ────────
         '<div class="eg-section">' +
             '<div class="eg-section-header">' +
                 '<span class="eg-section-title">Tracked Exercises</span>' +
-                '<button class="btn btn-primary btn-small" onclick="_egShowAddExerciseForm()">+ Add Exercise</button>' +
+                '<a href="#exercise-goals/' + _egCurrentYear + '/exercises" class="btn btn-secondary btn-small">Manage →</a>' +
             '</div>' +
-            '<div id="egTrackedList"></div>' +
-            '<div id="egAddExerciseForm" class="eg-add-exercise-form hidden"></div>' +
+            '<p id="egExerciseSummary" class="eg-section-summary"></p>' +
         '</div>' +
 
         // ── Monthly goals (desktop grid + mobile cards) ─────────────────────
@@ -2794,7 +2793,7 @@ function _egRenderYearContent() {
             '<div class="eg-mobile-view" id="egMobileView"></div>' +  // mobile cards (hidden on desktop)
         '</div>';
 
-    _egRenderTrackedList();
+    _egRenderExerciseSummary();
     _egRenderGrid();
     _egRenderMobileView();
     _egAddSelectOnFocus('egYearContent');
@@ -3247,6 +3246,64 @@ async function _egSaveConstant(field, rawValue) {
         console.error('Goals: failed to save constant:', err);
     }
     _egUpdateCalcCells();  // calPerMile and baseDailyBurn affect projection columns
+}
+
+// ─── Tracked exercise summary (on year page) ─────────────────────────────────
+
+function _egRenderExerciseSummary() {
+    var el = document.getElementById('egExerciseSummary');
+    if (!el) return;
+    var exercises = (_egYearData.trackedExercises || []).slice()
+        .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+    if (exercises.length === 0) {
+        el.textContent = 'No exercises tracked yet.';
+    } else {
+        el.textContent = exercises.length + ' tracked: ' +
+            exercises.map(function(te) { return te.typeName; }).join(', ');
+    }
+}
+
+// ─── Tracked exercises management page ───────────────────────────────────────
+
+async function loadExerciseGoalExercisesPage(year) {
+    window.scrollTo(0, 0);
+    var yearNum = parseInt(year, 10);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise-goals/' + year + '">Goals</a><span class="separator">&rsaquo;</span>' +
+        '<span>Tracked Exercises</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+
+    var el = document.getElementById('page-exercise-goal-exercises');
+    if (!el) return;
+    el.innerHTML = '<p class="loading-text">Loading...</p>';
+
+    try {
+        await _egEnsureYearData(yearNum);
+    } catch (err) {
+        el.innerHTML = '<p class="error-text">Failed to load. Please try again.</p>';
+        return;
+    }
+
+    _egRenderExercisesManagePage(yearNum);
+}
+
+function _egRenderExercisesManagePage(year) {
+    var el = document.getElementById('page-exercise-goal-exercises');
+    if (!el) return;
+
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h2>Tracked Exercises — ' + year + '</h2>' +
+            '<button class="btn btn-primary btn-small" onclick="_egShowAddExerciseForm()">+ Add Exercise</button>' +
+        '</div>' +
+        '<div id="egTrackedList"></div>' +
+        '<div id="egAddExerciseForm" class="eg-add-exercise-form hidden"></div>';
+
+    _egRenderTrackedList();
+    _egAddSelectOnFocus('page-exercise-goal-exercises');
 }
 
 // ─── Tracked exercise list ────────────────────────────────────────────────────

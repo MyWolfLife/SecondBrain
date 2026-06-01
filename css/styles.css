@@ -19188,3 +19188,6 @@ a.legacy-fin-card:hover {
 .eg-month-field-input::-webkit-outer-spin-button,
 .eg-month-field-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .eg-month-field-input:focus { outline: none; border-color: #2d6a2d; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }
+
+/* Tracked exercises summary line on year goals page */
+.eg-section-summary { font-size: 0.85rem; color: #6b7280; margin: 0 0 4px; }

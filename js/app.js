@@ -211,7 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'exercise-activity', 'exercise-metric', 'exercise-goals-month',
+    'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
     'help'
 ];
 
@@ -255,7 +255,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'budget', 'budget-archive', 'budget-nonmonthly',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
-                     'exercise-goals', 'exercise-goals-month'];
+                     'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -802,6 +802,9 @@ function handleRoute() {
     } else if (page === 'exercise-metric-defs') {
         showPage('exercise-metric-defs');
         loadExerciseMetricDefsPage();
+    } else if (page === 'exercise-goals' && id && parts[2] === 'exercises') {
+        showPage('exercise-goal-exercises');
+        loadExerciseGoalExercisesPage(id);
     } else if (page === 'exercise-goals' && id && parts[2]) {
         showPage('exercise-goals-month');
         loadExerciseGoalsMonthPage(id, parts[2]);

@@ -3523,9 +3523,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - All three save automatically when you tab away
 
 **Tracked Exercises** (which exercises appear as grid columns)
-- Click **+ Add Exercise** → pick from your existing exercise types (or type a new name to create one inline) → enter your average calorie burn per session → the exercise appears as a column in the monthly grid
-- Use **↑/↓** to reorder — most important exercises first
-- **Remove** stops tracking that exercise (your historical activity data is unaffected)
+- Shows a summary of how many exercises you're tracking and their names
+- Click **Manage →** to open the Tracked Exercises screen where you can add, reorder, and remove exercises (see screen:exercise-goal-exercises)
 
 **Monthly Goals Grid** (one row per month)
 - Enter **Goal Weight** — what you want to weigh at the end of that month (not calculated — you set this)
@@ -3560,6 +3559,25 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Mid-year: update a month's goals when your situation changes (injury, vacation, hitting goal weight early)
 - Troubleshoot: if the Est End Weight turns yellow, adjust session counts, miles/day, or food thresholds until the projection aligns with your goal
 - Before checking Daily Metrics: set the threshold columns so your past entries are color-coded meaningfully
+
+---
+
+## screen:exercise-goal-exercises
+
+**What this screen is for:** Manage the exercise types you want to track in your monthly goals — add new ones, set their average calorie burn per session, reorder them, and remove them.
+
+### Quick Help
+- **+ Add Exercise** button at the top — opens an inline form to add a new tracked exercise
+- In the add form: pick from your existing exercise types (or type a new name to add one inline), then enter the average calories you burn per session for that exercise
+- Each tracked exercise shows its name, calorie burn per session, reorder arrows, and a **Remove** button
+- **↑/↓ arrows**: change the display order — exercises appear as columns in the monthly goals grid in this order, so put your most important ones first
+- **Remove**: stops tracking that exercise and removes its column from the grid. Your past logged activities are unaffected.
+- Changes take effect immediately in the goals grid when you return to it
+
+### When to use this
+- At the start of the year when setting up your goals plan
+- When you add a new type of workout you want to goal-track
+- To update the average calorie burn estimate for an exercise as your fitness changes
 
 ---
 
