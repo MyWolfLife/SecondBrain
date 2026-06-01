@@ -19226,3 +19226,18 @@ a.legacy-fin-card:hover {
 .eg-te-cal-input:hover { border-color: #d1d5db; background: #fff; }
 .eg-te-cal-input:focus { border-color: #2d6a2d; background: #fff; outline: none; color: #374151; box-shadow: 0 0 0 2px rgba(45,106,45,0.12); }
 .eg-te-cal-label { font-size: 0.82rem; color: #9ca3af; }
+
+/* ── Year constants — height row and gender select ───────────────────────────── */
+.eg-height-wrap { display: flex; align-items: center; gap: 4px; }
+.eg-height-input { width: 48px !important; }
+.eg-height-sep   { font-size: 0.82rem; color: #6b7280; }
+.eg-constant-select {
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #fff;
+    cursor: pointer;
+}
+.eg-constant-select:focus { outline: none; border-color: #2d6a2d; box-shadow: 0 0 0 2px rgba(45,106,45,0.15); }
+.eg-multiplier-label { cursor: help; border-bottom: 1px dashed #9ca3af; }

@@ -3517,10 +3517,13 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **+ Add New Year** in the dropdown opens a popup defaulting to next year — confirm or type a different year
 
 **Year Constants** (top section — enter once, applies to all calculations)
-- **Starting Weight**: your weight at the start of the year — anchors the January weight loss projection
-- **Base Daily Burn**: estimated calories you burn per day with no exercise (from your watch or a TDEE estimate — e.g. 2200)
+- **Starting Weight**: your weight at the start of the year — anchors the January projection
+- **Height**: feet and inches (e.g. 6 ft 0 in) — used to calculate your base calorie burn each month
+- **Birth Year**: your birth year (e.g. 1968) — age is computed automatically; used in base burn formula
+- **Gender**: Male or Female — affects the base burn formula by ~166 cal/day
+- **Activity Multiplier**: multiplied by your resting metabolic rate to estimate daily non-exercise burn. Default 1.2 = sedentary desk life. Use 1.375 if you're lightly active throughout the day beyond your tracked exercise. Hover the label for details.
 - **Calories Per Mile**: average calories you burn per mile running or walking (e.g. 110)
-- All three save automatically when you tab away
+- All fields save automatically when you tab away (or on change for Gender)
 
 **Tracked Exercises** (which exercises appear as grid columns)
 - Shows a summary of how many exercises you're tracking and their names
@@ -3540,8 +3543,9 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Burn Miles/Day** — daily calorie burn from your miles goal: `Miles/Day × Cal/Mile`
 - **Burn Extra/Day** — daily calorie burn from non-mileage exercise sessions: `sum(sessions × cal/session) ÷ days`
 - **Total Ex Burn** — Burn Miles + Burn Extra per day
-- **Est Wt Lost** — estimated pounds lost this month if you hit all goals and eat within your food range: `((Base Burn + Total Ex Burn) − avg food calories) × days ÷ 3500`. Shows in red if negative (plan predicts weight gain).
-- **Est End Weight** — rolling chain: previous month's estimated end weight minus Est Wt Lost. Shows **yellow** if higher than your Goal Weight — your plan won't hit your target. Adjust your exercise goals or food range until they align.
+- **Base Burn** — estimated daily non-exercise calorie burn for this month, calculated using Mifflin-St Jeor applied to the prior month's estimated ending weight × your activity multiplier. Updates each month as weight changes throughout the year.
+- **Est Wt Lost** — estimated pounds lost this month: `((Base Burn + Total Ex Burn) − avg food calories) × days ÷ 3500`. Shows in red if negative (plan predicts weight gain).
+- **Est End Weight** — rolling chain: previous month's estimated end weight minus Est Wt Lost. Shows **yellow** if higher than your Goal Weight. Adjust exercise goals or food range until they align.
 
 **Color threshold columns** (right side of grid — 18 columns in 7 groups)
 - Each column defines a boundary value for one color tier on the Daily Metrics screen

@@ -2762,18 +2762,46 @@ function _egRenderYearContent() {
         '<div class="eg-section">' +
             '<div class="eg-section-title">Year Constants</div>' +
             '<div class="eg-constants-grid">' +
+
                 '<div class="eg-constant">' +
                     '<label class="eg-constant-label">Starting Weight (lbs)</label>' +
-                    '<input class="eg-constant-input" type="number" id="egStartingWeight" value="' + (d.startingWeight || '') + '" placeholder="e.g. 218" onblur="_egSaveConstant(\'startingWeight\', this.value)">' +
+                    '<input class="eg-constant-input" type="text" inputmode="decimal" id="egStartingWeight" value="' + (d.startingWeight || '') + '" placeholder="e.g. 218" onblur="_egSaveConstant(\'startingWeight\', this.value)">' +
                 '</div>' +
+
                 '<div class="eg-constant">' +
-                    '<label class="eg-constant-label">Base Daily Burn (cal)</label>' +
-                    '<input class="eg-constant-input" type="number" id="egBaseDailyBurn" value="' + (d.baseDailyBurn || '') + '" placeholder="e.g. 2200" onblur="_egSaveConstant(\'baseDailyBurn\', this.value)">' +
+                    '<label class="eg-constant-label">Height</label>' +
+                    '<div class="eg-height-wrap">' +
+                        '<input class="eg-constant-input eg-height-input" type="text" inputmode="numeric" id="egHeightFeet" value="' + (d.heightFeet != null ? d.heightFeet : '') + '" placeholder="ft" onblur="_egSaveConstant(\'heightFeet\', this.value)">' +
+                        '<span class="eg-height-sep">ft</span>' +
+                        '<input class="eg-constant-input eg-height-input" type="text" inputmode="numeric" id="egHeightInches" value="' + (d.heightInches != null ? d.heightInches : '') + '" placeholder="0" onblur="_egSaveConstant(\'heightInches\', this.value)">' +
+                        '<span class="eg-height-sep">in</span>' +
+                    '</div>' +
                 '</div>' +
+
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label">Birth Year</label>' +
+                    '<input class="eg-constant-input" type="text" inputmode="numeric" id="egBirthYear" value="' + (d.birthYear || '') + '" placeholder="e.g. 1966" onblur="_egSaveConstant(\'birthYear\', this.value)">' +
+                '</div>' +
+
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label">Gender</label>' +
+                    '<select class="eg-constant-select" id="egGender" onchange="_egSaveConstant(\'gender\', this.value)">' +
+                        '<option value="">— Select —</option>' +
+                        '<option value="male"' + (d.gender === 'male' ? ' selected' : '') + '>Male</option>' +
+                        '<option value="female"' + (d.gender === 'female' ? ' selected' : '') + '>Female</option>' +
+                    '</select>' +
+                '</div>' +
+
+                '<div class="eg-constant">' +
+                    '<label class="eg-constant-label eg-multiplier-label" title="Activity multiplier applied to your resting metabolic rate to estimate daily non-exercise calorie burn. 1.2 = sedentary desk life. 1.375 = lightly active daily life. Use 1.2 if your tracked exercise sessions already account for most of your activity.">Activity Multiplier ⓘ</label>' +
+                    '<input class="eg-constant-input" type="text" inputmode="decimal" id="egActivityMultiplier" value="' + (d.activityMultiplier != null ? d.activityMultiplier : '1.2') + '" placeholder="1.2" onblur="_egSaveConstant(\'activityMultiplier\', this.value)">' +
+                '</div>' +
+
                 '<div class="eg-constant">' +
                     '<label class="eg-constant-label">Calories Per Mile</label>' +
-                    '<input class="eg-constant-input" type="number" id="egCalPerMile" value="' + (d.calPerMile || '') + '" placeholder="e.g. 110" onblur="_egSaveConstant(\'calPerMile\', this.value)">' +
+                    '<input class="eg-constant-input" type="text" inputmode="numeric" id="egCalPerMile" value="' + (d.calPerMile || '') + '" placeholder="e.g. 110" onblur="_egSaveConstant(\'calPerMile\', this.value)">' +
                 '</div>' +
+
             '</div>' +
         '</div>' +
 
@@ -2929,6 +2957,7 @@ function _egRenderGrid() {
         '<th class="eg-th eg-th-calc eg-th-group-start" title="Calculated: daily calorie burn from your mileage goal. (Miles/Day × Calories Per Mile constant)">Burn<br><span class="eg-th-sub">Miles/Day</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: daily calorie burn from your non-mileage exercise sessions. (Sum of sessions × cal/session ÷ days in month)">Burn<br><span class="eg-th-sub">Extra/Day</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: total daily exercise calorie burn. (Burn Miles + Burn Extra)">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: estimated daily non-exercise calorie burn using Mifflin-St Jeor formula applied to prior month\'s estimated weight, multiplied by your activity multiplier. Updates each month as your weight changes. Falls back to a static value if height/birth year/gender are not set.">Base<br><span class="eg-th-sub">Burn</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated pounds lost this month if you hit all your goals. Formula: ((Base Burn + Total Exercise Burn) − Avg Food) × Days ÷ 3,500. Shows red if negative (plan predicts weight gain).">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated weight at end of month. Chains from prior month\'s estimated weight (or prior month\'s goal weight if chain is broken). Shows yellow if higher than your Goal Weight — your plan won\'t hit your target.">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
 
@@ -3002,6 +3031,7 @@ function _egRenderGrid() {
             '<td class="eg-td eg-td-calc eg-proj-f eg-td-group-start" data-month="' + m + '">' + _egFmtCalc(p.f) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-g" data-month="' + m + '">' + _egFmtCalc(p.g) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-h" data-month="' + m + '">' + _egFmtCalc(p.h) + '</td>' +
+            '<td class="eg-td eg-td-calc eg-proj-base" data-month="' + m + '">' + _egFmtCalc(p.baseBurn) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' + _egFmtProjI(p.i) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' +
                 (p.j != null ? '<span class="eg-calc-num">' + p.j + '</span>' : '<span class="eg-calc-blank">—</span>') +
@@ -3037,18 +3067,44 @@ function _egRenderGrid() {
 // ─── Phase 5: Projection column calculations ──────────────────────────────────
 
 // Computes all 5 projection values for all 12 months in one pass.
+// Computes base daily calorie burn for a given weight using Mifflin-St Jeor × activity multiplier.
+// Returns null if any required year constant (height, birthYear, gender) is missing.
+function _egCalcBaseBurn(weightLbs) {
+    var d = _egYearData;
+    if (!d || weightLbs == null) return null;
+    var hFt  = d.heightFeet;
+    var hIn  = d.heightInches != null ? d.heightInches : 0;
+    var by   = d.birthYear;
+    var sex  = d.gender;
+    var mult = d.activityMultiplier != null ? d.activityMultiplier : 1.2;
+    if (hFt == null || by == null || !sex) return null;
+
+    var heightCm = ((hFt * 12) + hIn) * 2.54;
+    var weightKg = weightLbs / 2.2046;
+    var age      = _egCurrentYear - by;
+    var bmr      = 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === 'female' ? -161 : 5);
+    return Math.round(bmr * mult);
+}
+
 // Returns array[0..11] of { f, g, h, i, j } (all may be null if data missing).
 function _egComputeProjections() {
-    var calPerMile = _egYearData ? (_egYearData.calPerMile   || null) : null;
-    var baseBurn   = _egYearData ? (_egYearData.baseDailyBurn || null) : null;
+    var calPerMile = _egYearData ? (_egYearData.calPerMile || null) : null;
     var exercises  = _egYearData ? (_egYearData.trackedExercises || []) : [];
     var results    = [];
     var prevJ      = null;
+    // prevWeight tracks the weight at the START of each month (= prior month's estimated ending weight).
+    // Used to compute a realistic base burn as weight changes throughout the year.
+    var prevWeight = (_egYearData && _egYearData.startingWeight != null) ? _egYearData.startingWeight : null;
 
     for (var m = 1; m <= 12; m++) {
         var mData    = _egMonths[m] || {};
         var sessions = mData.exerciseSessions || {};
         var days     = _egDaysInMonth(m);
+
+        // Base Burn — per-month BMR × activity multiplier using prior month's estimated weight.
+        // Falls back to static baseDailyBurn constant if formula inputs (height/birthYear/gender) are missing.
+        var baseBurn = _egCalcBaseBurn(prevWeight);
+        if (baseBurn === null) baseBurn = (_egYearData && _egYearData.baseDailyBurn) || null;
 
         // F — Daily calorie burn from miles
         var f = (calPerMile != null && mData.avgMilesPerDay != null)
@@ -3074,9 +3130,7 @@ function _egComputeProjections() {
         }
 
         // J — Estimated end-of-month weight (rolling chain).
-        // When the chain is broken (prevJ is null because an earlier month lacks data),
-        // fall back to the effective goal weight of the prior month so mid-year
-        // starts still produce useful J values.
+        // Falls back to effective goal weight when chain is broken (mid-year start).
         var startForJ;
         if (m === 1) {
             startForJ = (_egYearData && _egYearData.startingWeight != null)
@@ -3087,7 +3141,11 @@ function _egComputeProjections() {
         var j = (startForJ != null && i != null) ? Math.round(startForJ - i) : null;
         prevJ = j;
 
-        results.push({ f: f, g: g, h: h, i: i, j: j });
+        // Update prevWeight for next month's base burn calculation.
+        // Use estimated ending weight if available; otherwise fall back to goal weight.
+        prevWeight = (j !== null) ? j : _egEffectiveGoalWeight(m);
+
+        results.push({ f: f, g: g, h: h, baseBurn: baseBurn, i: i, j: j });
     }
     return results;
 }
@@ -3117,15 +3175,17 @@ function _egUpdateCalcCells() {
         var iWarn = p.i != null && p.i < 0;
         var jWarn = p.j != null && effGW != null && p.j > effGW;
 
-        var fCell = document.querySelector('.eg-proj-f[data-month="' + m2 + '"]');
-        var gCell = document.querySelector('.eg-proj-g[data-month="' + m2 + '"]');
-        var hCell = document.querySelector('.eg-proj-h[data-month="' + m2 + '"]');
-        var iCell = document.querySelector('.eg-proj-i[data-month="' + m2 + '"]');
-        var jCell = document.querySelector('.eg-proj-j[data-month="' + m2 + '"]');
+        var fCell    = document.querySelector('.eg-proj-f[data-month="' + m2 + '"]');
+        var gCell    = document.querySelector('.eg-proj-g[data-month="' + m2 + '"]');
+        var hCell    = document.querySelector('.eg-proj-h[data-month="' + m2 + '"]');
+        var baseCell = document.querySelector('.eg-proj-base[data-month="' + m2 + '"]');
+        var iCell    = document.querySelector('.eg-proj-i[data-month="' + m2 + '"]');
+        var jCell    = document.querySelector('.eg-proj-j[data-month="' + m2 + '"]');
 
-        if (fCell) fCell.innerHTML = _egFmtCalc(p.f);
-        if (gCell) gCell.innerHTML = _egFmtCalc(p.g);
-        if (hCell) hCell.innerHTML = _egFmtCalc(p.h);
+        if (fCell)    fCell.innerHTML    = _egFmtCalc(p.f);
+        if (gCell)    gCell.innerHTML    = _egFmtCalc(p.g);
+        if (hCell)    hCell.innerHTML    = _egFmtCalc(p.h);
+        if (baseCell) baseCell.innerHTML = _egFmtCalc(p.baseBurn);
         if (iCell) {
             iCell.className = 'eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '');
             iCell.setAttribute('data-month', m2);
@@ -3239,8 +3299,15 @@ async function _egCopyPreviousMonth(month) {
 // ─── Save a year-level constant on blur ───────────────────────────────────────
 
 async function _egSaveConstant(field, rawValue) {
-    var val = rawValue.trim() === '' ? null : parseFloat(rawValue);
-    if (val !== null && isNaN(val)) return;
+    var val;
+    if (rawValue === '' || rawValue == null) {
+        val = null;
+    } else if (field === 'gender') {
+        val = String(rawValue);  // gender is a string ('male'/'female'), not a number
+    } else {
+        val = parseFloat(rawValue);
+        if (isNaN(val)) return;
+    }
 
     if (!_egYearData) _egYearData = {};
     _egYearData[field] = val;
