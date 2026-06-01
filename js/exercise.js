@@ -3073,10 +3073,17 @@ function _egComputeProjections() {
             i = Math.round(((baseBurn + h) - (fy1 + fy2) / 2) * days / 3500);
         }
 
-        // J — Estimated end-of-month weight (rolling chain)
-        var startForJ = m === 1
-            ? (_egYearData && _egYearData.startingWeight != null ? _egYearData.startingWeight : null)
-            : prevJ;
+        // J — Estimated end-of-month weight (rolling chain).
+        // When the chain is broken (prevJ is null because an earlier month lacks data),
+        // fall back to the effective goal weight of the prior month so mid-year
+        // starts still produce useful J values.
+        var startForJ;
+        if (m === 1) {
+            startForJ = (_egYearData && _egYearData.startingWeight != null)
+                ? _egYearData.startingWeight : null;
+        } else {
+            startForJ = prevJ !== null ? prevJ : _egEffectiveGoalWeight(m - 1);
+        }
         var j = (startForJ != null && i != null) ? Math.round(startForJ - i) : null;
         prevJ = j;
 
