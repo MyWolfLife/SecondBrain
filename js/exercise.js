@@ -2797,6 +2797,7 @@ function _egRenderYearContent() {
     _egRenderGrid();
     _egRenderMobileView();
     _egAddSelectOnFocus('egYearContent');
+    _egAddKeydownNav('egYearContent');
 }
 
 // ─── Phase 3: Monthly goals grid ─────────────────────────────────────────────
@@ -2958,7 +2959,7 @@ function _egRenderGrid() {
 
             // Goal Weight input
             '<td class="eg-td">' +
-                '<input class="eg-cell-input' + (isInherited ? ' eg-inherited' : '') + '" type="number" step="0.1"' +
+                '<input class="eg-cell-input' + (isInherited ? ' eg-inherited' : '') + '" type="text" inputmode="decimal"' +
                 ' data-month="' + m + '" data-field="goalWeight"' +
                 ' value="' + gwVal + '"' +
                 ' onblur="_egSaveMonthField(' + m + ',\'goalWeight\',this.value)">' +
@@ -2976,7 +2977,7 @@ function _egRenderGrid() {
 
             // Avg Miles / Day
             '<td class="eg-td">' +
-                '<input class="eg-cell-input" type="number" step="0.1"' +
+                '<input class="eg-cell-input" type="text" inputmode="decimal"' +
                 ' data-month="' + m + '" data-field="avgMilesPerDay"' +
                 ' value="' + (mData.avgMilesPerDay != null ? mData.avgMilesPerDay : '') + '"' +
                 ' onblur="_egSaveMonthField(' + m + ',\'avgMilesPerDay\',this.value)">' +
@@ -2986,7 +2987,7 @@ function _egRenderGrid() {
         exercises.forEach(function(te) {
             var sesVal = sessions[te.typeId] != null ? sessions[te.typeId] : '';
             rows += '<td class="eg-td">' +
-                '<input class="eg-cell-input eg-session-input" type="number" min="0"' +
+                '<input class="eg-cell-input eg-session-input" type="text" inputmode="numeric"' +
                 ' data-month="' + m + '" data-typeid="' + te.typeId + '"' +
                 ' value="' + sesVal + '"' +
                 ' onblur="_egSaveMonthSession(' + m + ',\'' + te.typeId + '\',this.value)">' +
@@ -3011,7 +3012,7 @@ function _egRenderGrid() {
             var fieldVal = mData[col.field] != null ? mData[col.field] : '';
             var borderCls = col.groupStart ? ' eg-td-group-start' : '';
             rows += '<td class="eg-td' + borderCls + '">' +
-                '<input class="eg-cell-input eg-threshold-input" type="number"' +
+                '<input class="eg-cell-input eg-threshold-input" type="text" inputmode="numeric"' +
                 ' data-month="' + m + '" data-field="' + col.field + '"' +
                 ' value="' + fieldVal + '"' +
                 ' onblur="_egSaveMonthField(' + m + ',\'' + col.field + '\',this.value)">' +
@@ -3600,6 +3601,86 @@ function _egAddSelectOnFocus(containerId) {
         if (e.target && e.target.tagName === 'INPUT') e.target.select();
     }, true);
     el._egFocusAdded = true;
+}
+
+// ─── Arrow-key grid navigation ────────────────────────────────────────────────
+
+// Builds a 2D array [row 0..11][col 0..N] of all navigable grid inputs in DOM order.
+function _egGetNavGrid() {
+    var grid = [];
+    for (var m = 1; m <= 12; m++) {
+        var rowInputs = Array.from(document.querySelectorAll('.eg-cell-input[data-month="' + m + '"]'));
+        grid.push(rowInputs);
+    }
+    return grid;
+}
+
+// Keydown handler — intercepts arrow keys on grid inputs for cell-to-cell navigation.
+function _egHandleGridKeydown(e) {
+    var input = e.target;
+    if (!input || input.tagName !== 'INPUT' || !input.classList.contains('eg-cell-input')) return;
+
+    var key = e.key;
+    if (key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'ArrowLeft' && key !== 'ArrowRight') return;
+
+    var month = parseInt(input.dataset.month, 10);
+    if (!month) return;
+
+    var grid   = _egGetNavGrid();
+    var rowIdx = month - 1;
+    var row    = grid[rowIdx] || [];
+    var colIdx = row.indexOf(input);
+    if (colIdx === -1) return;
+
+    var sel0         = input.selectionStart;   // null for type="number"; valid for type="text"
+    var sel1         = input.selectionEnd;
+    var len          = input.value.length;
+    var isEmpty      = len === 0;
+    var isFullySel   = sel0 === 0 && sel1 === len && len > 0;
+    var atRightEdge  = sel0 !== null && sel0 === sel1 && sel0 === len;
+    var atLeftEdge   = sel0 !== null && sel0 === sel1 && sel0 === 0;
+
+    var targetInput = null;
+
+    if (key === 'ArrowUp') {
+        // Always navigate up — no boundary beyond row 0
+        if (rowIdx > 0) {
+            var above = grid[rowIdx - 1];
+            targetInput = above[Math.min(colIdx, above.length - 1)] || null;
+        }
+
+    } else if (key === 'ArrowDown') {
+        // Always navigate down — no boundary beyond row 11
+        if (rowIdx < grid.length - 1) {
+            var below = grid[rowIdx + 1];
+            targetInput = below[Math.min(colIdx, below.length - 1)] || null;
+        }
+
+    } else if (key === 'ArrowRight') {
+        // Navigate right only when empty, fully selected, or cursor already at right edge
+        if (isEmpty || isFullySel || atRightEdge) {
+            targetInput = colIdx < row.length - 1 ? row[colIdx + 1] : null;
+        }
+
+    } else if (key === 'ArrowLeft') {
+        // Navigate left only when empty, fully selected, or cursor already at left edge
+        if (isEmpty || isFullySel || atLeftEdge) {
+            targetInput = colIdx > 0 ? row[colIdx - 1] : null;
+        }
+    }
+
+    if (targetInput) {
+        e.preventDefault();
+        targetInput.focus();  // _egAddSelectOnFocus listener will auto-select the value
+    }
+}
+
+// Attaches the arrow-key grid navigation keydown listener to a container.
+function _egAddKeydownNav(containerId) {
+    var el = document.getElementById(containerId);
+    if (!el || el._egKeydownAdded) return;
+    el.addEventListener('keydown', _egHandleGridKeydown, true);
+    el._egKeydownAdded = true;
 }
 
 // ─── Phase 6: Mobile view & month edit screen ────────────────────────────────
