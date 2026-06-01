@@ -2810,24 +2810,24 @@ var _EG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oc
 // color: 'y'=yellow threshold, 'g'=green threshold, 'b'=blue threshold, 'ly'=light-yellow (food bad)
 // groupStart: true adds a visual separator to the left of this column
 var _EG_THRESHOLD_COLS = [
-    { field: 'foodYellow1',    label: 'Food<',   color: 'y',  group: 'Food',     groupStart: true  },
-    { field: 'foodYellow2',    label: 'Food≥',   color: 'y',  group: 'Food',     groupStart: false },
-    { field: 'foodBad',        label: 'Food≥',   color: 'ly', group: 'Food',     groupStart: false },
-    { field: 'batteryYellow',  label: 'Bat≤',    color: 'y',  group: 'Battery',  groupStart: true  },
-    { field: 'batteryBlue',    label: 'Bat≥',    color: 'b',  group: 'Battery',  groupStart: false },
-    { field: 'stepsYellow',    label: 'Steps<',  color: 'y',  group: 'Steps',    groupStart: true  },
-    { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false },
-    { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false },
-    { field: 'burnGreen',      label: 'Burn≥',   color: 'g',  group: 'Burn',     groupStart: true  },
-    { field: 'burnBlue',       label: 'Burn≥',   color: 'b',  group: 'Burn',     groupStart: false },
-    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true  },
-    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false },
-    { field: 'calLossYellow',  label: 'Cal≤',    color: 'y',  group: 'Cal Loss', groupStart: true  },
-    { field: 'calLossGreen',   label: 'Cal≥',    color: 'g',  group: 'Cal Loss', groupStart: false },
-    { field: 'calLossBlue',    label: 'Cal≥',    color: 'b',  group: 'Cal Loss', groupStart: false },
-    { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true  },
-    { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false },
-    { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false },
+    { field: 'foodYellow1',    label: 'Food<',   color: 'y',  group: 'Food',     groupStart: true,  tooltip: 'Food — Yellow low: if daily food calories are BELOW this, Daily Metrics cell turns yellow (eating too little)' },
+    { field: 'foodYellow2',    label: 'Food≥',   color: 'y',  group: 'Food',     groupStart: false, tooltip: 'Food — Yellow high: if daily food calories are AT OR ABOVE this, cell turns yellow (eating a little over goal)' },
+    { field: 'foodBad',        label: 'Food≥',   color: 'ly', group: 'Food',     groupStart: false, tooltip: 'Food — Bad day: if daily food calories are AT OR ABOVE this, cell turns pale yellow (significantly over goal)' },
+    { field: 'batteryYellow',  label: 'Bat≤',    color: 'y',  group: 'Battery',  groupStart: true,  tooltip: 'Body Battery — Yellow: if battery is AT OR BELOW this, Daily Metrics cell turns yellow (low battery day)' },
+    { field: 'batteryBlue',    label: 'Bat≥',    color: 'b',  group: 'Battery',  groupStart: false, tooltip: 'Body Battery — Blue: if battery is AT OR ABOVE this, Daily Metrics cell turns blue (great battery day)' },
+    { field: 'stepsYellow',    label: 'Steps<',  color: 'y',  group: 'Steps',    groupStart: true,  tooltip: 'Steps — Yellow: if daily steps are BELOW this, Daily Metrics cell turns yellow (low step day)' },
+    { field: 'stepsGreen',     label: 'Steps≥',  color: 'g',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Green: if daily steps are AT OR ABOVE this, cell turns green (good step day)' },
+    { field: 'stepsBlue',      label: 'Steps≥',  color: 'b',  group: 'Steps',    groupStart: false, tooltip: 'Steps — Blue: if daily steps are AT OR ABOVE this, cell turns blue (great step day)' },
+    { field: 'burnGreen',      label: 'Burn≥',   color: 'g',  group: 'Burn',     groupStart: true,  tooltip: 'Actual Burn — Green: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns green' },
+    { field: 'burnBlue',       label: 'Burn≥',   color: 'b',  group: 'Burn',     groupStart: false, tooltip: 'Actual Burn — Blue: if total daily calorie burn is AT OR ABOVE this, Daily Metrics cell turns blue' },
+    { field: 'exerciseYellow', label: 'Ex<',     color: 'y',  group: 'Exercise', groupStart: true,  tooltip: 'Exercise Burn — Yellow: if total exercise calorie burn is BELOW this, Daily Metrics cell turns yellow' },
+    { field: 'exerciseBlue',   label: 'Ex≥',     color: 'b',  group: 'Exercise', groupStart: false, tooltip: 'Exercise Burn — Blue: if total exercise calorie burn is AT OR ABOVE this, Daily Metrics cell turns blue' },
+    { field: 'calLossYellow',  label: 'Cal≤',    color: 'y',  group: 'Cal Loss', groupStart: true,  tooltip: 'Calorie Loss — Yellow: if burn minus food calories is AT OR BELOW this, Daily Metrics cell turns yellow (not enough deficit)' },
+    { field: 'calLossGreen',   label: 'Cal≥',    color: 'g',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Green: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns green (good deficit)' },
+    { field: 'calLossBlue',    label: 'Cal≥',    color: 'b',  group: 'Cal Loss', groupStart: false, tooltip: 'Calorie Loss — Blue: if burn minus food calories is AT OR ABOVE this, Daily Metrics cell turns blue (great deficit)' },
+    { field: 'milesYellow',    label: 'Mi<',     color: 'y',  group: 'Miles',    groupStart: true,  tooltip: 'Miles — Yellow: if daily miles are BELOW this (future Daily Metrics color use)' },
+    { field: 'milesGreen',     label: 'Mi≥',     color: 'g',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Green: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
+    { field: 'milesBlue',      label: 'Mi≥',     color: 'b',  group: 'Miles',    groupStart: false, tooltip: 'Miles — Blue: if daily miles are AT OR ABOVE this (future Daily Metrics color use)' },
 ];
 
 function _egInitMonths() {
@@ -2913,34 +2913,34 @@ function _egRenderGrid() {
 
     // ── Header ───────────────────────────────────────────────────────────────
     var hdr =
-        '<th class="eg-th eg-col-month eg-th-corner">Month</th>' +
-        '<th class="eg-th">Goal<br><span class="eg-th-sub">Weight</span></th>' +
-        '<th class="eg-th eg-th-calc">Wt<br><span class="eg-th-sub">Loss</span></th>' +
-        '<th class="eg-th eg-th-calc">Daily Cal<br><span class="eg-th-sub">Loss</span></th>' +
-        '<th class="eg-th">Miles<br><span class="eg-th-sub">/ Day</span></th>';
+        '<th class="eg-th eg-col-month eg-th-corner" title="Month of the year">Month</th>' +
+        '<th class="eg-th" title="Your target weight at the end of this month (entered by you — not calculated)">Goal<br><span class="eg-th-sub">Weight</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: weight change from prior month. Positive = lost weight, negative = gained. (Prior goal weight − this month\'s goal weight)">Wt<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: daily calorie deficit needed to hit your weight loss goal. (|Weight change| × 3,500 ÷ days in month)">Daily Cal<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th" title="Your goal: average miles walked or run per day this month">Miles<br><span class="eg-th-sub">/ Day</span></th>';
 
     exercises.forEach(function(te) {
-        hdr += '<th class="eg-th">' + escapeHtml(te.typeName) +
-               '<br><span class="eg-th-sub">' + te.calPerSession + ' cal/ses</span></th>';
+        hdr += '<th class="eg-th" title="Your goal: how many ' + escapeHtml(te.typeName) + ' sessions this month (' + te.calPerSession + ' cal/session average)">' +
+               escapeHtml(te.typeName) + '<br><span class="eg-th-sub">' + te.calPerSession + ' cal/ses</span></th>';
     });
 
     // Projection column headers (between exercise goals and thresholds)
     hdr +=
-        '<th class="eg-th eg-th-calc eg-th-group-start">Burn<br><span class="eg-th-sub">Miles/Day</span></th>' +
-        '<th class="eg-th eg-th-calc">Burn<br><span class="eg-th-sub">Extra/Day</span></th>' +
-        '<th class="eg-th eg-th-calc">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
-        '<th class="eg-th eg-th-calc">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
-        '<th class="eg-th eg-th-calc">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
+        '<th class="eg-th eg-th-calc eg-th-group-start" title="Calculated: daily calorie burn from your mileage goal. (Miles/Day × Calories Per Mile constant)">Burn<br><span class="eg-th-sub">Miles/Day</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: daily calorie burn from your non-mileage exercise sessions. (Sum of sessions × cal/session ÷ days in month)">Burn<br><span class="eg-th-sub">Extra/Day</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: total daily exercise calorie burn. (Burn Miles + Burn Extra)">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: estimated pounds lost this month if you hit all your goals. Formula: ((Base Burn + Total Exercise Burn) − Avg Food) × Days ÷ 3,500. Shows red if negative (plan predicts weight gain).">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: estimated weight at end of month. Chains from prior month\'s estimated weight (or prior month\'s goal weight if chain is broken). Shows yellow if higher than your Goal Weight — your plan won\'t hit your target.">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
 
     // Threshold columns
     _EG_THRESHOLD_COLS.forEach(function(col) {
         var colorCls = 'eg-th-' + col.color;
         var borderCls = col.groupStart ? ' eg-th-group-start' : '';
-        hdr += '<th class="eg-th ' + colorCls + borderCls + '">' +
+        hdr += '<th class="eg-th ' + colorCls + borderCls + '" title="' + col.tooltip + '">' +
                col.label + '<br><span class="eg-th-sub">' + col.group + '</span></th>';
     });
 
-    hdr += '<th class="eg-th eg-th-copy"></th>';  // Copy Prev column
+    hdr += '<th class="eg-th eg-th-copy" title="Copy all values from the prior month into this row"></th>';  // Copy Prev column
 
     // Compute all projection values up front (sequential — J depends on previous J)
     var projs = _egComputeProjections();
