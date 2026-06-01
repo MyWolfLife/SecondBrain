@@ -1946,7 +1946,7 @@ function _dmBuildSummaryCardHtml(summary, title) {
     }
     var row1 = '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + wtDisplay + '</span>' +
                '<span class="dm-card-metric"><span class="dm-card-label">Sleep</span> ' + summary.sleepScore + '</span>' +
-               '<span class="dm-card-metric"><span class="dm-card-label">Bat</span> ' + summary.bodyBattery + '</span>';
+               '<span class="dm-card-metric"><span class="dm-card-label">Body Battery</span> ' + summary.bodyBattery + '</span>';
     var row2 = '<span class="dm-card-metric"><span class="dm-card-label">Steps</span> ' + summary.dailySteps + '</span>' +
                '<span class="dm-card-metric"><span class="dm-card-label">Burn</span> ' + summary.totalBurn + '</span>';
     if (summary.diffSum !== null && summary.diffSum !== undefined) {
