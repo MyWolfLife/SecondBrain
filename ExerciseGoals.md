@@ -282,6 +282,82 @@ One document per year:
 
 ---
 
+# ConsumeInfoElsewhere
+
+## Overview
+
+Surfaces Goals and Activities data in other parts of the app — moving beyond just color-coding and into actionable summary cards.
+
+---
+
+## Feature 1 — Miles Summary Card on Daily Metrics Screen
+
+A summary card displayed at the top of the Daily Metrics screen (`#exercise-metrics`) showing mileage progress and pacing for the selected month.
+
+---
+
+### Card Fields
+
+#### Always shown (current and past months)
+
+| Field | Description |
+|---|---|
+| **Total Miles** | Sum of all miles from activities in the month where the exercise type has `runWalkRole` = 'run', 'walk', or 'split'. For split types: `miles` (walked portion) + `runMiles` (run portion). For run/walk types: `miles` field only. |
+| **Total Run** | Run-only miles: `miles` from 'run' type activities + `runMiles` from 'split' type activities. |
+| **Total Walk** | Walk-only miles: `miles` from 'walk' type activities + `miles` (walked portion) from 'split' type activities. |
+| **Total Dogs** | Sum of total miles (miles + runMiles) from activities where `withDogs = true`. |
+| **Daily Avg Miles** | Total Miles ÷ days elapsed. If current month: days 1 through today. If past month: total days in that month. |
+| **Daily Goal** | The `avgMilesPerDay` value from the Goals data for that month (e.g. "Daily Goal: 7"). Show `—` if no goal set. |
+
+#### Current month only — pacing
+
+| Field | Description |
+|---|---|
+| **Miles left today to be on track** | `(today's day number × daily goal) − total miles so far`. If positive (behind): show value with yellow background. If zero or negative (on track or ahead): show absolute value with green background (e.g. "2 ahead"). |
+| **Avg miles so far** | Total Miles ÷ days elapsed in current month (same as Daily Avg Miles — shown as a clear labeled value). |
+| **Est. miles for the month** | Avg miles so far × total days in the month. Gives a projection if current pace continues. |
+
+#### Previous month only — final summary
+
+| Field | Description |
+|---|---|
+| **Month vs goal** | `(days in month × daily goal) − total miles`. Positive = fell short (yellow). Negative = exceeded goal (green). Show `—` if no daily goal set. |
+
+---
+
+### Data Sources Required
+
+| Source | What's needed |
+|---|---|
+| `exerciseActivities` | All activities in the selected month/year |
+| `exerciseTypes` | To look up `runWalkRole` per activity's typeId |
+| `exerciseGoals` | Already loaded as `_dmGoalsData` — provides `avgMilesPerDay` for the month |
+
+---
+
+### Decisions Made
+
+| Topic | Decision |
+|---|---|
+| Card location | Top of Daily Metrics screen, above the filter bar |
+| Month scope | Reflects the currently selected month/year on the Daily Metrics screen (not always current month) |
+| Current vs past month | Different fields shown — pacing fields for current, final summary for past |
+| Pacing color | Behind = yellow background; on track or ahead = green background |
+| No goal set | Show `—` for goal-dependent fields rather than hiding the card entirely |
+
+---
+
+### Open Questions / Concerns
+
+| # | Issue | Status |
+|---|---|---|
+| 1 | **`runWalkRole` field** — Is this already stored on `exerciseTypes` docs in Firestore, or does it need to be added as a new field? If not yet present, requires a Manage Types update and migration for existing types. | **Needs answer** |
+| 2 | **`runMiles` field** — Is this already stored on `exerciseActivities` for split-type activities, or does it need to be added to the activity logging form and data model? | **Needs answer** |
+| 3 | **Performance** — Loading exerciseActivities + exerciseTypes adds 2 Firestore reads when the Daily Metrics page loads (or when the month filter changes). Both are small collections; should be acceptable. | Acceptable — flag if it feels slow |
+| 4 | **Filter interaction** — When the user changes the month/year filter on Daily Metrics, does the card reload for the new month? Yes — card should update with the filter. | Decision: yes, card updates with filter |
+
+---
+
 # End-to-End Test Plan
 
 ## Overview
