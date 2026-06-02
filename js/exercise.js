@@ -1487,7 +1487,8 @@ async function _exHandleFromPicture(files) {
 var _dmDefsAll        = [];         // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
 var _dmMetricDefs     = [];         // same data, used by list + entry form
 var _dmSelMonth       = -1;         // 0-11 = specific month, -1 = full year view; set on page load
-var _dmGoalsData      = null;       // current year's exerciseGoals doc; drives color thresholds
+var _dmGoalsData      = null;       // exerciseGoals doc for _dmSelYear; drives color thresholds + miles card
+var _dmGoalsYear      = 0;          // which year _dmGoalsData was loaded for; 0 = not loaded
 var _dmTypeRoleMap    = null;       // typeId → runWalkRole ('run'|'walk'|'split'|null); loaded once per session
 var _dmMonthActivities    = [];     // exerciseActivities for the currently selected month
 var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when month/year changes
@@ -1534,6 +1535,7 @@ async function loadExerciseMetricsPage() {
     var prefs = results[1].exists ? results[1].data() : {};
     _dmLast7Expanded = prefs.dmLast7Expanded === true;
     _dmGoalsData = results[2].exists ? results[2].data() : null;
+    _dmGoalsYear = new Date().getFullYear();
 
     _dmRenderMetricsPage(el);
 }
@@ -1764,6 +1766,19 @@ async function _dmApplyFilter() {
         .filter(function(r) { return r.date >= rangeStart && r.date <= rangeEnd; });
 
     if (labelEl) labelEl.textContent = records.length + ' record' + (records.length === 1 ? '' : 's');
+
+    // ── Reload goals doc if year changed ─────────────────────────────────────────
+    // Goals data drives both color thresholds and the miles card daily goal.
+    // On page load it's fetched for the current year; reload when user switches year.
+    if (_dmSelYear !== _dmGoalsYear) {
+        try {
+            var goalsSnap = await userCol('exerciseGoals').doc(String(_dmSelYear)).get();
+            _dmGoalsData = goalsSnap.exists ? goalsSnap.data() : null;
+            _dmGoalsYear = _dmSelYear;
+        } catch (err) {
+            console.error('DailyMetrics: failed to reload goals for year', _dmSelYear, err);
+        }
+    }
 
     // ── Load exercise activities + type roles for the miles summary card ─────────
     // Only runs in single-month view; year-view clears the cache.
