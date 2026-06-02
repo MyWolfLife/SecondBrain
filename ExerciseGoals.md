@@ -351,10 +351,41 @@ A summary card displayed at the top of the Daily Metrics screen (`#exercise-metr
 
 | # | Issue | Status |
 |---|---|---|
-| 1 | **`runWalkRole` field** — Is this already stored on `exerciseTypes` docs in Firestore, or does it need to be added as a new field? If not yet present, requires a Manage Types update and migration for existing types. | **Needs answer** |
-| 2 | **`runMiles` field** — Is this already stored on `exerciseActivities` for split-type activities, or does it need to be added to the activity logging form and data model? | **Needs answer** |
+| 1 | **`runWalkRole` field** — Confirmed present in codebase. Default types seeded with correct roles: Running→'run', Walking/Hiking→'walk', Trail Running/Mixed Run/Treadmill→'split', others→null. Existing type docs in real account updated via other session. | **Resolved** |
+| 2 | **`runMiles` field** — Confirmed present in codebase from other session. Split-type activities store `miles` (walked) and `runMiles` (run) separately. | **Resolved** |
 | 3 | **Performance** — Loading exerciseActivities + exerciseTypes adds 2 Firestore reads when the Daily Metrics page loads (or when the month filter changes). Both are small collections; should be acceptable. | Acceptable — flag if it feels slow |
 | 4 | **Filter interaction** — When the user changes the month/year filter on Daily Metrics, does the card reload for the new month? Yes — card should update with the filter. | Decision: yes, card updates with filter |
+
+---
+
+### Implementation Plan
+
+**Phase 1 — Data loading**
+- When `_dmApplyFilter` runs, if the selected period is a single month (not year-view), load `exerciseActivities` for that month/year filtered by `activityDate`
+- Load `exerciseTypes` (already available via existing type loading patterns) to resolve `runWalkRole` per typeId
+- Both loads can be parallelized; cache results for the session
+
+**Phase 2 — Calculations**
+- Build a helper `_dmBuildMilesSummary(activities, typeMap, month, year, goalMilesPerDay)` that computes all card fields from raw data
+- Returns: totalMiles, totalRun, totalWalk, totalDogs, dailyAvg, daysElapsed, pacing, estMonthTotal (current month only)
+
+**Phase 3 — Card rendering**
+- Render the card above the filter bar on the Daily Metrics list screen
+- Current month: show pacing row (yellow/green) + est. month total
+- Past month: show final vs goal summary row
+- No goal set: show `—` for goal-dependent fields; still show mileage totals
+- Card hidden (or collapsed) if no run/walk/split activities exist for the period
+
+**Phase 4 — Filter reactivity**
+- Card re-renders each time `_dmApplyFilter` completes with new month/year selection
+- Year-view (`_dmSelMonth === -1`): hide the card (not meaningful across 12 months)
+
+---
+
+### Scope Boundaries
+- Card is **read-only** — no editing from here
+- No breakdown by individual activity — totals only
+- Year-view on Daily Metrics does not show the card
 
 ---
 
