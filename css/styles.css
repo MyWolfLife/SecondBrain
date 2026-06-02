@@ -17574,7 +17574,7 @@ a.legacy-fin-card:hover {
     -webkit-overflow-scrolling: touch;
 }
 .dm-table {
-    width: 100%;
+    width: auto;           /* don't stretch columns — let content drive widths */
     border-collapse: collapse;
     font-size: 0.82rem;
     min-width: 600px;
@@ -17592,7 +17592,6 @@ a.legacy-fin-card:hover {
     font-size: 0.76rem;
     color: #333;
 }
-/* Summary date cell (first child) stays left; all others right via dm-col-num */
 .dm-header-row th {
     background: #f5f5f5;
     font-weight: 600;
@@ -17600,7 +17599,7 @@ a.legacy-fin-card:hover {
     position: sticky;
     top: 0;
     white-space: normal;       /* allow long custom metric names to wrap */
-    vertical-align: bottom;    /* align wrapped headers to the bottom */
+    vertical-align: bottom;
     line-height: 1.2;
 }
 .dm-data-row {
@@ -17613,9 +17612,11 @@ a.legacy-fin-card:hover {
     font-weight: 500;
     white-space: nowrap;
 }
-.dm-col-num {
+/* Use higher-specificity selector (.dm-table td.dm-col-num) to beat .dm-table td */
+.dm-table td.dm-col-num,
+.dm-table th.dm-col-num {
     text-align: right;
-    padding-right: 20px;   /* reserves space for the absolute-positioned note icon */
+    padding-right: 14px;   /* reserves space for the absolute-positioned note icon */
     position: relative;
 }
 /* Boolean custom metric columns — data values are single chars so column can be very narrow */
@@ -17625,10 +17626,11 @@ a.legacy-fin-card:hover {
     white-space: nowrap;
 }
 /* Number custom metric columns — cap width so long header names wrap */
-.dm-col-num-custom {
+.dm-table td.dm-col-num-custom,
+.dm-table th.dm-col-num-custom {
     text-align: right;
     max-width: 64px;
-    padding-right: 20px;
+    padding-right: 14px;
     position: relative;
 }
 .dm-col-text {
