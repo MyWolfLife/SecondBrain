@@ -3723,6 +3723,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Browse your daily health and habit journal entries. Filter by date range, see summary averages, and tap any record to view or edit it.
 
 ### Quick Help
+- **Miles Summary Card** (single-month view only): a green card above the filter shows your mileage totals for the selected month — Total Miles, Run, Walk, Dogs, Daily Avg, and Daily Goal. For the **current month** it also shows how many miles you still need today to stay on track (yellow = behind, green = ahead) and an estimated month-end total based on your current pace. For **past months** it shows whether you finished over or under your monthly goal.
 - **Month combo**: choose a specific month (Jan–Dec) or **Year** to see the whole year at once
 - **Year combo**: pick any year from 2020 to 2070 — changing either combo reloads the list automatically
 - Defaults to the current month and current year when you first open the screen

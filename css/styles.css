@@ -19299,3 +19299,41 @@ a.legacy-fin-card:hover {
 }
 .eg-constant-select:focus { outline: none; border-color: #2d6a2d; box-shadow: 0 0 0 2px rgba(45,106,45,0.15); }
 .eg-multiplier-label { cursor: help; border-bottom: 1px dashed #9ca3af; }
+
+/* ── Daily Metrics — Miles Summary Card ──────────────────────────────────────── */
+.dm-miles-card {
+    background: #f0f9f0;
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 10px 14px 8px;
+    margin: 8px 0 6px;
+}
+.dm-miles-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #2d6a2d;
+    margin-bottom: 7px;
+}
+.dm-miles-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-bottom: 5px;
+    font-size: 0.88rem;
+    color: #1f2937;
+}
+.dm-miles-row:last-child { margin-bottom: 0; }
+.dm-miles-label {
+    font-weight: 600;
+    color: #6b7280;
+    margin-right: 3px;
+    font-size: 0.80rem;
+}
+.dm-miles-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+}

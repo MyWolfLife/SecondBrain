@@ -1561,6 +1561,7 @@ function _dmRenderMetricsPage(el) {
                 '<a href="#exercise-metric/new" class="btn-primary dm-entry-btn">+ Entry</a>' +
             '</div>' +
         '</div>' +
+        '<div id="dmMilesCard"></div>' +   // miles summary card — populated by _dmApplyFilter
         '<div class="dm-filter-bar">' +
             '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
             '<select id="dmYearSelect" class="dm-filter-select">' + yearOpts + '</select>' +
@@ -1588,6 +1589,62 @@ function _dmFmtYM(year, month) {
         start: year + '-' + mm + '-01',
         end:   year + '-' + mm + '-' + (lastDay < 10 ? '0' : '') + lastDay
     };
+}
+
+// ─── Miles summary card rendering ────────────────────────────────────────────
+
+function _dmRenderMilesCard(s, monthName, year) {
+    var el = document.getElementById('dmMilesCard');
+    if (!el) return;
+
+    // Hide card in year-view or when no data at all
+    if (!s) { el.innerHTML = ''; return; }
+
+    // ── Row 1: mileage totals ─────────────────────────────────────────────────
+    var row1 =
+        _dmMilesStat('Total',  s.totalMiles) +
+        _dmMilesStat('Run',    s.totalRun)   +
+        _dmMilesStat('Walk',   s.totalWalk)  +
+        _dmMilesStat('Dogs',   s.totalDogs);
+
+    // ── Row 2: averages + goal ────────────────────────────────────────────────
+    var row2 = _dmMilesStat('Daily Avg', s.dailyAvg);
+    if (s.goalMilesPerDay != null) {
+        row2 += _dmMilesStat('Daily Goal', s.goalMilesPerDay + '/day');
+    }
+
+    // ── Row 3: pacing (current month) or final summary (past month) ───────────
+    var row3 = '';
+    if (s.isCurrentMonth) {
+        if (s.pacing !== undefined) {
+            var pacingBg    = s.pacingBehind ? '#fde68a' : '#86efac';
+            var pacingLabel = s.pacingBehind ? 'Left today' : 'Ahead today';
+            row3 += _dmMilesStat(pacingLabel, '<span class="dm-miles-badge" style="background:' + pacingBg + '">' + s.pacing + '</span>');
+        }
+        if (s.estMonthTotal !== undefined) {
+            row3 += _dmMilesStat('Est. month', s.estMonthTotal);
+        }
+    } else {
+        if (s.monthVsGoal !== undefined) {
+            var vsBg    = s.monthVsGoalAhead ? '#86efac' : '#fde68a';
+            var vsLabel = s.monthVsGoalAhead ? 'Over goal' : 'Short of goal';
+            row3 += _dmMilesStat(vsLabel, '<span class="dm-miles-badge" style="background:' + vsBg + '">' + s.monthVsGoal + '</span>');
+        }
+    }
+
+    el.innerHTML =
+        '<div class="dm-miles-card">' +
+            '<div class="dm-miles-title">🏃 Miles — ' + monthName + ' ' + year + '</div>' +
+            '<div class="dm-miles-row">' + row1 + '</div>' +
+            '<div class="dm-miles-row">' + row2 + '</div>' +
+            (row3 ? '<div class="dm-miles-row">' + row3 + '</div>' : '') +
+        '</div>';
+}
+
+function _dmMilesStat(label, value) {
+    return '<span class="dm-miles-stat">' +
+        '<span class="dm-miles-label">' + label + '</span> ' + value +
+    '</span>';
 }
 
 // ─── Miles summary card calculation ──────────────────────────────────────────
@@ -1747,6 +1804,22 @@ async function _dmApplyFilter() {
     } else {
         _dmMonthActivities    = [];   // year-view — card not shown, no need to hold data
         _dmMonthActivitiesKey = '';
+    }
+
+    // ── Render miles summary card ─────────────────────────────────────────────
+    if (_dmSelMonth !== -1) {
+        var goalMPD = null;
+        if (_dmGoalsData && _dmGoalsData.months) {
+            var gKey  = _dmSelMonth + 1;
+            var gData = _dmGoalsData.months[gKey] || _dmGoalsData.months[String(gKey)] || {};
+            goalMPD   = gData.avgMilesPerDay != null ? gData.avgMilesPerDay : null;
+        }
+        var _dmMNames = ['January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+        var milesSummary = _dmBuildMilesSummary(_dmMonthActivities, _dmTypeRoleMap, _dmSelMonth, _dmSelYear, goalMPD);
+        _dmRenderMilesCard(milesSummary, _dmMNames[_dmSelMonth], _dmSelYear);
+    } else {
+        _dmRenderMilesCard(null);
     }
 
     var isDesktop = window.innerWidth >= 700;
