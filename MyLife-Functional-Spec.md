@@ -1286,21 +1286,26 @@ Lists all non-archived types, sorted built-ins first (alphabetical) then custom 
   - **Rename**: replaces name with an inline text input + Save / Cancel. Save updates the Firestore doc; existing activities automatically reflect the new name (they store `typeId`, not name).
   - **Delete**: confirm dialog → sets `archived: true` → type disappears from dropdown. Past activity history is unaffected.
 
-Flag icons: 📏 = tracks miles, 🏃 = counts as run/walk for goals, 🐾 = with-dogs option.
+Flag icons: 📏 = tracks miles, 🏃 = run miles, 🚶 = walk miles, 🏃🚶 = split (walked + run separately), 🐾 = with-dogs option.
 
 Seeded on first visit to any exercise page (15 built-in defaults). Each type has:
-- `name`, `tracksMiles` (bool), `isRunWalk` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+- `name`, `tracksMiles` (bool), `runWalkRole` ('run'|'walk'|'split'|null), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+
+`runWalkRole` controls how miles count toward goals:
+- `'run'` — all miles count as run miles (Running)
+- `'walk'` — all miles count as walk miles (Walking, Hiking)
+- `'split'` — `miles` field = walked portion, `runMiles` field = run portion, both tracked separately (Trail Running, Mixed Run, Treadmill)
+- `null` — miles don't count toward run/walk goals (Golf, Mowing, Bike, etc.)
 
 Types with `tracksMiles = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill, Golf, Mowing, Row Machine, Bike, Stationary Bike
-Types with `isRunWalk = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
 
-`isRunWalk` determines whether an activity's miles count toward the exercise goals miles target. Custom types can have this toggled on/off via the Edit button on the Manage Types screen.
+Split-miles UI (Walked Miles + Run Miles fields) is shown when `runWalkRole === 'split'`.
 
 ### Data Model
-**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for Trail Running / Mixed Run / Treadmill), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
+**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for split-role types), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
 
-**`exerciseTypes`** (per-user): `name`, `tracksMiles`, `isRunWalk`, `withDogs`, `isDefault`, `archived`, `createdAt`
+**`exerciseTypes`** (per-user): `name`, `tracksMiles`, `runWalkRole`, `withDogs`, `isDefault`, `archived`, `createdAt`
 
 ---
 
