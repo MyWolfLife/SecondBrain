@@ -1291,7 +1291,7 @@ Flag icons: 📏 = tracks miles, 🐾 = with-dogs option.
 Seeded on first visit to any exercise page (13 built-in defaults). Each type has:
 - `name`, `tracksMiles` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
 
-Types with `tracksMiles = true`: Running, Trail Running, Walking, Hiking, Treadmill
+Types with `tracksMiles = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill, Golf, Mowing, Row Machine, Bike, Stationary Bike
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
 
 ### Data Model

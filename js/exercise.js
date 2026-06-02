@@ -18,14 +18,14 @@ const EXERCISE_DEFAULT_TYPES = [
     { name: 'Walking',         tracksMiles: true,  withDogs: true  },
     { name: 'Hiking',          tracksMiles: true,  withDogs: true  },
     { name: 'Treadmill',       tracksMiles: true,  withDogs: false },
-    { name: 'Golf',            tracksMiles: false, withDogs: false },
-    { name: 'Mowing',          tracksMiles: false, withDogs: false },
+    { name: 'Golf',            tracksMiles: true,  withDogs: false },
+    { name: 'Mowing',         tracksMiles: true,  withDogs: false },
     { name: 'Yard Work',       tracksMiles: false, withDogs: false },
     { name: 'Weights',         tracksMiles: false, withDogs: false },
     { name: 'Elliptical',      tracksMiles: false, withDogs: false },
-    { name: 'Row Machine',     tracksMiles: false, withDogs: false },
-    { name: 'Bike',            tracksMiles: false, withDogs: false },
-    { name: 'Stationary Bike', tracksMiles: false, withDogs: false },
+    { name: 'Row Machine',     tracksMiles: true,  withDogs: false },
+    { name: 'Bike',            tracksMiles: true,  withDogs: false },
+    { name: 'Stationary Bike', tracksMiles: true,  withDogs: false },
     { name: 'Other',           tracksMiles: false, withDogs: false },
 ];
 
@@ -75,6 +75,25 @@ async function _exEnsureMixedRunType() {
         });
     } catch (err) {
         console.error('Exercise: failed to ensure Mixed Run type:', err);
+    }
+}
+
+// One-time migration: enable tracksMiles on Golf, Mowing, Row Machine, Bike, Stationary Bike
+async function _exEnsureMilesOnDistanceTypes() {
+    var names = ['Golf', 'Mowing', 'Row Machine', 'Bike', 'Stationary Bike'];
+    try {
+        var snap = await userCol('exerciseTypes').where('tracksMiles', '==', false).get();
+        var batch = db.batch();
+        var count = 0;
+        snap.forEach(function(doc) {
+            if (names.indexOf(doc.data().name) !== -1) {
+                batch.update(doc.ref, { tracksMiles: true });
+                count++;
+            }
+        });
+        if (count > 0) await batch.commit();
+    } catch (err) {
+        console.error('Exercise: failed to migrate tracksMiles:', err);
     }
 }
 
@@ -141,7 +160,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
     _exGoToDate = '';
 
     _exTypes = {};
@@ -440,7 +459,7 @@ function _exBuildCards(activities) {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -1011,7 +1030,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 
