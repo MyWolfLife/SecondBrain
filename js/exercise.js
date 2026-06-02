@@ -135,11 +135,11 @@ async function _exEnsureRunWalkRole() {
 
 // ─── Module-level state (activities list) ─────────────────────────────────────
 
-var _exTypes       = {};    // typeId → type data (used by list rendering)
-var _exRangeFilter = '30';  // dropdown value; preserved across page visits
-var _exCustomStart = '';    // YYYY-MM-DD
-var _exCustomEnd   = '';    // YYYY-MM-DD
-var _exGoToDate    = '';    // YYYY-MM-DD or '' (overrides range filter when set)
+var _exTypes      = {};   // typeId → type data (used by list rendering)
+var _exSelMonth   = 0;    // 0-11; set to current month on page load
+var _exSelYear    = 0;    // 4-digit year; set on page load
+var _exGoalsData  = null; // exerciseGoals doc for _exSelYear (miles card goal)
+var _exGoalsYear  = 0;    // which year _exGoalsData was loaded for
 
 // ─── Module-level state (activity form) ──────────────────────────────────────
 
@@ -198,7 +198,11 @@ async function loadExerciseActivitiesPage() {
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
     seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole();
-    _exGoToDate = '';
+    var _exNow = new Date();
+    _exSelMonth  = _exNow.getMonth();
+    _exSelYear   = _exNow.getFullYear();
+    _exGoalsData = null;
+    _exGoalsYear = 0;
 
     _exTypes = {};
     try {
@@ -216,77 +220,36 @@ function _exBuildActivitiesPage() {
     var el = document.getElementById('page-exercise-activities');
     if (!el) return;
 
-    var customHidden = _exRangeFilter !== 'custom' ? ' hidden' : '';
+    var _exMNs = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var monthOpts = _exMNs.map(function(n, i) {
+        return '<option value="' + i + '"' + (_exSelMonth === i ? ' selected' : '') + '>' + n + '</option>';
+    }).join('');
+    var yearOpts = '';
+    for (var y = 2020; y <= 2070; y++) {
+        yearOpts += '<option value="' + y + '"' + (_exSelYear === y ? ' selected' : '') + '>' + y + '</option>';
+    }
 
     el.innerHTML =
         '<div class="page-header">' +
             '<h2>Activities</h2>' +
             '<button class="btn btn-primary btn-small" onclick="location.hash=\'#exercise-activity/new\'">+ Activity</button>' +
         '</div>' +
-
         '<div class="ex-toolbar">' +
             '<div class="ex-toolbar-row">' +
-                '<select id="exRangeSelect">' +
-                    '<option value="7">Last 7 days</option>' +
-                    '<option value="30">Last 30 days</option>' +
-                    '<option value="90">Last 90 days</option>' +
-                    '<option value="month">This Month</option>' +
-                    '<option value="year">This Year</option>' +
-                    '<option value="all">All Time</option>' +
-                    '<option value="custom">Custom…</option>' +
-                '</select>' +
+                '<select id="exMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
+                '<select id="exYearSelect"  class="dm-filter-select">' + yearOpts  + '</select>' +
                 '<a href="#exercise-types" class="ex-manage-link">Manage Types</a>' +
             '</div>' +
-
-            '<div id="exCustomRange" class="ex-toolbar-row' + customHidden + '">' +
-                '<input type="date" id="exStartDate" value="' + _exCustomStart + '">' +
-                '<span>to</span>' +
-                '<input type="date" id="exEndDate" value="' + _exCustomEnd + '">' +
-                '<button class="btn btn-secondary btn-small" id="exLoadBtn">Load</button>' +
-            '</div>' +
-
-            '<div class="ex-toolbar-row">' +
-                '<input type="date" id="exGoToDateInput">' +
-                '<button class="btn btn-secondary btn-small" id="exGoToDateBtn">Go to Date</button>' +
-                '<button class="btn btn-secondary btn-small hidden" id="exClearDateBtn">&#10005; Clear date</button>' +
-            '</div>' +
         '</div>' +
-
+        '<div id="exMilesCard"></div>' +
         '<div id="exListContainer"></div>';
 
-    document.getElementById('exRangeSelect').value = _exRangeFilter;
-
-    document.getElementById('exRangeSelect').addEventListener('change', function() {
-        _exRangeFilter = this.value;
-        _exGoToDate    = '';
-        document.getElementById('exGoToDateInput').value = '';
-        document.getElementById('exClearDateBtn').classList.add('hidden');
-        document.getElementById('exCustomRange').classList.toggle('hidden', this.value !== 'custom');
-        if (this.value !== 'custom') _exApplyFilter();
-    });
-
-    document.getElementById('exLoadBtn').addEventListener('click', function() {
-        _exCustomStart = document.getElementById('exStartDate').value;
-        _exCustomEnd   = document.getElementById('exEndDate').value;
-        if (!_exCustomStart || !_exCustomEnd) {
-            alert('Please select both a start and end date.');
-            return;
-        }
+    document.getElementById('exMonthSelect').addEventListener('change', function() {
+        _exSelMonth = parseInt(this.value, 10);
         _exApplyFilter();
     });
-
-    document.getElementById('exGoToDateBtn').addEventListener('click', function() {
-        var val = document.getElementById('exGoToDateInput').value;
-        if (!val) return;
-        _exGoToDate = val;
-        document.getElementById('exClearDateBtn').classList.remove('hidden');
-        _exApplyFilter();
-    });
-
-    document.getElementById('exClearDateBtn').addEventListener('click', function() {
-        _exGoToDate = '';
-        document.getElementById('exGoToDateInput').value = '';
-        this.classList.add('hidden');
+    document.getElementById('exYearSelect').addEventListener('change', function() {
+        _exSelYear = parseInt(this.value, 10);
         _exApplyFilter();
     });
 }
@@ -296,6 +259,12 @@ async function _exApplyFilter() {
     if (!container) return;
     container.innerHTML = '<p class="ex-status">Loading…</p>';
 
+    // Date range for selected month/year
+    var mm = (_exSelMonth + 1 < 10 ? '0' : '') + (_exSelMonth + 1);
+    var lastDay    = new Date(_exSelYear, _exSelMonth + 1, 0).getDate();
+    var rangeStart = _exSelYear + '-' + mm + '-01';
+    var rangeEnd   = _exSelYear + '-' + mm + '-' + (lastDay < 10 ? '0' : '') + lastDay;
+
     try {
         var snap = await userCol('exerciseActivities')
             .orderBy('activityDate', 'desc')
@@ -303,26 +272,43 @@ async function _exApplyFilter() {
             .get();
 
         var all = [];
-        snap.forEach(function(doc) {
-            var d = doc.data();
-            d.id = doc.id;
-            all.push(d);
-        });
+        snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; all.push(d); });
 
-        var range    = _exGetDateRange();
         var filtered = all.filter(function(a) {
             if (!a.activityDate) return false;
-            if (range.start && a.activityDate < range.start) return false;
-            if (range.end   && a.activityDate > range.end)   return false;
-            return true;
+            var ds = a.activityDate.substring(0, 10);
+            return ds >= rangeStart && ds <= rangeEnd;
         });
 
+        // ── Reload goals if year changed ──────────────────────────────────────
+        if (_exSelYear !== _exGoalsYear) {
+            try {
+                var gSnap = await userCol('exerciseGoals').doc(String(_exSelYear)).get();
+                _exGoalsData = gSnap.exists ? gSnap.data() : null;
+                _exGoalsYear = _exSelYear;
+            } catch (e) { _exGoalsData = null; }
+        }
+
+        // ── Miles summary card ────────────────────────────────────────────────
+        var goalMPD = null;
+        if (_exGoalsData && _exGoalsData.months) {
+            var gKey  = _exSelMonth + 1;
+            var gData = _exGoalsData.months[gKey] || _exGoalsData.months[String(gKey)] || {};
+            goalMPD   = gData.avgMilesPerDay != null ? gData.avgMilesPerDay : null;
+        }
+        var roleMap = {};
+        Object.keys(_exTypes).forEach(function(id) { roleMap[id] = _exTypes[id].runWalkRole || null; });
+        var _exMNsFull = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+        var milesSummary = _dmBuildMilesSummary(filtered, roleMap, _exSelMonth, _exSelYear, goalMPD);
+        _dmRenderMilesCard(milesSummary, _exMNsFull[_exSelMonth], _exSelYear, 'exMilesCard');
+
+        // ── Activities list ───────────────────────────────────────────────────
         container.innerHTML = '';
         if (filtered.length === 0) {
             container.innerHTML = '<p class="ex-status">No activities found for this period.</p>';
             return;
         }
-
         container.appendChild(_exBuildTable(filtered));
         container.appendChild(_exBuildCards(filtered));
 
@@ -1595,8 +1581,8 @@ function _dmFmtYM(year, month) {
 
 // ─── Miles summary card rendering ────────────────────────────────────────────
 
-function _dmRenderMilesCard(s, monthName, year) {
-    var el = document.getElementById('dmMilesCard');
+function _dmRenderMilesCard(s, monthName, year, containerId) {
+    var el = document.getElementById(containerId || 'dmMilesCard');
     if (!el) return;
 
     // Hide card in year-view or when no data at all

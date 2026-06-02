@@ -3613,9 +3613,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Tap **+ Activity** to log a new workout
-- Use the **range dropdown** to filter by time period (Last 7 / 30 / 90 days, This Month, This Year, All Time, or Custom)
-- **Custom**: pick a Start and End date, then press **Load**
-- **Go to Date**: shows only activities on that specific day — tap **✕ Clear date** to return to the range filter
+- Use the **month and year dropdowns** to pick which month to view — defaults to the current month
+- **Miles Summary Card** (below the filter): shows mileage totals for the selected month — same card as on Daily Metrics. For the current month it shows pacing and an estimated month-end total; for past months it shows final vs goal.
 - **Manage Types** link lets you rename or delete custom activity types
 - Tap any row to view or edit that activity
 
