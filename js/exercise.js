@@ -1590,6 +1590,90 @@ function _dmFmtYM(year, month) {
     };
 }
 
+// ─── Miles summary card calculation ──────────────────────────────────────────
+// Computes all fields for the miles summary card from raw activity data.
+// month: 0-based JS month, year: 4-digit year, goalMilesPerDay: number|null
+//
+// Returns an object with:
+//   totalMiles, totalRun, totalWalk, totalDogs       — mileage breakdowns
+//   dailyAvg, daysElapsed, daysInMonth               — pace context
+//   isCurrentMonth                                   — drives which fields to show
+//   goalMilesPerDay                                  — echoed back for rendering
+//   pacing, pacingBehind                             — current month only (if goal set)
+//   estMonthTotal                                    — current month only (if avg > 0)
+//   monthVsGoal, monthVsGoalAhead                    — past month only (if goal set)
+
+function _dmBuildMilesSummary(activities, typeMap, month, year, goalMilesPerDay) {
+    var now            = new Date();
+    var isCurrentMonth = (month === now.getMonth() && year === now.getFullYear());
+    var daysInMonth    = new Date(year, month + 1, 0).getDate();
+    var daysElapsed    = isCurrentMonth ? now.getDate() : daysInMonth;
+    var todayDayNum    = now.getDate();
+
+    var totalMiles = 0, totalRun = 0, totalWalk = 0, totalDogs = 0;
+
+    (activities || []).forEach(function(a) {
+        var role = typeMap ? (typeMap[a.typeId] || null) : null;
+        if (role !== 'run' && role !== 'walk' && role !== 'split') return;
+
+        var miles    = (a.miles    != null) ? parseFloat(a.miles)    : 0;
+        var runMiles = (a.runMiles != null) ? parseFloat(a.runMiles) : 0;
+        var actTotal = miles + runMiles;
+
+        totalMiles += actTotal;
+
+        if (role === 'run') {
+            totalRun  += miles;          // pure run: all miles are running
+        } else if (role === 'walk') {
+            totalWalk += miles;          // pure walk: all miles are walking
+        } else {                         // split: miles = walked, runMiles = run
+            totalRun  += runMiles;
+            totalWalk += miles;
+        }
+
+        if (a.withDogs) totalDogs += actTotal;
+    });
+
+    function r1(n) { return Math.round(n * 10) / 10; }  // round to 1 decimal
+
+    var dailyAvg = daysElapsed > 0 ? r1(totalMiles / daysElapsed) : 0;
+
+    var result = {
+        totalMiles:      r1(totalMiles),
+        totalRun:        r1(totalRun),
+        totalWalk:       r1(totalWalk),
+        totalDogs:       r1(totalDogs),
+        dailyAvg:        dailyAvg,
+        daysElapsed:     daysElapsed,
+        daysInMonth:     daysInMonth,
+        isCurrentMonth:  isCurrentMonth,
+        goalMilesPerDay: goalMilesPerDay
+    };
+
+    if (goalMilesPerDay != null && goalMilesPerDay > 0) {
+        if (isCurrentMonth) {
+            // How many miles needed to be on track by end of today
+            var target = todayDayNum * goalMilesPerDay;
+            var diff   = target - totalMiles;          // positive = behind, negative = ahead
+            result.pacing      = r1(Math.abs(diff));
+            result.pacingBehind = diff > 0.05;         // small tolerance so "on track" reads green
+        } else {
+            // Final month: total vs goal (days × dailyGoal)
+            var monthlyGoal = daysInMonth * goalMilesPerDay;
+            var finalDiff   = totalMiles - monthlyGoal; // positive = exceeded, negative = fell short
+            result.monthVsGoal      = r1(Math.abs(finalDiff));
+            result.monthVsGoalAhead = finalDiff >= -0.05;
+        }
+    }
+
+    // Estimated month total — current month only, when we have at least some data
+    if (isCurrentMonth && totalMiles > 0) {
+        result.estMonthTotal = r1(dailyAvg * daysInMonth);
+    }
+
+    return result;
+}
+
 async function _dmApplyFilter() {
     var listEl = document.getElementById('dmListContent');
     var labelEl = document.getElementById('dmRecordsLabel');
