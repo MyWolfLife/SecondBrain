@@ -1488,6 +1488,9 @@ var _dmDefsAll        = [];         // non-archived metric defs, sorted by sortO
 var _dmMetricDefs     = [];         // same data, used by list + entry form
 var _dmSelMonth       = -1;         // 0-11 = specific month, -1 = full year view; set on page load
 var _dmGoalsData      = null;       // current year's exerciseGoals doc; drives color thresholds
+var _dmTypeRoleMap    = null;       // typeId → runWalkRole ('run'|'walk'|'split'|null); loaded once per session
+var _dmMonthActivities    = [];     // exerciseActivities for the currently selected month
+var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when month/year changes
 var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded  = false;      // sticky accordion state — loaded from settings/exercisePrefs
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
@@ -1513,6 +1516,8 @@ async function loadExerciseMetricsPage() {
     var _now = new Date();
     _dmSelMonth = _now.getMonth();   // 0-11
     _dmSelYear  = _now.getFullYear();
+    _dmMonthActivities    = [];      // clear activity cache on each page visit
+    _dmMonthActivitiesKey = '';      // (type role map persists for the session — types rarely change)
 
     await seedExerciseMetricDefsIfNeeded();
 
@@ -1618,6 +1623,47 @@ async function _dmApplyFilter() {
         .filter(function(r) { return r.date >= rangeStart && r.date <= rangeEnd; });
 
     if (labelEl) labelEl.textContent = records.length + ' record' + (records.length === 1 ? '' : 's');
+
+    // ── Load exercise activities + type roles for the miles summary card ─────────
+    // Only runs in single-month view; year-view clears the cache.
+    if (_dmSelMonth !== -1) {
+        var monthKey = _dmSelYear + '-' + (_dmSelMonth + 1);
+        var needActs  = _dmMonthActivitiesKey !== monthKey;
+        var needTypes = _dmTypeRoleMap === null;
+
+        if (needActs || needTypes) {
+            try {
+                var fetches = [];
+                if (needActs)  fetches.push(userCol('exerciseActivities').get());
+                if (needTypes) fetches.push(userCol('exerciseTypes').get());
+                var fetched = await Promise.all(fetches);
+                var fi = 0;
+
+                if (needActs) {
+                    var allActs = fetched[fi++];
+                    _dmMonthActivities = allActs.docs
+                        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+                        .filter(function(a) {
+                            var ds = a.activityDate ? a.activityDate.substring(0, 10) : '';
+                            return ds >= rangeStart && ds <= rangeEnd;
+                        });
+                    _dmMonthActivitiesKey = monthKey;
+                }
+                if (needTypes) {
+                    _dmTypeRoleMap = {};
+                    fetched[fi++].forEach(function(doc) {
+                        _dmTypeRoleMap[doc.id] = doc.data().runWalkRole || null;
+                    });
+                }
+            } catch (err) {
+                console.error('DailyMetrics: failed to load activities for miles card:', err);
+                _dmMonthActivities = [];
+            }
+        }
+    } else {
+        _dmMonthActivities    = [];   // year-view — card not shown, no need to hold data
+        _dmMonthActivitiesKey = '';
+    }
 
     var isDesktop = window.innerWidth >= 700;
 
