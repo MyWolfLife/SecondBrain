@@ -1824,13 +1824,14 @@ function _dmBuildTable(records, summary) {
     // +/- Diff column appears after Food Cal.
     var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
-        { key: 'sleepScore',   label: 'Sleep' },
-        { key: 'bodyBattery',  label: 'Body Bat.' },
+        { key: 'sleepScore',   label: 'Sleep',      tooltip: 'Sleep score. You can get this from Garmin Watch or Sleep Number bed.' },
+        { key: 'bodyBattery',  label: 'Body Bat.',  tooltip: 'Your Body Battery at its highest. You can get this from Garmin or anything else you may use.' },
         { key: 'dailySteps',   label: 'Steps' },
-        { key: 'totalBurn',    label: 'Burn' },
-        { key: 'foodCalories', label: 'Food Cal.' }
+        { key: 'totalBurn',    label: 'Burn',       tooltip: 'Total Calorie burn. You can get this from Garmin or Apple Watch, but you\'ll need to get it the next day for the current day.' },
+        { key: 'foodCalories', label: 'Food Cal.',  tooltip: 'Total Food/Alcohol/Everything calories you consumed this day. You can track this in LoseIt app or any other way you do it.' }
     ];
     var postDiffCols = [];
+    var diffTooltip = 'Total calorie loss or gain for the day. Positive is a calorie loss (good). Negative means you ate more than you burned (bad).';
 
     // Header row
     var thead = '<thead>';
@@ -1866,8 +1867,11 @@ function _dmBuildTable(records, summary) {
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
-    preDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
-    thead += '<th>+/- Diff</th>';
+    preDiffCols.forEach(function(c) {
+        var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
+        thead += '<th' + tip + '>' + c.label + '</th>';
+    });
+    thead += '<th title="' + _exEsc(diffTooltip) + '">+/- Diff</th>';
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
