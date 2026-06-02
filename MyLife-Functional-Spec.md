@@ -1221,11 +1221,10 @@ Accessible via a "Manage Metrics" link on the Daily Metrics list screen. Manages
 Displays logged exercise activities in a filterable, sortable list.
 
 **Filter bar:**
-- **Range dropdown** (preserved across visits): Last 7 days / Last 30 days (default) / Last 90 days / This Month / This Year / All Time / Custom
-- **Custom range**: Start Date + End Date inputs + Load button — both dates required
-- **Go to Date**: date picker + button — overrides the dropdown and shows only that day's activities. A ✕ Clear date button resets to the dropdown filter.
+- **Month dropdown** + **Year dropdown** — picks which month to display; defaults to current month/year on every visit
 - **Manage Types** link: navigates to `#exercise-types`
 - **+ Activity** button: navigates to `#exercise-activity/new`
+- **Miles Summary Card** (below filter bar): same card as Daily Metrics — Total / Run / Walk / Dogs miles, daily avg, goal, pacing (current month) or final vs goal (past month)
 
 **Display:**
 - Ordered newest → oldest by `activityDate`
