@@ -1286,18 +1286,21 @@ Lists all non-archived types, sorted built-ins first (alphabetical) then custom 
   - **Rename**: replaces name with an inline text input + Save / Cancel. Save updates the Firestore doc; existing activities automatically reflect the new name (they store `typeId`, not name).
   - **Delete**: confirm dialog → sets `archived: true` → type disappears from dropdown. Past activity history is unaffected.
 
-Flag icons: 📏 = tracks miles, 🐾 = with-dogs option.
+Flag icons: 📏 = tracks miles, 🏃 = counts as run/walk for goals, 🐾 = with-dogs option.
 
-Seeded on first visit to any exercise page (13 built-in defaults). Each type has:
-- `name`, `tracksMiles` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+Seeded on first visit to any exercise page (15 built-in defaults). Each type has:
+- `name`, `tracksMiles` (bool), `isRunWalk` (bool), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
 
 Types with `tracksMiles = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill, Golf, Mowing, Row Machine, Bike, Stationary Bike
+Types with `isRunWalk = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
+
+`isRunWalk` determines whether an activity's miles count toward the exercise goals miles target. Custom types can have this toggled on/off via the Edit button on the Manage Types screen.
 
 ### Data Model
 **`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for Trail Running / Mixed Run / Treadmill), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
 
-**`exerciseTypes`** (per-user): `name`, `tracksMiles`, `withDogs`, `isDefault`, `archived`, `createdAt`
+**`exerciseTypes`** (per-user): `name`, `tracksMiles`, `isRunWalk`, `withDogs`, `isDefault`, `archived`, `createdAt`
 
 ---
 

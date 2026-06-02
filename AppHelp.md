@@ -3652,7 +3652,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 ### Quick Help
 - **📷 From Picture** — tap this (new workouts only) to select a screenshot from your fitness app; the app reads the image and pre-fills Type, Duration, Miles, and Calories automatically. Requires LLM to be configured in Settings.
 - Pick an **Activity Type** from the searchable dropdown — type to filter, then click to select
-- Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked two quick questions to set it up
+- Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked three quick questions: track miles, count as run/walk for goals, and show "With Dogs" toggle
 - **Date** defaults to today; **Time** is optional
 - **Duration** — type as `MM:SS` (e.g. `45:26`), `H:MM:SS` for over an hour (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label like "45 min 26 sec" or "1 hr 15 min" appears to the right as you type
 - **Miles / Walked Miles** appears for types that track distance. For Trail Running, Mixed Run, and Treadmill it's labeled "Walked Miles" — enter only the walked portion
@@ -3685,13 +3685,14 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 
 ### Quick Help
 - **Built-in types** (Running, Walking, Hiking, etc.) are shown with a "built-in" badge — they can't be renamed or deleted
-- **Custom types** you've added have **Rename** and **Delete** buttons
-- **Rename**: click Rename, type the new name, then Save — all past activities automatically show the updated name
+- **Custom types** you've added have **Edit** and **Delete** buttons
+- **Edit**: rename the type and toggle whether it counts as a run/walk activity for goals — all past activities automatically reflect the updated name
 - **Delete**: hides the type from the activity dropdown; your past activity history is preserved
-- 📏 icon means the type tracks miles (and shows pace); 🐾 means it has a "With Dogs" checkbox
+- 📏 = tracks miles (shows pace); 🏃 = counts as run/walk for goals; 🐾 = has a "With Dogs" checkbox
 
 ### When to use this
 - You added a type on the fly and want to correct the spelling
+- You want to change whether a custom type counts toward your run/walk miles goal
 - You no longer need a custom type and want it out of the dropdown
 
 ---

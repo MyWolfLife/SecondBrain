@@ -18368,6 +18368,23 @@ a.legacy-fin-card:hover {
     min-width: 0;
 }
 
+.ex-type-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ex-type-edit-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88rem;
+    color: #ccc;
+    cursor: pointer;
+}
+
 @media (max-width: 480px) {
     .ex-type-row {
         flex-wrap: wrap;
@@ -18378,6 +18395,7 @@ a.legacy-fin-card:hover {
         justify-content: flex-end;
     }
     .ex-type-rename-input { width: 100%; }
+    .ex-type-edit-form { width: 100%; }
 }
 
 /* ============================================================

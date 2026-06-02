@@ -12,21 +12,21 @@ function _exDowLabel(ds) {
 // ─── Default types ────────────────────────────────────────────────────────────
 
 const EXERCISE_DEFAULT_TYPES = [
-    { name: 'Running',         tracksMiles: true,  withDogs: true  },
-    { name: 'Trail Running',   tracksMiles: true,  withDogs: true  },
-    { name: 'Mixed Run',       tracksMiles: true,  withDogs: true  },
-    { name: 'Walking',         tracksMiles: true,  withDogs: true  },
-    { name: 'Hiking',          tracksMiles: true,  withDogs: true  },
-    { name: 'Treadmill',       tracksMiles: true,  withDogs: false },
-    { name: 'Golf',            tracksMiles: true,  withDogs: false },
-    { name: 'Mowing',         tracksMiles: true,  withDogs: false },
-    { name: 'Yard Work',       tracksMiles: false, withDogs: false },
-    { name: 'Weights',         tracksMiles: false, withDogs: false },
-    { name: 'Elliptical',      tracksMiles: false, withDogs: false },
-    { name: 'Row Machine',     tracksMiles: true,  withDogs: false },
-    { name: 'Bike',            tracksMiles: true,  withDogs: false },
-    { name: 'Stationary Bike', tracksMiles: true,  withDogs: false },
-    { name: 'Other',           tracksMiles: false, withDogs: false },
+    { name: 'Running',         tracksMiles: true,  withDogs: true,  isRunWalk: true  },
+    { name: 'Trail Running',   tracksMiles: true,  withDogs: true,  isRunWalk: true  },
+    { name: 'Mixed Run',       tracksMiles: true,  withDogs: true,  isRunWalk: true  },
+    { name: 'Walking',         tracksMiles: true,  withDogs: true,  isRunWalk: true  },
+    { name: 'Hiking',          tracksMiles: true,  withDogs: true,  isRunWalk: true  },
+    { name: 'Treadmill',       tracksMiles: true,  withDogs: false, isRunWalk: true  },
+    { name: 'Golf',            tracksMiles: true,  withDogs: false, isRunWalk: false },
+    { name: 'Mowing',         tracksMiles: true,  withDogs: false, isRunWalk: false },
+    { name: 'Yard Work',       tracksMiles: false, withDogs: false, isRunWalk: false },
+    { name: 'Weights',         tracksMiles: false, withDogs: false, isRunWalk: false },
+    { name: 'Elliptical',      tracksMiles: false, withDogs: false, isRunWalk: false },
+    { name: 'Row Machine',     tracksMiles: true,  withDogs: false, isRunWalk: false },
+    { name: 'Bike',            tracksMiles: true,  withDogs: false, isRunWalk: false },
+    { name: 'Stationary Bike', tracksMiles: true,  withDogs: false, isRunWalk: false },
+    { name: 'Other',           tracksMiles: false, withDogs: false, isRunWalk: false },
 ];
 
 // Types that split mileage into Walked Miles + Run Miles (instead of a single Miles field)
@@ -51,6 +51,7 @@ async function seedExerciseTypesIfNeeded() {
                 name:        t.name,
                 tracksMiles: t.tracksMiles,
                 withDogs:    t.withDogs,
+                isRunWalk:   t.isRunWalk || false,
                 isDefault:   true,
                 archived:    false,
                 createdAt:   firebase.firestore.FieldValue.serverTimestamp()
@@ -97,6 +98,25 @@ async function _exEnsureMilesOnDistanceTypes() {
     }
 }
 
+// One-time migration: set isRunWalk on all existing seeded types
+async function _exEnsureIsRunWalkFlag() {
+    var runWalkNames = ['Running', 'Trail Running', 'Mixed Run', 'Walking', 'Hiking', 'Treadmill'];
+    try {
+        var snap = await userCol('exerciseTypes').get();
+        var batch = db.batch();
+        var count = 0;
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.isRunWalk !== undefined) return; // already migrated
+            batch.update(doc.ref, { isRunWalk: runWalkNames.indexOf(d.name) !== -1 });
+            count++;
+        });
+        if (count > 0) await batch.commit();
+    } catch (err) {
+        console.error('Exercise: failed to migrate isRunWalk:', err);
+    }
+}
+
 // ─── Module-level state (activities list) ─────────────────────────────────────
 
 var _exTypes       = {};    // typeId → type data (used by list rendering)
@@ -113,6 +133,7 @@ var _exSelectedType       = null;  // full type object of selected type
 var _exAllTypes           = [];    // all non-archived types (sorted)
 var _exPendingAddName     = '';    // type name being added on the fly
 var _exPendingTracksMiles = null;  // answer to Q1 during add-on-fly flow
+var _exPendingIsRunWalk   = null;  // answer to Q2 during add-on-fly flow
 
 // ─── Hub page ─────────────────────────────────────────────────────────────────
 
@@ -160,7 +181,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureIsRunWalkFlag();
     _exGoToDate = '';
 
     _exTypes = {};
@@ -459,7 +480,7 @@ function _exBuildCards(activities) {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureIsRunWalkFlag();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -567,6 +588,13 @@ function _exBuildActivityForm(existing) {
                         '</div>' +
                     '</div>' +
                     '<div id="exAddTypeQ2" class="hidden">' +
+                        '<p class="ex-add-type-q">Track as run/walk activity for goals?</p>' +
+                        '<div class="ex-add-type-btns">' +
+                            '<button class="btn btn-primary btn-small" id="exAddTypeRunWalkYes">Yes</button>' +
+                            '<button class="btn btn-secondary btn-small" id="exAddTypeRunWalkNo">No</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="exAddTypeQ3" class="hidden">' +
                         '<p class="ex-add-type-q">Show \'With Dogs\' toggle?</p>' +
                         '<div class="ex-add-type-btns">' +
                             '<button class="btn btn-primary btn-small" id="exAddTypeDogsYes">Yes</button>' +
@@ -675,10 +703,12 @@ function _exBuildActivityForm(existing) {
     });
 
     // Add-on-fly buttons
-    document.getElementById('exAddTypeMilesYes').addEventListener('click', function() { _exAddTypeAnswerMiles(true); });
-    document.getElementById('exAddTypeMilesNo').addEventListener('click',  function() { _exAddTypeAnswerMiles(false); });
-    document.getElementById('exAddTypeDogsYes').addEventListener('click',  function() { _exAddTypeAnswerDogs(true); });
-    document.getElementById('exAddTypeDogsNo').addEventListener('click',   function() { _exAddTypeAnswerDogs(false); });
+    document.getElementById('exAddTypeMilesYes').addEventListener('click',   function() { _exAddTypeAnswerMiles(true); });
+    document.getElementById('exAddTypeMilesNo').addEventListener('click',    function() { _exAddTypeAnswerMiles(false); });
+    document.getElementById('exAddTypeRunWalkYes').addEventListener('click', function() { _exAddTypeAnswerRunWalk(true); });
+    document.getElementById('exAddTypeRunWalkNo').addEventListener('click',  function() { _exAddTypeAnswerRunWalk(false); });
+    document.getElementById('exAddTypeDogsYes').addEventListener('click',    function() { _exAddTypeAnswerDogs(true); });
+    document.getElementById('exAddTypeDogsNo').addEventListener('click',     function() { _exAddTypeAnswerDogs(false); });
 
     // Duration hint + pace preview: update when duration changes
     document.getElementById('exActivityDate').addEventListener('change', function() {
@@ -817,10 +847,12 @@ function _exUpdateConditionalFields() {
 function _exStartAddType(name) {
     _exPendingAddName     = name;
     _exPendingTracksMiles = null;
+    _exPendingIsRunWalk   = null;
 
     document.getElementById('exAddTypeName').textContent = name;
     document.getElementById('exAddTypeQ1').classList.remove('hidden');
     document.getElementById('exAddTypeQ2').classList.add('hidden');
+    document.getElementById('exAddTypeQ3').classList.add('hidden');
     document.getElementById('exAddTypePanel').classList.remove('hidden');
 }
 
@@ -828,6 +860,12 @@ function _exAddTypeAnswerMiles(yes) {
     _exPendingTracksMiles = yes;
     document.getElementById('exAddTypeQ1').classList.add('hidden');
     document.getElementById('exAddTypeQ2').classList.remove('hidden');
+}
+
+function _exAddTypeAnswerRunWalk(yes) {
+    _exPendingIsRunWalk = yes;
+    document.getElementById('exAddTypeQ2').classList.add('hidden');
+    document.getElementById('exAddTypeQ3').classList.remove('hidden');
 }
 
 async function _exAddTypeAnswerDogs(yes) {
@@ -838,6 +876,7 @@ async function _exAddTypeAnswerDogs(yes) {
         await ref.set({
             name:        _exPendingAddName,
             tracksMiles: _exPendingTracksMiles,
+            isRunWalk:   _exPendingIsRunWalk || false,
             withDogs:    yes,
             isDefault:   false,
             archived:    false,
@@ -846,8 +885,8 @@ async function _exAddTypeAnswerDogs(yes) {
 
         var newType = {
             id: ref.id, name: _exPendingAddName,
-            tracksMiles: _exPendingTracksMiles, withDogs: yes,
-            isDefault: false, archived: false
+            tracksMiles: _exPendingTracksMiles, isRunWalk: _exPendingIsRunWalk || false,
+            withDogs: yes, isDefault: false, archived: false
         };
         _exAllTypes.push(newType);
         _exSortTypes(_exAllTypes);
@@ -1030,7 +1069,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureIsRunWalkFlag();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 
@@ -1068,6 +1107,7 @@ function _exRenderTypesList() {
     var rows = _exTypesAll.map(function(t) {
         var icons = '';
         if (t.tracksMiles) icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
+        if (t.isRunWalk)   icons += '<span class="ex-type-flag" title="Run/walk activity (counts toward goals)">🏃</span>';
         if (t.withDogs)    icons += '<span class="ex-type-flag" title="With dogs">🐾</span>';
 
         if (t.isDefault) {
@@ -1079,14 +1119,14 @@ function _exRenderTypesList() {
                    '</div>';
         }
 
-        // Custom: show name + icons + Rename + Delete
+        // Custom: show name + icons + Edit + Delete
         return '<div class="ex-type-row" id="exTypeRow-' + t.id + '">' +
                    '<span class="ex-type-row-name" id="exTypeName-' + t.id + '">' + _exEsc(t.name) + '</span>' +
                    '<span class="ex-type-row-icons">' + icons + '</span>' +
                    '<div class="ex-type-row-actions">' +
                        '<button class="btn btn-secondary btn-small" ' +
-                           'onclick="_exStartRenameType(\'' + t.id + '\')">' +
-                           'Rename' +
+                           'onclick="_exStartEditType(\'' + t.id + '\')">' +
+                           'Edit' +
                        '</button>' +
                        '<button class="btn btn-small ex-type-delete-btn" ' +
                            'onclick="_exDeleteType(\'' + t.id + '\')">' +
@@ -1101,25 +1141,25 @@ function _exRenderTypesList() {
         '<div class="ex-types-list">' + rows.join('') + '</div>';
 }
 
-function _exStartRenameType(typeId) {
+function _exStartEditType(typeId) {
     var t = _exTypesAll.find(function(x) { return x.id === typeId; });
     if (!t || t.isDefault) return;
 
     var row = document.getElementById('exTypeRow-' + typeId);
     if (!row) return;
 
-    // Replace the name span with an inline input + Save/Cancel buttons
-    var icons = '';
-    if (t.tracksMiles) icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
-    if (t.withDogs)    icons += '<span class="ex-type-flag" title="With dogs">🐾</span>';
-
     row.innerHTML =
-        '<input type="text" class="ex-type-rename-input" id="exRenameInput-' + typeId + '" ' +
-               'value="' + _exEsc(t.name) + '" maxlength="60">' +
-        '<span class="ex-type-row-icons">' + icons + '</span>' +
+        '<div class="ex-type-edit-form">' +
+            '<input type="text" class="ex-type-rename-input" id="exRenameInput-' + typeId + '" ' +
+                   'value="' + _exEsc(t.name) + '" maxlength="60" placeholder="Type name">' +
+            '<label class="ex-type-edit-check">' +
+                '<input type="checkbox" id="exEditRunWalk-' + typeId + '"' + (t.isRunWalk ? ' checked' : '') + '> ' +
+                '🏃 Count as run/walk for goals' +
+            '</label>' +
+        '</div>' +
         '<div class="ex-type-row-actions">' +
             '<button class="btn btn-primary btn-small" ' +
-                    'onclick="_exSaveRenameType(\'' + typeId + '\')">' +
+                    'onclick="_exSaveEditType(\'' + typeId + '\')">' +
                 'Save' +
             '</button>' +
             '<button class="btn btn-secondary btn-small" ' +
@@ -1132,19 +1172,21 @@ function _exStartRenameType(typeId) {
     if (input) { input.focus(); input.select(); }
 }
 
-async function _exSaveRenameType(typeId) {
+async function _exSaveEditType(typeId) {
     var input = document.getElementById('exRenameInput-' + typeId);
+    var runWalkChk = document.getElementById('exEditRunWalk-' + typeId);
     if (!input) return;
     var newName = input.value.trim();
     if (!newName) { alert('Name cannot be blank.'); input.focus(); return; }
+    var newRunWalk = runWalkChk ? runWalkChk.checked : false;
 
     var saveBtn = input.closest('.ex-type-row').querySelector('.btn-primary');
     if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
 
     try {
-        await userCol('exerciseTypes').doc(typeId).update({ name: newName });
+        await userCol('exerciseTypes').doc(typeId).update({ name: newName, isRunWalk: newRunWalk });
         var t = _exTypesAll.find(function(x) { return x.id === typeId; });
-        if (t) t.name = newName;
+        if (t) { t.name = newName; t.isRunWalk = newRunWalk; }
         _exRenderTypesList();
     } catch (err) {
         console.error('Exercise: rename failed:', err);
