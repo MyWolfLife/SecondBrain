@@ -1612,6 +1612,9 @@ function _dmRenderMilesCard(s, monthName, year, containerId) {
         if (s.estMonthTotal !== undefined) {
             row3 += _dmMilesStat('Est. month', s.estMonthTotal);
         }
+        if (s.monthGoal !== undefined) {
+            row3 += _dmMilesStat('Month Goal', s.monthGoal);
+        }
     } else {
         if (s.monthVsGoal !== undefined) {
             var vsBg    = s.monthVsGoalAhead ? '#86efac' : '#fde68a';
@@ -1711,9 +1714,12 @@ function _dmBuildMilesSummary(activities, typeMap, month, year, goalMilesPerDay)
         }
     }
 
-    // Estimated month total — current month only, when we have at least some data
+    // Estimated month total + monthly goal — current month only
     if (isCurrentMonth && totalMiles > 0) {
         result.estMonthTotal = r1(dailyAvg * daysInMonth);
+    }
+    if (goalMilesPerDay != null && goalMilesPerDay > 0) {
+        result.monthGoal = r1(goalMilesPerDay * daysInMonth);
     }
 
     return result;
