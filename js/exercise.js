@@ -3267,7 +3267,7 @@ function _egRenderGrid() {
         '<th class="eg-th eg-col-month eg-th-corner" title="Month of the year">Month</th>' +
         '<th class="eg-th" title="Your target weight at the end of this month (entered by you — not calculated)">Goal<br><span class="eg-th-sub">Weight</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: weight change from prior month. Positive = lost weight, negative = gained. (Prior goal weight − this month\'s goal weight)">Wt<br><span class="eg-th-sub">Loss</span></th>' +
-        '<th class="eg-th eg-th-calc" title="Calculated: daily calorie deficit needed to hit your weight loss goal. (|Weight change| × 3,500 ÷ days in month)">Daily Cal<br><span class="eg-th-sub">Loss</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: daily calorie deficit needed to hit your weight loss goal. (|Weight change| × 3,500 ÷ days in month)">Daily Cal<br><span class="eg-th-sub">Loss needed</span></th>' +
         '<th class="eg-th" title="Your goal: average miles walked or run per day this month">Miles<br><span class="eg-th-sub">/ Day</span></th>';
 
     exercises.forEach(function(te) {
@@ -3280,7 +3280,7 @@ function _egRenderGrid() {
         '<th class="eg-th eg-th-calc eg-th-group-start" title="Calculated: daily calorie burn from your mileage goal. (Miles/Day × Calories Per Mile constant)">Burn<br><span class="eg-th-sub">Miles/Day</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: daily calorie burn from your non-mileage exercise sessions. (Sum of sessions × cal/session ÷ days in month)">Burn<br><span class="eg-th-sub">Extra/Day</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: total daily exercise calorie burn. (Burn Miles + Burn Extra)">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
-        '<th class="eg-th eg-th-calc" title="Calculated: estimated daily non-exercise calorie burn using Mifflin-St Jeor formula applied to prior month\'s estimated weight, multiplied by your activity multiplier. Updates each month as your weight changes. Falls back to a static value if height/birth year/gender are not set.">Base<br><span class="eg-th-sub">Burn</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Calculated: estimated daily non-exercise calorie burn using Mifflin-St Jeor × activity multiplier. Uses the prior month\'s estimated ending weight (Est Wt End Mo) as this month\'s starting weight — so it adjusts as you lose weight. January uses your Starting Weight constant. Falls back to static Base Daily Burn if height/birth year/gender are not set.">Base<br><span class="eg-th-sub">Burn</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated pounds lost this month if you hit all your goals. Formula: ((Base Burn + Total Exercise Burn) − Avg Food) × Days ÷ 3,500. Shows red if negative (plan predicts weight gain).">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated weight at end of month. Chains from prior month\'s estimated weight (or prior month\'s goal weight if chain is broken). Shows yellow if higher than your Goal Weight — your plan won\'t hit your target.">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
 
@@ -3292,7 +3292,7 @@ function _egRenderGrid() {
                col.label + '<br><span class="eg-th-sub">' + col.group + '</span></th>';
     });
 
-    hdr += '<th class="eg-th eg-th-copy" title="Copy all values from the prior month into this row"></th>';  // Copy Prev column
+    hdr += '<th class="eg-th eg-th-copy" title="Copy Previous Month: immediately copies ALL values from the row above into this row — goal weight, miles, session counts, and all 18 threshold values. Overwrites whatever is already here with no prompt."></th>';  // Copy Prev column
 
     // Compute all projection values up front (sequential — J depends on previous J)
     var projs = _egComputeProjections();
