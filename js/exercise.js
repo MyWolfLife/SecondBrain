@@ -2937,7 +2937,8 @@ async function _dmMoveDef(defId, direction) {
 // ─── Goals module-level state ─────────────────────────────────────────────────
 
 var _egYears       = [];    // sorted array of year numbers that have been created
-var _egCurrentYear = null;  // year number currently displayed
+var _egCurrentYear  = null;  // year number currently displayed
+var _egRealWeights  = {};    // month 1-12 → first weight logged in the FOLLOWING month (Real Wt column)
 var _egYearData    = null;  // full data object from the exerciseGoals/:year Firestore doc
 var _egAllTypes    = [];    // all non-archived exerciseTypes (for the add-exercise dropdown)
 
@@ -3034,9 +3035,19 @@ async function _egEnsureYearData(year) {
     if (_egCurrentYear === year && _egYearData !== null) return;
     _egCurrentYear = year;
 
-    var [yearSnap, typeSnap] = await Promise.all([
+    // Also fetch daily metrics for this year + following January so we can show
+    // the Real Wt column (first weight logged in the month AFTER each goals month).
+    var metricsStart = year + '-01-01';
+    var metricsEnd   = (year + 1) + '-01-31';  // include next Jan for December's Real Wt
+
+    var [yearSnap, typeSnap, metricsSnap] = await Promise.all([
         userCol('exerciseGoals').doc(String(year)).get(),
-        userCol('exerciseTypes').where('archived', '==', false).get()
+        userCol('exerciseTypes').where('archived', '==', false).get(),
+        userCol('exerciseDailyMetrics')
+            .where('date', '>=', metricsStart)
+            .where('date', '<=', metricsEnd)
+            .orderBy('date', 'asc')
+            .get()
     ]);
 
     _egYearData = yearSnap.exists ? yearSnap.data() : { trackedExercises: [], months: {} };
@@ -3048,6 +3059,32 @@ async function _egEnsureYearData(year) {
     });
     _egAllTypes.sort(function(a, b) { return a.name.localeCompare(b.name); });
     _egInitMonths();
+
+    // Build Real Wt map: month M → first non-null weight found in month M+1
+    _egRealWeights = {};
+    metricsSnap.forEach(function(doc) {
+        var d = doc.data();
+        if (d.weight == null) return;
+        var parts    = d.date.split('-');
+        var recYear  = parseInt(parts[0], 10);
+        var recMonth = parseInt(parts[1], 10);   // 1-12
+
+        // This record is in month recMonth of recYear.
+        // It represents the Real Wt for the PRIOR month.
+        var targetMonth, targetYear;
+        if (recMonth === 1) {
+            targetMonth = 12;
+            targetYear  = recYear - 1;
+        } else {
+            targetMonth = recMonth - 1;
+            targetYear  = recYear;
+        }
+
+        // Only keep the first (earliest) weight per target month
+        if (targetYear === year && _egRealWeights[targetMonth] === undefined) {
+            _egRealWeights[targetMonth] = d.weight;
+        }
+    });
 }
 
 async function _egLoadYearContent(year) {
@@ -3282,7 +3319,8 @@ function _egRenderGrid() {
         '<th class="eg-th eg-th-calc" title="Calculated: total daily exercise calorie burn. (Burn Miles + Burn Extra)">Total<br><span class="eg-th-sub">Ex Burn</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated daily non-exercise calorie burn using Mifflin-St Jeor × activity multiplier. Uses the prior month\'s estimated ending weight (Est Wt End Mo) as this month\'s starting weight — so it adjusts as you lose weight. January uses your Starting Weight constant. Falls back to static Base Daily Burn if height/birth year/gender are not set.">Base<br><span class="eg-th-sub">Burn</span></th>' +
         '<th class="eg-th eg-th-calc" title="Calculated: estimated pounds lost this month if you hit all your goals. Formula: ((Base Burn + Total Exercise Burn) − Avg Food) × Days ÷ 3,500. Shows red if negative (plan predicts weight gain).">Est Wt<br><span class="eg-th-sub">Loss</span></th>' +
-        '<th class="eg-th eg-th-calc" title="Calculated: estimated weight at end of month. Chains from prior month\'s estimated weight (or prior month\'s goal weight if chain is broken). Shows yellow if higher than your Goal Weight — your plan won\'t hit your target.">Est Wt<br><span class="eg-th-sub">End Mo</span></th>';
+        '<th class="eg-th eg-th-calc" title="Calculated: estimated weight at end of month. Chains from prior month\'s estimated weight (or prior month\'s goal weight if chain is broken). Shows yellow if higher than your Goal Weight — your plan won\'t hit your target.">Est Wt<br><span class="eg-th-sub">End Mo</span></th>' +
+        '<th class="eg-th eg-th-calc" title="Real ending weight for this month: the first weight you logged in the following month (e.g. June 1st reading = your May ending weight). Blank if no weight entry exists yet for the following month.">Real<br><span class="eg-th-sub">Wt</span></th>';
 
     // Threshold columns
     _EG_THRESHOLD_COLS.forEach(function(col) {
@@ -3358,7 +3396,14 @@ function _egRenderGrid() {
             '<td class="eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' + _egFmtProjI(p.i) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' +
                 (p.j != null ? '<span class="eg-calc-num">' + p.j + '</span>' : '<span class="eg-calc-blank">—</span>') +
-            '</td>';
+            '</td>' +
+            // Real Wt — first weight logged in the following month
+            (function() {
+                var rw = _egRealWeights[m];
+                return '<td class="eg-td eg-td-calc">' +
+                    (rw != null ? '<span class="eg-calc-num">' + rw + '</span>' : '<span class="eg-calc-blank">—</span>') +
+                '</td>';
+            })();
 
         // Threshold columns — editable for most, read-only for calculated ones
         _EG_THRESHOLD_COLS.forEach(function(col) {
