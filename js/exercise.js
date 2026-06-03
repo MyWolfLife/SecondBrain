@@ -3382,7 +3382,7 @@ function _egRenderGrid() {
 
         // Copy Previous button (hidden for January)
         rows += '<td class="eg-td eg-td-copy">' +
-            (m > 1 ? '<button class="btn btn-secondary eg-copy-btn" onclick="_egCopyPreviousMonth(' + m + ')">Copy Prev</button>' : '') +
+            (m > 1 ? '<button class="btn btn-secondary eg-copy-btn" title="Copy ALL values from the prior month into this row (goal weight, miles, sessions, all thresholds). Overwrites existing values — no undo." onclick="_egConfirmCopyPrevious(' + m + ')">Copy Prev</button>' : '') +
             '</td></tr>';
     }
 
@@ -3641,6 +3641,13 @@ async function _egSaveMonthSession(month, typeId, rawValue) {
 }
 
 // ─── Copy previous month ──────────────────────────────────────────────────────
+
+function _egConfirmCopyPrevious(month) {
+    var monthName = _EG_MONTH_NAMES[month - 1];
+    var prevName  = _EG_MONTH_NAMES[month - 2];
+    if (!confirm('Copy all values from ' + prevName + ' into ' + monthName + '?\n\nThis will overwrite the existing values in ' + monthName + ' with no undo.')) return;
+    _egCopyPreviousMonth(month);
+}
 
 async function _egCopyPreviousMonth(month) {
     if (month <= 1) return;
