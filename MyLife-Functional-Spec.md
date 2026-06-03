@@ -1292,9 +1292,9 @@ Seeded on first visit to any exercise page (15 built-in defaults). Each type has
 
 `runWalkRole` controls how miles count toward goals:
 - `'run'` — all miles count as run miles (Running)
-- `'walk'` — all miles count as walk miles (Walking, Hiking)
+- `'walk'` — all miles count as walk miles (Walking, Hiking, Mowing)
 - `'split'` — `miles` field = walked portion, `runMiles` field = run portion, both tracked separately (Trail Running, Mixed Run, Treadmill)
-- `null` — miles don't count toward run/walk goals (Golf, Mowing, Bike, etc.)
+- `null` — miles don't count toward run/walk goals (Golf, Bike, etc.)
 
 Types with `tracksMiles = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill, Golf, Mowing, Row Machine, Bike, Stationary Bike
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking

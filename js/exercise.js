@@ -24,7 +24,7 @@ const EXERCISE_DEFAULT_TYPES = [
     { name: 'Hiking',          tracksMiles: true,  withDogs: true,  runWalkRole: 'walk'  },
     { name: 'Treadmill',       tracksMiles: true,  withDogs: false, runWalkRole: 'split' },
     { name: 'Golf',            tracksMiles: true,  withDogs: false, runWalkRole: null    },
-    { name: 'Mowing',         tracksMiles: true,  withDogs: false, runWalkRole: null    },
+    { name: 'Mowing',         tracksMiles: true,  withDogs: false, runWalkRole: 'walk'  },
     { name: 'Yard Work',       tracksMiles: false, withDogs: false, runWalkRole: null    },
     { name: 'Weights',         tracksMiles: false, withDogs: false, runWalkRole: null    },
     { name: 'Elliptical',      tracksMiles: false, withDogs: false, runWalkRole: null    },
@@ -133,6 +133,20 @@ async function _exEnsureRunWalkRole() {
     }
 }
 
+// One-time migration: set Mowing runWalkRole to 'walk'
+async function _exEnsureMowingWalkRole() {
+    try {
+        var snap = await userCol('exerciseTypes').where('name', '==', 'Mowing').limit(1).get();
+        snap.forEach(function(doc) {
+            if (doc.data().runWalkRole !== 'walk') {
+                doc.ref.update({ runWalkRole: 'walk' });
+            }
+        });
+    } catch (err) {
+        console.error('Exercise: failed to migrate Mowing runWalkRole:', err);
+    }
+}
+
 // ─── Module-level state (activities list) ─────────────────────────────────────
 
 var _exTypes      = {};   // typeId → type data (used by list rendering)
@@ -197,7 +211,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
     var _exNow = new Date();
     _exSelMonth  = _exNow.getMonth();
     _exSelYear   = _exNow.getFullYear();
@@ -482,7 +496,7 @@ function _exBuildCards(activities) {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -1082,7 +1096,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 
