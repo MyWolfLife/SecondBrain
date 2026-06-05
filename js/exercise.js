@@ -3408,7 +3408,7 @@ function _egRenderGrid() {
             '<td class="eg-td eg-td-calc eg-proj-h" data-month="' + m + '">' + _egFmtCalc(p.h) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-base" data-month="' + m + '">' + _egFmtCalc(p.baseBurn) + '</td>' +
             '<td class="eg-td eg-td-calc eg-proj-i' + (iWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' + _egFmtProjI(p.i) + '</td>' +
-            '<td class="eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '">' +
+            '<td class="eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '') + '" data-month="' + m + '" title="' + (p.jTooltip || '') + '">' +
                 (p.j != null ? '<span class="eg-calc-num">' + p.j + '</span>' : '<span class="eg-calc-blank">—</span>') +
             '</td>' +
             // Real Wt — first weight logged in the following month
@@ -3523,14 +3523,28 @@ function _egComputeProjections() {
             i = Math.round(((baseBurn + h) - (fy1 + fy2) / 2) * days / 3500);
         }
 
-        // J — Estimated end-of-month weight (rolling chain).
-        // Falls back to effective goal weight when chain is broken (mid-year start).
-        var startForJ;
+        // J — Estimated end-of-month weight.
+        // Priority for starting weight: 1) prior month's Real Wt, 2) prior month's Est End,
+        // 3) prior month's Goal Wt. January always uses Starting Weight constant.
+        var startForJ = null;
+        var startForJSource = '';
         if (m === 1) {
             startForJ = (_egYearData && _egYearData.startingWeight != null)
                 ? _egYearData.startingWeight : null;
+            startForJSource = 'Starting Wt (' + startForJ + ')';
         } else {
-            startForJ = prevJ !== null ? prevJ : _egEffectiveGoalWeight(m - 1);
+            var prevRealWt = _egRealWeights[m - 1] !== undefined ? _egRealWeights[m - 1] : null;
+            if (prevRealWt != null) {
+                startForJ = prevRealWt;
+                startForJSource = _EG_MONTH_NAMES[m - 2] + ' Real Wt (' + prevRealWt + ')';
+            } else if (prevJ !== null) {
+                startForJ = prevJ;
+                startForJSource = _EG_MONTH_NAMES[m - 2] + ' Est End (' + prevJ + ')';
+            } else {
+                var fallbackGW = _egEffectiveGoalWeight(m - 1);
+                startForJ = fallbackGW;
+                startForJSource = _EG_MONTH_NAMES[m - 2] + ' Goal Wt (' + fallbackGW + ')';
+            }
         }
         var j = (startForJ != null && i != null) ? Math.round(startForJ - i) : null;
         prevJ = j;
@@ -3543,7 +3557,15 @@ function _egComputeProjections() {
         var exerciseYellow = h !== null ? Math.max(h - 300, 200) : null;
         var exerciseBlue   = h !== null ? Math.max(h + 200, 500) : null;
 
-        results.push({ f: f, g: g, h: h, baseBurn: baseBurn, exerciseYellow: exerciseYellow, exerciseBlue: exerciseBlue, i: i, j: j });
+        // Build tooltip for the J cell: shows exact formula with real numbers
+        var jTooltip = '';
+        if (j !== null) {
+            jTooltip = j + ' = ' + startForJSource + ' − ' + i + ' (Est Wt Lost)';
+        } else if (startForJ != null) {
+            jTooltip = 'Est Wt Lost not calculable (check food thresholds, exercise goals, and constants)';
+        }
+
+        results.push({ f: f, g: g, h: h, baseBurn: baseBurn, exerciseYellow: exerciseYellow, exerciseBlue: exerciseBlue, i: i, j: j, jTooltip: jTooltip });
     }
     return results;
 }
@@ -3598,6 +3620,7 @@ function _egUpdateCalcCells() {
         if (jCell) {
             jCell.className = 'eg-td eg-td-calc eg-proj-j' + (jWarn ? ' eg-td-warn' : '');
             jCell.setAttribute('data-month', m2);
+            jCell.setAttribute('title', p.jTooltip || '');
             jCell.innerHTML = p.j != null
                 ? '<span class="eg-calc-num">' + p.j + '</span>'
                 : '<span class="eg-calc-blank">—</span>';
