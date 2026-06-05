@@ -2182,7 +2182,10 @@ function _dmBuildTable(records, summary, milesPerDate) {
         { key: 'weight',       label: 'Weight' },
         { key: 'sleepScore',   label: 'Sleep',      tooltip: 'Sleep score. You can get this from Garmin Watch or Sleep Number bed.' },
         { key: 'bodyBattery',  label: 'Body Bat.',  tooltip: 'Your Body Battery at its highest. You can get this from Garmin or anything else you may use.' },
-        { key: 'dailySteps',   label: 'Steps' },
+        { key: 'dailySteps',   label: 'Steps' }
+        // Total Miles extra column is inserted here (between Steps and Burn)
+    ];
+    var postMilesCols = [
         { key: 'totalBurn',    label: 'Burn',       tooltip: 'Total Calorie burn. You can get this from Garmin or Apple Watch, but you\'ll need to get it the next day for the current day.' },
         { key: 'foodCalories', label: 'Food Cal.',  tooltip: 'Total Food/Alcohol/Everything calories you consumed this day. You can track this in LoseIt app or any other way you do it.' }
     ];
@@ -2193,21 +2196,28 @@ function _dmBuildTable(records, summary, milesPerDate) {
     var thead = '<thead>';
     // Summary row
     thead += '<tr class="dm-summary-row"><td></td>';
-    preDiffCols.forEach(function(c) {
+    // Helper to render a standard column summary cell
+    function _summaryCell(c) {
         if (c.key === 'weight') {
-            // Show overall weight change instead of average
             if (summary.weightChange !== null && summary.weightChange !== undefined) {
                 var wc = summary.weightChange;
                 var color = wc < 0 ? 'green' : 'red';
                 var sign = wc > 0 ? '+' : '';
-                thead += '<td style="color:' + color + ';font-weight:bold">' + sign + wc.toFixed(1) + '</td>';
-            } else {
-                thead += '<td>—</td>';
+                return '<td style="color:' + color + ';font-weight:bold">' + sign + wc.toFixed(1) + '</td>';
             }
-        } else {
-            thead += '<td class="dm-col-num">' + summary[c.key] + '</td>';
+            return '<td>—</td>';
         }
-    });
+        return '<td class="dm-col-num">' + summary[c.key] + '</td>';
+    }
+    preDiffCols.forEach(function(c) { thead += _summaryCell(c); });
+    // Extra columns: Total Miles — between Steps and Burn
+    if (milesPerDate) {
+        var totalMilesSum = 0;
+        Object.keys(milesPerDate).forEach(function(d) { totalMilesSum += milesPerDate[d]; });
+        totalMilesSum = Math.round(totalMilesSum * 10) / 10;
+        thead += '<td class="dm-col-num dm-col-extra">' + (totalMilesSum > 0 ? totalMilesSum : '—') + '</td>';
+    }
+    postMilesCols.forEach(function(c) { thead += _summaryCell(c); });
     // +/- Diff summary: total calories for the period
     if (summary.diffSum !== null && summary.diffSum !== undefined) {
         var ds = Math.round(summary.diffSum);
@@ -2220,17 +2230,18 @@ function _dmBuildTable(records, summary, milesPerDate) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
-    // Extra columns: Total Miles
-    if (milesPerDate) {
-        var totalMilesSum = 0;
-        Object.keys(milesPerDate).forEach(function(d) { totalMilesSum += milesPerDate[d]; });
-        totalMilesSum = Math.round(totalMilesSum * 10) / 10;
-        thead += '<td class="dm-col-num dm-col-extra">' + (totalMilesSum > 0 ? totalMilesSum : '—') + '</td>';
-    }
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
     preDiffCols.forEach(function(c) {
+        var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
+        thead += '<th' + tip + '>' + c.label + '</th>';
+    });
+    // Extra column header — between Steps and Burn
+    if (milesPerDate) {
+        thead += '<th class="dm-col-extra" title="Total miles walked + run from tracked activities (run/walk/split types)">Total Mi.</th>';
+    }
+    postMilesCols.forEach(function(c) {
         var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
         thead += '<th' + tip + '>' + c.label + '</th>';
     });
@@ -2241,10 +2252,6 @@ function _dmBuildTable(records, summary, milesPerDate) {
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
     });
-    // Extra column header
-    if (milesPerDate) {
-        thead += '<th class="dm-col-extra" title="Total miles walked + run from tracked activities (run/walk/split types)">Total Mi.</th>';
-    }
     thead += '</tr></thead>';
 
     // Body
@@ -2254,7 +2261,7 @@ function _dmBuildTable(records, summary, milesPerDate) {
 
         tbody += '<tr class="dm-data-row" data-date="' + _exEsc(r.date) + '">';
         tbody += '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(r.date)) + '</td>';
-        preDiffCols.forEach(function(c) {
+        function _stdCell(c) {
             var rawVal = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : null;
             var v = rawVal !== null ? rawVal : '—';
             if (typeof v === 'number') v = v.toLocaleString();
@@ -2262,7 +2269,14 @@ function _dmBuildTable(records, summary, milesPerDate) {
             var bg = _dmThresholdBg(rawVal, thresholds, c.key);
             var style = bg ? ' style="background-color:' + bg + '"' : '';
             tbody += '<td class="dm-col-num"' + style + '>' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
-        });
+        }
+        preDiffCols.forEach(_stdCell);
+        // Extra column: Total Miles — between Steps and Burn
+        if (milesPerDate) {
+            var dayMiles = milesPerDate[r.date];
+            tbody += '<td class="dm-col-num dm-col-extra">' + (dayMiles != null && dayMiles > 0 ? dayMiles : '—') + '</td>';
+        }
+        postMilesCols.forEach(_stdCell);
         // +/- Diff: burn - food, colored by calLoss thresholds (fallback: yellow if negative)
         var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var foodVal = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
@@ -2300,11 +2314,6 @@ function _dmBuildTable(records, summary, milesPerDate) {
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
             tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
         });
-        // Extra column: Total Miles for this date
-        if (milesPerDate) {
-            var dayMiles = milesPerDate[r.date];
-            tbody += '<td class="dm-col-num dm-col-extra">' + (dayMiles != null && dayMiles > 0 ? dayMiles : '—') + '</td>';
-        }
         tbody += '</tr>';
     });
     tbody += '</tbody>';
