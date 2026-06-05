@@ -1585,7 +1585,7 @@ function _dmRenderMetricsPage(el) {
 
     document.getElementById('dmExtraColsBtn').addEventListener('click', function() {
         _dmExtraColsOpen = !_dmExtraColsOpen;
-        this.textContent = '📏 Miles ' + (_dmExtraColsOpen ? '▼' : '▶');
+        this.textContent = '📏 Exercise ' + (_dmExtraColsOpen ? '▼' : '▶');
         this.classList.toggle('dm-extra-toggle--open', _dmExtraColsOpen);
         // Toggle CSS class on the table wrap — no re-render needed
         var wrap = document.querySelector('.dm-table-wrap');
@@ -1954,8 +1954,9 @@ async function _dmApplyFilter() {
                 '</div>';
         }
 
-        // Build per-date miles map from already-loaded activities (no extra query needed)
+        // Build per-date miles breakdown from already-loaded activities (no extra query needed)
         // Only counts types where runWalkRole is 'run', 'walk', or 'split'
+        // Each entry: { total, run, walk, dogs }
         var milesPerDate = {};
         (_dmMonthActivities || []).forEach(function(a) {
             var role = _dmTypeRoleMap ? (_dmTypeRoleMap[a.typeId] || null) : null;
@@ -1964,7 +1965,16 @@ async function _dmApplyFilter() {
             if (!ds) return;
             var m  = a.miles    != null ? parseFloat(a.miles)    : 0;
             var rm = a.runMiles != null ? parseFloat(a.runMiles) : 0;
-            milesPerDate[ds] = Math.round(((milesPerDate[ds] || 0) + m + rm) * 10) / 10;
+            var actTotal = m + rm;
+            var runMi  = role === 'run'   ? m  : (role === 'split' ? rm : 0);
+            var walkMi = role === 'walk'  ? m  : (role === 'split' ? m  : 0);
+            var dogsMi = a.withDogs ? actTotal : 0;
+            if (!milesPerDate[ds]) milesPerDate[ds] = { total: 0, run: 0, walk: 0, dogs: 0 };
+            var d = milesPerDate[ds];
+            d.total = Math.round((d.total + actTotal) * 10) / 10;
+            d.run   = Math.round((d.run   + runMi)   * 10) / 10;
+            d.walk  = Math.round((d.walk  + walkMi)  * 10) / 10;
+            d.dogs  = Math.round((d.dogs  + dogsMi)  * 10) / 10;
         });
 
         // Monthly content
@@ -2210,12 +2220,18 @@ function _dmBuildTable(records, summary, milesPerDate) {
         return '<td class="dm-col-num">' + summary[c.key] + '</td>';
     }
     preDiffCols.forEach(function(c) { thead += _summaryCell(c); });
-    // Extra columns: Total Miles — between Steps and Burn
+    // Extra columns: Total Mi., Walk Mi., Run Mi., Dogs Mi. — between Steps and Burn
     if (milesPerDate) {
-        var totalMilesSum = 0;
-        Object.keys(milesPerDate).forEach(function(d) { totalMilesSum += milesPerDate[d]; });
-        totalMilesSum = Math.round(totalMilesSum * 10) / 10;
-        thead += '<td class="dm-col-num dm-col-extra">' + (totalMilesSum > 0 ? totalMilesSum : '—') + '</td>';
+        var exTot = 0, exRun = 0, exWalk = 0, exDogs = 0;
+        Object.keys(milesPerDate).forEach(function(ds) {
+            var d = milesPerDate[ds];
+            exTot  = Math.round((exTot  + d.total) * 10) / 10;
+            exRun  = Math.round((exRun  + d.run)   * 10) / 10;
+            exWalk = Math.round((exWalk + d.walk)   * 10) / 10;
+            exDogs = Math.round((exDogs + d.dogs)   * 10) / 10;
+        });
+        function _exCell(v) { return '<td class="dm-col-num dm-col-extra">' + (v > 0 ? v : '—') + '</td>'; }
+        thead += _exCell(exTot) + _exCell(exWalk) + _exCell(exRun) + _exCell(exDogs);
     }
     postMilesCols.forEach(function(c) { thead += _summaryCell(c); });
     // +/- Diff summary: total calories for the period
@@ -2237,9 +2253,12 @@ function _dmBuildTable(records, summary, milesPerDate) {
         var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
         thead += '<th' + tip + '>' + c.label + '</th>';
     });
-    // Extra column header — between Steps and Burn
+    // Extra column headers — between Steps and Burn
     if (milesPerDate) {
-        thead += '<th class="dm-col-extra" title="Total miles walked + run from tracked activities (run/walk/split types)">Total Mi.</th>';
+        thead += '<th class="dm-col-extra" title="Total miles walked + run from tracked activities">Total Mi.</th>';
+        thead += '<th class="dm-col-extra" title="Walk miles from tracked activities">Walk Mi.</th>';
+        thead += '<th class="dm-col-extra" title="Run miles from tracked activities">Run Mi.</th>';
+        thead += '<th class="dm-col-extra" title="Miles logged with dogs">Dogs Mi.</th>';
     }
     postMilesCols.forEach(function(c) {
         var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
@@ -2271,10 +2290,14 @@ function _dmBuildTable(records, summary, milesPerDate) {
             tbody += '<td class="dm-col-num"' + style + '>' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
         }
         preDiffCols.forEach(_stdCell);
-        // Extra column: Total Miles — between Steps and Burn
+        // Extra columns: Total Mi., Walk Mi., Run Mi., Dogs Mi. — between Steps and Burn
         if (milesPerDate) {
-            var dayMiles = milesPerDate[r.date];
-            tbody += '<td class="dm-col-num dm-col-extra">' + (dayMiles != null && dayMiles > 0 ? dayMiles : '—') + '</td>';
+            var dm = milesPerDate[r.date];
+            function _dayExCell(v) { return '<td class="dm-col-num dm-col-extra">' + (v != null && v > 0 ? v : '—') + '</td>'; }
+            tbody += _dayExCell(dm ? dm.total : null) +
+                     _dayExCell(dm ? dm.walk  : null) +
+                     _dayExCell(dm ? dm.run   : null) +
+                     _dayExCell(dm ? dm.dogs  : null);
         }
         postMilesCols.forEach(_stdCell);
         // +/- Diff: burn - food, colored by calLoss thresholds (fallback: yellow if negative)
