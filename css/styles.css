@@ -17534,6 +17534,23 @@ a.legacy-fin-card:hover {
     margin-bottom: 6px;
 }
 
+/* Extra columns toggle button */
+.dm-extra-toggle {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    background: #fff;
+    cursor: pointer;
+    color: #444;
+}
+.dm-extra-toggle:hover { background: #f0f0f0; }
+.dm-extra-toggle--open { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+
+/* Extra columns: hidden by default, shown when wrapper has dm-extra-visible class */
+.dm-col-extra { display: none; }
+.dm-extra-visible .dm-col-extra { display: table-cell; }
+
 /* Last 7 Days accordion */
 .dm-last7-section { margin-bottom: 10px; }
 .dm-last7-section .dm-accordion-hdr { background: #e8f5e9; }

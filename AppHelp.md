@@ -3735,6 +3735,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **+ Entry** button: create a new entry for today (or any date)
 - **Manage Metrics** link: add, reorder, or remove your custom metric definitions
 
+- **📏 Miles button** in the filter bar: click to show or hide the **Total Miles** column on the desktop table. Your choice is remembered between visits. The column shows daily walking + running miles pulled from your logged activities (only run/walk/split types count — bikes, golf, etc. are excluded).
 - **Last 7 Days accordion**: when viewing the current month and year, a green accordion at the top shows a summary of your last 7 days — tap to expand or collapse. Booleans show X / 7 (always out of 7 days). Your expanded/collapsed choice is remembered between visits.
 - **Year view**: when you pick "Year" from the month combo, records are grouped into a **monthly accordion** — tap any month header to expand or collapse it; empty months show "No records for this month."
 

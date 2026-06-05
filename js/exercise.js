@@ -1494,6 +1494,7 @@ var _dmMonthActivities    = [];     // exerciseActivities for the currently sele
 var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when month/year changes
 var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded  = false;      // sticky accordion state — loaded from settings/exercisePrefs
+var _dmExtraColsOpen  = false;      // show/hide extra columns (Total Miles etc.) — sticky
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
 
@@ -1534,6 +1535,7 @@ async function loadExerciseMetricsPage() {
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     var prefs = results[1].exists ? results[1].data() : {};
     _dmLast7Expanded = prefs.dmLast7Expanded === true;
+    _dmExtraColsOpen = prefs.dmExtraColsOpen === true;
     _dmGoalsData = results[2].exists ? results[2].data() : null;
     _dmGoalsYear = new Date().getFullYear();
 
@@ -1567,6 +1569,7 @@ function _dmRenderMetricsPage(el) {
         '<div class="dm-filter-bar">' +
             '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
             '<select id="dmYearSelect" class="dm-filter-select">' + yearOpts + '</select>' +
+            '<button id="dmExtraColsBtn" class="dm-extra-toggle' + (_dmExtraColsOpen ? ' dm-extra-toggle--open' : '') + '" title="Show/hide extra columns">📏 Miles ' + (_dmExtraColsOpen ? '▼' : '▶') + '</button>' +
         '</div>' +
         '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
         '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
@@ -1578,6 +1581,17 @@ function _dmRenderMetricsPage(el) {
     document.getElementById('dmYearSelect').addEventListener('change', function() {
         _dmSelYear = parseInt(this.value, 10);
         _dmApplyFilter();
+    });
+
+    document.getElementById('dmExtraColsBtn').addEventListener('click', function() {
+        _dmExtraColsOpen = !_dmExtraColsOpen;
+        this.textContent = '📏 Miles ' + (_dmExtraColsOpen ? '▼' : '▶');
+        this.classList.toggle('dm-extra-toggle--open', _dmExtraColsOpen);
+        // Toggle CSS class on the table wrap — no re-render needed
+        var wrap = document.querySelector('.dm-table-wrap');
+        if (wrap) wrap.classList.toggle('dm-extra-visible', _dmExtraColsOpen);
+        // Persist asynchronously
+        userCol('settings').doc('exercisePrefs').set({ dmExtraColsOpen: _dmExtraColsOpen }, { merge: true });
     });
 
     _dmApplyFilter();
@@ -1940,6 +1954,19 @@ async function _dmApplyFilter() {
                 '</div>';
         }
 
+        // Build per-date miles map from already-loaded activities (no extra query needed)
+        // Only counts types where runWalkRole is 'run', 'walk', or 'split'
+        var milesPerDate = {};
+        (_dmMonthActivities || []).forEach(function(a) {
+            var role = _dmTypeRoleMap ? (_dmTypeRoleMap[a.typeId] || null) : null;
+            if (role !== 'run' && role !== 'walk' && role !== 'split') return;
+            var ds = a.activityDate ? a.activityDate.substring(0, 10) : null;
+            if (!ds) return;
+            var m  = a.miles    != null ? parseFloat(a.miles)    : 0;
+            var rm = a.runMiles != null ? parseFloat(a.runMiles) : 0;
+            milesPerDate[ds] = Math.round(((milesPerDate[ds] || 0) + m + rm) * 10) / 10;
+        });
+
         // Monthly content
         var monthlyHtml = '';
         if (records.length === 0) {
@@ -1947,11 +1974,17 @@ async function _dmApplyFilter() {
         } else {
             var summary = _dmComputeSummary(records);
             monthlyHtml = isDesktop
-                ? _dmBuildTable(records, summary)
+                ? _dmBuildTable(records, summary, milesPerDate)
                 : _dmBuildCards(records, summary);
         }
 
         listEl.innerHTML = last7Html + monthlyHtml;
+
+        // Restore extra-cols visibility after re-render
+        if (_dmExtraColsOpen) {
+            var wrap = listEl.querySelector('.dm-table-wrap');
+            if (wrap) wrap.classList.add('dm-extra-visible');
+        }
 
         // Wire Last 7 accordion toggle — persists state to Firestore
         if (isCurrentPeriod) {
@@ -2143,7 +2176,7 @@ function _dmThresholdBg(value, thresholds, field) {
     }
 }
 
-function _dmBuildTable(records, summary) {
+function _dmBuildTable(records, summary, milesPerDate) {
     // +/- Diff column appears after Food Cal.
     var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
@@ -2187,6 +2220,13 @@ function _dmBuildTable(records, summary) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
+    // Extra columns: Total Miles
+    if (milesPerDate) {
+        var totalMilesSum = 0;
+        Object.keys(milesPerDate).forEach(function(d) { totalMilesSum += milesPerDate[d]; });
+        totalMilesSum = Math.round(totalMilesSum * 10) / 10;
+        thead += '<td class="dm-col-num dm-col-extra">' + (totalMilesSum > 0 ? totalMilesSum : '—') + '</td>';
+    }
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
@@ -2201,6 +2241,10 @@ function _dmBuildTable(records, summary) {
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
     });
+    // Extra column header
+    if (milesPerDate) {
+        thead += '<th class="dm-col-extra" title="Total miles walked + run from tracked activities (run/walk/split types)">Total Mi.</th>';
+    }
     thead += '</tr></thead>';
 
     // Body
@@ -2256,11 +2300,16 @@ function _dmBuildTable(records, summary) {
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
             tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
         });
+        // Extra column: Total Miles for this date
+        if (milesPerDate) {
+            var dayMiles = milesPerDate[r.date];
+            tbody += '<td class="dm-col-num dm-col-extra">' + (dayMiles != null && dayMiles > 0 ? dayMiles : '—') + '</td>';
+        }
         tbody += '</tr>';
     });
     tbody += '</tbody>';
 
-    return '<div class="dm-table-wrap"><table class="dm-table">' + thead + tbody + '</table></div>';
+    return '<div class="dm-table-wrap' + (milesPerDate ? ' dm-has-extra' : '') + '"><table class="dm-table">' + thead + tbody + '</table></div>';
 }
 
 // Shared helper — renders a tinted summary card from a pre-computed summary object.
