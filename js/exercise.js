@@ -2181,6 +2181,12 @@ function _dmThresholdBg(value, thresholds, field) {
             if (thresholds.calLossGreen  != null && v >= thresholds.calLossGreen)  return G;
             return '';
 
+        case 'totalMiles':
+            if (thresholds.milesBlue   != null && v >= thresholds.milesBlue)   return B;
+            if (thresholds.milesGreen  != null && v >= thresholds.milesGreen)  return G;
+            if (thresholds.milesYellow != null && v <  thresholds.milesYellow) return Y;
+            return '';
+
         default:
             return '';
     }
@@ -2294,10 +2300,15 @@ function _dmBuildTable(records, summary, milesPerDate) {
         if (milesPerDate) {
             var dm = milesPerDate[r.date];
             function _dayExCell(v) { return '<td class="dm-col-num dm-col-extra">' + (v != null && v > 0 ? v : '—') + '</td>'; }
-            tbody += _dayExCell(dm ? dm.total : null) +
-                     _dayExCell(dm ? dm.walk  : null) +
-                     _dayExCell(dm ? dm.run   : null) +
-                     _dayExCell(dm ? dm.dogs  : null);
+            // Total Miles gets threshold color from monthly goals (milesYellow/Green/Blue)
+            var milesBg = (dm && dm.total > 0) ? _dmThresholdBg(dm.total, thresholds, 'totalMiles') : '';
+            var milesTotalCell = '<td class="dm-col-num dm-col-extra"' +
+                (milesBg ? ' style="background-color:' + milesBg + '"' : '') + '>' +
+                (dm && dm.total > 0 ? dm.total : '—') + '</td>';
+            tbody += milesTotalCell +
+                     _dayExCell(dm ? dm.walk : null) +
+                     _dayExCell(dm ? dm.run  : null) +
+                     _dayExCell(dm ? dm.dogs : null);
         }
         postMilesCols.forEach(_stdCell);
         // +/- Diff: burn - food, colored by calLoss thresholds (fallback: yellow if negative)
