@@ -17551,6 +17551,17 @@ a.legacy-fin-card:hover {
 .dm-col-extra { display: none; }
 .dm-extra-visible .dm-col-extra { display: table-cell; }
 
+/* Weight Chart accordion */
+.dm-weight-chart-section { margin-bottom: 10px; }
+.dm-weight-chart-section .dm-accordion-hdr { background: #f0f4ff; }
+.dm-weight-chart-section .dm-accordion-hdr:hover { background: #dce6fb; }
+.dm-weight-chart-controls { padding: 8px 4px 6px; }
+.dm-weight-chart-wrap {
+    position: relative;
+    height: 220px;
+    padding: 4px 4px 8px;
+}
+
 /* Last 7 Days accordion */
 .dm-last7-section { margin-bottom: 10px; }
 .dm-last7-section .dm-accordion-hdr { background: #e8f5e9; }

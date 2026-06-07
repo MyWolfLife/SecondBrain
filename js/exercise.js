@@ -1493,8 +1493,11 @@ var _dmTypeRoleMap    = null;       // typeId → runWalkRole ('run'|'walk'|'spl
 var _dmMonthActivities    = [];     // exerciseActivities for the currently selected month
 var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when month/year changes
 var _dmSelYear        = 0;          // 4-digit year; set on page load
-var _dmLast7Expanded  = false;      // sticky accordion state — loaded from settings/exercisePrefs
-var _dmExtraColsOpen  = false;      // show/hide extra columns (Total Miles etc.) — sticky
+var _dmLast7Expanded      = false;  // sticky accordion state — loaded from settings/exercisePrefs
+var _dmExtraColsOpen      = false;  // show/hide extra columns (Total Miles etc.) — sticky
+var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
+var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
+var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
 
@@ -1534,8 +1537,10 @@ async function loadExerciseMetricsPage() {
         .filter(function(d) { return !d.archived; })
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     var prefs = results[1].exists ? results[1].data() : {};
-    _dmLast7Expanded = prefs.dmLast7Expanded === true;
-    _dmExtraColsOpen = prefs.dmExtraColsOpen === true;
+    _dmLast7Expanded    = prefs.dmLast7Expanded    === true;
+    _dmExtraColsOpen    = prefs.dmExtraColsOpen    === true;
+    _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
+    _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
     _dmGoalsData = results[2].exists ? results[2].data() : null;
     _dmGoalsYear = new Date().getFullYear();
 
@@ -1907,6 +1912,33 @@ async function _dmApplyFilter() {
         var todayD = new Date();
         var isCurrentPeriod = (_dmSelMonth === todayD.getMonth() && _dmSelYear === todayD.getFullYear());
 
+        // ── Weight Chart accordion ────────────────────────────────────────────
+        var wcRangeOptions = [
+            ['last7',     'Last 7 Days'],
+            ['last30',    'Last 30 Days'],
+            ['thisMonth', 'This Month'],
+            ['last90',    'Last 90 Days'],
+            ['thisYear',  'This Year'],
+            ['allTime',   'All Time']
+        ];
+        var wcRangeOpts = wcRangeOptions.map(function(o) {
+            return '<option value="' + o[0] + '"' + (_dmWeightChartRange === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+        }).join('');
+        var wcOpen = _dmWeightChartOpen;
+        var weightChartHtml =
+            '<div class="dm-accordion-section dm-weight-chart-section">' +
+                '<button class="dm-accordion-hdr" id="dmWeightChartHdr" aria-expanded="' + (wcOpen ? 'true' : 'false') + '">' +
+                    '<span class="dm-accordion-title">⚖ Weight Chart</span>' +
+                    '<span class="dm-accordion-arrow">' + (wcOpen ? '▼' : '▶') + '</span>' +
+                '</button>' +
+                '<div class="dm-accordion-body" id="dmWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
+                    '<div class="dm-weight-chart-controls">' +
+                        '<select id="dmWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
+                    '</div>' +
+                    '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
+                '</div>' +
+            '</div>';
+
         var last7Html = '';
         if (isCurrentPeriod) {
             // Compute last-7 date range — ends yesterday, never includes today
@@ -1988,13 +2020,40 @@ async function _dmApplyFilter() {
                 : _dmBuildCards(records, summary);
         }
 
-        listEl.innerHTML = last7Html + monthlyHtml;
+        listEl.innerHTML = weightChartHtml + last7Html + monthlyHtml;
 
         // Restore extra-cols visibility after re-render
         if (_dmExtraColsOpen) {
             var wrap = listEl.querySelector('.dm-table-wrap');
             if (wrap) wrap.classList.add('dm-extra-visible');
         }
+
+        // Wire Weight Chart accordion
+        var wcHdr  = document.getElementById('dmWeightChartHdr');
+        var wcBody = document.getElementById('dmWeightChartBody');
+        if (wcHdr) {
+            wcHdr.addEventListener('click', function() {
+                _dmWeightChartOpen = !_dmWeightChartOpen;
+                wcHdr.setAttribute('aria-expanded', _dmWeightChartOpen ? 'true' : 'false');
+                wcBody.style.display = _dmWeightChartOpen ? 'block' : 'none';
+                wcHdr.querySelector('.dm-accordion-arrow').textContent = _dmWeightChartOpen ? '▼' : '▶';
+                userCol('settings').doc('exercisePrefs').set({ dmWeightChartOpen: _dmWeightChartOpen }, { merge: true });
+                if (_dmWeightChartOpen) {
+                    _dmRenderWeightChart(_dmWeightChartRange);
+                } else {
+                    if (_dmWeightChart) { _dmWeightChart.destroy(); _dmWeightChart = null; }
+                }
+            });
+        }
+        var wcRangeSel = document.getElementById('dmWeightChartRangeSelect');
+        if (wcRangeSel) {
+            wcRangeSel.addEventListener('change', function() {
+                _dmWeightChartRange = this.value;
+                userCol('settings').doc('exercisePrefs').set({ dmWeightChartRange: _dmWeightChartRange }, { merge: true });
+                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
+            });
+        }
+        if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
 
         // Wire Last 7 accordion toggle — persists state to Firestore
         if (isCurrentPeriod) {
@@ -2353,6 +2412,128 @@ function _dmBuildTable(records, summary, milesPerDate) {
     tbody += '</tbody>';
 
     return '<div class="dm-table-wrap' + (milesPerDate ? ' dm-has-extra' : '') + '"><table class="dm-table">' + thead + tbody + '</table></div>';
+}
+
+// ─── Weight Chart ─────────────────────────────────────────────────────────────
+
+async function _dmRenderWeightChart(range) {
+    // Destroy any previous Chart.js instance before re-rendering
+    if (_dmWeightChart) { _dmWeightChart.destroy(); _dmWeightChart = null; }
+
+    var wrap = document.getElementById('dmWeightChartWrap');
+    if (!wrap) return;
+
+    if (typeof Chart === 'undefined') {
+        wrap.innerHTML = '<p class="ex-status">Chart library not loaded yet — please try again.</p>';
+        return;
+    }
+
+    wrap.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    // ── Date range ────────────────────────────────────────────────────────────
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    function _wcFmt(dt) {
+        var mm = dt.getMonth() + 1, dd = dt.getDate();
+        return dt.getFullYear() + '-' + (mm < 10 ? '0' : '') + mm + '-' + (dd < 10 ? '0' : '') + dd;
+    }
+    var todayStr = _wcFmt(today);
+    var startStr = null;
+    var daysBack = { last7: 6, last30: 29, last90: 89 }[range];
+    if (daysBack != null) {
+        var sd = new Date(today); sd.setDate(today.getDate() - daysBack);
+        startStr = _wcFmt(sd);
+    } else if (range === 'thisMonth') {
+        var tm = today.getMonth() + 1;
+        startStr = today.getFullYear() + '-' + (tm < 10 ? '0' : '') + tm + '-01';
+    } else if (range === 'thisYear') {
+        startStr = today.getFullYear() + '-01-01';
+    }
+    // allTime: startStr stays null
+
+    // ── Query ─────────────────────────────────────────────────────────────────
+    try {
+        var q = userCol('exerciseDailyMetrics');
+        if (startStr) q = q.where('date', '>=', startStr).where('date', '<=', todayStr);
+        q = q.orderBy('date', 'asc');
+        var snap = await q.get();
+
+        var pts = snap.docs
+            .map(function(d) { return d.data(); })
+            .filter(function(r) { return r.weight != null && r.weight !== '' && r.date; })
+            .map(function(r) { return { date: r.date, w: parseFloat(r.weight) }; });
+
+        if (pts.length === 0) {
+            wrap.innerHTML = '<p class="ex-status">No weight data for this period.</p>';
+            return;
+        }
+
+        // ── Scale ─────────────────────────────────────────────────────────────
+        var wArr = pts.map(function(p) { return p.w; });
+        var yMin = Math.floor(Math.min.apply(null, wArr) - 20);
+        var yMax = Math.ceil(Math.max.apply(null, wArr)  + 10);
+
+        // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
+        var showYear = (range === 'thisYear' || range === 'allTime');
+        function _wcLabel(ds) {
+            var p = ds.split('-');
+            var lbl = parseInt(p[1]) + '/' + parseInt(p[2]);
+            return showYear ? lbl + '/' + String(p[0]).slice(2) : lbl;
+        }
+
+        // ── Render ────────────────────────────────────────────────────────────
+        wrap.innerHTML = '<canvas id="dmWeightChartCanvas"></canvas>';
+        var canvas = document.getElementById('dmWeightChartCanvas');
+
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        _dmWeightChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: pts.map(function(p) { return _wcLabel(p.date); }),
+                datasets: [{
+                    label: 'Weight',
+                    data:  wArr,
+                    borderColor: '#1565c0',
+                    backgroundColor: 'rgba(21,101,192,0.07)',
+                    borderWidth: 2,
+                    pointRadius: pts.length > 60 ? 2 : 3,
+                    tension: 0.25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                var ds = pts[items[0].dataIndex].date.split('-');
+                                return months[parseInt(ds[1]) - 1] + ' ' + parseInt(ds[2]) + ', ' + ds[0];
+                            },
+                            label: function(item) { return 'Weight: ' + item.raw + ' lbs'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { maxTicksLimit: 15, maxRotation: 45, font: { size: 11 } },
+                        grid:  { display: false }
+                    },
+                    y: {
+                        min: yMin,
+                        max: yMax,
+                        ticks: { font: { size: 11 }, stepSize: 5 }
+                    }
+                }
+            }
+        });
+    } catch(err) {
+        console.error('DailyMetrics: weight chart error:', err);
+        wrap.innerHTML = '<p class="ex-status">Failed to load weight data.</p>';
+    }
 }
 
 // Shared helper — renders a tinted summary card from a pre-computed summary object.
