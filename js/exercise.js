@@ -2469,8 +2469,8 @@ async function _dmRenderWeightChart(range) {
 
         // ── Scale ─────────────────────────────────────────────────────────────
         var wArr = pts.map(function(p) { return p.w; });
-        var yMin = Math.floor(Math.min.apply(null, wArr) - 20);
-        var yMax = Math.ceil(Math.max.apply(null, wArr)  + 10);
+        var yMin = Math.floor(Math.min.apply(null, wArr) - 5);
+        var yMax = Math.ceil(Math.max.apply(null, wArr)  + 5);
 
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
         var showYear = (range === 'thisYear' || range === 'allTime');
