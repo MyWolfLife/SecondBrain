@@ -2110,6 +2110,23 @@ async function _dmApplyFilter() {
             d.dogs  = Math.round((d.dogs  + dogsMi)  * 10) / 10;
         });
 
+        // Build per-date exercise type data for tracked-exercise columns
+        // typeDataPerDate[typeId][dateStr] = { sessions, calories }
+        var trackedTypes = (_dmGoalsData && _dmGoalsData.trackedExercises)
+            ? _dmGoalsData.trackedExercises.slice().sort(function(a,b) { return (a.sortOrder||0)-(b.sortOrder||0); })
+            : [];
+        var typeDataPerDate = {};
+        trackedTypes.forEach(function(t) { typeDataPerDate[t.typeId] = {}; });
+        (_dmMonthActivities || []).forEach(function(a) {
+            if (!typeDataPerDate.hasOwnProperty(a.typeId)) return;
+            var ds = a.activityDate ? a.activityDate.substring(0, 10) : null;
+            if (!ds) return;
+            var cal = (a.calories != null && a.calories !== '') ? Math.round(parseFloat(a.calories)) : 0;
+            if (!typeDataPerDate[a.typeId][ds]) typeDataPerDate[a.typeId][ds] = { sessions: 0, calories: 0 };
+            typeDataPerDate[a.typeId][ds].sessions += 1;
+            typeDataPerDate[a.typeId][ds].calories += cal;
+        });
+
         // Monthly content
         var monthlyHtml = '';
         if (records.length === 0) {
@@ -2117,7 +2134,7 @@ async function _dmApplyFilter() {
         } else {
             var summary = _dmComputeSummary(records);
             monthlyHtml = isDesktop
-                ? _dmBuildTable(records, summary, milesPerDate)
+                ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes)
                 : _dmBuildCards(records, summary);
         }
 
@@ -2352,7 +2369,9 @@ function _dmThresholdBg(value, thresholds, field) {
     }
 }
 
-function _dmBuildTable(records, summary, milesPerDate) {
+function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes) {
+    typeDataPerDate = typeDataPerDate || {};
+    trackedTypes    = trackedTypes    || [];
     // +/- Diff column appears after Food Cal.
     var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
@@ -2368,8 +2387,46 @@ function _dmBuildTable(records, summary, milesPerDate) {
     var postDiffCols = [];
     var diffTooltip = 'Total calorie loss or gain for the day. Positive is a calorie loss (good). Negative means you ate more than you burned (bad).';
 
+    // Pre-compute per-type totals for exercise columns
+    var typeMonthTotals = {};  // typeId → { sessions, calSum, displaySum }
+    trackedTypes.forEach(function(t) {
+        var sessions = 0, calSum = 0, displaySum = 0;
+        Object.keys(typeDataPerDate[t.typeId] || {}).forEach(function(ds) {
+            var d = typeDataPerDate[t.typeId][ds];
+            sessions   += d.sessions;
+            calSum     += d.calories;
+            displaySum += d.calories > 0 ? d.calories : 1;
+        });
+        typeMonthTotals[t.typeId] = { sessions: sessions, calSum: calSum, displaySum: displaySum };
+    });
+    // Goals for this month
+    var monthGoals = {};
+    if (_dmGoalsData && _dmGoalsData.months) {
+        var gMonth = _dmGoalsData.months[_dmSelMonth + 1] || _dmGoalsData.months[String(_dmSelMonth + 1)] || {};
+        var gSessions = gMonth.exerciseSessions || {};
+        trackedTypes.forEach(function(t) {
+            monthGoals[t.typeId] = gSessions[t.typeId] != null ? gSessions[t.typeId] : null;
+        });
+    }
+
     // Header row
     var thead = '<thead>';
+
+    // Sessions/goal row — blank for standard cols, X/Y for exercise cols
+    if (trackedTypes.length > 0) {
+        var totalStdCols = 1 + preDiffCols.length + (milesPerDate ? 4 : 0) + postMilesCols.length + 1 + postDiffCols.length + _dmMetricDefs.length;
+        thead += '<tr class="dm-sessions-row">';
+        for (var si = 0; si < totalStdCols; si++) thead += '<td></td>';
+        trackedTypes.forEach(function(t) {
+            var tot = typeMonthTotals[t.typeId];
+            var goal = monthGoals[t.typeId];
+            var label = goal != null ? (tot.sessions + '/' + goal) : String(tot.sessions);
+            if (tot.sessions === 0) label = '—';
+            thead += '<td class="dm-col-num dm-col-extra dm-sessions-cell">' + label + '</td>';
+        });
+        thead += '</tr>';
+    }
+
     // Summary row
     thead += '<tr class="dm-summary-row"><td></td>';
     // Helper to render a standard column summary cell
@@ -2412,6 +2469,12 @@ function _dmBuildTable(records, summary, milesPerDate) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
     });
+    // Exercise type columns — calorie totals in summary row
+    trackedTypes.forEach(function(t) {
+        var tot = typeMonthTotals[t.typeId];
+        var disp = tot.displaySum > 0 ? tot.displaySum.toLocaleString() : '—';
+        thead += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
+    });
     thead += '</tr>';
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
@@ -2436,6 +2499,10 @@ function _dmBuildTable(records, summary, milesPerDate) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
+    });
+    // Exercise type column headers
+    trackedTypes.forEach(function(t) {
+        thead += '<th class="dm-col-num-custom dm-col-extra" title="Calories burned from ' + _exEsc(t.typeName) + '">' + _exEsc(t.typeName) + '</th>';
     });
     thead += '</tr></thead>';
 
@@ -2508,11 +2575,18 @@ function _dmBuildTable(records, summary, milesPerDate) {
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
             tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
         });
+        // Exercise type columns — calories or '1' (activity logged, no calories) or '—'
+        trackedTypes.forEach(function(t) {
+            var td = (typeDataPerDate[t.typeId] || {})[r.date];
+            var disp = td ? (td.calories > 0 ? td.calories.toLocaleString() : '1') : '—';
+            tbody += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
+        });
         tbody += '</tr>';
     });
     tbody += '</tbody>';
 
-    return '<div class="dm-table-wrap' + (milesPerDate ? ' dm-has-extra' : '') + '"><table class="dm-table">' + thead + tbody + '</table></div>';
+    var hasExtra = !!(milesPerDate || trackedTypes.length);
+    return '<div class="dm-table-wrap' + (hasExtra ? ' dm-has-extra' : '') + '"><table class="dm-table">' + thead + tbody + '</table></div>';
 }
 
 // ─── Weight Chart ─────────────────────────────────────────────────────────────
