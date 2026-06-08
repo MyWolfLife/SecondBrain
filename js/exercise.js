@@ -2567,7 +2567,7 @@ async function _dmRenderWeightChart(range) {
                     y: {
                         min: yMin,
                         max: yMax,
-                        ticks: { font: { size: 11 }, stepSize: 5 }
+                        ticks: { font: { size: 11 }, stepSize: shortRange ? 1 : 5 }
                     }
                 }
             }
