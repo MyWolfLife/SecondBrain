@@ -16,22 +16,24 @@ function _exDowLabel(ds) {
 //   'walk'  — all miles count as walk miles toward goals
 //   'split' — miles = walked portion, runMiles = run portion (both tracked separately)
 //   null    — doesn't count toward run/walk goals
+// distanceUnit: 'miles' | 'meters' (default 'miles')
+//   'meters' — distance field stores meters; pace shown as MM:SS/500m; not counted toward goals
 const EXERCISE_DEFAULT_TYPES = [
-    { name: 'Running',         tracksMiles: true,  withDogs: true,  runWalkRole: 'run'   },
-    { name: 'Trail Running',   tracksMiles: true,  withDogs: true,  runWalkRole: 'split' },
-    { name: 'Mixed Run',       tracksMiles: true,  withDogs: true,  runWalkRole: 'split' },
-    { name: 'Walking',         tracksMiles: true,  withDogs: true,  runWalkRole: 'walk'  },
-    { name: 'Hiking',          tracksMiles: true,  withDogs: true,  runWalkRole: 'walk'  },
-    { name: 'Treadmill',       tracksMiles: true,  withDogs: false, runWalkRole: 'split' },
-    { name: 'Golf',            tracksMiles: true,  withDogs: false, runWalkRole: null    },
-    { name: 'Mowing',         tracksMiles: true,  withDogs: false, runWalkRole: 'walk'  },
-    { name: 'Yard Work',       tracksMiles: false, withDogs: false, runWalkRole: null    },
-    { name: 'Weights',         tracksMiles: false, withDogs: false, runWalkRole: null    },
-    { name: 'Elliptical',      tracksMiles: false, withDogs: false, runWalkRole: null    },
-    { name: 'Row Machine',     tracksMiles: true,  withDogs: false, runWalkRole: null    },
-    { name: 'Bike',            tracksMiles: true,  withDogs: false, runWalkRole: null    },
-    { name: 'Stationary Bike', tracksMiles: true,  withDogs: false, runWalkRole: null    },
-    { name: 'Other',           tracksMiles: false, withDogs: false, runWalkRole: null    },
+    { name: 'Running',         tracksMiles: true,  withDogs: true,  runWalkRole: 'run',   distanceUnit: 'miles'  },
+    { name: 'Trail Running',   tracksMiles: true,  withDogs: true,  runWalkRole: 'split', distanceUnit: 'miles'  },
+    { name: 'Mixed Run',       tracksMiles: true,  withDogs: true,  runWalkRole: 'split', distanceUnit: 'miles'  },
+    { name: 'Walking',         tracksMiles: true,  withDogs: true,  runWalkRole: 'walk',  distanceUnit: 'miles'  },
+    { name: 'Hiking',          tracksMiles: true,  withDogs: true,  runWalkRole: 'walk',  distanceUnit: 'miles'  },
+    { name: 'Treadmill',       tracksMiles: true,  withDogs: false, runWalkRole: 'split', distanceUnit: 'miles'  },
+    { name: 'Golf',            tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Mowing',         tracksMiles: true,  withDogs: false, runWalkRole: 'walk',  distanceUnit: 'miles'  },
+    { name: 'Yard Work',       tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Weights',         tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Elliptical',      tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Row Machine',     tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'meters' },
+    { name: 'Bike',            tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Stationary Bike', tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Other',           tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
 ];
 
 // Types that split mileage into Walked Miles + Run Miles (instead of a single Miles field)
@@ -56,11 +58,12 @@ async function seedExerciseTypesIfNeeded() {
         EXERCISE_DEFAULT_TYPES.forEach(function(t) {
             var ref = userCol('exerciseTypes').doc();
             batch.set(ref, {
-                name:        t.name,
-                tracksMiles: t.tracksMiles,
-                withDogs:    t.withDogs,
-                runWalkRole: t.runWalkRole || null,
-                isDefault:   true,
+                name:         t.name,
+                tracksMiles:  t.tracksMiles,
+                withDogs:     t.withDogs,
+                runWalkRole:  t.runWalkRole  || null,
+                distanceUnit: t.distanceUnit || 'miles',
+                isDefault:    true,
                 archived:    false,
                 createdAt:   firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -133,6 +136,25 @@ async function _exEnsureRunWalkRole() {
     }
 }
 
+// One-time migration: add distanceUnit to all existing types (default 'miles', Row Machine → 'meters')
+async function _exEnsureDistanceUnit() {
+    try {
+        var snap = await userCol('exerciseTypes').get();
+        var batch = db.batch();
+        var count = 0;
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.distanceUnit !== undefined) return; // already migrated
+            var unit = (d.name === 'Row Machine') ? 'meters' : 'miles';
+            batch.update(doc.ref, { distanceUnit: unit });
+            count++;
+        });
+        if (count > 0) await batch.commit();
+    } catch (err) {
+        console.error('Exercise: failed to migrate distanceUnit:', err);
+    }
+}
+
 // One-time migration: set Mowing runWalkRole to 'walk'
 async function _exEnsureMowingWalkRole() {
     try {
@@ -162,8 +184,9 @@ var _exSelectedTypeId     = null;  // typeId of the selected type
 var _exSelectedType       = null;  // full type object of selected type
 var _exAllTypes           = [];    // all non-archived types (sorted)
 var _exPendingAddName     = '';    // type name being added on the fly
-var _exPendingTracksMiles = null;  // answer to Q1 during add-on-fly flow
-var _exPendingRunWalkRole = null;  // answer to Q2 during add-on-fly flow ('run'|'walk'|'split'|null)
+var _exPendingTracksMiles  = null;  // answer to Q1 during add-on-fly flow
+var _exPendingDistUnit     = 'miles'; // answer to Q1b ('miles'|'meters')
+var _exPendingRunWalkRole  = null;  // answer to Q2 during add-on-fly flow ('run'|'walk'|'split'|null)
 
 // ─── Hub page ─────────────────────────────────────────────────────────────────
 
@@ -211,7 +234,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureDistanceUnit();
     var _exNow = new Date();
     _exSelMonth  = _exNow.getMonth();
     _exSelYear   = _exNow.getFullYear();
@@ -393,16 +416,27 @@ function _exBuildTable(activities) {
         var type     = _exTypes[a.typeId] || {};
         var typeName = (type.name || '?') + (a.withDogs ? ' 🐾' : '');
         var dur      = exFmtDuration(a.durationMinutes);
-        // For split-miles types show walked + run total; otherwise just miles
-        var milesDisplay = '';
+        var isMeters = _exIsMeters(type);
+        // For split-miles types show walked + run total; for meters show raw value; otherwise miles
+        var distDisplay = '';
+        var pace = '';
         if (type.tracksMiles) {
-            var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
-            var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
-            var total  = _exIsSplitMilesType(type) ? (walked + run) : walked;
-            if (total > 0) milesDisplay = total;
+            if (isMeters) {
+                var m = (a.miles != null && a.miles !== '') ? parseFloat(a.miles) : 0;
+                if (m > 0) {
+                    distDisplay = m + ' m';
+                    pace = a.durationMinutes ? exFmtPacePer500m(m, a.durationMinutes) : '';
+                }
+            } else {
+                var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+                var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+                var total  = _exIsSplitMilesType(type) ? (walked + run) : walked;
+                if (total > 0) {
+                    distDisplay = total;
+                    pace = a.durationMinutes ? exFmtPace(total, a.durationMinutes) : '';
+                }
+            }
         }
-        var miles = milesDisplay;
-        var pace  = (type.tracksMiles && miles && a.durationMinutes) ? exFmtPace(miles, a.durationMinutes) : '';
 
         var tr = document.createElement('tr');
         tr.className = 'ex-table-row';
@@ -413,7 +447,7 @@ function _exBuildTable(activities) {
             exFmtDayFull(a.activityDate),
             typeName,
             dur,
-            miles,
+            distDisplay,
             pace,
             (a.calories != null && a.calories !== '') ? a.calories : '',
             a.comment || ''
@@ -458,12 +492,20 @@ function _exBuildCards(activities) {
 
         var parts = [];
         if (type.tracksMiles) {
-            var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
-            var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
-            var totalMi = _exIsSplitMilesType(type) ? (walked + run) : walked;
-            if (totalMi > 0) {
-                var pace = exFmtPace(totalMi, a.durationMinutes);
-                parts.push(totalMi + ' mi' + (pace ? ' @ ' + pace : ''));
+            if (_exIsMeters(type)) {
+                var m = (a.miles != null && a.miles !== '') ? parseFloat(a.miles) : 0;
+                if (m > 0) {
+                    var split = a.durationMinutes ? exFmtPacePer500m(m, a.durationMinutes) : '';
+                    parts.push(m + ' m' + (split ? ' @ ' + split : ''));
+                }
+            } else {
+                var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+                var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+                var totalMi = _exIsSplitMilesType(type) ? (walked + run) : walked;
+                if (totalMi > 0) {
+                    var pace = exFmtPace(totalMi, a.durationMinutes);
+                    parts.push(totalMi + ' mi' + (pace ? ' @ ' + pace : ''));
+                }
             }
         }
         if (a.calories != null && a.calories !== '') parts.push(a.calories + ' cal');
@@ -496,7 +538,7 @@ function _exBuildCards(activities) {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureDistanceUnit();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -597,10 +639,17 @@ function _exBuildActivityForm(existing) {
                 '<div class="ex-add-type-panel hidden" id="exAddTypePanel">' +
                     '<p class="ex-add-type-title">New type: "<strong id="exAddTypeName"></strong>"</p>' +
                     '<div id="exAddTypeQ1">' +
-                        '<p class="ex-add-type-q">Track miles for this activity?</p>' +
+                        '<p class="ex-add-type-q">Track distance for this activity?</p>' +
                         '<div class="ex-add-type-btns">' +
                             '<button class="btn btn-primary btn-small" id="exAddTypeMilesYes">Yes</button>' +
                             '<button class="btn btn-secondary btn-small" id="exAddTypeMilesNo">No</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="exAddTypeQ1b" class="hidden">' +
+                        '<p class="ex-add-type-q">Distance unit?</p>' +
+                        '<div class="ex-add-type-btns">' +
+                            '<button class="btn btn-secondary btn-small" id="exAddTypeUnitMiles">Miles</button>' +
+                            '<button class="btn btn-secondary btn-small" id="exAddTypeUnitMeters">Meters</button>' +
                         '</div>' +
                     '</div>' +
                     '<div id="exAddTypeQ2" class="hidden">' +
@@ -721,14 +770,16 @@ function _exBuildActivityForm(existing) {
     });
 
     // Add-on-fly buttons
-    document.getElementById('exAddTypeMilesYes').addEventListener('click',  function() { _exAddTypeAnswerMiles(true); });
-    document.getElementById('exAddTypeMilesNo').addEventListener('click',   function() { _exAddTypeAnswerMiles(false); });
-    document.getElementById('exAddTypeRoleRun').addEventListener('click',   function() { _exAddTypeAnswerRole('run'); });
-    document.getElementById('exAddTypeRoleWalk').addEventListener('click',  function() { _exAddTypeAnswerRole('walk'); });
-    document.getElementById('exAddTypeRoleSplit').addEventListener('click', function() { _exAddTypeAnswerRole('split'); });
-    document.getElementById('exAddTypeRoleNone').addEventListener('click',  function() { _exAddTypeAnswerRole(null); });
-    document.getElementById('exAddTypeDogsYes').addEventListener('click',   function() { _exAddTypeAnswerDogs(true); });
-    document.getElementById('exAddTypeDogsNo').addEventListener('click',    function() { _exAddTypeAnswerDogs(false); });
+    document.getElementById('exAddTypeMilesYes').addEventListener('click',    function() { _exAddTypeAnswerMiles(true); });
+    document.getElementById('exAddTypeMilesNo').addEventListener('click',     function() { _exAddTypeAnswerMiles(false); });
+    document.getElementById('exAddTypeUnitMiles').addEventListener('click',   function() { _exAddTypeAnswerUnit('miles'); });
+    document.getElementById('exAddTypeUnitMeters').addEventListener('click',  function() { _exAddTypeAnswerUnit('meters'); });
+    document.getElementById('exAddTypeRoleRun').addEventListener('click',     function() { _exAddTypeAnswerRole('run'); });
+    document.getElementById('exAddTypeRoleWalk').addEventListener('click',    function() { _exAddTypeAnswerRole('walk'); });
+    document.getElementById('exAddTypeRoleSplit').addEventListener('click',   function() { _exAddTypeAnswerRole('split'); });
+    document.getElementById('exAddTypeRoleNone').addEventListener('click',    function() { _exAddTypeAnswerRole(null); });
+    document.getElementById('exAddTypeDogsYes').addEventListener('click',     function() { _exAddTypeAnswerDogs(true); });
+    document.getElementById('exAddTypeDogsNo').addEventListener('click',      function() { _exAddTypeAnswerDogs(false); });
 
     // Duration hint + pace preview: update when duration changes
     document.getElementById('exActivityDate').addEventListener('change', function() {
@@ -834,8 +885,11 @@ function _exUpdateConditionalFields() {
     var paceGroup       = document.getElementById('exPaceGroup');
     var dogsGroup       = document.getElementById('exWithDogsGroup');
 
+    var isMeters = _exIsMeters(type);
     if (milesGroup)      milesGroup.classList.toggle('hidden', !type.tracksMiles);
-    if (milesLabel)      milesLabel.textContent = isSplit ? 'Walked Miles' : 'Miles';
+    if (milesLabel)      milesLabel.textContent = isSplit ? 'Walked Miles' : (isMeters ? 'Meters' : 'Miles');
+    var milesInput = document.getElementById('exMiles');
+    if (milesInput)      milesInput.placeholder = isMeters ? 'e.g. 2000' : 'e.g. 3.1';
     if (runMilesGroup)   runMilesGroup.classList.toggle('hidden', !isSplit);
     if (totalMilesGroup) totalMilesGroup.classList.toggle('hidden', !isSplit);
     if (paceGroup)       paceGroup.classList.toggle('hidden', !type.tracksMiles);
@@ -867,10 +921,12 @@ function _exUpdateConditionalFields() {
 function _exStartAddType(name) {
     _exPendingAddName     = name;
     _exPendingTracksMiles = null;
+    _exPendingDistUnit    = 'miles';
     _exPendingRunWalkRole = null;
 
     document.getElementById('exAddTypeName').textContent = name;
     document.getElementById('exAddTypeQ1').classList.remove('hidden');
+    document.getElementById('exAddTypeQ1b').classList.add('hidden');
     document.getElementById('exAddTypeQ2').classList.add('hidden');
     document.getElementById('exAddTypeQ3').classList.add('hidden');
     document.getElementById('exAddTypePanel').classList.remove('hidden');
@@ -880,12 +936,25 @@ function _exAddTypeAnswerMiles(yes) {
     _exPendingTracksMiles = yes;
     document.getElementById('exAddTypeQ1').classList.add('hidden');
     if (yes) {
-        // Ask how miles count toward goals
-        document.getElementById('exAddTypeQ2').classList.remove('hidden');
+        // Ask miles or meters
+        document.getElementById('exAddTypeQ1b').classList.remove('hidden');
     } else {
-        // No miles → role is null, skip straight to dogs question
+        // No distance → role is null, skip to dogs
+        _exPendingDistUnit    = 'miles';
         _exPendingRunWalkRole = null;
         document.getElementById('exAddTypeQ3').classList.remove('hidden');
+    }
+}
+
+function _exAddTypeAnswerUnit(unit) {
+    _exPendingDistUnit = unit;
+    document.getElementById('exAddTypeQ1b').classList.add('hidden');
+    if (unit === 'meters') {
+        // Meters types don't count toward goals — skip role question
+        _exPendingRunWalkRole = null;
+        document.getElementById('exAddTypeQ3').classList.remove('hidden');
+    } else {
+        document.getElementById('exAddTypeQ2').classList.remove('hidden');
     }
 }
 
@@ -901,19 +970,20 @@ async function _exAddTypeAnswerDogs(yes) {
     try {
         var ref = userCol('exerciseTypes').doc();
         await ref.set({
-            name:        _exPendingAddName,
-            tracksMiles: _exPendingTracksMiles,
-            runWalkRole: _exPendingRunWalkRole,
-            withDogs:    yes,
-            isDefault:   false,
-            archived:    false,
-            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+            name:         _exPendingAddName,
+            tracksMiles:  _exPendingTracksMiles,
+            distanceUnit: _exPendingDistUnit || 'miles',
+            runWalkRole:  _exPendingRunWalkRole,
+            withDogs:     yes,
+            isDefault:    false,
+            archived:     false,
+            createdAt:    firebase.firestore.FieldValue.serverTimestamp()
         });
 
         var newType = {
             id: ref.id, name: _exPendingAddName,
-            tracksMiles: _exPendingTracksMiles, runWalkRole: _exPendingRunWalkRole,
-            withDogs: yes, isDefault: false, archived: false
+            tracksMiles: _exPendingTracksMiles, distanceUnit: _exPendingDistUnit || 'miles',
+            runWalkRole: _exPendingRunWalkRole, withDogs: yes, isDefault: false, archived: false
         };
         _exAllTypes.push(newType);
         _exSortTypes(_exAllTypes);
@@ -1000,17 +1070,21 @@ function _exUpdatePacePreview() {
     if (!durEl) { previewEl.textContent = '—'; return; }
     var dur = _exParseDuration(durEl.value);
 
-    // For split-miles types pace is based on total miles (walked + run)
-    var milesForPace;
-    if (_exIsSplitMilesType(_exSelectedType)) {
+    var isMeters = _exIsMeters(_exSelectedType);
+
+    // For meters types show MM:SS/500m split; for split-miles use total walked+run; else plain miles
+    if (isMeters) {
+        var meters = parseFloat((document.getElementById('exMiles') || {}).value) || 0;
+        previewEl.textContent = (meters > 0 && dur > 0) ? exFmtPacePer500m(meters, dur) : '—';
+    } else if (_exIsSplitMilesType(_exSelectedType)) {
         var walked = parseFloat((document.getElementById('exMiles')    || {}).value) || 0;
         var run    = parseFloat((document.getElementById('exRunMiles') || {}).value) || 0;
-        milesForPace = walked + run;
+        var total  = walked + run;
+        previewEl.textContent = (total > 0 && dur > 0) ? exFmtPace(total, dur) : '—';
     } else {
-        milesForPace = parseFloat((document.getElementById('exMiles') || {}).value) || 0;
+        var miles = parseFloat((document.getElementById('exMiles') || {}).value) || 0;
+        previewEl.textContent = (miles > 0 && dur > 0) ? exFmtPace(miles, dur) : '—';
     }
-
-    previewEl.textContent = (milesForPace > 0 && dur > 0) ? exFmtPace(milesForPace, dur) : '—';
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -1096,7 +1170,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureDistanceUnit();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 
@@ -1133,7 +1207,8 @@ function _exRenderTypesList() {
 
     var rows = _exTypesAll.map(function(t) {
         var icons = '';
-        if (t.tracksMiles) icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
+        if (t.tracksMiles && t.distanceUnit === 'meters') icons += '<span class="ex-type-flag" title="Tracks meters">📐</span>';
+        else if (t.tracksMiles)                           icons += '<span class="ex-type-flag" title="Tracks miles">📏</span>';
         if (t.runWalkRole === 'run')   icons += '<span class="ex-type-flag" title="Counts as run miles">🏃</span>';
         if (t.runWalkRole === 'walk')  icons += '<span class="ex-type-flag" title="Counts as walk miles">🚶</span>';
         if (t.runWalkRole === 'split') icons += '<span class="ex-type-flag" title="Split: walked + run miles separately">🏃🚶</span>';
@@ -1192,6 +1267,11 @@ function _exStartEditType(typeId) {
         '<div class="ex-type-edit-form">' +
             '<input type="text" class="ex-type-rename-input" id="exRenameInput-' + typeId + '" ' +
                    'value="' + _exEsc(t.name) + '" maxlength="60" placeholder="Type name">' +
+            '<label class="ex-type-edit-label">Distance unit</label>' +
+            '<select id="exEditUnit-' + typeId + '" class="ex-type-edit-select">' +
+                '<option value="miles"'  + (t.distanceUnit !== 'meters' ? ' selected' : '') + '>Miles</option>' +
+                '<option value="meters"' + (t.distanceUnit === 'meters' ? ' selected' : '') + '>Meters</option>' +
+            '</select>' +
             '<label class="ex-type-edit-label">Goals</label>' +
             '<select id="exEditRole-' + typeId + '" class="ex-type-edit-select">' + roleSelHtml + '</select>' +
         '</div>' +
@@ -1211,20 +1291,24 @@ function _exStartEditType(typeId) {
 }
 
 async function _exSaveEditType(typeId) {
-    var input = document.getElementById('exRenameInput-' + typeId);
+    var input   = document.getElementById('exRenameInput-' + typeId);
+    var unitSel = document.getElementById('exEditUnit-' + typeId);
     var roleSel = document.getElementById('exEditRole-' + typeId);
     if (!input) return;
     var newName = input.value.trim();
     if (!newName) { alert('Name cannot be blank.'); input.focus(); return; }
+    var newUnit = unitSel ? unitSel.value : 'miles';
     var newRole = roleSel ? (roleSel.value || null) : null;
+    // Meters types can't count toward goals
+    if (newUnit === 'meters') newRole = null;
 
     var saveBtn = input.closest('.ex-type-row').querySelector('.btn-primary');
     if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
 
     try {
-        await userCol('exerciseTypes').doc(typeId).update({ name: newName, runWalkRole: newRole });
+        await userCol('exerciseTypes').doc(typeId).update({ name: newName, distanceUnit: newUnit, runWalkRole: newRole });
         var t = _exTypesAll.find(function(x) { return x.id === typeId; });
-        if (t) { t.name = newName; t.runWalkRole = newRole; }
+        if (t) { t.name = newName; t.distanceUnit = newUnit; t.runWalkRole = newRole; }
         _exRenderTypesList();
     } catch (err) {
         console.error('Exercise: rename failed:', err);
@@ -1270,6 +1354,21 @@ function exFmtPace(miles, durationMin) {
     var s = Math.round((paceMin - m) * 60);
     if (s === 60) { m++; s = 0; }
     return m + ':' + String(s).padStart(2, '0') + '/mi';
+}
+
+/** Computes rowing split pace as M:SS/500m. Returns '' if either input is missing. */
+function exFmtPacePer500m(meters, durationMin) {
+    if (!meters || !durationMin) return '';
+    var paceMin = (parseFloat(durationMin) / parseFloat(meters)) * 500;
+    var m = Math.floor(paceMin);
+    var s = Math.round((paceMin - m) * 60);
+    if (s === 60) { m++; s = 0; }
+    return m + ':' + String(s).padStart(2, '0') + '/500m';
+}
+
+/** Returns true if the given type tracks distance in meters rather than miles. */
+function _exIsMeters(type) {
+    return !!(type && type.distanceUnit === 'meters');
 }
 
 /** Formats an ISO datetime string as M/D/YY. */

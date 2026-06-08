@@ -1288,24 +1288,29 @@ Lists all non-archived types, sorted built-ins first (alphabetical) then custom 
   - **Rename**: replaces name with an inline text input + Save / Cancel. Save updates the Firestore doc; existing activities automatically reflect the new name (they store `typeId`, not name).
   - **Delete**: confirm dialog → sets `archived: true` → type disappears from dropdown. Past activity history is unaffected.
 
-Flag icons: 📏 = tracks miles, 🏃 = run miles, 🚶 = walk miles, 🏃🚶 = split (walked + run separately), 🐾 = with-dogs option.
+Flag icons: 📏 = tracks miles, 📐 = tracks meters, 🏃 = run miles, 🚶 = walk miles, 🏃🚶 = split (walked + run separately), 🐾 = with-dogs option.
 
 Seeded on first visit to any exercise page (15 built-in defaults). Each type has:
-- `name`, `tracksMiles` (bool), `runWalkRole` ('run'|'walk'|'split'|null), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+- `name`, `tracksMiles` (bool), `distanceUnit` ('miles'|'meters'), `runWalkRole` ('run'|'walk'|'split'|null), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
+
+`distanceUnit` controls distance field label and pace display:
+- `'miles'` — field labeled "Miles", pace shown as MM:SS/mi (default for all types)
+- `'meters'` — field labeled "Meters", placeholder "e.g. 2000", pace shown as MM:SS/500m (Row Machine default). Meters types always have `runWalkRole: null` — they don't count toward goals.
 
 `runWalkRole` controls how miles count toward goals:
 - `'run'` — all miles count as run miles (Running)
 - `'walk'` — all miles count as walk miles (Walking, Hiking, Mowing)
 - `'split'` — `miles` field = walked portion, `runMiles` field = run portion, both tracked separately (Trail Running, Mixed Run, Treadmill)
-- `null` — miles don't count toward run/walk goals (Golf, Bike, etc.)
+- `null` — miles don't count toward run/walk goals (Golf, Bike, Row Machine, etc.)
 
 Types with `tracksMiles = true`: Running, Trail Running, Mixed Run, Walking, Hiking, Treadmill, Golf, Mowing, Row Machine, Bike, Stationary Bike
+Types with `distanceUnit = 'meters'`: Row Machine
 Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
 
 Split-miles UI (Walked Miles + Run Miles fields) is shown when `runWalkRole === 'split'`.
 
 ### Data Model
-**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for split-role types), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
+**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — stores meters for meter-unit types; "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for split-role types), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
 
 **`exerciseTypes`** (per-user): `name`, `tracksMiles`, `runWalkRole`, `withDogs`, `isDefault`, `archived`, `createdAt`
 

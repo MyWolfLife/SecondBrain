@@ -3651,7 +3651,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 ### Quick Help
 - **📷 From Picture** — tap this (new workouts only) to select a screenshot from your fitness app; the app reads the image and pre-fills Type, Duration, Miles, and Calories automatically. Requires LLM to be configured in Settings.
 - Pick an **Activity Type** from the searchable dropdown — type to filter, then click to select
-- Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked: track miles? then (if yes) how to count toward goals (Run / Walk / Split / Neither), then show "With Dogs"?
+- Don't see your type? Type its name and tap **➕ Add "[name]" as new type** — you'll be asked: track distance? → if yes, Miles or Meters? → if Miles, how to count toward goals (Run / Walk / Split / Neither) → show "With Dogs"?
 - **Date** defaults to today; **Time** is optional
 - **Duration** — type as `MM:SS` (e.g. `45:26`), `H:MM:SS` for over an hour (e.g. `1:15:00`), or decimal minutes (e.g. `45.5`); a friendly label like "45 min 26 sec" or "1 hr 15 min" appears to the right as you type
 - **Miles / Walked Miles** appears for types that track distance. For Trail Running, Mixed Run, and Treadmill it's labeled "Walked Miles" — enter only the walked portion
@@ -3687,7 +3687,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Custom types** you've added have **Edit** and **Delete** buttons
 - **Edit**: rename the type and change its goals role (Run / Walk / Split / Neither) — all past activities automatically reflect the updated name
 - **Delete**: hides the type from the activity dropdown; your past activity history is preserved
-- 📏 = tracks miles; 🏃 = counts as run miles toward goals; 🚶 = counts as walk miles; 🏃🚶 = split (walked + run tracked separately); 🐾 = has a "With Dogs" checkbox
+- 📏 = tracks miles; 📐 = tracks meters (shows /500m split pace); 🏃 = counts as run miles toward goals; 🚶 = counts as walk miles; 🏃🚶 = split (walked + run tracked separately); 🐾 = has a "With Dogs" checkbox
 
 ### When to use this
 - You added a type on the fly and want to correct the spelling
