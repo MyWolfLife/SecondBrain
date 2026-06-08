@@ -1914,13 +1914,14 @@ async function _dmApplyFilter() {
 
         // ── Weight Chart accordion ────────────────────────────────────────────
         var wcRangeOptions = [
-            ['last7',     'Last 7 Days'],
-            ['last14',    'Last 2 Weeks'],
-            ['last30',    'Last 30 Days'],
-            ['thisMonth', 'This Month'],
-            ['last90',    'Last 90 Days'],
-            ['thisYear',  'This Year'],
-            ['allTime',   'All Time']
+            ['selectedMonth', 'Selected Month'],
+            ['last7',         'Last 7 Days'],
+            ['last14',        'Last 2 Weeks'],
+            ['last30',        'Last 30 Days'],
+            ['thisMonth',     'This Month'],
+            ['last90',        'Last 90 Days'],
+            ['thisYear',      'This Year'],
+            ['allTime',       'All Time']
         ];
         var wcRangeOpts = wcRangeOptions.map(function(o) {
             return '<option value="' + o[0] + '"' + (_dmWeightChartRange === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
@@ -2443,6 +2444,10 @@ async function _dmRenderWeightChart(range) {
     if (daysBack != null) {
         var sd = new Date(today); sd.setDate(today.getDate() - daysBack);
         startStr = _wcFmt(sd);
+    } else if (range === 'selectedMonth') {
+        var selR = _dmFmtYM(_dmSelYear, _dmSelMonth);
+        startStr = selR.start;
+        todayStr  = selR.end;   // use end of the selected month, not today
     } else if (range === 'thisMonth') {
         var tm = today.getMonth() + 1;
         startStr = today.getFullYear() + '-' + (tm < 10 ? '0' : '') + tm + '-01';
@@ -2470,7 +2475,7 @@ async function _dmRenderWeightChart(range) {
 
         // ── Scale ─────────────────────────────────────────────────────────────
         // Short ranges (≤31 days): tight ±1 lb padding; longer ranges: ±5 lb
-        var shortRange = (range === 'last7' || range === 'last14' || range === 'last30' || range === 'thisMonth');
+        var shortRange = (range === 'last7' || range === 'last14' || range === 'last30' || range === 'thisMonth' || range === 'selectedMonth');
         var yPad = shortRange ? 1 : 5;
         var wArr = pts.map(function(p) { return p.w; });
         var yMin = Math.floor(Math.min.apply(null, wArr) - yPad);
