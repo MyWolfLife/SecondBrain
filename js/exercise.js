@@ -1673,7 +1673,7 @@ function _dmRenderMetricsPage(el) {
         '<div class="dm-filter-bar">' +
             '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
             '<select id="dmYearSelect" class="dm-filter-select">' + yearOpts + '</select>' +
-            '<button id="dmExtraColsBtn" class="dm-extra-toggle' + (_dmExtraColsOpen ? ' dm-extra-toggle--open' : '') + '" title="Show/hide extra columns">📏 Miles ' + (_dmExtraColsOpen ? '▼' : '▶') + '</button>' +
+            '<button id="dmExtraColsBtn" class="dm-extra-toggle' + (_dmExtraColsOpen ? ' dm-extra-toggle--open' : '') + '" title="Show/hide extra columns">📏 Exercise ' + (_dmExtraColsOpen ? '▼' : '▶') + '</button>' +
         '</div>' +
         '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
         '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
