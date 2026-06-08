@@ -17816,6 +17816,15 @@ a.legacy-fin-card:hover {
     white-space: nowrap;
     margin-left: 6px;
 }
+.dm-date-warning {
+    font-size: 0.85rem;
+    color: #c62828;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: #fff8f8;
+    border-left: 3px solid #c62828;
+    border-radius: 0 4px 4px 0;
+}
 
 /* Note toggle button */
 .dm-note-toggle {

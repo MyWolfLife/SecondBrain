@@ -2738,8 +2738,9 @@ function _dmBuildEntryForm(el) {
     var doc  = _dmExistingDoc || {};
     var notes = doc.notes || {};
     var cv    = doc.customValues || {};
-    var dateVal = _dmEditDate || _dmTodayStr();
+    var dateVal = _dmEditDate || '';   // blank for new entry — user must pick a date
     var isEdit = !!_dmEditDate;
+    var originalEditDate = _dmEditDate; // captured to detect "was opened as new entry"
 
     function stdField(id, label, inputMode, helpText, noteKey) {
         var val = (doc[id] !== undefined && doc[id] !== null) ? doc[id] : '';
@@ -2832,6 +2833,7 @@ function _dmBuildEntryForm(el) {
                         '<span id="dmDateDow" class="dm-dow-label">' + _exEsc(_dowLabel(dateVal)) + '</span>' +
                     '</div>' +
                 '</div>' +
+                '<div id="dmDateWarning" class="dm-date-warning hidden"></div>' +
             '</div>' +
 
             '<div class="dm-section-header">Body</div>' +
@@ -2853,23 +2855,44 @@ function _dmBuildEntryForm(el) {
             '</div>' +
         '</div>';
 
-    // Wire date change — load existing record for that date if one exists;
-    // otherwise preserve the in-progress form values (user just corrected the date)
+    // Wire date change
     document.getElementById('dmfDate').addEventListener('change', async function() {
         var newDate = this.value;
-        if (!newDate) return;
+        var warnEl  = document.getElementById('dmDateWarning');
+        if (!newDate) {
+            if (warnEl) { warnEl.textContent = ''; warnEl.classList.add('hidden'); }
+            return;
+        }
         var docSnap = await userCol('exerciseDailyMetrics').doc(newDate).get();
+
+        if (!originalEditDate && docSnap.exists) {
+            // New entry — date already has a record: warn and clear the field
+            this.value = '';
+            _dmEditDate    = null;
+            _dmExistingDoc = null;
+            var dowEl = document.getElementById('dmDateDow');
+            if (dowEl) dowEl.textContent = '';
+            if (warnEl) {
+                warnEl.textContent = 'An entry already exists for ' + newDate + '. Please choose a different date.';
+                warnEl.classList.remove('hidden');
+            }
+            _dmUpdateBreadcrumb();
+            return;
+        }
+
+        // Clear any previous warning
+        if (warnEl) { warnEl.textContent = ''; warnEl.classList.add('hidden'); }
+
         _dmEditDate    = newDate;
         _dmExistingDoc = docSnap.exists ? docSnap.data() : null;
         _dmUpdateBreadcrumb();
         if (docSnap.exists) {
-            // Existing record for this date — load it into the form
+            // Editing mode — load the existing record for the new date
             _dmBuildEntryForm(el);
         } else {
-            // No record yet — keep whatever the user typed; just hide Delete if it's showing
+            // No record yet — keep whatever the user typed; just hide Delete if showing
             var delBtn = document.getElementById('dmDeleteBtn');
             if (delBtn) delBtn.remove();
-            // Update day-of-week label
             var dowEl = document.getElementById('dmDateDow');
             if (dowEl) dowEl.textContent = _dowLabel(newDate);
         }
