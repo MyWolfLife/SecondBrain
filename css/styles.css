@@ -17560,6 +17560,7 @@ a.legacy-fin-card:hover {
     position: relative;
     height: 220px;
     padding: 4px 4px 8px;
+    margin: 0 auto;  /* center when narrower than container */
 }
 
 /* Last 7 Days accordion */

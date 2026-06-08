@@ -2481,6 +2481,8 @@ async function _dmRenderWeightChart(range) {
         }
 
         // ── Render ────────────────────────────────────────────────────────────
+        // Auto-scale width: ~35px per data point, capped at full container width
+        wrap.style.maxWidth = Math.min(pts.length * 35, wrap.parentElement.offsetWidth) + 'px';
         wrap.innerHTML = '<canvas id="dmWeightChartCanvas"></canvas>';
         var canvas = document.getElementById('dmWeightChartCanvas');
 
