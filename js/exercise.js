@@ -2476,6 +2476,14 @@ async function _dmRenderWeightChart(range) {
         var yMin = Math.floor(Math.min.apply(null, wArr) - yPad);
         var yMax = Math.ceil(Math.max.apply(null, wArr)  + yPad);
 
+        // Rolling 3-entry average: pt0=itself, pt1=avg(0,1), pt2+=avg(i-2,i-1,i)
+        function r1(n) { return Math.round(n * 10) / 10; }
+        var avgArr = wArr.map(function(w, i) {
+            if (i === 0) return r1(w);
+            if (i === 1) return r1((wArr[0] + wArr[1]) / 2);
+            return r1((wArr[i - 2] + wArr[i - 1] + wArr[i]) / 3);
+        });
+
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
         var showYear = (range === 'thisYear' || range === 'allTime');
         function _wcLabel(ds) {
@@ -2496,16 +2504,31 @@ async function _dmRenderWeightChart(range) {
             type: 'line',
             data: {
                 labels: pts.map(function(p) { return _wcLabel(p.date); }),
-                datasets: [{
-                    label: 'Weight',
-                    data:  wArr,
-                    borderColor: '#1565c0',
-                    backgroundColor: 'rgba(21,101,192,0.07)',
-                    borderWidth: 2,
-                    pointRadius: pts.length > 60 ? 2 : 3,
-                    tension: 0.25,
-                    fill: true
-                }]
+                datasets: [
+                    {
+                        label: 'Weight',
+                        data:  wArr,
+                        borderColor: '#1565c0',
+                        backgroundColor: 'rgba(21,101,192,0.07)',
+                        borderWidth: 2,
+                        pointRadius: pts.length > 60 ? 2 : 3,
+                        tension: 0.25,
+                        fill: true,
+                        order: 2
+                    },
+                    {
+                        label: '3-Day Avg',
+                        data:  avgArr,
+                        borderColor: '#e65100',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0.35,
+                        fill: false,
+                        order: 1   // renders on top of the blue line
+                    }
+                ]
             },
             options: {
                 responsive: true,
@@ -2517,7 +2540,9 @@ async function _dmRenderWeightChart(range) {
                     }
                 },
                 onHover: function(event, elements) {
-                    event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    // Only show pointer when hovering a dot on the daily line (dataset 0)
+                    var onDot = elements.some(function(e) { return e.datasetIndex === 0; });
+                    event.native.target.style.cursor = onDot ? 'pointer' : 'default';
                 },
                 plugins: {
                     legend: { display: false },
@@ -2527,7 +2552,10 @@ async function _dmRenderWeightChart(range) {
                                 var ds = pts[items[0].dataIndex].date.split('-');
                                 return months[parseInt(ds[1]) - 1] + ' ' + parseInt(ds[2]) + ', ' + ds[0];
                             },
-                            label: function(item) { return 'Weight: ' + item.raw + ' lbs'; }
+                            label: function(item) {
+                                if (item.datasetIndex === 0) return 'Weight: ' + item.raw + ' lbs';
+                                return '3-Day Avg: ' + item.raw + ' lbs';
+                            }
                         }
                     }
                 },
