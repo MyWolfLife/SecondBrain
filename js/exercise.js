@@ -1915,6 +1915,7 @@ async function _dmApplyFilter() {
         // ── Weight Chart accordion ────────────────────────────────────────────
         var wcRangeOptions = [
             ['last7',     'Last 7 Days'],
+            ['last14',    'Last 2 Weeks'],
             ['last30',    'Last 30 Days'],
             ['thisMonth', 'This Month'],
             ['last90',    'Last 90 Days'],
@@ -2438,7 +2439,7 @@ async function _dmRenderWeightChart(range) {
     }
     var todayStr = _wcFmt(today);
     var startStr = null;
-    var daysBack = { last7: 6, last30: 29, last90: 89 }[range];
+    var daysBack = { last7: 6, last14: 13, last30: 29, last90: 89 }[range];
     if (daysBack != null) {
         var sd = new Date(today); sd.setDate(today.getDate() - daysBack);
         startStr = _wcFmt(sd);
@@ -2468,9 +2469,12 @@ async function _dmRenderWeightChart(range) {
         }
 
         // ── Scale ─────────────────────────────────────────────────────────────
+        // Short ranges (≤31 days): tight ±1 lb padding; longer ranges: ±5 lb
+        var shortRange = (range === 'last7' || range === 'last14' || range === 'last30' || range === 'thisMonth');
+        var yPad = shortRange ? 1 : 5;
         var wArr = pts.map(function(p) { return p.w; });
-        var yMin = Math.floor(Math.min.apply(null, wArr) - 5);
-        var yMax = Math.ceil(Math.max.apply(null, wArr)  + 5);
+        var yMin = Math.floor(Math.min.apply(null, wArr) - yPad);
+        var yMax = Math.ceil(Math.max.apply(null, wArr)  + yPad);
 
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
         var showYear = (range === 'thisYear' || range === 'allTime');
