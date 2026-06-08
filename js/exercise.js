@@ -2511,6 +2511,14 @@ async function _dmRenderWeightChart(range) {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        window.location.hash = 'exercise-metric/' + pts[elements[0].index].date;
+                    }
+                },
+                onHover: function(event, elements) {
+                    event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
