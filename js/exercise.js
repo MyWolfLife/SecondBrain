@@ -2412,18 +2412,23 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     // Header row
     var thead = '<thead>';
 
-    // Sessions/goal row — blank for standard cols, X/Y for exercise cols
+    // Sessions/goal row — blank for all non-exercise cols, X/Y for exercise cols
+    // Columns slot in the same order as summary/header/body rows
     if (trackedTypes.length > 0) {
-        var totalStdCols = 1 + preDiffCols.length + (milesPerDate ? 4 : 0) + postMilesCols.length + 1 + postDiffCols.length + _dmMetricDefs.length;
         thead += '<tr class="dm-sessions-row">';
-        for (var si = 0; si < totalStdCols; si++) thead += '<td></td>';
+        thead += '<td></td>';  // date
+        preDiffCols.forEach(function()       { thead += '<td></td>'; });
+        if (milesPerDate) { thead += '<td class="dm-col-extra"></td><td class="dm-col-extra"></td><td class="dm-col-extra"></td><td class="dm-col-extra"></td>'; }
         trackedTypes.forEach(function(t) {
-            var tot = typeMonthTotals[t.typeId];
-            var goal = monthGoals[t.typeId];
-            var label = goal != null ? (tot.sessions + '/' + goal) : String(tot.sessions);
-            if (tot.sessions === 0) label = '—';
+            var tot   = typeMonthTotals[t.typeId];
+            var goal  = monthGoals[t.typeId];
+            var label = tot.sessions === 0 ? '—' : (goal != null ? (tot.sessions + '/' + goal) : String(tot.sessions));
             thead += '<td class="dm-col-num dm-col-extra dm-sessions-cell">' + label + '</td>';
         });
+        postMilesCols.forEach(function()     { thead += '<td></td>'; });
+        thead += '<td></td>';  // +/- diff
+        postDiffCols.forEach(function()      { thead += '<td></td>'; });
+        _dmMetricDefs.forEach(function()     { thead += '<td></td>'; });
         thead += '</tr>';
     }
 
@@ -2456,6 +2461,12 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         function _exCell(v) { return '<td class="dm-col-num dm-col-extra">' + (v > 0 ? v : '—') + '</td>'; }
         thead += _exCell(exTot) + _exCell(exWalk) + _exCell(exRun) + _exCell(exDogs);
     }
+    // Exercise type calorie totals — after Dogs Mi., before Burn
+    trackedTypes.forEach(function(t) {
+        var tot  = typeMonthTotals[t.typeId];
+        var disp = tot.displaySum > 0 ? tot.displaySum.toLocaleString() : '—';
+        thead += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
+    });
     postMilesCols.forEach(function(c) { thead += _summaryCell(c); });
     // +/- Diff summary: total calories for the period
     if (summary.diffSum !== null && summary.diffSum !== undefined) {
@@ -2468,12 +2479,6 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
-    });
-    // Exercise type columns — calorie totals in summary row
-    trackedTypes.forEach(function(t) {
-        var tot = typeMonthTotals[t.typeId];
-        var disp = tot.displaySum > 0 ? tot.displaySum.toLocaleString() : '—';
-        thead += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
     });
     thead += '</tr>';
     // Column header row
@@ -2489,6 +2494,10 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         thead += '<th class="dm-col-extra" title="Run miles from tracked activities">Run Mi.</th>';
         thead += '<th class="dm-col-extra" title="Miles logged with dogs">Dogs Mi.</th>';
     }
+    // Exercise type column headers — after Dogs Mi., before Burn
+    trackedTypes.forEach(function(t) {
+        thead += '<th class="dm-col-num-custom dm-col-extra" title="Calories burned from ' + _exEsc(t.typeName) + '">' + _exEsc(t.typeName) + '</th>';
+    });
     postMilesCols.forEach(function(c) {
         var tip = c.tooltip ? ' title="' + _exEsc(c.tooltip) + '"' : '';
         thead += '<th' + tip + '>' + c.label + '</th>';
@@ -2499,10 +2508,6 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
-    });
-    // Exercise type column headers
-    trackedTypes.forEach(function(t) {
-        thead += '<th class="dm-col-num-custom dm-col-extra" title="Calories burned from ' + _exEsc(t.typeName) + '">' + _exEsc(t.typeName) + '</th>';
     });
     thead += '</tr></thead>';
 
@@ -2537,6 +2542,12 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
                      _dayExCell(dm ? dm.run  : null) +
                      _dayExCell(dm ? dm.dogs : null);
         }
+        // Exercise type columns — after Dogs Mi., before Burn
+        trackedTypes.forEach(function(t) {
+            var td = (typeDataPerDate[t.typeId] || {})[r.date];
+            var disp = td ? (td.calories > 0 ? td.calories.toLocaleString() : '1') : '—';
+            tbody += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
+        });
         postMilesCols.forEach(_stdCell);
         // +/- Diff: burn - food, colored by calLoss thresholds (fallback: yellow if negative)
         var burnVal = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
@@ -2574,12 +2585,6 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
             }
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
             tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
-        });
-        // Exercise type columns — calories or '1' (activity logged, no calories) or '—'
-        trackedTypes.forEach(function(t) {
-            var td = (typeDataPerDate[t.typeId] || {})[r.date];
-            var disp = td ? (td.calories > 0 ? td.calories.toLocaleString() : '1') : '—';
-            tbody += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
         });
         tbody += '</tr>';
     });
