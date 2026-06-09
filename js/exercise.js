@@ -2667,6 +2667,38 @@ async function _dmRenderWeightChart(range) {
             return r1((wArr[i - 2] + wArr[i - 1] + wArr[i]) / 3);
         });
 
+        // ── Goal line (Selected Month only) ──────────────────────────────────
+        // Straight dashed line from the first weigh-in of the month down to the
+        // goal weight on the last day, so users can see if they're on track.
+        var goalArr = null;
+        if (range === 'selectedMonth' && _dmGoalsData && _dmGoalsData.months && pts.length > 0) {
+            var M_      = _dmSelMonth + 1;
+            var mMap_   = _dmGoalsData.months;
+            // Walk back to find effective goal weight for this month
+            var goalEndW = null;
+            for (var gm = M_; gm >= 1; gm--) {
+                var gd = mMap_[gm] || mMap_[String(gm)];
+                if (gd && gd.goalWeight != null) { goalEndW = parseFloat(gd.goalWeight); break; }
+            }
+            if (goalEndW == null && _dmGoalsData.startingWeight != null) {
+                goalEndW = parseFloat(_dmGoalsData.startingWeight);
+            }
+            if (goalEndW != null) {
+                var firstDay_ = parseInt(pts[0].date.split('-')[2], 10);
+                var startW_   = pts[0].w;
+                var lastDay_  = new Date(_dmSelYear, _dmSelMonth + 1, 0).getDate();
+                var span_     = lastDay_ - firstDay_;  // days from first weigh-in to end of month
+                goalArr = pts.map(function(p) {
+                    var d = parseInt(p.date.split('-')[2], 10);
+                    if (span_ <= 0) return r1(goalEndW);
+                    return r1(startW_ - (d - firstDay_) * (startW_ - goalEndW) / span_);
+                });
+                // Expand Y scale to include the goal weight
+                yMin = Math.min(yMin, Math.floor(goalEndW - yPad));
+                yMax = Math.max(yMax, Math.ceil(startW_  + yPad));
+            }
+        }
+
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
         var showYear = (range === 'thisYear' || range === 'allTime');
         function _wcLabel(ds) {
@@ -2687,31 +2719,49 @@ async function _dmRenderWeightChart(range) {
             type: 'line',
             data: {
                 labels: pts.map(function(p) { return _wcLabel(p.date); }),
-                datasets: [
-                    {
-                        label: 'Weight',
-                        data:  wArr,
-                        borderColor: '#1565c0',
-                        backgroundColor: 'rgba(21,101,192,0.07)',
-                        borderWidth: 2,
-                        pointRadius: pts.length > 60 ? 2 : 3,
-                        tension: 0.25,
-                        fill: true,
-                        order: 2
-                    },
-                    {
-                        label: '3-Day Avg',
-                        data:  avgArr,
-                        borderColor: '#e65100',
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        tension: 0.35,
-                        fill: false,
-                        order: 1   // renders on top of the blue line
+                datasets: (function() {
+                    var ds = [
+                        {
+                            label: 'Weight',
+                            data:  wArr,
+                            borderColor: '#1565c0',
+                            backgroundColor: 'rgba(21,101,192,0.07)',
+                            borderWidth: 2,
+                            pointRadius: pts.length > 60 ? 2 : 3,
+                            tension: 0.25,
+                            fill: true,
+                            order: 3
+                        },
+                        {
+                            label: '3-Day Avg',
+                            data:  avgArr,
+                            borderColor: '#e65100',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0.35,
+                            fill: false,
+                            order: 2
+                        }
+                    ];
+                    if (goalArr) {
+                        ds.push({
+                            label: 'Goal',
+                            data:  goalArr,
+                            borderColor: '#2e7d32',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0,    // straight line — no smoothing
+                            fill: false,
+                            order: 1
+                        });
                     }
-                ]
+                    return ds;
+                })()
             },
             options: {
                 responsive: true,
@@ -2719,7 +2769,9 @@ async function _dmRenderWeightChart(range) {
                 interaction: { mode: 'index', intersect: false },
                 onClick: function(event, elements) {
                     if (elements.length > 0) {
-                        window.location.hash = 'exercise-metric/' + pts[elements[0].index].date;
+                        // Only navigate when clicking on the actual weight line (dataset 0)
+                        var dotEl = elements.find(function(e) { return e.datasetIndex === 0; });
+                        if (dotEl) window.location.hash = 'exercise-metric/' + pts[dotEl.index].date;
                     }
                 },
                 onHover: function(event, elements) {
@@ -2737,7 +2789,8 @@ async function _dmRenderWeightChart(range) {
                             },
                             label: function(item) {
                                 if (item.datasetIndex === 0) return 'Weight: ' + item.raw + ' lbs';
-                                return '3-Day Avg: ' + item.raw + ' lbs';
+                                if (item.datasetIndex === 1) return '3-Day Avg: ' + item.raw + ' lbs';
+                                return 'Goal: ' + item.raw + ' lbs';
                             }
                         }
                     }
