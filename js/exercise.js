@@ -2693,9 +2693,14 @@ async function _dmRenderWeightChart(range) {
                     if (span_ <= 0) return r1(goalEndW);
                     return r1(startW_ - (d - firstDay_) * (startW_ - goalEndW) / span_);
                 });
-                // Expand Y scale to include the goal weight
-                yMin = Math.min(yMin, Math.floor(goalEndW - yPad));
-                yMax = Math.max(yMax, Math.ceil(startW_  + yPad));
+                // Y minimum: 1 lb below whichever is lower —
+                // today's goal line value OR today's actual weight (last data point).
+                // This keeps the chart tight around where you are NOW, not the month-end target.
+                var lastGoalW_   = goalArr[goalArr.length - 1];
+                var lastActualW_ = pts[pts.length - 1].w;
+                yMin = Math.floor(Math.min(lastGoalW_, lastActualW_) - 1);
+                // Y maximum: 1 lb above the highest actual weight recorded
+                yMax = Math.ceil(Math.max.apply(null, wArr) + 1);
             }
         }
 
