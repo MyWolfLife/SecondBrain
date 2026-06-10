@@ -17463,15 +17463,25 @@ a.legacy-fin-card:hover {
 
 .dm-list-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 10px;
     flex-wrap: wrap;
     gap: 8px;
 }
 .dm-list-header h2 {
-    margin: 0;
+    margin: 0 0 6px 0;
     font-size: 1.25rem;
+}
+.dm-list-header-left {
+    display: flex;
+    flex-direction: column;
+}
+.dm-entry-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 .dm-entry-btn {
     display: inline-block;

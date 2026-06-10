@@ -1663,10 +1663,16 @@ function _dmRenderMetricsPage(el) {
 
     el.innerHTML =
         '<div class="dm-list-header">' +
-            '<h2>Daily Metrics</h2>' +
+            '<div class="dm-list-header-left">' +
+                '<h2>Daily Metrics</h2>' +
+                '<div class="dm-entry-row">' +
+                    '<a href="#exercise-metric/new" class="btn-primary dm-entry-btn">+ Entry</a>' +
+                    // Monthly Goals button — shown only when a specific month is selected (_dmApplyFilter toggles visibility)
+                    '<a href="#exercise-goals" class="ex-link-btn hidden" id="dmGoalsBtn" onclick="window._egFromDailyMetrics=true">Monthly Goals</a>' +
+                '</div>' +
+            '</div>' +
             '<div class="dm-list-actions">' +
                 '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Custom Metrics</a>' +
-                '<a href="#exercise-metric/new" class="btn-primary dm-entry-btn">+ Entry</a>' +
             '</div>' +
         '</div>' +
         '<div id="dmMilesCard"></div>' +   // miles summary card — populated by _dmApplyFilter
@@ -1862,6 +1868,12 @@ async function _dmApplyFilter() {
     var labelEl = document.getElementById('dmRecordsLabel');
     if (!listEl) return;
     listEl.innerHTML = '<p class="ex-status">Loading…</p>';
+
+    // Show Monthly Goals button only when a specific month is selected
+    var goalsBtn = document.getElementById('dmGoalsBtn');
+    if (goalsBtn) {
+        goalsBtn.classList.toggle('hidden', _dmSelMonth === -1);
+    }
 
     // Determine query range
     var rangeStart, rangeEnd;
@@ -3449,7 +3461,12 @@ function _dmStartEditDef(defId) {
           '</div>'
         : '';
 
+    var actionBtns =
+        '<button class="btn btn-primary btn-small" onclick="_dmSaveEditDef(\'' + defId + '\')">Save</button>' +
+        '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>';
+
     row.innerHTML =
+        '<div class="dm-def-actions">' + actionBtns + '</div>' +   // top Save button
         '<div class="dm-form-row">' +
             '<input type="text" class="dm-name-input" id="dmEditName-' + defId + '" ' +
                 'value="' + _exEsc(def.name) + '" maxlength="60">' +
@@ -3461,10 +3478,7 @@ function _dmStartEditDef(defId) {
                 'placeholder="Tooltip / description (shown on hover over column header)" ' +
                 'value="' + _exEsc(def.tooltip || '') + '" maxlength="200">' +
         '</div>' +
-        '<div class="dm-def-actions">' +
-            '<button class="btn btn-primary btn-small" onclick="_dmSaveEditDef(\'' + defId + '\')">Save</button>' +
-            '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>' +
-        '</div>';
+        '<div class="dm-def-actions">' + actionBtns + '</div>';   // bottom Save button
 
     var nameInput = document.getElementById('dmEditName-' + defId);
     if (nameInput) { nameInput.focus(); nameInput.select(); }
@@ -3554,9 +3568,15 @@ var _egAllTypes    = [];    // all non-archived exerciseTypes (for the add-exerc
  */
 async function loadExerciseGoalsPage(yearParam) {
     window.scrollTo(0, 0);
-    document.getElementById('breadcrumbBar').innerHTML =
-        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Goals</span>';
+    // Breadcrumb varies based on whether we navigated here from Daily Metrics
+    var fromMetrics = !!window._egFromDailyMetrics;
+    window._egFromDailyMetrics = false;  // consume the flag
+    document.getElementById('breadcrumbBar').innerHTML = fromMetrics
+        ? '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span><span>Goals</span>'
+        : '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Goals</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
