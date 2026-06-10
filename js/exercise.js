@@ -2988,8 +2988,17 @@ async function loadExerciseMetricPage(dateOrNew) {
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
 
     if (dateOrNew === 'new') {
-        _dmEditDate    = null;
-        _dmExistingDoc = null;
+        // Default to today — unless today already has a metric entry (duplicate guard).
+        // If today is taken, leave date blank so the user must pick a different day.
+        var todayS_ = _dmTodayStr();
+        var todaySnap_ = await userCol('exerciseDailyMetrics').doc(todayS_).get();
+        if (todaySnap_.exists) {
+            _dmEditDate    = null;   // today taken — force user to pick
+            _dmExistingDoc = null;
+        } else {
+            _dmEditDate    = todayS_;  // safe to default to today
+            _dmExistingDoc = null;
+        }
     } else {
         _dmEditDate = dateOrNew;
         var docSnap = await userCol('exerciseDailyMetrics').doc(dateOrNew).get();
