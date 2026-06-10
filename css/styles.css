@@ -19193,6 +19193,17 @@ a.legacy-fin-card:hover {
     white-space: nowrap;
     min-width: 48px;
 }
+.eg-month-metrics-link {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+}
+.eg-month-metrics-link:hover {
+    color: #1565c0;
+    text-decoration: underline;
+    cursor: pointer;
+}
 
 /* Cell inputs */
 .eg-cell-input {

@@ -1607,9 +1607,17 @@ function seedExerciseMetricDefsIfNeeded() { return Promise.resolve(); }
 
 async function loadExerciseMetricsPage() {
     window.scrollTo(0, 0);
-    document.getElementById('breadcrumbBar').innerHTML =
-        '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>';
+
+    // Consume navigation flag set by Goals page month links
+    var fromGoals_ = window._dmFromGoals || null;
+    window._dmFromGoals = null;
+
+    document.getElementById('breadcrumbBar').innerHTML = fromGoals_
+        ? '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise-goals">Goals</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>'
+        : '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -1623,13 +1631,19 @@ async function loadExerciseMetricsPage() {
     _dmMonthActivities    = [];      // clear activity cache on each page visit
     _dmMonthActivitiesKey = '';      // (type role map persists for the session — types rarely change)
 
+    // If coming from Goals, override the month/year to match what was clicked
+    if (fromGoals_) {
+        _dmSelMonth = fromGoals_.month;  // 0-11
+        _dmSelYear  = fromGoals_.year;
+    }
+
     await seedExerciseMetricDefsIfNeeded();
 
-    // Load metric defs, sticky prefs, and current year's goals doc in parallel
+    // Load metric defs, sticky prefs, and goals doc for the selected year in parallel
     var results = await Promise.all([
         userCol('exerciseMetricDefs').get(),
         userCol('settings').doc('exercisePrefs').get(),
-        userCol('exerciseGoals').doc(String(new Date().getFullYear())).get()
+        userCol('exerciseGoals').doc(String(_dmSelYear)).get()
     ]);
     _dmMetricDefs = results[0].docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
@@ -3965,7 +3979,13 @@ function _egRenderGrid() {
         var isInherited = mData.goalWeight == null && gwVal !== '';
 
         rows += '<tr>' +
-            '<td class="eg-td eg-td-month">' + _EG_MONTH_NAMES[m - 1] + '</td>' +
+            '<td class="eg-td eg-td-month">' +
+                '<a href="#exercise-metrics" class="eg-month-metrics-link" ' +
+                    'onclick="window._dmFromGoals={month:' + (m - 1) + ',year:' + _egCurrentYear + '}" ' +
+                    'title="View ' + _EG_MONTH_NAMES[m - 1] + ' daily metrics">' +
+                    _EG_MONTH_NAMES[m - 1] +
+                '</a>' +
+            '</td>' +
 
             // Goal Weight input
             '<td class="eg-td">' +
@@ -4924,7 +4944,10 @@ function _egRenderMobileView() {
         cards +=
             '<div class="eg-mob-card">' +
                 '<div class="eg-mob-card-header">' +
-                    '<span class="eg-mob-month-name">' + _EG_MONTH_NAMES[m - 1] + '</span>' +
+                    '<a href="#exercise-metrics" class="eg-mob-month-name eg-month-metrics-link" ' +
+                        'onclick="window._dmFromGoals={month:' + (m - 1) + ',year:' + _egCurrentYear + '}">' +
+                        _EG_MONTH_NAMES[m - 1] +
+                    '</a>' +
                     '<a href="#exercise-goals/' + _egCurrentYear + '/' + m + '" class="btn btn-secondary btn-small">Edit</a>' +
                 '</div>' +
                 '<div class="eg-mob-card-data">' +

@@ -3555,8 +3555,12 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Thresholds are per-month — you can ramp them up or down as your goals change throughout the year
 - Once set, any Daily Metrics entry for that month is automatically color-coded on the metrics list screen
 
+**Jumping to Daily Metrics**
+- **Click any month name** in the grid (or on a mobile card) to jump directly to that month's Daily Metrics — the metrics screen breadcrumb will show "Goals" as a back link
+
 **On mobile**
 - The grid is replaced by compact month cards showing Goal Weight, Miles/Day, and session counts
+- Tap the **month name** on any card to jump to that month's Daily Metrics
 - Tap **Edit** on any card to open the full single-month form (see screen:exercise-goals-month)
 
 ### When to use this
