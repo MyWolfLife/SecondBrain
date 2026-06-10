@@ -192,6 +192,41 @@ function _healthSetPageContext(routeId) {
     } else {
         h2.textContent = h2.dataset.baseText + ' — ' + contact.name;
     }
+    _healthInjectContextChip('page-' + routeId);
+}
+
+// Returns the HTML for the "who you're viewing" context chip.
+// Empty string when viewing your own (Me) records — no chip needed.
+function _healthGetContextChipHtml() {
+    var contactId = window.healthActiveContactId;
+    var contact = _healthContactsCache.find(function(c) { return c.id === contactId; });
+    if (!contact || contact.isMe) return '';
+    var icon  = contact.category === 'Pet' ? '🐾' : '👤';
+    var label = contact.category || 'Person';
+    return '<div class="health-context-chip">' +
+        '<span class="health-context-chip-icon">' + icon + '</span>' +
+        '<span class="health-context-chip-name">' + escapeHtml(contact.name) + '</span>' +
+        '<span class="health-context-chip-label">' + escapeHtml(label) + '</span>' +
+    '</div>';
+}
+
+// Injects (or replaces) the context chip immediately after .page-header inside the given page element.
+function _healthInjectContextChip(pageId) {
+    var pageEl = document.getElementById(pageId);
+    if (!pageEl) return;
+    // Remove any existing chip first (handles re-renders)
+    var existing = pageEl.querySelector('.health-context-chip');
+    if (existing) existing.remove();
+    var chipHtml = _healthGetContextChipHtml();
+    if (!chipHtml) return;
+    // Insert after .page-header; if not found, prepend to page element
+    var header = pageEl.querySelector('.page-header');
+    var anchor = header || pageEl.firstElementChild;
+    if (anchor) {
+        anchor.insertAdjacentHTML('afterend', chipHtml);
+    } else {
+        pageEl.insertAdjacentHTML('afterbegin', chipHtml);
+    }
 }
 
 // -----------------------------------------------------------------
@@ -944,6 +979,7 @@ function loadHealthVisitDetail(id) {
 }
 
 async function renderVisitDetail(visit) {
+    _healthInjectContextChip('page-health-visit');
     // Breadcrumb
     var crumb = document.getElementById('breadcrumbBar');
     if (crumb) crumb.innerHTML =
@@ -2240,6 +2276,7 @@ function loadConditionDetail(id) {
 }
 
 function renderConditionDetail(condition) {
+    _healthInjectContextChip('page-health-condition');
     document.getElementById('conditionDetailTitle').textContent = condition.name || 'Condition';
 
     var statusEl = document.getElementById('conditionDetailStatus');
@@ -2819,6 +2856,7 @@ function loadConcernDetail(id) {
 }
 
 function renderConcernDetail(concern) {
+    _healthInjectContextChip('page-health-concern');
     document.getElementById('concernDetailTitle').textContent = concern.title || 'Concern';
 
     var isPromoted = concern.status === 'promoted';
@@ -3365,6 +3403,7 @@ function loadBloodWorkDetail(id) {
 }
 
 function renderBloodWorkDetail(bw) {
+    _healthInjectContextChip('page-health-bloodwork-detail');
     document.getElementById('bwDetailTitle').textContent      = bw.date || 'Blood Work';
     document.getElementById('bwDetailDate').textContent       = bw.date      || '\u2014';
     document.getElementById('bwDetailLab').textContent        = bw.lab       || '\u2014';
@@ -3985,6 +4024,7 @@ function loadInsuranceDetailPage(id) {
 }
 
 function renderInsuranceDetail(p) {
+    _healthInjectContextChip('page-health-insurance-detail');
     document.getElementById('insuranceDetailTitle').textContent = p.carrier || 'Insurance Policy';
 
     var pairs = [
@@ -4844,6 +4884,7 @@ function saveConvertedVisit() {
 var _step2Visit = null;
 
 async function loadStep2Page(visitId) {
+    _healthInjectContextChip('page-health-visit-step2');
     var accordion = document.getElementById('step2AccordionList');
     accordion.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 

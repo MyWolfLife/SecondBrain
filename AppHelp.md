@@ -1123,6 +1123,7 @@ Switching modes clears any selection and resets to Select tool.
 - **Remove** (on non-Me cards) removes them from tracking without deleting any records.
 - Context always resets to Me when you return to this screen; it's remembered while you navigate within the health section.
 - **Emergency Info and My Care Team tiles are hidden when viewing a non-Me contact** -- those sections are Me-only.
+- **Context chip**: when viewing any sub-screen (Concerns, Medications, Visits, etc.) for a non-Me contact, a blue pill badge appears just below the page header showing the person's icon (🐾 for pets, 👤 for people), name, and category — so you always know whose data you're looking at.
 
 **Tile grid layout (top to bottom):**
 - **Conditions** -- chronic or ongoing medical conditions with a journal, medication links, and visit history

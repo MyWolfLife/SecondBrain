@@ -7951,6 +7951,28 @@ textarea.sb-field { resize: vertical; min-height: 60px; }
     color: #374151;
 }
 
+/* ── Health context chip — shows who you're viewing on sub-screens ── */
+.health-context-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #e8f0fe;
+    border: 1px solid #c5d4fb;
+    border-radius: 20px;
+    padding: 4px 12px 4px 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+    color: #1a237e;
+}
+.health-context-chip-icon { font-size: 1rem; }
+.health-context-chip-name { font-weight: 600; }
+.health-context-chip-label {
+    font-weight: 400;
+    color: #5c6bc0;
+    font-size: 0.78rem;
+}
+
 /* ── Health badges ─────────────────────────────────────────── */
 .health-badge {
     display: inline-block;

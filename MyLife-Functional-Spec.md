@@ -877,7 +877,7 @@ A comprehensive medical tracking hub. Health data can be tracked for any contact
 
 **Sub-page scoping (CH6+CH7)**:
 - All health sub-pages (allergies, supplements, vaccinations, eye, health visits, medications, conditions, concerns, blood work, vitals, insurance, appointments) filter Firestore reads by `contactId == window.healthActiveContactId`
-- Each sub-page header shows " — PersonName" suffix when a non-Me contact is active (e.g., "Allergies — Max")
+- Each sub-page header shows " — PersonName" suffix when a non-Me contact is active (e.g., "Allergies — Max"). Additionally, a **context chip** (blue pill badge) is injected below the page header on all sub-screens (list and detail) showing icon (🐾 pet / 👤 person) + name + category. Hidden for Me. Chip is managed by `_healthInjectContextChip(pageId)` called from `_healthSetPageContext` (list pages) and each detail render function.
 - Writes on all sub-pages stamp `contactId: window.healthActiveContactId || null`
 - Records created via step-2 post-visit flow (concernUpdates, healthConditionLogs, new concerns, new conditions) inherit `contactId` from the parent visit/concern rather than from `window.healthActiveContactId`
 - Page-refresh safety: if `window.healthActiveContactId` is null when a sub-page loads, `_healthEnsureActiveContact()` falls back to Me automatically
