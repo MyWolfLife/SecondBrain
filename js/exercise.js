@@ -3125,8 +3125,15 @@ function _dmBuildEntryForm(el) {
         return days[new Date(+p[0], +p[1]-1, +p[2]).getDay()];
     }
 
+    // Use onclick so both top and bottom instances work (avoids duplicate-ID wiring issues)
+    var formActionBtns =
+        '<button type="button" onclick="_dmSaveMetric()" class="btn-primary">Save</button>' +
+        '<button type="button" onclick="window.location.hash=\'exercise-metrics\'" class="btn-secondary">Cancel</button>' +
+        (isEdit ? '<button type="button" onclick="_dmDeleteMetric()" class="btn-danger">Delete</button>' : '');
+
     el.innerHTML =
         '<div class="ex-form">' +
+            '<div class="ex-form-actions">' + formActionBtns + '</div>' +   // top Save row
             '<div class="dm-entry-group">' +
                 '<div class="dm-entry-field-row">' +
                     '<label class="ex-label" for="dmfDate">Date</label>' +
@@ -3150,11 +3157,7 @@ function _dmBuildEntryForm(el) {
 
             (_dmMetricDefs.length ? '<div class="dm-section-header">Habits &amp; Custom</div>' + customFields : '') +
 
-            '<div class="ex-form-actions">' +
-                '<button type="button" id="dmSaveBtn" class="btn-primary">Save</button>' +
-                '<button type="button" id="dmCancelBtn" class="btn-secondary">Cancel</button>' +
-                (isEdit ? '<button type="button" id="dmDeleteBtn" class="btn-danger">Delete</button>' : '') +
-            '</div>' +
+            '<div class="ex-form-actions">' + formActionBtns + '</div>' +   // bottom Save row
         '</div>';
 
     // Wire date change
@@ -3210,12 +3213,7 @@ function _dmBuildEntryForm(el) {
         });
     });
 
-    document.getElementById('dmSaveBtn').addEventListener('click', _dmSaveMetric);
-    document.getElementById('dmCancelBtn').addEventListener('click', function() {
-        window.location.hash = 'exercise-metrics';
-    });
-    var delBtn = document.getElementById('dmDeleteBtn');
-    if (delBtn) delBtn.addEventListener('click', _dmDeleteMetric);
+    // Save / Cancel / Delete are wired via onclick attributes (supports both top and bottom buttons)
 }
 
 async function _dmSaveMetric() {
