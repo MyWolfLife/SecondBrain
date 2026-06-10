@@ -1665,7 +1665,7 @@ function _dmRenderMetricsPage(el) {
         '<div class="dm-list-header">' +
             '<h2>Daily Metrics</h2>' +
             '<div class="dm-list-actions">' +
-                '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Metrics</a>' +
+                '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Custom Metrics</a>' +
                 '<a href="#exercise-metric/new" class="btn-primary dm-entry-btn">+ Entry</a>' +
             '</div>' +
         '</div>' +

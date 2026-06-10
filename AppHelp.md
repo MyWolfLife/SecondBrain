@@ -3733,7 +3733,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
 - Click or tap any row/card to open that day's entry form
 - **+ Entry** button: create a new entry for today (or any date)
-- **Manage Metrics** link: add, reorder, or remove your custom metric definitions
+- **Manage Custom Metrics** link: add, reorder, or remove your custom metric definitions
 
 - **📏 Miles button** in the filter bar: click to show or hide the **Total Miles** column on the desktop table. Your choice is remembered between visits. The column shows daily walking + running miles pulled from your logged activities (only run/walk/split types count — bikes, golf, etc. are excluded).
 - **⚖ Weight Chart accordion**: a chart of your weight over time — tap the header to expand or collapse. Your choice is remembered between visits. Use the range dropdown inside to pick Last 7 Days, Last 2 Weeks, Last 30 Days, **Selected Month**, Last 90 Days, This Year, or All Time. The chart shows three lines: a **blue line** (your actual weight — click any dot to open that day's entry), an **orange line** (3-day rolling average to smooth out noise), and a **dashed green line** (Goal — only visible when "Selected Month" is chosen and you have a goal weight set for that month in your Exercise Goals). The goal line runs from your first weigh-in of the month down to your month-end goal weight, so you can see at a glance whether your actual weight is tracking above or below plan.
