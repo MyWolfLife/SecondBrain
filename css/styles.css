@@ -17582,6 +17582,9 @@ a.legacy-fin-card:hover {
 /* Extra columns: hidden by default, shown when wrapper has dm-extra-visible class */
 .dm-col-extra { display: none; }
 .dm-extra-visible .dm-col-extra { display: table-cell; }
+/* Nutrition columns — toggled by the 🥗 Nutrition button (class on #dmListContent) */
+.dm-col-nutri { display: none; }
+.dm-nutri-visible .dm-col-nutri { display: table-cell; }
 
 /* Weight Chart accordion */
 .dm-weight-chart-section { margin-bottom: 10px; }

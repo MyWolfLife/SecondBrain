@@ -1675,6 +1675,7 @@ var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when m
 var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded      = false;  // sticky accordion state — loaded from settings/exercisePrefs
 var _dmExtraColsOpen      = false;  // show/hide extra columns (Total Miles etc.) — sticky
+var _dmNutriColsOpen      = false;  // show/hide nutrition columns (Protein/Carbs/Fat/Water) — sticky
 var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
 var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
@@ -1733,6 +1734,7 @@ async function loadExerciseMetricsPage() {
     var prefs = results[1].exists ? results[1].data() : {};
     _dmLast7Expanded    = prefs.dmLast7Expanded    === true;
     _dmExtraColsOpen    = prefs.dmExtraColsOpen    === true;
+    _dmNutriColsOpen    = prefs.dmNutriColsOpen    === true;
     _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
     _dmGoalsData = results[2].exists ? results[2].data() : null;
@@ -1775,6 +1777,7 @@ function _dmRenderMetricsPage(el) {
             '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
             '<select id="dmYearSelect" class="dm-filter-select">' + yearOpts + '</select>' +
             '<button id="dmExtraColsBtn" class="dm-extra-toggle' + (_dmExtraColsOpen ? ' dm-extra-toggle--open' : '') + '" title="Show/hide extra columns">📏 Exercise ' + (_dmExtraColsOpen ? '▼' : '▶') + '</button>' +
+            '<button id="dmNutriColsBtn" class="dm-extra-toggle' + (_dmNutriColsOpen ? ' dm-extra-toggle--open' : '') + '" title="Show/hide nutrition columns">🥗 Nutrition ' + (_dmNutriColsOpen ? '▼' : '▶') + '</button>' +
         '</div>' +
         '<div class="dm-records-label" id="dmRecordsLabel">Loading…</div>' +
         '<div id="dmListContent"><p class="ex-status">Loading…</p></div>';
@@ -1797,6 +1800,17 @@ function _dmRenderMetricsPage(el) {
         if (wrap) wrap.classList.toggle('dm-extra-visible', _dmExtraColsOpen);
         // Persist asynchronously
         userCol('settings').doc('exercisePrefs').set({ dmExtraColsOpen: _dmExtraColsOpen }, { merge: true });
+    });
+
+    document.getElementById('dmNutriColsBtn').addEventListener('click', function() {
+        _dmNutriColsOpen = !_dmNutriColsOpen;
+        this.textContent = '🥗 Nutrition ' + (_dmNutriColsOpen ? '▼' : '▶');
+        this.classList.toggle('dm-extra-toggle--open', _dmNutriColsOpen);
+        // Class on the list container so it covers every table (incl. year-view accordion)
+        var listEl = document.getElementById('dmListContent');
+        if (listEl) listEl.classList.toggle('dm-nutri-visible', _dmNutriColsOpen);
+        // Persist asynchronously
+        userCol('settings').doc('exercisePrefs').set({ dmNutriColsOpen: _dmNutriColsOpen }, { merge: true });
     });
 
     _dmApplyFilter();
@@ -2252,6 +2266,8 @@ async function _dmApplyFilter() {
             var wrap = listEl.querySelector('.dm-table-wrap');
             if (wrap) wrap.classList.add('dm-extra-visible');
         }
+        // Restore nutrition-cols visibility (class lives on the container)
+        listEl.classList.toggle('dm-nutri-visible', _dmNutriColsOpen);
 
         // Wire Weight Chart accordion
         var wcHdr  = document.getElementById('dmWeightChartHdr');
@@ -2316,7 +2332,8 @@ async function _dmApplyFilter() {
 }
 
 function _dmComputeSummary(records, denominator) {
-    var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories'];
+    var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
+                     'protein','carbs','fat','water'];
     var sums = {}, counts = {};
     stdFields.forEach(function(f) { sums[f] = 0; counts[f] = 0; });
 
@@ -2378,6 +2395,11 @@ function _dmComputeSummary(records, denominator) {
     result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
     result.totalBurn   = counts.totalBurn   ? Math.round(sums.totalBurn / counts.totalBurn).toLocaleString() : '—';
     result.foodCalories = counts.foodCalories ? Math.round(sums.foodCalories / counts.foodCalories).toLocaleString() : '—';
+    // Nutrition averages — only logged days count toward the average
+    result.protein = counts.protein ? Math.round(sums.protein / counts.protein).toLocaleString() : '—';
+    result.carbs   = counts.carbs   ? Math.round(sums.carbs   / counts.carbs).toLocaleString()   : '—';
+    result.fat     = counts.fat     ? Math.round(sums.fat     / counts.fat).toLocaleString()     : '—';
+    result.water   = counts.water   ? Math.round(sums.water   / counts.water).toLocaleString()   : '—';
 
     // +/- Diff sum: total (burn - food) across all rows that have both values
     var diffSum = null, diffCount = 0;
@@ -2396,7 +2418,11 @@ function _dmComputeSummary(records, denominator) {
     result.totals = {
         dailySteps:   counts.dailySteps   ? sums.dailySteps   : null,
         totalBurn:    counts.totalBurn    ? sums.totalBurn    : null,
-        foodCalories: counts.foodCalories ? sums.foodCalories : null
+        foodCalories: counts.foodCalories ? sums.foodCalories : null,
+        protein:      counts.protein      ? sums.protein      : null,
+        carbs:        counts.carbs        ? sums.carbs        : null,
+        fat:          counts.fat          ? sums.fat          : null,
+        water:        counts.water        ? sums.water        : null
     };
 
     result.custom = {};
@@ -2510,6 +2536,13 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     ];
     var postDiffCols = [];
     var diffTooltip = 'Total calorie loss or gain for the day. Positive is a calorie loss (good). Negative means you ate more than you burned (bad).';
+    // Nutrition columns — after +/- Diff, before custom metrics; toggled by the 🥗 Nutrition button
+    var nutriCols = [
+        { key: 'protein', label: 'Protein', tooltip: 'Total grams of protein consumed this day' },
+        { key: 'carbs',   label: 'Carbs',   tooltip: 'Total grams of carbohydrates consumed this day' },
+        { key: 'fat',     label: 'Fat',     tooltip: 'Total grams of fat consumed this day' },
+        { key: 'water',   label: 'Water',   tooltip: 'Total ounces of water drank this day' }
+    ];
 
     // Pre-compute per-type totals for exercise columns
     var typeMonthTotals = {};  // typeId → { sessions, calSum, displaySum }
@@ -2613,6 +2646,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         row += '<td class="dm-col-num">' + cells.totalBurn + '</td>';
         row += '<td class="dm-col-num">' + cells.foodCalories + '</td>';
         row += '<td class="dm-col-num">' + cells.diff + '</td>';
+        cells.nutrition.forEach(function(v) { row += '<td class="dm-col-num dm-col-nutri">' + v + '</td>'; });
         postDiffCols.forEach(function() { row += '<td></td>'; });
         _dmMetricDefs.forEach(function(def) {
             var cls2 = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
@@ -2643,6 +2677,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         totalBurn:    (gMonth && gMonth.burnGreen != null) ? parseFloat(gMonth.burnGreen).toLocaleString() : '',
         foodCalories: foodGoal != null ? foodGoal.toLocaleString() : '',
         diff:         dailyCalLossGoal != null ? dailyCalLossGoal.toLocaleString() : '',
+        nutrition:    ['', '', '', ''],   // no nutrition goals yet
         custom:       function() { return ''; }
     });
 
@@ -2668,6 +2703,8 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         foodCalories: summary.foodCalories,
         diff:         (summary.diffSum != null && summary.diffCount > 0)
                           ? Math.round(summary.diffSum / summary.diffCount).toLocaleString() : '',
+        nutrition:    [summary.protein, summary.carbs, summary.fat, summary.water]
+                          .map(function(v) { return v === '—' ? '' : v; }),
         custom:       function() { return ''; }
     });
 
@@ -2696,6 +2733,8 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         totalBurn:    _fmtNum(summary.totals.totalBurn),
         foodCalories: _fmtNum(summary.totals.foodCalories),
         diff:         diffTotal,
+        nutrition:    [_fmtNum(summary.totals.protein), _fmtNum(summary.totals.carbs),
+                       _fmtNum(summary.totals.fat), _fmtNum(summary.totals.water)],
         custom:       function(def) { return _exEsc(summary.custom[def.id] || ''); }
     });
     // Column header row
@@ -2720,6 +2759,9 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         thead += '<th' + tip + '>' + c.label + '</th>';
     });
     thead += '<th title="' + _exEsc(diffTooltip) + '">+/- Diff</th>';
+    nutriCols.forEach(function(c) {
+        thead += '<th class="dm-col-nutri" title="' + _exEsc(c.tooltip) + '">' + c.label + '</th>';
+    });
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
     _dmMetricDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
@@ -2779,6 +2821,13 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         } else {
             tbody += '<td class="dm-col-num">—</td>';
         }
+        // Nutrition columns — plain values with note icons, no threshold coloring
+        nutriCols.forEach(function(c) {
+            var nv = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
+            if (typeof nv === 'number') nv = nv.toLocaleString();
+            var nNote = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
+            tbody += '<td class="dm-col-num dm-col-nutri">' + _exEsc(String(nv)) + _dmNoteIcon(nNote, true) + '</td>';
+        });
         postDiffCols.forEach(function(c) {
             var v = (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== '') ? r[c.key] : '—';
             if (typeof v === 'number') v = v.toLocaleString();
@@ -3059,6 +3108,16 @@ function _dmBuildSummaryCardHtml(summary, title) {
     }
     row2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + summary.foodCalories + '</span>';
 
+    // Nutrition row — only shown when at least one nutrition value was logged
+    var nutriRow = '';
+    if (summary.protein !== '—' || summary.carbs !== '—' || summary.fat !== '—' || summary.water !== '—') {
+        nutriRow =
+            '<span class="dm-card-metric"><span class="dm-card-label">Protein</span> ' + summary.protein + '</span>' +
+            '<span class="dm-card-metric"><span class="dm-card-label">Carbs</span> ' + summary.carbs + '</span>' +
+            '<span class="dm-card-metric"><span class="dm-card-label">Fat</span> ' + summary.fat + '</span>' +
+            '<span class="dm-card-metric"><span class="dm-card-label">Water</span> ' + summary.water + '</span>';
+    }
+
     var customRow = _dmMetricDefs.map(function(def) {
         var val = summary.custom[def.id];
         if (!val) return '';
@@ -3069,6 +3128,7 @@ function _dmBuildSummaryCardHtml(summary, title) {
         '<div class="dm-summary-card-title">' + _exEsc(title) + '</div>' +
         '<div class="dm-card-row">' + row1 + '</div>' +
         '<div class="dm-card-row">' + row2 + '</div>' +
+        (nutriRow ? '<div class="dm-card-row">' + nutriRow + '</div>' : '') +
         (customRow ? '<div class="dm-card-row dm-card-custom">' + customRow + '</div>' : '') +
     '</div>';
 }
@@ -3360,6 +3420,12 @@ function _dmBuildEntryForm(el) {
             stdField('totalBurn',  'Total Actual Burn',  'numeric', 'From watch — usually entered the following day') +
             stdField('foodCalories','Food Calories',     'numeric', '') +
 
+            '<div class="dm-section-header">Nutrition</div>' +
+            stdField('protein', 'Protein (g)', 'numeric', 'Total grams of protein for the day') +
+            stdField('carbs',   'Carbs (g)',   'numeric', 'Total grams of carbohydrates for the day') +
+            stdField('fat',     'Fat (g)',     'numeric', 'Total grams of fat for the day') +
+            stdField('water',   'Water (oz)',  'numeric', 'Total ounces of water for the day') +
+
             (_dmMetricDefs.length ? '<div class="dm-section-header">Habits &amp; Custom</div>' + customFields : '') +
 
             '<div class="ex-form-actions">' + formActionBtns + '</div>' +   // bottom Save row
@@ -3425,7 +3491,8 @@ async function _dmSaveMetric() {
     var dateVal = document.getElementById('dmfDate').value;
     if (!dateVal) { alert('Please enter a date.'); return; }
 
-    var stdKeys = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories'];
+    var stdKeys = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
+                   'protein','carbs','fat','water'];
     var data = { date: dateVal };
 
     // Standard fields — blank → null

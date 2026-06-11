@@ -3711,6 +3711,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Date field**: shown inline with the day of the week beside it (e.g. "Monday") — updates as you change the date. Defaults to today for a new entry. If a record already exists for that date, the form reloads pre-filled with that record's data. If no record exists for the new date, your in-progress values are kept (only the date updates)
 - **Body section**: Weight (decimals OK), Sleep Score, Body Battery
 - **Activity section**: Daily Steps, Total Actual Burn (from your watch, usually entered the next day), Food Calories
+- **Nutrition section**: Protein, Carbs, and Fat in total grams for the day, plus Water in total ounces — typically filled in at night or the next day
 - **Habits & Custom**: your custom metrics in order — YES/NO metrics are checkboxes; Number metrics have an optional unit label (e.g. oz, cal); Text metrics are free-form
 - **📝 button** next to each field: click to open a small note box — add any context for that value. The button turns yellow when a note is saved
 - **Save**: writes the record (one record per date — saving again for the same date overwrites it)
@@ -3747,6 +3748,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Manage Custom Metrics** link (top right): add, reorder, or remove your custom metric definitions
 
 - **📏 Miles button** in the filter bar: click to show or hide the **Total Miles** column on the desktop table. Your choice is remembered between visits. The column shows daily walking + running miles pulled from your logged activities (only run/walk/split types count — bikes, golf, etc. are excluded).
+- **🥗 Nutrition button** in the filter bar: shows or hides the **Protein / Carbs / Fat / Water** columns (grams for the macros, ounces for water). They appear after the +/- Diff column. Your choice is remembered between visits. Averages count only the days you logged; Totals are period sums; the Goals row is blank (no nutrition goals yet).
 - **⚖ Weight Chart accordion**: a chart of your weight over time — tap the header to expand or collapse. Your choice is remembered between visits. Use the range dropdown inside to pick Last 7 Days, Last 2 Weeks, Last 30 Days, **Selected Month**, Last 90 Days, This Year, or All Time. The chart shows three lines: a **blue line** (your actual weight — click any dot to open that day's entry), an **orange line** (3-day rolling average to smooth out noise), and a **dashed green line** (Goal — only visible when "Selected Month" is chosen and you have a goal weight set for that month in your Exercise Goals). The goal line runs from your first weigh-in of the month down to your month-end goal weight, so you can see at a glance whether your actual weight is tracking above or below plan.
 - **Last 7 Days accordion**: when viewing the current month and year, a green accordion at the top shows a summary of your last 7 days — tap to expand or collapse. Booleans show X / 7 (always out of 7 days). Your expanded/collapsed choice is remembered between visits.
 - **Year view**: when you pick "Year" from the month combo, records are grouped into a **monthly accordion** — tap any month header to expand or collapse it; empty months show "No records for this month."
@@ -3763,7 +3765,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Create, reorder, and delete your custom daily metric definitions — the extra fields that appear on every daily entry form below the standard metrics.
 
 ### Quick Help
-- **Standard metrics** (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories) are always present on the entry form and cannot be managed here
+- **Standard metrics** (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories, Protein, Carbs, Fat, Water) are always present on the entry form and cannot be managed here
 - **+ Metric** button opens the add form at the top — fill in a name and pick a type, then Save
 - **Types**: YES/NO (boolean checkbox), Number (optional unit label like "oz" or "cal"), Text (free-form)
 - **Number type**: check "Allow Decimals" if you need fractional values (e.g. 7.5 hours), and optionally add a unit label shown next to the field
