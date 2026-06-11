@@ -1237,6 +1237,7 @@ Displays logged exercise activities in a filterable, sortable list.
 **Filter bar:**
 - **Month dropdown** + **Year dropdown** — picks which month to display; defaults to current month/year on every visit
 - **Activities dropdown** (second row, below month/year): "All Activities" + every non-archived activity type sorted alphabetically. Defaults to All on every visit (not sticky). Filters the list client-side to the selected type; the Miles Summary Card stays month-wide regardless of the filter.
+- **Averages / Totals rows** (desktop table, single type selected only): two labeled rows appear above the column headers. **Averages** (top, cream tint): avg duration, avg miles, avg pace (total duration ÷ total miles — per-500m for meter-based types), avg calories. **Totals** (blue tint): activity count (in the Day column), total duration, total miles, total calories. Averages divide by the number of activities that have a value for that field. Hidden when "All Activities" is selected.
 - **Manage Types** link: navigates to `#exercise-types`
 - **+ Activity** button: navigates to `#exercise-activity/new`
 - **Miles Summary Card** (below filter bar): same card as Daily Metrics — Total / Run / Walk / Dogs miles, daily avg, goal, pacing (current month) or final vs goal (past month)

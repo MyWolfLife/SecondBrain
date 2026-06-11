@@ -370,7 +370,7 @@ async function _exApplyFilter() {
             container.innerHTML = '<p class="ex-status">No activities found for this period.</p>';
             return;
         }
-        container.appendChild(_exBuildTable(listed));
+        container.appendChild(_exBuildTable(listed, _exTypeFilter !== 'all'));
         container.appendChild(_exBuildCards(listed));
 
     } catch (err) {
@@ -418,7 +418,7 @@ function _exGetDateRange() {
 
 // ─── Desktop table ────────────────────────────────────────────────────────────
 
-function _exBuildTable(activities) {
+function _exBuildTable(activities, showStats) {
     var wrap  = document.createElement('div');
     wrap.className = 'ex-table-wrap';
 
@@ -426,6 +426,63 @@ function _exBuildTable(activities) {
     table.className = 'ex-table';
 
     var thead = document.createElement('thead');
+
+    // ── Averages / Totals rows — only when a single activity type is filtered ──
+    if (showStats && activities.length > 0) {
+        var stCount = activities.length;
+        var stDur = 0, stDurN = 0, stDist = 0, stDistN = 0, stCal = 0, stCalN = 0;
+        var stType = _exTypes[activities[0].typeId] || {};
+        var stMeters = _exIsMeters(stType);
+        activities.forEach(function(a) {
+            if (a.durationMinutes != null && a.durationMinutes !== '') { stDur += parseFloat(a.durationMinutes); stDurN++; }
+            if (stType.tracksMiles) {
+                var w = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+                var rn = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+                var d = stMeters ? w : (_exIsSplitMilesType(stType) ? (w + rn) : w);
+                if (d > 0) { stDist += d; stDistN++; }
+            }
+            if (a.calories != null && a.calories !== '') { stCal += parseFloat(a.calories); stCalN++; }
+        });
+        stDist = Math.round(stDist * 10) / 10;
+
+        // Avg pace = total duration ÷ total distance
+        var stPace = '';
+        if (stDist > 0 && stDur > 0) {
+            stPace = stMeters ? exFmtPacePer500m(stDist, stDur) : exFmtPace(stDist, stDur);
+        }
+        function _r1(v) { return Math.round(v * 10) / 10; }
+
+        function _statTr(cls, cells) {
+            var tr = document.createElement('tr');
+            tr.className = cls;
+            cells.forEach(function(val, i) {
+                var td = document.createElement('td');
+                td.textContent = String(val == null ? '' : val);
+                if (i === 0) td.className = 'dm-row-label';
+                tr.appendChild(td);
+            });
+            return tr;
+        }
+        // Averages: duration, miles, pace (total dur ÷ total miles), calories
+        thead.appendChild(_statTr('dm-averages-row', [
+            'Averages', '', '',
+            stDurN  ? exFmtDuration(stDur / stDurN) : '',
+            stDistN ? _r1(stDist / stDistN) + (stMeters ? ' m' : '') : '',
+            stPace,
+            stCalN  ? Math.round(stCal / stCalN).toLocaleString() : '',
+            ''
+        ]));
+        // Totals: count above Day, then duration, miles, calories
+        thead.appendChild(_statTr('dm-summary-row', [
+            'Totals', stCount, '',
+            stDurN  ? exFmtDuration(stDur) : '',
+            stDistN ? stDist + (stMeters ? ' m' : '') : '',
+            '',
+            stCalN  ? Math.round(stCal).toLocaleString() : '',
+            ''
+        ]));
+    }
+
     var hRow  = document.createElement('tr');
     ['Date', 'Day', 'Type', 'Duration', 'Miles', 'Pace', 'Cal', 'Comment'].forEach(function(h) {
         var th = document.createElement('th');

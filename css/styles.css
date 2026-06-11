@@ -17666,8 +17666,9 @@ a.legacy-fin-card:hover {
     font-size: 0.76rem;
     color: #555;
 }
-/* Row label in the first column of each stat row */
-.dm-table td.dm-row-label {
+/* Row label in the first column of each stat row (daily metrics + activities tables) */
+.dm-table td.dm-row-label,
+.ex-table td.dm-row-label {
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
