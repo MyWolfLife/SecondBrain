@@ -2011,7 +2011,7 @@ async function _dmApplyFilter() {
             } else {
                 var moSummary = _dmComputeSummary(moRecords);
                 html += isDesktop
-                    ? _dmBuildTable(moRecords, moSummary)
+                    ? _dmBuildTable(moRecords, moSummary, null, null, null, mo)
                     : _dmBuildCards(moRecords, moSummary);
             }
             html += '</div></div>';
@@ -2274,17 +2274,24 @@ function _dmComputeSummary(records, denominator) {
     result.weight      = counts.weight      ? (sums.weight / counts.weight).toFixed(1) : '—';
 
     // Weight change: newest entry minus oldest entry (records are desc, so records[0] = newest)
-    var newestWeight = null, oldestWeight = null;
+    var newestWeight = null, oldestWeight = null, newestWeightDate = null, oldestWeightDate = null;
     for (var i = 0; i < records.length; i++) {
         var w = records[i].weight;
         if (w !== null && w !== undefined && w !== '') {
-            if (newestWeight === null) newestWeight = parseFloat(w);
+            if (newestWeight === null) { newestWeight = parseFloat(w); newestWeightDate = records[i].date; }
             oldestWeight = parseFloat(w); // keeps updating — ends at the oldest found
+            oldestWeightDate = records[i].date;
         }
     }
     result.weightChange = (newestWeight !== null && oldestWeight !== null && newestWeight !== oldestWeight)
         ? parseFloat((newestWeight - oldestWeight).toFixed(1))
         : null;
+    // Extra weight data for the Goals/Averages stat rows
+    result.oldestWeight     = oldestWeight;
+    result.oldestWeightDate = oldestWeightDate;
+    result.weightSpanDays   = (newestWeightDate && oldestWeightDate && newestWeightDate !== oldestWeightDate)
+        ? Math.round((new Date(newestWeightDate) - new Date(oldestWeightDate)) / 86400000)
+        : 0;
     result.sleepScore  = counts.sleepScore  ? Math.round(sums.sleepScore / counts.sleepScore) : '—';
     result.bodyBattery = counts.bodyBattery ? Math.round(sums.bodyBattery / counts.bodyBattery) : '—';
     result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
@@ -2292,15 +2299,24 @@ function _dmComputeSummary(records, denominator) {
     result.foodCalories = counts.foodCalories ? Math.round(sums.foodCalories / counts.foodCalories).toLocaleString() : '—';
 
     // +/- Diff sum: total (burn - food) across all rows that have both values
-    var diffSum = null;
+    var diffSum = null, diffCount = 0;
     records.forEach(function(r) {
         var b = (r.totalBurn !== null && r.totalBurn !== undefined && r.totalBurn !== '') ? parseFloat(r.totalBurn) : null;
         var f = (r.foodCalories !== null && r.foodCalories !== undefined && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
         if (b !== null && f !== null) {
             diffSum = (diffSum || 0) + (b - f);
+            diffCount++;
         }
     });
-    result.diffSum = diffSum; // null if no rows had both values
+    result.diffSum   = diffSum;   // null if no rows had both values
+    result.diffCount = diffCount; // rows contributing to diffSum (for the avg row)
+
+    // Raw period sums for the Totals stat row (null when no values logged)
+    result.totals = {
+        dailySteps:   counts.dailySteps   ? sums.dailySteps   : null,
+        totalBurn:    counts.totalBurn    ? sums.totalBurn    : null,
+        foodCalories: counts.foodCalories ? sums.foodCalories : null
+    };
 
     result.custom = {};
     var boolDenom = (denominator !== undefined && denominator !== null) ? denominator : n;
@@ -2395,9 +2411,10 @@ function _dmThresholdBg(value, thresholds, field) {
     }
 }
 
-function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes) {
+function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, monthIdx) {
     typeDataPerDate = typeDataPerDate || {};
     trackedTypes    = trackedTypes    || [];
+    if (monthIdx == null) monthIdx = _dmSelMonth;   // year-view passes its own month
     // +/- Diff column appears after Food Cal.
     var preDiffCols = [
         { key: 'weight',       label: 'Weight' },
@@ -2427,56 +2444,63 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     });
     // Goals for this month
     var monthGoals = {};
+    var gMonth = null;
     if (_dmGoalsData && _dmGoalsData.months) {
-        var gMonth = _dmGoalsData.months[_dmSelMonth + 1] || _dmGoalsData.months[String(_dmSelMonth + 1)] || {};
-        var gSessions = gMonth.exerciseSessions || {};
+        gMonth = _dmGoalsData.months[monthIdx + 1] || _dmGoalsData.months[String(monthIdx + 1)] || null;
+        var gSessions = (gMonth && gMonth.exerciseSessions) || {};
         trackedTypes.forEach(function(t) {
             monthGoals[t.typeId] = gSessions[t.typeId] != null ? gSessions[t.typeId] : null;
         });
     }
 
-    // Header row
-    var thead = '<thead>';
+    // ── Period math for the Goals / Averages rows ─────────────────────────────
+    var daysInMonth_ = new Date(_dmSelYear, monthIdx + 1, 0).getDate();
+    var _nowD        = new Date();
+    var isCurMonth_  = (_dmSelYear === _nowD.getFullYear() && monthIdx === _nowD.getMonth());
+    var daysElapsed_ = isCurMonth_ ? _nowD.getDate() : daysInMonth_;
 
-    // Sessions/goal row — blank for all non-exercise cols, X/Y for exercise cols
-    // Columns slot in the same order as summary/header/body rows
-    if (trackedTypes.length > 0) {
-        thead += '<tr class="dm-sessions-row">';
-        thead += '<td></td>';  // date
-        preDiffCols.forEach(function()       { thead += '<td></td>'; });
-        if (milesPerDate) { thead += '<td class="dm-col-extra"></td><td class="dm-col-extra"></td><td class="dm-col-extra"></td><td class="dm-col-extra"></td>'; }
-        trackedTypes.forEach(function(t) {
-            var tot   = typeMonthTotals[t.typeId];
-            var goal  = monthGoals[t.typeId];
-            var label = tot.sessions === 0 ? '—' : (goal != null ? (tot.sessions + '/' + goal) : String(tot.sessions));
-            thead += '<td class="dm-col-num dm-col-extra dm-sessions-cell">' + label + '</td>';
-        });
-        postMilesCols.forEach(function()     { thead += '<td></td>'; });
-        thead += '<td></td>';  // +/- diff
-        postDiffCols.forEach(function()      { thead += '<td></td>'; });
-        _dmMetricDefs.forEach(function()     { thead += '<td></td>'; });
-        thead += '</tr>';
-    }
-
-    // Summary row
-    thead += '<tr class="dm-summary-row"><td></td>';
-    // Helper to render a standard column summary cell
-    function _summaryCell(c) {
-        if (c.key === 'weight') {
-            if (summary.weightChange !== null && summary.weightChange !== undefined) {
-                var wc = summary.weightChange;
-                var color = wc < 0 ? 'green' : 'red';
-                var sign = wc > 0 ? '+' : '';
-                return '<td style="color:' + color + ';font-weight:bold">' + sign + wc.toFixed(1) + '</td>';
-            }
-            return '<td>—</td>';
+    // Effective goal weight for a month (1-12): walks back to the last set value,
+    // falling back to the year's starting weight. Same logic as the goals page.
+    function _effGoalW(m) {
+        if (!_dmGoalsData || !_dmGoalsData.months) return null;
+        for (var i = m; i >= 1; i--) {
+            var gd = _dmGoalsData.months[i] || _dmGoalsData.months[String(i)];
+            if (gd && gd.goalWeight != null) return parseFloat(gd.goalWeight);
         }
-        return '<td class="dm-col-num">' + summary[c.key] + '</td>';
+        return _dmGoalsData.startingWeight != null ? parseFloat(_dmGoalsData.startingWeight) : null;
     }
-    preDiffCols.forEach(function(c) { thead += _summaryCell(c); });
-    // Extra columns: Total Mi., Walk Mi., Run Mi., Dogs Mi. — between Steps and Burn
+
+    // Goal weight "as of today": linear from first weigh-in of the month down to
+    // the month-end goal. Past months land exactly on the month-end goal.
+    var goalWtAsOfToday = null;
+    var goalEndW_ = _effGoalW(monthIdx + 1);
+    if (goalEndW_ != null && summary.oldestWeight != null && summary.oldestWeightDate) {
+        var firstDay_ = parseInt(summary.oldestWeightDate.split('-')[2], 10);
+        var span_     = daysInMonth_ - firstDay_;
+        goalWtAsOfToday = span_ <= 0 ? goalEndW_
+            : Math.round((summary.oldestWeight - (daysElapsed_ - firstDay_) * (summary.oldestWeight - goalEndW_) / span_) * 10) / 10;
+    }
+
+    // Daily cal loss needed: |prev month goal − this month goal| × 3500 ÷ days in month
+    var dailyCalLossGoal = null;
+    if (_dmGoalsData) {
+        var currGW_ = _effGoalW(monthIdx + 1);
+        var prevGW_ = monthIdx === 0
+            ? (_dmGoalsData.startingWeight != null ? parseFloat(_dmGoalsData.startingWeight) : null)
+            : _effGoalW(monthIdx);
+        if (currGW_ != null && prevGW_ != null) {
+            dailyCalLossGoal = Math.round(Math.abs(prevGW_ - currGW_) * 3500 / daysInMonth_);
+        }
+    }
+
+    // Food goal: average of the two yellow food thresholds
+    var foodGoal = (gMonth && gMonth.foodYellow1 != null && gMonth.foodYellow2 != null)
+        ? Math.round((parseFloat(gMonth.foodYellow1) + parseFloat(gMonth.foodYellow2)) / 2)
+        : null;
+
+    // Miles period totals (used by all three stat rows)
+    var exTot = 0, exRun = 0, exWalk = 0, exDogs = 0;
     if (milesPerDate) {
-        var exTot = 0, exRun = 0, exWalk = 0, exDogs = 0;
         Object.keys(milesPerDate).forEach(function(ds) {
             var d = milesPerDate[ds];
             exTot  = Math.round((exTot  + d.total) * 10) / 10;
@@ -2484,29 +2508,115 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
             exWalk = Math.round((exWalk + d.walk)   * 10) / 10;
             exDogs = Math.round((exDogs + d.dogs)   * 10) / 10;
         });
-        function _exCell(v) { return '<td class="dm-col-num dm-col-extra">' + (v > 0 ? v : '—') + '</td>'; }
-        thead += _exCell(exTot) + _exCell(exWalk) + _exCell(exRun) + _exCell(exDogs);
     }
-    // Exercise type calorie totals — after Dogs Mi., before Burn
-    trackedTypes.forEach(function(t) {
-        var tot  = typeMonthTotals[t.typeId];
-        var disp = tot.displaySum > 0 ? tot.displaySum.toLocaleString() : '—';
-        thead += '<td class="dm-col-num dm-col-extra">' + disp + '</td>';
-    });
-    postMilesCols.forEach(function(c) { thead += _summaryCell(c); });
-    // +/- Diff summary: total calories for the period
-    if (summary.diffSum !== null && summary.diffSum !== undefined) {
-        var ds = Math.round(summary.diffSum);
-        thead += '<td class="dm-col-num">' + ds.toLocaleString() + '</td>';
-    } else {
-        thead += '<td class="dm-col-num">—</td>';
+
+    // Header rows
+    var thead = '<thead>';
+
+    // ── Three stat rows above the column headers: Goals / Averages / Totals ──
+    // Every row iterates the same column slots as the header/body rows.
+    // cells = { label, weight, sleepScore, bodyBattery, dailySteps, miles[4], types(fn), totalBurn, foodCalories, diff, custom(fn) }
+    function _statRow(cls, cells) {
+        var row = '<tr class="' + cls + '">';
+        row += '<td class="dm-row-label">' + cells.label + '</td>';
+        row += '<td class="dm-col-num">' + cells.weight + '</td>';
+        row += '<td class="dm-col-num">' + cells.sleepScore + '</td>';
+        row += '<td class="dm-col-num">' + cells.bodyBattery + '</td>';
+        row += '<td class="dm-col-num">' + cells.dailySteps + '</td>';
+        if (milesPerDate) {
+            cells.miles.forEach(function(v) { row += '<td class="dm-col-num dm-col-extra">' + v + '</td>'; });
+        }
+        trackedTypes.forEach(function(t) {
+            row += '<td class="dm-col-num dm-col-extra">' + cells.types(t) + '</td>';
+        });
+        row += '<td class="dm-col-num">' + cells.totalBurn + '</td>';
+        row += '<td class="dm-col-num">' + cells.foodCalories + '</td>';
+        row += '<td class="dm-col-num">' + cells.diff + '</td>';
+        postDiffCols.forEach(function() { row += '<td></td>'; });
+        _dmMetricDefs.forEach(function(def) {
+            var cls2 = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
+            row += '<td' + cls2 + '>' + cells.custom(def) + '</td>';
+        });
+        return row + '</tr>';
     }
-    postDiffCols.forEach(function(c) { thead += '<td class="dm-col-num">' + summary[c.key] + '</td>'; });
-    _dmMetricDefs.forEach(function(def) {
-        var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
-        thead += '<td' + cls + '>' + _exEsc(summary.custom[def.id] || '') + '</td>';
+    function _fmtNum(v)  { return v != null ? Math.round(v).toLocaleString() : ''; }
+    function _coloredWt(v) {
+        if (v == null) return '';
+        var color = v < 0 ? 'green' : 'red';
+        var sign  = v > 0 ? '+' : '';
+        return '<span style="color:' + color + ';font-weight:bold">' + sign + v.toFixed(1) + '</span>';
+    }
+
+    // Goals row
+    thead += _statRow('dm-goals-row', {
+        label:        'Goals',
+        weight:       goalWtAsOfToday != null ? goalWtAsOfToday : '',
+        sleepScore:   '',
+        bodyBattery:  '',
+        dailySteps:   (gMonth && gMonth.stepsGreen != null) ? parseFloat(gMonth.stepsGreen).toLocaleString() : '',
+        miles: [
+            (gMonth && gMonth.avgMilesPerDay != null) ? (Math.round(parseFloat(gMonth.avgMilesPerDay) * daysElapsed_ * 10) / 10) : '',
+            '', '', ''
+        ],
+        types:        function(t) { return monthGoals[t.typeId] != null ? String(monthGoals[t.typeId]) : ''; },
+        totalBurn:    (gMonth && gMonth.burnGreen != null) ? parseFloat(gMonth.burnGreen).toLocaleString() : '',
+        foodCalories: foodGoal != null ? foodGoal.toLocaleString() : '',
+        diff:         dailyCalLossGoal != null ? dailyCalLossGoal.toLocaleString() : '',
+        custom:       function() { return ''; }
     });
-    thead += '</tr>';
+
+    // Averages row
+    var lossPerDay = (summary.weightChange != null && summary.weightSpanDays > 0)
+        ? summary.weightChange / summary.weightSpanDays
+        : null;
+    thead += _statRow('dm-averages-row', {
+        label:        'Averages',
+        weight:       lossPerDay != null ? _coloredWt(Math.round(lossPerDay * 100) / 100) : '',
+        sleepScore:   summary.sleepScore,
+        bodyBattery:  summary.bodyBattery,
+        dailySteps:   summary.dailySteps,
+        miles: [
+            exTot > 0 ? (Math.round(exTot / daysElapsed_ * 10) / 10) : '',
+            '', '', ''
+        ],
+        types: function(t) {
+            var tot = typeMonthTotals[t.typeId];
+            return tot.sessions > 0 ? Math.round(tot.calSum / tot.sessions).toLocaleString() : '';
+        },
+        totalBurn:    summary.totalBurn,
+        foodCalories: summary.foodCalories,
+        diff:         (summary.diffSum != null && summary.diffCount > 0)
+                          ? Math.round(summary.diffSum / summary.diffCount).toLocaleString() : '',
+        custom:       function() { return ''; }
+    });
+
+    // Totals row
+    var diffTotal = '';
+    if (summary.diffSum != null) {
+        diffTotal = Math.round(summary.diffSum).toLocaleString() +
+            ' (' + (summary.diffSum / 3500).toFixed(1) + ')';
+    }
+    thead += _statRow('dm-summary-row', {
+        label:        'Totals',
+        weight:       summary.weightChange != null ? _coloredWt(summary.weightChange) : '',
+        sleepScore:   '',
+        bodyBattery:  '',
+        dailySteps:   _fmtNum(summary.totals.dailySteps),
+        miles: [
+            exTot  > 0 ? exTot  : '',
+            exWalk > 0 ? exWalk : '',
+            exRun  > 0 ? exRun  : '',
+            exDogs > 0 ? exDogs : ''
+        ],
+        types: function(t) {
+            var tot = typeMonthTotals[t.typeId];
+            return tot.sessions > 0 ? String(tot.sessions) : '';
+        },
+        totalBurn:    _fmtNum(summary.totals.totalBurn),
+        foodCalories: _fmtNum(summary.totals.foodCalories),
+        diff:         diffTotal,
+        custom:       function(def) { return _exEsc(summary.custom[def.id] || ''); }
+    });
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
     preDiffCols.forEach(function(c) {

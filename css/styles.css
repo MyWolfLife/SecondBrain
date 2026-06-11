@@ -17653,6 +17653,28 @@ a.legacy-fin-card:hover {
     font-size: 0.76rem;
     color: #333;
 }
+/* Goals / Averages stat rows (above the Totals row) */
+.dm-goals-row td {
+    background: #f0faf0;
+    font-weight: 600;
+    font-size: 0.76rem;
+    color: #2e7d32;
+}
+.dm-averages-row td {
+    background: #fffbef;
+    font-weight: 600;
+    font-size: 0.76rem;
+    color: #555;
+}
+/* Row label in the first column of each stat row */
+.dm-table td.dm-row-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #888;
+    text-align: left;
+}
 .dm-header-row th {
     background: #f5f5f5;
     font-weight: 600;
@@ -17686,18 +17708,6 @@ a.legacy-fin-card:hover {
     width: 1px;          /* shrink-wrap to content */
     white-space: nowrap;
 }
-/* Sessions/goal row (above summary row) */
-.dm-sessions-row td {
-    background: #f5f5f5;
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: #555;
-    text-align: right;
-    padding: 3px 4px;
-    border-bottom: 1px solid #e0e0e0;
-}
-.dm-sessions-cell { color: #1a73e8; }
-
 /* Number custom metric columns — cap width so long header names wrap */
 .dm-table td.dm-col-num-custom,
 .dm-table th.dm-col-num-custom {

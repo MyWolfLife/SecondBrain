@@ -3732,7 +3732,10 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Year combo**: pick any year from 2020 to 2070 — changing either combo reloads the list automatically
 - Defaults to the current month and current year when you first open the screen
 - **N records** label below the filter bar shows how many entries match
-- **Desktop**: data appears as a table with a tinted **summary row** at the top — Weight shows net change for the period (green = lost, red = gained); other columns show averages
+- **Desktop**: data appears as a table with **three labeled rows** above the column headers — **Goals** (green), **Averages** (cream), and **Totals** (blue):
+  - **Goals** shows your targets from Monthly Goals: steps/burn green thresholds, food (midpoint of the two yellow thresholds), goal sessions per exercise, miles you should have by today, daily calorie deficit needed, and your **goal weight as of today** (prorated from your first weigh-in toward the month-end goal — past months show the month-end goal). Blank = no goal set.
+  - **Averages** shows per-day averages: weight loss per day (green = losing), sleep, body battery, steps, burn, food, diff per day, miles per calendar day, and calories per session for each exercise
+  - **Totals** shows period sums: total net weight change, total steps/burn/food, total diff with its pound equivalent, total miles, sessions done per exercise, and custom metric totals
 - **+/- Diff column** (between Burn and Food): shows `burn − food` for each day — a yellow cell means you ate more than you burned that day; "—" means you were in a deficit (good)
 - **Mobile**: a blue **summary card** at the top shows averages and totals for the period (same as the desktop summary row), followed by individual day cards
 - **📝 icon**: hover (desktop) to see a note; tap (mobile) to pop up the note text — tap outside or ✕ to close
