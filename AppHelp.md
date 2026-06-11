@@ -3619,6 +3619,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Tap **+ Activity** to log a new workout
 - Use the **month and year dropdowns** to pick which month to view — defaults to the current month
+- **Activities dropdown** (below the month/year): filter the list to a single activity type (e.g. just your runs). Defaults to "All Activities" each time you open the screen. The Miles Summary Card always shows the whole month, even when a filter is active.
 - **Miles Summary Card** (below the filter): shows mileage totals for the selected month — same card as on Daily Metrics. For the current month it shows pacing and an estimated month-end total; for past months it shows final vs goal.
 - **Manage Types** link lets you rename or delete custom activity types
 - Tap any row to view or edit that activity

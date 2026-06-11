@@ -1236,6 +1236,7 @@ Displays logged exercise activities in a filterable, sortable list.
 
 **Filter bar:**
 - **Month dropdown** + **Year dropdown** — picks which month to display; defaults to current month/year on every visit
+- **Activities dropdown** (second row, below month/year): "All Activities" + every non-archived activity type sorted alphabetically. Defaults to All on every visit (not sticky). Filters the list client-side to the selected type; the Miles Summary Card stays month-wide regardless of the filter.
 - **Manage Types** link: navigates to `#exercise-types`
 - **+ Activity** button: navigates to `#exercise-activity/new`
 - **Miles Summary Card** (below filter bar): same card as Daily Metrics — Total / Run / Walk / Dogs miles, daily avg, goal, pacing (current month) or final vs goal (past month)

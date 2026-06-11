@@ -176,6 +176,7 @@ var _exSelMonth   = 0;    // 0-11; set to current month on page load
 var _exSelYear    = 0;    // 4-digit year; set on page load
 var _exGoalsData  = null; // exerciseGoals doc for _exSelYear (miles card goal)
 var _exGoalsYear  = 0;    // which year _exGoalsData was loaded for
+var _exTypeFilter = 'all'; // 'all' or a typeId — filters the activities list
 
 // ─── Module-level state (activity form) ──────────────────────────────────────
 
@@ -240,6 +241,7 @@ async function loadExerciseActivitiesPage() {
     _exSelYear   = _exNow.getFullYear();
     _exGoalsData = null;
     _exGoalsYear = 0;
+    _exTypeFilter = 'all';   // always reset to All Activities on page entry
 
     _exTypes = {};
     try {
@@ -266,6 +268,16 @@ function _exBuildActivitiesPage() {
         yearOpts += '<option value="' + y + '"' + (_exSelYear === y ? ' selected' : '') + '>' + y + '</option>';
     }
 
+    // Activity type filter: All Activities + every non-archived type, sorted by name
+    var typeOpts = '<option value="all">All Activities</option>';
+    Object.keys(_exTypes)
+        .filter(function(id) { return !_exTypes[id].archived; })
+        .sort(function(a, b) { return (_exTypes[a].name || '').localeCompare(_exTypes[b].name || ''); })
+        .forEach(function(id) {
+            typeOpts += '<option value="' + id + '"' + (_exTypeFilter === id ? ' selected' : '') + '>' +
+                _exEsc(_exTypes[id].name || '?') + '</option>';
+        });
+
     el.innerHTML =
         '<div class="page-header">' +
             '<h2>Activities</h2>' +
@@ -277,6 +289,9 @@ function _exBuildActivitiesPage() {
                 '<select id="exYearSelect"  class="dm-filter-select">' + yearOpts  + '</select>' +
                 '<a href="#exercise-types" class="ex-manage-link">Manage Types</a>' +
             '</div>' +
+            '<div class="ex-toolbar-row">' +
+                '<select id="exTypeSelect" class="dm-filter-select">' + typeOpts + '</select>' +
+            '</div>' +
         '</div>' +
         '<div id="exMilesCard"></div>' +
         '<div id="exListContainer"></div>';
@@ -287,6 +302,10 @@ function _exBuildActivitiesPage() {
     });
     document.getElementById('exYearSelect').addEventListener('change', function() {
         _exSelYear = parseInt(this.value, 10);
+        _exApplyFilter();
+    });
+    document.getElementById('exTypeSelect').addEventListener('change', function() {
+        _exTypeFilter = this.value;
         _exApplyFilter();
     });
 }
@@ -341,13 +360,18 @@ async function _exApplyFilter() {
         _dmRenderMilesCard(milesSummary, _exMNsFull[_exSelMonth], _exSelYear, 'exMilesCard');
 
         // ── Activities list ───────────────────────────────────────────────────
+        // Type filter applies to the list only — the miles card stays month-wide
+        var listed = _exTypeFilter === 'all'
+            ? filtered
+            : filtered.filter(function(a) { return a.typeId === _exTypeFilter; });
+
         container.innerHTML = '';
-        if (filtered.length === 0) {
+        if (listed.length === 0) {
             container.innerHTML = '<p class="ex-status">No activities found for this period.</p>';
             return;
         }
-        container.appendChild(_exBuildTable(filtered));
-        container.appendChild(_exBuildCards(filtered));
+        container.appendChild(_exBuildTable(listed));
+        container.appendChild(_exBuildCards(listed));
 
     } catch (err) {
         console.error('Exercise: failed to load activities:', err);
