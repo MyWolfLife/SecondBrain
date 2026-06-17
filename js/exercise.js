@@ -2162,6 +2162,7 @@ async function _dmApplyFilter() {
             '</div>';
 
         var last7Html = '';
+        var last7Data = null;
         if (isCurrentPeriod) {
             // Compute last-7 date range — ends yesterday, never includes today
             var l7End = new Date(todayD); l7End.setHours(0,0,0,0);
@@ -2190,22 +2191,47 @@ async function _dmApplyFilter() {
 
             var l7Summary = _dmComputeSummary(l7Records, 7);
             var l7RecCount = l7Records.length;
-            var l7CountLabel = l7RecCount === 0 ? 'No records'
-                             : l7RecCount + ' record' + (l7RecCount === 1 ? '' : 's');
-            var l7Open = _dmLast7Expanded;
-            last7Html =
-                '<div class="dm-accordion-section dm-last7-section">' +
-                    '<button class="dm-accordion-hdr" id="dmLast7Hdr" aria-expanded="' + (l7Open ? 'true' : 'false') + '">' +
-                        '<span class="dm-accordion-title">Last 7 Days</span>' +
-                        '<span class="dm-accordion-count">' + l7CountLabel + '</span>' +
-                        '<span class="dm-accordion-arrow">' + (l7Open ? '▼' : '▶') + '</span>' +
-                    '</button>' +
-                    '<div class="dm-accordion-body" id="dmLast7Body" style="display:' + (l7Open ? 'block' : 'none') + '">' +
-                        (l7RecCount === 0
-                            ? '<p class="ex-status dm-accordion-empty">No entries in the last 7 days.</p>'
-                            : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days Avg (' + l7RecCount + ' of 7 logged)')) +
-                    '</div>' +
-                '</div>';
+
+            // Total miles over the last-7 window — separate activities query because the
+            // window can span into the previous month (not covered by _dmMonthActivities).
+            var l7MilesTotal = 0;
+            try {
+                var l7ActSnap = await userCol('exerciseActivities')
+                    .where('activityDate', '>=', l7StartStr)
+                    .where('activityDate', '<=', l7EndStr + 'T23:59:59')
+                    .get();
+                l7ActSnap.forEach(function(doc) {
+                    var a = doc.data();
+                    var role = _dmTypeRoleMap ? (_dmTypeRoleMap[a.typeId] || null) : null;
+                    if (role !== 'run' && role !== 'walk' && role !== 'split') return;
+                    var m  = a.miles    != null ? parseFloat(a.miles)    : 0;
+                    var rm = a.runMiles != null ? parseFloat(a.runMiles) : 0;
+                    l7MilesTotal += m + rm;
+                });
+                l7MilesTotal = Math.round(l7MilesTotal * 10) / 10;
+            } catch(e) { l7MilesTotal = 0; }
+
+            // Desktop renders Last 7 as a table row (built in _dmBuildTable); mobile keeps the card.
+            last7Data = { summary: l7Summary, recCount: l7RecCount, milesTotal: l7MilesTotal };
+
+            if (!isDesktop) {
+                var l7CountLabel = l7RecCount === 0 ? 'No records'
+                                 : l7RecCount + ' record' + (l7RecCount === 1 ? '' : 's');
+                var l7Open = _dmLast7Expanded;
+                last7Html =
+                    '<div class="dm-accordion-section dm-last7-section">' +
+                        '<button class="dm-accordion-hdr" id="dmLast7Hdr" aria-expanded="' + (l7Open ? 'true' : 'false') + '">' +
+                            '<span class="dm-accordion-title">Last 7 Days</span>' +
+                            '<span class="dm-accordion-count">' + l7CountLabel + '</span>' +
+                            '<span class="dm-accordion-arrow">' + (l7Open ? '▼' : '▶') + '</span>' +
+                        '</button>' +
+                        '<div class="dm-accordion-body" id="dmLast7Body" style="display:' + (l7Open ? 'block' : 'none') + '">' +
+                            (l7RecCount === 0
+                                ? '<p class="ex-status dm-accordion-empty">No entries in the last 7 days.</p>'
+                                : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days Avg (' + l7RecCount + ' of 7 logged)')) +
+                        '</div>' +
+                    '</div>';
+            }
         }
 
         // Build per-date miles breakdown from already-loaded activities (no extra query needed)
@@ -2255,7 +2281,7 @@ async function _dmApplyFilter() {
         } else {
             var summary = _dmComputeSummary(records);
             monthlyHtml = isDesktop
-                ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes)
+                ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, null, last7Data)
                 : _dmBuildCards(records, summary);
         }
 
@@ -2518,7 +2544,7 @@ function _dmThresholdBg(value, thresholds, field) {
     }
 }
 
-function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, monthIdx) {
+function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, monthIdx, last7) {
     typeDataPerDate = typeDataPerDate || {};
     trackedTypes    = trackedTypes    || [];
     if (monthIdx == null) monthIdx = _dmSelMonth;   // year-view passes its own month
@@ -2660,6 +2686,28 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         var color = v < 0 ? 'green' : 'red';
         var sign  = v > 0 ? '+' : '';
         return '<span style="color:' + color + ';font-weight:bold">' + sign + v.toFixed(1) + '</span>';
+    }
+
+    // Last 7 Days row (current month only) — sits above Goals. Weight = net loss/gain
+    // over the window; miles = period total; other standard fields = averages; booleans X/7.
+    if (last7 && last7.summary) {
+        var l7 = last7.summary;
+        function _l7Avg(v) { return v === '—' || v == null ? '' : v; }
+        thead += _statRow('dm-last7-row', {
+            label:        'Last 7 Days',
+            weight:       l7.weightChange != null ? _coloredWt(l7.weightChange) : '',
+            sleepScore:   _l7Avg(l7.sleepScore),
+            bodyBattery:  _l7Avg(l7.bodyBattery),
+            dailySteps:   _l7Avg(l7.dailySteps),
+            miles:        [ last7.milesTotal > 0 ? last7.milesTotal : '', '', '', '' ],
+            types:        function() { return ''; },
+            totalBurn:    _l7Avg(l7.totalBurn),
+            foodCalories: _l7Avg(l7.foodCalories),
+            diff:         (l7.diffSum != null && l7.diffCount > 0)
+                              ? Math.round(l7.diffSum / l7.diffCount).toLocaleString() : '',
+            nutrition:    [l7.protein, l7.carbs, l7.fat, l7.water].map(_l7Avg),
+            custom:       function(def) { var c = l7.custom[def.id]; return c == null ? '' : _exEsc(c); }
+        });
     }
 
     // Goals row

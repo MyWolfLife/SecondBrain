@@ -17656,6 +17656,13 @@ a.legacy-fin-card:hover {
     font-size: 0.76rem;
     color: #333;
 }
+/* Last 7 Days stat row (top of the stack, above Goals) */
+.dm-last7-row td {
+    background: #f3f0fb;
+    font-weight: 600;
+    font-size: 0.76rem;
+    color: #5b3fa0;
+}
 /* Goals / Averages stat rows (above the Totals row) */
 .dm-goals-row td {
     background: #f0faf0;
