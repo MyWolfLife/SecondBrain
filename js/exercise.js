@@ -2192,6 +2192,31 @@ async function _dmApplyFilter() {
             var l7Summary = _dmComputeSummary(l7Records, 7);
             var l7RecCount = l7Records.length;
 
+            // Weight, sleep, and body battery are typically filled the same day, so for
+            // those three we use a window that INCLUDES today (last 7 calendar days through
+            // today). The other metrics (steps/burn from the watch) keep the today-excluded
+            // window above. We merge the today-inclusive values into l7Summary.
+            var l7StartB = new Date(todayD); l7StartB.setHours(0,0,0,0);
+            l7StartB.setDate(l7StartB.getDate() - 6);
+            var l7TodayStr = _fmtD(todayD), l7StartBStr = _fmtD(l7StartB);
+            var l7SnapB;
+            try {
+                l7SnapB = await userCol('exerciseDailyMetrics')
+                    .where('date', '<=', l7TodayStr)
+                    .orderBy('date', 'desc')
+                    .limit(7)
+                    .get();
+            } catch(e) { l7SnapB = null; }
+            var l7RecordsB = l7SnapB ? l7SnapB.docs
+                .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+                .filter(function(r) { return r.date >= l7StartBStr && r.date <= l7TodayStr; })
+                : [];
+            var l7SummaryB = _dmComputeSummary(l7RecordsB, 7);
+            l7Summary.weight       = l7SummaryB.weight;
+            l7Summary.weightChange = l7SummaryB.weightChange;
+            l7Summary.sleepScore   = l7SummaryB.sleepScore;
+            l7Summary.bodyBattery  = l7SummaryB.bodyBattery;
+
             // Total miles over the last-7 window — separate activities query because the
             // window can span into the previous month (not covered by _dmMonthActivities).
             var l7MilesTotal = 0;
