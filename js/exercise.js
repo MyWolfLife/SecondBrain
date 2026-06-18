@@ -1679,6 +1679,8 @@ var _dmNutriColsOpen      = false;  // show/hide nutrition columns (Protein/Carb
 var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
 var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
+var _dmWeightChartShrink   = 1.0;   // width reduction factor (1 = full natural width); not sticky
+var _dmWeightChartNaturalW = 0;     // natural width at render time — basis for the Reduce Width control
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
 
@@ -2156,6 +2158,9 @@ async function _dmApplyFilter() {
                 '<div class="dm-accordion-body" id="dmWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
                     '<div class="dm-weight-chart-controls">' +
                         '<select id="dmWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
+                        '<label class="dm-wc-shrink-label" title="Type a percent to shrink the chart width; resets to 0 after each entry. Change the date range to restore full width.">Reduce Width %' +
+                            '<input type="number" id="dmWeightChartShrinkInput" class="dm-wc-shrink-input" min="0" max="95" step="5" value="0">' +
+                        '</label>' +
                     '</div>' +
                     '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
                 '</div>' +
@@ -2343,6 +2348,24 @@ async function _dmApplyFilter() {
                 _dmWeightChartRange = this.value;
                 userCol('settings').doc('exercisePrefs').set({ dmWeightChartRange: _dmWeightChartRange }, { merge: true });
                 if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
+            });
+        }
+        // Reduce Width % — cumulative shrink; field resets to 0 after each entry.
+        // Changing the date range (full re-render) restores natural width.
+        var wcShrink = document.getElementById('dmWeightChartShrinkInput');
+        if (wcShrink) {
+            wcShrink.addEventListener('change', function() {
+                var pct = parseFloat(this.value);
+                this.value = 0;   // reset the field each time
+                if (isNaN(pct) || pct <= 0) return;
+                if (pct > 95) pct = 95;
+                _dmWeightChartShrink *= (1 - pct / 100);
+                if (_dmWeightChartShrink < 0.1) _dmWeightChartShrink = 0.1;   // floor
+                var w = document.getElementById('dmWeightChartWrap');
+                if (w && _dmWeightChartNaturalW) {
+                    w.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
+                    if (_dmWeightChart) _dmWeightChart.resize();
+                }
             });
         }
         if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
@@ -2938,6 +2961,9 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
 async function _dmRenderWeightChart(range) {
     // Destroy any previous Chart.js instance before re-rendering
     if (_dmWeightChart) { _dmWeightChart.destroy(); _dmWeightChart = null; }
+    _dmWeightChartShrink = 1.0;   // each fresh render (e.g. range change) starts at full width
+    var shrinkInput = document.getElementById('dmWeightChartShrinkInput');
+    if (shrinkInput) shrinkInput.value = 0;
 
     var wrap = document.getElementById('dmWeightChartWrap');
     if (!wrap) return;
@@ -3052,8 +3078,10 @@ async function _dmRenderWeightChart(range) {
         }
 
         // ── Render ────────────────────────────────────────────────────────────
-        // Auto-scale width: ~35px per data point, capped at full container width
-        wrap.style.maxWidth = Math.min(pts.length * 35, wrap.parentElement.offsetWidth) + 'px';
+        // Auto-scale width: ~35px per data point, capped at full container width.
+        // _dmWeightChartShrink (set by the Reduce Width control) tightens it further.
+        _dmWeightChartNaturalW = Math.min(pts.length * 35, wrap.parentElement.offsetWidth);
+        wrap.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
         wrap.innerHTML = '<canvas id="dmWeightChartCanvas"></canvas>';
         var canvas = document.getElementById('dmWeightChartCanvas');
 

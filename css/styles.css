@@ -17590,7 +17590,27 @@ a.legacy-fin-card:hover {
 .dm-weight-chart-section { margin-bottom: 10px; }
 .dm-weight-chart-section .dm-accordion-hdr { background: #f0f4ff; }
 .dm-weight-chart-section .dm-accordion-hdr:hover { background: #dce6fb; }
-.dm-weight-chart-controls { padding: 8px 4px 6px; }
+.dm-weight-chart-controls {
+    padding: 8px 4px 6px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.dm-wc-shrink-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #555;
+}
+.dm-wc-shrink-input {
+    width: 56px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
 .dm-weight-chart-wrap {
     position: relative;
     height: 220px;
