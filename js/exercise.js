@@ -2993,7 +2993,7 @@ async function _dmRenderWeightChart(range) {
         // ── Scale ─────────────────────────────────────────────────────────────
         // Short ranges (≤31 days): tight ±1 lb padding; longer ranges: ±5 lb
         var shortRange = (range === 'last7' || range === 'last14' || range === 'last30' || range === 'thisMonth' || range === 'selectedMonth');
-        var yPad = shortRange ? 1 : 5;
+        var yPad = 1;   // always ±1 lb padding, regardless of range
         var wArr = pts.map(function(p) { return p.w; });
         var yMin = Math.floor(Math.min.apply(null, wArr) - yPad);
         var yMax = Math.ceil(Math.max.apply(null, wArr)  + yPad);
