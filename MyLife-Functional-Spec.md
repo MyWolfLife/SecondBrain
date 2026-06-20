@@ -2860,8 +2860,8 @@ Feature-specific test plans live in their own markdown files:
 
 ## Part 14: Deployment
 
-- **Hosting**: GitHub Pages — live at `https://dolphinstevekasputis.github.io/BishopHome`
-- **GitHub username**: `DolphinSteveKasputis`
+- **Hosting**: GitHub Pages — live at `https://mywolflife.github.io/SecondBrain`
+- **GitHub username**: `MyWolfLife`
 - **Branch**: `main` (deployed automatically from main branch)
 - **Push protocol**: Always send the ntfy.sh notification before `git push` — Windows requires a credential confirmation prompt:
   ```

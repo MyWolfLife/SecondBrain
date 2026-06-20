@@ -42,8 +42,8 @@
      "name": "Bishop Life Tracker",
      "short_name": "Bishop",
      "description": "Track your yard, home, vehicles, thoughts, and life.",
-     "start_url": "/BishopHome/",
-     "scope": "/BishopHome/",
+     "start_url": "/SecondBrain/",
+     "scope": "/SecondBrain/",
      "display": "standalone",
      "orientation": "any",
      "background_color": "#ffffff",
@@ -69,7 +69,7 @@
 4. Register a minimal service worker in `js/app.js`:
    ```javascript
    if ('serviceWorker' in navigator) {
-     navigator.serviceWorker.register('/BishopHome/sw.js');
+     navigator.serviceWorker.register('/SecondBrain/sw.js');
    }
    ```
 
@@ -141,10 +141,10 @@
    ```javascript
    var CACHE_NAME = 'bishop-v1';
    var STATIC_ASSETS = [
-     '/BishopHome/',
-     '/BishopHome/index.html',
-     '/BishopHome/css/styles.css',
-     '/BishopHome/js/app.js',
+     '/SecondBrain/',
+     '/SecondBrain/index.html',
+     '/SecondBrain/css/styles.css',
+     '/SecondBrain/js/app.js',
      // ... all JS files
    ];
 
@@ -324,7 +324,7 @@ This uses the Web Push API + Firebase Cloud Messaging (FCM). The user grants not
 ## Notes for the Developer
 
 - **GitHub Pages is fine** — it serves over HTTPS which is required for PWAs and service workers. No hosting change needed.
-- **`sw.js` must live at the root** — it must be at `/BishopHome/sw.js`, not in `/js/`. Scope is determined by its location.
+- **`sw.js` must live at the root** — it must be at `/SecondBrain/sw.js`, not in `/js/`. Scope is determined by its location.
 - **Bump the cache version on every deploy** — after Phase 2, remember to update `CACHE_NAME` in `sw.js` each time you push a change. Otherwise users get stale files.
 - **iOS is the tricky one** — Apple's PWA support is improving but still behind Android/Chrome. The install flow (Share → Add to Home Screen) is manual and not as smooth. Nothing you can fix — it's Apple's limitation.
 - **Avalonia is not the answer** — it would require a full rewrite in C# and abandons the cross-device web model that makes Bishop accessible on any device without installation.

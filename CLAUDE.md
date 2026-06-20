@@ -133,8 +133,8 @@ A web application for tracking yard and garden maintenance. Allows the user to c
 - **Database**: Firebase Firestore (free Spark plan, project: `bishop-62d43`)
 - **Firebase SDK**: Compat v10.14.0 loaded via CDN
 - **Authentication**: None initially (Firebase Auth reserved for future use)
-- **Hosting**: GitHub Pages (live at https://dolphinstevekasputis.github.io/BishopHome)
-- **GitHub username**: DolphinSteveKasputis — use this when pushing to git (no interaction needed, push directly)
+- **Hosting**: GitHub Pages (live at https://mywolflife.github.io/SecondBrain)
+- **GitHub username**: MyWolfLife — use this when pushing to git (no interaction needed, push directly)
 
 ## Architecture Notes
 - **Routing**: Hash-based client-side routing (`#home`, `#zone/id`, `#plant/id`, `#weeds`, `#weed/id`, `#calendar`, `#chemicals`, `#chemical/id`, `#actions`)
@@ -198,7 +198,7 @@ Bishop/
 - **Phase 7.6**: Feature Enhancements ✅ COMPLETE (clickable URL facts, chemical detail page, multi-chemical checkboxes, calendar events on zone/plant, complete event→activity, overdue section)
 - **Phase 7.7**: Ad-hoc Fixes ✅ COMPLETE (home screen calendar buttons, delete in edit modal, confirm-before-close, multi-zone calendar events, show completed on calendar)
 - **Phase 8**: Polish & Responsive Design ✅ COMPLETE (verified across all pages at 375px mobile)
-- **Phase 9**: Deployment ✅ COMPLETE (live on GitHub Pages at https://dolphinstevekasputis.github.io/BishopHome)
+- **Phase 9**: Deployment ✅ COMPLETE (live on GitHub Pages at https://mywolflife.github.io/SecondBrain)
 
 ## Functional Specification
 - **`MyLife-Functional-Spec.md`** is the source of truth for this app's features and architecture.
@@ -206,6 +206,7 @@ Bishop/
 - It covers: all major sections (Yard/House/Garage/Vehicles/Collections/Life), all shared features (Photos/Facts/Activities/Problems/Projects/Calendar), architecture, routing, Firestore data model, testing credentials, and deployment protocol.
 
 ## Planning Documents
+- **`AllPlans.md`** — index of every plan document in the project. Check this first to find the right plan doc for any feature area.
 - **`HealthEnhancements.md`** — active plan for the current health section enhancement work (concern/condition linking, medication flow, care team, contacts rename, etc.). Read this when working on health features.
 - **`FutureEnhancements.md`** — parking lot for out-of-scope ideas to revisit later. Add items here instead of building them now.
 
@@ -283,34 +284,19 @@ Bishop/
 - Do this in the same commit as the code change — not a separate commit.
 - This applies to every deploy, no exceptions.
 
-## Dev Note Fix Command — REQUIRED BEHAVIOR
-**IMPORTANT: When the user says "fix {id}", "please fix {id}", "do {id}", or any similar phrasing where `{id}` looks like a Firestore document ID (long alphanumeric string), always:**
+## /fixbishop Command — REQUIRED BEHAVIOR
+**IMPORTANT: When the user types `/fixbishop {id}` or says "fix {id}", "please fix {id}", "do {id}", or any similar phrasing where `{id}` looks like a Firestore document ID (long alphanumeric string), follow the `/fixbishop` skill defined in `.claude/skills/fixbishop/SKILL.md`.**
 
-1. **Read the dev note via the preview server** — do NOT try to read Firestore via REST, file reads, or any other method. Use this exact pattern:
-   - Start the dev server: `preview_start` → `bishop-dev`
-   - Log in with test credentials (see memory: `reference_test_account.md`)
-   - Query Firestore via `preview_eval`:
-     ```
-     (async () => {
-         var doc = await db.collection('sharedDevNotes').doc('{id}').get();
-         return doc.exists ? JSON.stringify(doc.data()) : 'NOT FOUND';
-     })()
-     ```
-   - If the doc exists, that's a dev note fix request. Read the `text` field to understand the issue.
-2. **Implement the fix** in the codebase (or ask a clarifying question if the issue is ambiguous).
-3. **Implement the fix** in the codebase (or ask a clarifying question if the issue is ambiguous).
-4. **Run the full pre-commit checklist** — the fix is a code change like any other:
-   - Update `MyLife-Functional-Spec.md` if any user-visible behavior changed
-   - Update `AppHelp.md` if any screen with a `## screen:X` section was affected
-   - Update any specialized plan files that cover the changed area (e.g., `HealthEnhancements.md`, `ModifyProjects.md`, etc.)
-   - Bump `?v=N` on changed JS/CSS files and `CACHE_NAME` in `sw.js`
-5. **Mark the dev note as resolved** by updating the Firestore document:
-   - `fixed: true`
-   - `fixedDate: '<today's date in YYYY-MM-DD format>'`
-   - `fixedNote: '<plain-English description of what was done to fix it>'`
-6. Do this for the stated ID only. Never touch other dev notes.
+Summary of that workflow:
+1. Read the dev note from `sharedDevNotes/{id}` via preview server + `preview_eval`
+2. Understand the issue using: `MyLife-Functional-Spec.md`, `AppHelp.md`, `AllPlans.md` (to find relevant plan doc), and source code
+3. Act if the intent is clear; ask only if genuinely unresolvable from all available context
+4. Implement the fix and run the full pre-commit checklist (spec, help, cache bump)
+5. Test in the preview server when feasible
+6. Mark the dev note resolved (`fixed: true`, `fixedDate`, `fixedNote`)
+7. Notify then push: `curl -d "Ready to push..." ntfy.sh/WolfLifeBishop && git push`
 
-This applies to: "fix abc123", "please fix abc123", "go fix abc123", "do abc123", "handle abc123", or any similar shorthand where the ID is clearly being called out as a work item.
+Do this for the stated ID only. Never touch other dev notes.
 
 ## Git Push — REQUIRED BEHAVIOR
 **IMPORTANT: git push requires a Windows credential confirmation prompt. Always notify BEFORE pushing.**

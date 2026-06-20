@@ -136,7 +136,7 @@ A help modal (like the LLM and Foursquare setup guides) that walks the user thro
 3. Go to **APIs & Services → Credentials** → Create credentials → **OAuth client ID**
 4. Application type: **Web application**
 5. Add your Bishop app URL as an **Authorized JavaScript origin**
-   (e.g., `https://dolphinstevekasputis.github.io`)
+   (e.g., `https://mywolflife.github.io`)
 6. Copy the **Client ID** and paste it into Bishop Settings → Google Calendar
 7. Click **Connect** → approve Google's consent screen
 8. Done — Bishop will now automatically sync events to your Google Calendar

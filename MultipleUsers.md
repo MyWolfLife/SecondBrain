@@ -8,7 +8,7 @@ app and Firebase project but each see only their own data.
 ## Current Baseline
 - App version at time of writing: **v=140**
 - Firebase project: **bishop-62d43**
-- Hosting: **https://dolphinstevekasputis.github.io/BishopHome**
+- Hosting: **https://mywolflife.github.io/SecondBrain**
 - **Steve's User UID: `70oTpUHGGoMy1OXr9eAtgNt65d13`** (needed for MU-3 migration)
 
 ---

@@ -307,9 +307,9 @@ Strava has a free, publicly accessible OAuth API. Since Garmin already syncs to 
 Strava uses standard OAuth 2.0 authorization code flow:
 
 1. User clicks "Connect Strava" in Bishop settings
-2. Browser redirects to `https://www.strava.com/oauth/authorize?client_id=...&redirect_uri=https://dolphinstevekasputis.github.io/BishopHome/&scope=activity:read_all`
+2. Browser redirects to `https://www.strava.com/oauth/authorize?client_id=...&redirect_uri=https://mywolflife.github.io/SecondBrain/&scope=activity:read_all`
 3. User approves in Strava
-4. Strava redirects back to `https://dolphinstevekasputis.github.io/BishopHome/?code=abc123`
+4. Strava redirects back to `https://mywolflife.github.io/SecondBrain/?code=abc123`
 5. Bishop detects `?code=` in `window.location.search` on page load
 6. Bishop POSTs to `https://www.strava.com/oauth/token` with the code, `client_id`, and `client_secret` to exchange for tokens (Strava allows CORS on this endpoint)
 7. Store `refresh_token` in `userCol('settings').doc('strava')` in Firestore

@@ -38,7 +38,7 @@ window.addEventListener('hashchange', function() {
 // ---------- PWA Service Worker Registration ----------
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/BishopHome/sw.js').then(function(reg) {
+        navigator.serviceWorker.register('/SecondBrain/sw.js').then(function(reg) {
 
             // Check if there's already a waiting SW on load (e.g. user opened a second tab)
             if (reg.waiting) { _swShowUpdateBanner(reg); }
