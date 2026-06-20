@@ -1838,6 +1838,7 @@ var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
 var _dmWeightChartShrink   = 1.0;   // width reduction factor (1 = full natural width); not sticky
 var _dmWeightChartNaturalW = 0;     // natural width at render time — basis for the Reduce Width control
+var _dmWeightChartProjected = false; // "Show Projected Weight" line (calorie-driven) — sticky, default off
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
 
@@ -1896,6 +1897,7 @@ async function loadExerciseMetricsPage() {
     _dmNutriColsOpen    = prefs.dmNutriColsOpen    === true;
     _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
+    _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
     _dmGoalsData = results[2].exists ? results[2].data() : null;
     _dmGoalsYear = new Date().getFullYear();
 
@@ -2318,6 +2320,9 @@ async function _dmApplyFilter() {
                         '<label class="dm-wc-shrink-label" title="Type a percent to shrink the chart width; resets to 0 after each entry. Change the date range to restore full width.">Reduce Width %' +
                             '<input type="number" id="dmWeightChartShrinkInput" class="dm-wc-shrink-input" min="0" max="95" step="5" value="0">' +
                         '</label>' +
+                        '<label class="dm-wc-projected-label" title="This is what the weight would be each day according to calorie +/-">' +
+                            '<input type="checkbox" id="dmWeightChartProjectedChk"' + (_dmWeightChartProjected ? ' checked' : '') + '> Show Projected Weight' +
+                        '</label>' +
                     '</div>' +
                     '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
                 '</div>' +
@@ -2523,6 +2528,15 @@ async function _dmApplyFilter() {
                     w.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
                     if (_dmWeightChart) _dmWeightChart.resize();
                 }
+            });
+        }
+        // Show Projected Weight — sticky toggle; re-renders the chart to add/remove the line
+        var wcProj = document.getElementById('dmWeightChartProjectedChk');
+        if (wcProj) {
+            wcProj.addEventListener('change', function() {
+                _dmWeightChartProjected = this.checked;
+                userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
+                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
             });
         }
         if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
@@ -3163,8 +3177,8 @@ async function _dmRenderWeightChart(range) {
         q = q.orderBy('date', 'asc');
         var snap = await q.get();
 
-        var pts = snap.docs
-            .map(function(d) { return d.data(); })
+        var allDocs = snap.docs.map(function(d) { return d.data(); });
+        var pts = allDocs
             .filter(function(r) { return r.weight != null && r.weight !== '' && r.date; })
             .map(function(r) { return { date: r.date, w: parseFloat(r.weight) }; });
 
@@ -3226,6 +3240,39 @@ async function _dmRenderWeightChart(range) {
             }
         }
 
+        // ── Projected weight (calorie-driven) ────────────────────────────────
+        // Anchored to the first weigh-in in range (so it starts at the same point
+        // as the actual line), then each day applies that day's calorie balance
+        // (totalBurn − foodCalories) at 3500 cal/lb. Days with no logged balance
+        // count as 0 change, so the line carries flat across gaps.
+        var projArr = null;
+        if (_dmWeightChartProjected && pts.length > 0) {
+            var diffByDate = {};
+            allDocs.forEach(function(r) {
+                if (!r.date) return;
+                var b = (r.totalBurn    != null && r.totalBurn    !== '') ? parseFloat(r.totalBurn)    : null;
+                var f = (r.foodCalories != null && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
+                diffByDate[r.date] = (b != null && f != null) ? (b - f) : 0;
+            });
+            var anchorDate = pts[0].date;
+            var startW     = pts[0].w;
+            var sortedDates = Object.keys(diffByDate).sort();
+            // Single pass: accumulate each day's balance as we reach each weigh-in.
+            // A day's balance affects the NEXT reading, so we sum dates strictly
+            // before each point (and on/after the anchor).
+            var di = 0, cum = 0;
+            projArr = pts.map(function(p) {
+                while (di < sortedDates.length && sortedDates[di] < p.date) {
+                    if (sortedDates[di] >= anchorDate) cum += diffByDate[sortedDates[di]];
+                    di++;
+                }
+                return r1(startW - cum / 3500);
+            });
+            // Widen the Y range so the projected line isn't clipped
+            yMin = Math.min(yMin, Math.floor(Math.min.apply(null, projArr) - 1));
+            yMax = Math.max(yMax, Math.ceil(Math.max.apply(null, projArr)  + 1));
+        }
+
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
         var showYear = (range === 'thisYear' || range === 'allTime');
         function _wcLabel(ds) {
@@ -3274,6 +3321,21 @@ async function _dmRenderWeightChart(range) {
                             order: 2
                         }
                     ];
+                    if (projArr) {
+                        ds.push({
+                            label: 'Projected',
+                            data:  projArr,
+                            borderColor: '#64b5f6',          // light blue — same family as Weight
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [2, 3],              // dotted
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0.25,
+                            fill: false,
+                            order: 2
+                        });
+                    }
                     if (goalArr) {
                         ds.push({
                             label: 'Goal',
@@ -3309,17 +3371,21 @@ async function _dmRenderWeightChart(range) {
                     event.native.target.style.cursor = onDot ? 'pointer' : 'default';
                 },
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: true,                  // key — needed now that we can have 4 lines
+                        position: 'top',
+                        labels: { boxWidth: 26, font: { size: 11 }, padding: 10 }
+                    },
                     tooltip: {
                         callbacks: {
                             title: function(items) {
                                 var ds = pts[items[0].dataIndex].date.split('-');
                                 return months[parseInt(ds[1]) - 1] + ' ' + parseInt(ds[2]) + ', ' + ds[0];
                             },
+                            // Use the dataset's own label so this stays correct regardless
+                            // of how many lines are present (Weight / 3-Day Avg / Projected / Goal)
                             label: function(item) {
-                                if (item.datasetIndex === 0) return 'Weight: ' + item.raw + ' lbs';
-                                if (item.datasetIndex === 1) return '3-Day Avg: ' + item.raw + ' lbs';
-                                return 'Goal: ' + item.raw + ' lbs';
+                                return item.dataset.label + ': ' + item.raw + ' lbs';
                             }
                         }
                     }

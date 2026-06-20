@@ -17628,6 +17628,16 @@ a.legacy-fin-card:hover {
     font-size: 0.82rem;
     color: #555;
 }
+.dm-wc-projected-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+}
+.dm-wc-projected-label input { cursor: pointer; }
 .dm-wc-shrink-input {
     width: 56px;
     padding: 4px 6px;
