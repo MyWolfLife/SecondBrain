@@ -14043,6 +14043,30 @@ a.health-chip--link:hover { filter: brightness(0.93); }
 .ex-table-row { cursor: pointer; }
 .ex-table-row:hover td { background: #f0fdf4; }
 
+/* ── Period summary card (collapsible) ──────────────────────── */
+.ex-summary-section { margin-bottom: 12px; }
+.ex-summary-section .collapsible-body { padding: 0; }
+/* Dedicated wrapper so the summary table is NOT hidden by the mobile
+   `.ex-table-wrap { display:none }` rule — it scrolls horizontally instead. */
+.ex-summary-wrap { overflow-x: auto; }
+/* Numeric columns right-aligned; the activity name stays on the left */
+.ex-summary-table th,
+.ex-summary-table td { text-align: right; }
+.ex-summary-table th.ex-sum-name,
+.ex-summary-table td.ex-sum-name { text-align: left; font-weight: 600; }
+/* Override the base ex-table last-column wrap/ellipsis — numbers shouldn't truncate */
+.ex-summary-table td:last-child {
+    white-space: nowrap;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+}
+.ex-summary-table tfoot .ex-sum-totals td {
+    font-weight: 700;
+    border-top: 2px solid #bbf7d0;
+    background: #f7fdf9;
+}
+
 /* ── Exercise mobile cards ──────────────────────────────────── */
 .ex-card {
     display: flex;

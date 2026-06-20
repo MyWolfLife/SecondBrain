@@ -177,6 +177,7 @@ var _exSelYear    = 0;    // 4-digit year; set on page load
 var _exGoalsData  = null; // exerciseGoals doc for _exSelYear (miles card goal)
 var _exGoalsYear  = 0;    // which year _exGoalsData was loaded for
 var _exTypeFilter = 'all'; // 'all' or a typeId — filters the activities list
+var _exSummaryCollapsed = true; // collapsible period-summary card starts collapsed
 
 // ─── Module-level state (activity form) ──────────────────────────────────────
 
@@ -293,6 +294,7 @@ function _exBuildActivitiesPage() {
                 '<select id="exTypeSelect" class="dm-filter-select">' + typeOpts + '</select>' +
             '</div>' +
         '</div>' +
+        '<div id="exSummaryCard"></div>' +
         '<div id="exMilesCard"></div>' +
         '<div id="exListContainer"></div>';
 
@@ -358,6 +360,9 @@ async function _exApplyFilter() {
                           'July','August','September','October','November','December'];
         var milesSummary = _dmBuildMilesSummary(filtered, roleMap, _exSelMonth, _exSelYear, goalMPD);
         _dmRenderMilesCard(milesSummary, _exMNsFull[_exSelMonth], _exSelYear, 'exMilesCard');
+
+        // ── Period summary card (collapsible, all types — ignores type filter) ─
+        _exRenderSummaryCard(_exBuildSummary(filtered), _exMNsFull[_exSelMonth] + ' ' + _exSelYear);
 
         // ── Activities list ───────────────────────────────────────────────────
         // Type filter applies to the list only — the miles card stays month-wide
@@ -613,6 +618,158 @@ function _exBuildCards(activities) {
     });
 
     return wrap;
+}
+
+// ─── Period summary card ────────────────────────────────────────────────────
+
+/**
+ * Rolls up the period's activities into one row per activity type.
+ * Returns { rows, anyWalked, anyRan, anyTotal, anyDistance } where each row has:
+ *   { name, count, durMin, cal, walked, ran, total, dist, distMeters }
+ * walked/ran/total are miles; dist is a non-split distance (miles or meters).
+ * Rows are sorted by total time spent, descending.
+ */
+function _exBuildSummary(activities) {
+    var groups = {};  // typeId -> aggregate
+
+    (activities || []).forEach(function(a) {
+        var type = _exTypes[a.typeId];
+        if (!type) return;  // orphaned/unknown type — skip
+        var g = groups[a.typeId];
+        if (!g) {
+            g = groups[a.typeId] = {
+                name: type.name || '?', type: type,
+                count: 0, durMin: 0, cal: 0,
+                walked: 0, ran: 0, dist: 0
+            };
+        }
+        g.count++;
+        if (a.durationMinutes != null && a.durationMinutes !== '') g.durMin += parseFloat(a.durationMinutes);
+        if (a.calories        != null && a.calories        !== '') g.cal    += parseFloat(a.calories);
+
+        var miles = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
+        var run   = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
+        var role  = type.runWalkRole || null;
+        if (_exIsSplitMilesType(type)) {           // split: walked = miles, ran = runMiles
+            g.walked += miles; g.ran += run;
+        } else if (role === 'walk') {
+            g.walked += miles;
+        } else if (role === 'run') {
+            g.ran += miles;
+        } else if (type.tracksMiles) {             // null role but tracks distance (Bike, Golf, Row Machine…)
+            g.dist += miles;
+        }
+    });
+
+    var rows = Object.keys(groups).map(function(id) {
+        var g = groups[id];
+        var meters = _exIsMeters(g.type);
+        return {
+            name:    g.name,
+            count:   g.count,
+            durMin:  g.durMin,
+            cal:     g.cal,
+            walked:  g.walked,
+            ran:     g.ran,
+            total:   _exIsSplitMilesType(g.type) ? (g.walked + g.ran) : 0,
+            dist:        meters ? 0 : g.dist,
+            distMeters:  meters ? g.dist : 0
+        };
+    });
+    rows.sort(function(a, b) {
+        return (b.durMin - a.durMin) || a.name.localeCompare(b.name);
+    });
+
+    return {
+        rows: rows,
+        anyWalked:   rows.some(function(r) { return r.walked  > 0; }),
+        anyRan:      rows.some(function(r) { return r.ran     > 0; }),
+        anyTotal:    rows.some(function(r) { return r.total   > 0; }),
+        anyDistance: rows.some(function(r) { return r.dist > 0 || r.distMeters > 0; })
+    };
+}
+
+function _exFmtMiles(v) {
+    if (!v) return '';
+    return (Math.round(v * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+function _exRenderSummaryCard(summary, periodLabel) {
+    var el = document.getElementById('exSummaryCard');
+    if (!el) return;
+
+    if (!summary.rows.length) { el.innerHTML = ''; return; }
+
+    var cols = ['count', 'time', 'burned'];
+    if (summary.anyWalked)   cols.push('walked');
+    if (summary.anyRan)      cols.push('ran');
+    if (summary.anyTotal)    cols.push('total');
+    if (summary.anyDistance) cols.push('dist');
+
+    var HEAD = { count: 'Times', time: 'Total Time', burned: 'Burned',
+                 walked: 'Walked', ran: 'Ran', total: 'Total', dist: 'Distance' };
+
+    var head = '<th class="ex-sum-name">Activity</th>';
+    cols.forEach(function(c) { head += '<th>' + HEAD[c] + '</th>'; });
+
+    // Footer totals (distance summed only across miles columns; meters left blank — mixed units)
+    var tot = { count: 0, durMin: 0, cal: 0, walked: 0, ran: 0, total: 0, dist: 0 };
+
+    var body = '';
+    summary.rows.forEach(function(r) {
+        tot.count += r.count; tot.durMin += r.durMin; tot.cal += r.cal;
+        tot.walked += r.walked; tot.ran += r.ran; tot.total += r.total; tot.dist += r.dist;
+
+        var cells = {
+            count:  r.count,
+            time:   exFmtDuration(r.durMin) || '',
+            burned: r.cal ? Math.round(r.cal).toLocaleString() : '',
+            walked: _exFmtMiles(r.walked),
+            ran:    _exFmtMiles(r.ran),
+            total:  _exFmtMiles(r.total),
+            dist:   r.distMeters ? Math.round(r.distMeters).toLocaleString() + ' m' : _exFmtMiles(r.dist)
+        };
+        body += '<tr><td class="ex-sum-name">' + _exEsc(r.name) + '</td>';
+        cols.forEach(function(c) { body += '<td>' + cells[c] + '</td>'; });
+        body += '</tr>';
+    });
+
+    var footCells = {
+        count:  tot.count,
+        time:   exFmtDuration(tot.durMin) || '',
+        burned: tot.cal ? Math.round(tot.cal).toLocaleString() : '',
+        walked: _exFmtMiles(tot.walked),
+        ran:    _exFmtMiles(tot.ran),
+        total:  _exFmtMiles(tot.total),
+        dist:   ''  // mixed units across types — not meaningful to sum
+    };
+    var foot = '<tr class="ex-sum-totals"><td class="ex-sum-name">Total</td>';
+    cols.forEach(function(c) { foot += '<td>' + footCells[c] + '</td>'; });
+    foot += '</tr>';
+
+    var collapsed = _exSummaryCollapsed ? ' collapsed' : '';
+    el.innerHTML =
+        '<div class="collapsible-section ex-summary-section' + collapsed + '" id="exSummarySection">' +
+            '<div class="collapsible-header" onclick="_exToggleSummary()">' +
+                '<span>Summary · ' + _exEsc(periodLabel) + '</span>' +
+                '<span class="collapsible-chevron">▾</span>' +
+            '</div>' +
+            '<div class="collapsible-body">' +
+                '<div class="ex-summary-wrap">' +
+                    '<table class="ex-table ex-summary-table">' +
+                        '<thead><tr>' + head + '</tr></thead>' +
+                        '<tbody>' + body + '</tbody>' +
+                        '<tfoot>' + foot + '</tfoot>' +
+                    '</table>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+}
+
+function _exToggleSummary() {
+    _exSummaryCollapsed = !_exSummaryCollapsed;
+    var sec = document.getElementById('exSummarySection');
+    if (sec) sec.classList.toggle('collapsed', _exSummaryCollapsed);
 }
 
 // ─── Activity detail / edit page ─────────────────────────────────────────────
