@@ -3162,6 +3162,14 @@ async function _dmRenderWeightChart(range) {
         var selR = _dmFmtYM(_dmSelYear, _dmSelMonth);
         startStr = selR.start;
         todayStr  = selR.end;   // use end of the selected month, not today
+        // For past months, extend the query to include the 1st of the next month —
+        // that day's weigh-in is the ending weight of this month.
+        var isPastMonth = (_dmSelYear < today.getFullYear()) ||
+                          (_dmSelYear === today.getFullYear() && _dmSelMonth < today.getMonth());
+        if (isPastMonth) {
+            var nm = new Date(_dmSelYear, _dmSelMonth + 1, 1);  // 1st of next month
+            todayStr = _wcFmt(nm);
+        }
     } else if (range === 'thisMonth') {
         var tm = today.getMonth() + 1;
         startStr = today.getFullYear() + '-' + (tm < 10 ? '0' : '') + tm + '-01';
@@ -3178,14 +3186,26 @@ async function _dmRenderWeightChart(range) {
         var snap = await q.get();
 
         var allDocs = snap.docs.map(function(d) { return d.data(); });
-        var pts = allDocs
-            .filter(function(r) { return r.weight != null && r.weight !== '' && r.date; })
-            .map(function(r) { return { date: r.date, w: parseFloat(r.weight) }; });
+        var allWtDocs = allDocs.filter(function(r) { return r.weight != null && r.weight !== '' && r.date; });
 
-        if (pts.length === 0) {
+        // For past selected-month: split off the next-month first-day point (if fetched)
+        var nextMonthPt = null;
+        if (isPastMonth && range === 'selectedMonth') {
+            var selMonthEnd = _dmFmtYM(_dmSelYear, _dmSelMonth).end;
+            var nmDocs = allWtDocs.filter(function(r) { return r.date > selMonthEnd; });
+            allWtDocs  = allWtDocs.filter(function(r) { return r.date <= selMonthEnd; });
+            if (nmDocs.length > 0) {
+                nextMonthPt = { date: nmDocs[0].date, w: parseFloat(nmDocs[0].weight) };
+            }
+        }
+
+        var pts = allWtDocs.map(function(r) { return { date: r.date, w: parseFloat(r.weight) }; });
+
+        if (pts.length === 0 && !nextMonthPt) {
             wrap.innerHTML = '<p class="ex-status">No weight data for this period.</p>';
             return;
         }
+        if (pts.length === 0 && nextMonthPt) pts.push(nextMonthPt);
 
         // ── Scale ─────────────────────────────────────────────────────────────
         // Short ranges (≤31 days): tight ±1 lb padding; longer ranges: ±5 lb
@@ -3291,15 +3311,35 @@ async function _dmRenderWeightChart(range) {
 
         var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+        // Build chart-level arrays — append the next-month point (if any) at the end.
+        // Goal/projected lines stay month-only (pts/wArr already exclude it).
+        var chartPts  = nextMonthPt ? pts.concat([nextMonthPt]) : pts;
+        var chartWArr = nextMonthPt ? wArr.concat([nextMonthPt.w]) : wArr;
+        // 3-day avg also extended by one — treat it as a 1-entry avg (the point itself)
+        var chartAvgArr = nextMonthPt ? avgArr.concat([nextMonthPt.w]) : avgArr;
+        // Goal/projected padded with null so dataset lengths match
+        var chartGoalArr = (goalArr && nextMonthPt) ? goalArr.concat([null]) : goalArr;
+        var chartProjArr = (projArr && nextMonthPt) ? projArr.concat([null]) : projArr;
+
+        function _wcChartLabel(pt) {
+            // For the next-month extra point, prepend the month abbreviation so it's clearly labeled
+            var months2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            if (nextMonthPt && pt.date === nextMonthPt.date) {
+                var parts = pt.date.split('-');
+                return months2[parseInt(parts[1]) - 1] + ' ' + parseInt(parts[2]);
+            }
+            return _wcLabel(pt.date);
+        }
+
         _dmWeightChart = new Chart(canvas, {
             type: 'line',
             data: {
-                labels: pts.map(function(p) { return _wcLabel(p.date); }),
+                labels: chartPts.map(function(p) { return _wcChartLabel(p); }),
                 datasets: (function() {
                     var ds = [
                         {
                             label: 'Weight',
-                            data:  wArr,
+                            data:  chartWArr,
                             borderColor: '#1565c0',
                             backgroundColor: 'rgba(21,101,192,0.07)',
                             borderWidth: 2,
@@ -3310,7 +3350,7 @@ async function _dmRenderWeightChart(range) {
                         },
                         {
                             label: '3-Day Avg',
-                            data:  avgArr,
+                            data:  chartAvgArr,
                             borderColor: '#e65100',
                             backgroundColor: 'transparent',
                             borderWidth: 2,
@@ -3321,10 +3361,10 @@ async function _dmRenderWeightChart(range) {
                             order: 2
                         }
                     ];
-                    if (projArr) {
+                    if (chartProjArr) {
                         ds.push({
                             label: 'Projected',
-                            data:  projArr,
+                            data:  chartProjArr,
                             borderColor: '#64b5f6',          // light blue — same family as Weight
                             backgroundColor: 'transparent',
                             borderWidth: 2,
@@ -3336,10 +3376,10 @@ async function _dmRenderWeightChart(range) {
                             order: 2
                         });
                     }
-                    if (goalArr) {
+                    if (chartGoalArr) {
                         ds.push({
                             label: 'Goal',
-                            data:  goalArr,
+                            data:  chartGoalArr,
                             borderColor: '#2e7d32',
                             backgroundColor: 'transparent',
                             borderWidth: 2,
@@ -3362,7 +3402,7 @@ async function _dmRenderWeightChart(range) {
                     if (elements.length > 0) {
                         // Only navigate when clicking on the actual weight line (dataset 0)
                         var dotEl = elements.find(function(e) { return e.datasetIndex === 0; });
-                        if (dotEl) window.location.hash = 'exercise-metric/' + pts[dotEl.index].date;
+                        if (dotEl) window.location.hash = 'exercise-metric/' + chartPts[dotEl.index].date;
                     }
                 },
                 onHover: function(event, elements) {
@@ -3379,7 +3419,7 @@ async function _dmRenderWeightChart(range) {
                     tooltip: {
                         callbacks: {
                             title: function(items) {
-                                var ds = pts[items[0].dataIndex].date.split('-');
+                                var ds = chartPts[items[0].dataIndex].date.split('-');
                                 return months[parseInt(ds[1]) - 1] + ' ' + parseInt(ds[2]) + ', ' + ds[0];
                             },
                             // Use the dataset's own label so this stays correct regardless
@@ -3399,6 +3439,13 @@ async function _dmRenderWeightChart(range) {
                         min: yMin,
                         max: yMax,
                         ticks: { font: { size: 11 }, stepSize: shortRange ? 1 : 5 }
+                    },
+                    y2: {
+                        position: 'right',
+                        min: yMin,
+                        max: yMax,
+                        ticks: { font: { size: 11 }, stepSize: shortRange ? 1 : 5 },
+                        grid: { drawOnChartArea: false }   // no duplicate gridlines
                     }
                 }
             }
