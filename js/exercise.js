@@ -2420,7 +2420,7 @@ async function _dmApplyFilter() {
                         '<div class="dm-accordion-body" id="dmLast7Body" style="display:' + (l7Open ? 'block' : 'none') + '">' +
                             (l7RecCount === 0
                                 ? '<p class="ex-status dm-accordion-empty">No entries in the last 7 days.</p>'
-                                : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days Avg (' + l7RecCount + ' of 7 logged)')) +
+                                : _dmBuildSummaryCardHtml(l7Summary, 'Last 7 Days Avg (' + l7RecCount + ' of 7 logged)', { weightChangeOnly: true })) +
                         '</div>' +
                     '</div>';
             }
@@ -2471,10 +2471,43 @@ async function _dmApplyFilter() {
         if (records.length === 0) {
             monthlyHtml = '<p class="ex-status">No entries for this period.</p>';
         } else {
-            var summary = _dmComputeSummary(records);
+            // For past months in single-month view, fetch the first weigh-in of the next month.
+            // It becomes the "ending weight" so Totals/Averages reflect the full month.
+            var nextMonthRec = null;
+            var today2 = new Date();
+            var isPastMonthView = (_dmSelMonth !== -1) &&
+                (_dmSelYear < today2.getFullYear() ||
+                 (_dmSelYear === today2.getFullYear() && _dmSelMonth < today2.getMonth()));
+            if (isPastMonthView) {
+                try {
+                    var nmStart = _dmFmtYM(_dmSelYear, _dmSelMonth + 1 > 11 ? 0 : _dmSelMonth + 1).start;
+                    // If month wraps to January, year increments
+                    if (_dmSelMonth === 11) nmStart = (_dmSelYear + 1) + '-01-01';
+                    var nmEnd   = _dmFmtYM(_dmSelYear, _dmSelMonth + 1 > 11 ? 0 : _dmSelMonth + 1).end;
+                    if (_dmSelMonth === 11) nmEnd = (_dmSelYear + 1) + '-01-31';
+                    var nmSnap = await userCol('exerciseDailyMetrics')
+                        .where('date', '>=', nmStart)
+                        .orderBy('date', 'asc')
+                        .limit(5)
+                        .get();
+                    nmSnap.forEach(function(doc) {
+                        if (nextMonthRec) return;
+                        var d = doc.data();
+                        if (d.weight !== null && d.weight !== undefined && d.weight !== '') {
+                            nextMonthRec = { date: d.date, w: parseFloat(d.weight) };
+                        }
+                    });
+                } catch(e) { /* non-fatal */ }
+            }
+
+            var summary = _dmComputeSummary(records, undefined, nextMonthRec);
+            if (nextMonthRec && summary.weightChange !== null) {
+                // Override the per-day divisor to be the full days in the month
+                summary.weightDivisorDays = new Date(_dmSelYear, _dmSelMonth + 1, 0).getDate();
+            }
             monthlyHtml = isDesktop
                 ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, null, last7Data)
-                : _dmBuildCards(records, summary);
+                : _dmBuildCards(records, summary, nextMonthRec);
         }
 
         listEl.innerHTML = weightChartHtml + last7Html + monthlyHtml;
@@ -2576,7 +2609,10 @@ async function _dmApplyFilter() {
     });
 }
 
-function _dmComputeSummary(records, denominator) {
+// nextMonthRec: optional {date, weight} for the first day of the following month.
+// When provided (past-month view), it becomes the "ending" weight so weightChange
+// and the per-day average reflect the full month rather than just weigh-in span.
+function _dmComputeSummary(records, denominator, nextMonthRec) {
     var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
                      'protein','carbs','fat','water'];
     var sums = {}, counts = {};
@@ -2626,15 +2662,22 @@ function _dmComputeSummary(records, denominator) {
             oldestWeightDate = records[i].date;
         }
     }
-    result.weightChange = (newestWeight !== null && oldestWeight !== null && newestWeight !== oldestWeight)
-        ? parseFloat((newestWeight - oldestWeight).toFixed(1))
+    // If a next-month record is provided (past-month view), use it as the ending weight
+    // so the change and per-day average span the full month.
+    var endingWeight     = nextMonthRec ? nextMonthRec.w : newestWeight;
+    var endingWeightDate = nextMonthRec ? nextMonthRec.date : newestWeightDate;
+    result.weightChange = (endingWeight !== null && oldestWeight !== null && endingWeight !== oldestWeight)
+        ? parseFloat((endingWeight - oldestWeight).toFixed(1))
         : null;
     // Extra weight data for the Goals/Averages stat rows
     result.oldestWeight     = oldestWeight;
     result.oldestWeightDate = oldestWeightDate;
-    result.weightSpanDays   = (newestWeightDate && oldestWeightDate && newestWeightDate !== oldestWeightDate)
-        ? Math.round((new Date(newestWeightDate) - new Date(oldestWeightDate)) / 86400000)
+    result.weightSpanDays   = (endingWeightDate && oldestWeightDate && endingWeightDate !== oldestWeightDate)
+        ? Math.round((new Date(endingWeightDate) - new Date(oldestWeightDate)) / 86400000)
         : 0;
+    // When nextMonthRec is provided the caller also sets weightDivisorDays = days in month
+    // so the Averages row divides by the full month rather than just the weigh-in span.
+    result.weightDivisorDays = null;   // filled in below by the caller if needed
     result.sleepScore  = counts.sleepScore  ? Math.round(sums.sleepScore / counts.sleepScore) : '—';
     result.bodyBattery = counts.bodyBattery ? Math.round(sums.bodyBattery / counts.bodyBattery) : '—';
     result.dailySteps  = counts.dailySteps  ? Math.round(sums.dailySteps / counts.dailySteps).toLocaleString() : '—';
@@ -2948,9 +2991,10 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         custom:       function() { return ''; }
     });
 
-    // Averages row
-    var lossPerDay = (summary.weightChange != null && summary.weightSpanDays > 0)
-        ? summary.weightChange / summary.weightSpanDays
+    // Averages row — use weightDivisorDays (full month) when a next-month ending weight is set
+    var wDivisor   = summary.weightDivisorDays || summary.weightSpanDays;
+    var lossPerDay = (summary.weightChange != null && wDivisor > 0)
+        ? summary.weightChange / wDivisor
         : null;
     thead += _statRow('dm-averages-row', {
         label:        'Averages',
@@ -3458,24 +3502,40 @@ async function _dmRenderWeightChart(range) {
 
 // Shared helper — renders a tinted summary card from a pre-computed summary object.
 // title: string shown as the card header (e.g. "Averages / Totals (31 records)")
-function _dmBuildSummaryCardHtml(summary, title) {
-    var wtDisplay = summary.weight;
-    if (summary.weightChange !== null && summary.weightChange !== undefined) {
-        var wc = summary.weightChange;
-        var wcColor = wc < 0 ? '#2e7d32' : '#c62828';
-        var wcSign = wc > 0 ? '+' : '';
-        wtDisplay += ' <span style="color:' + wcColor + ';font-weight:bold">(' + wcSign + wc.toFixed(1) + ')</span>';
+// opts.weightChangeOnly: if true, show only the gain/loss delta (no avg weight number)
+function _dmBuildSummaryCardHtml(summary, title, opts) {
+    opts = opts || {};
+    var wtDisplay;
+    if (opts.weightChangeOnly) {
+        // Last 7 Days card: show only the gain/loss number, not the avg weight
+        if (summary.weightChange !== null && summary.weightChange !== undefined) {
+            var wc0 = summary.weightChange;
+            var wc0Color = wc0 < 0 ? '#2e7d32' : '#c62828';
+            var wc0Sign = wc0 > 0 ? '+' : '';
+            wtDisplay = '<span style="color:' + wc0Color + ';font-weight:bold">' + wc0Sign + wc0.toFixed(1) + '</span>';
+        } else {
+            wtDisplay = '—';
+        }
+    } else {
+        wtDisplay = summary.weight;
+        if (summary.weightChange !== null && summary.weightChange !== undefined) {
+            var wc = summary.weightChange;
+            var wcColor = wc < 0 ? '#2e7d32' : '#c62828';
+            var wcSign = wc > 0 ? '+' : '';
+            wtDisplay += ' <span style="color:' + wcColor + ';font-weight:bold">(' + wcSign + wc.toFixed(1) + ')</span>';
+        }
     }
     var row1 = '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + wtDisplay + '</span>' +
                '<span class="dm-card-metric"><span class="dm-card-label">Sleep</span> ' + summary.sleepScore + '</span>' +
                '<span class="dm-card-metric"><span class="dm-card-label">Body Battery</span> ' + summary.bodyBattery + '</span>';
     var row2 = '<span class="dm-card-metric"><span class="dm-card-label">Steps</span> ' + summary.dailySteps + '</span>' +
                '<span class="dm-card-metric"><span class="dm-card-label">Burn</span> ' + summary.totalBurn + '</span>';
-    if (summary.diffSum !== null && summary.diffSum !== undefined) {
-        var ds = Math.round(summary.diffSum);
-        var lbs = (summary.diffSum / 3500).toFixed(1);
-        var diffBg = summary.diffSum < 0 ? 'background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px' : '';
-        row2 += '<span class="dm-card-metric" style="' + diffBg + '"><span class="dm-card-label" style="' + (diffBg ? 'color:#555' : '') + '">Diff</span> ' + ds.toLocaleString() + ' (' + lbs + ')</span>';
+    // Diff: show the per-day average (same as the desktop Averages row), not the running total
+    if (summary.diffSum !== null && summary.diffSum !== undefined && summary.diffCount > 0) {
+        var diffAvg = Math.round(summary.diffSum / summary.diffCount);
+        var diffAvgLbs = (summary.diffSum / summary.diffCount / 3500).toFixed(2);
+        var diffBg = diffAvg < 0 ? 'background-color:#ffeb3b;color:#000;padding:0 3px;border-radius:2px' : '';
+        row2 += '<span class="dm-card-metric" style="' + diffBg + '"><span class="dm-card-label" style="' + (diffBg ? 'color:#555' : '') + '">Avg Diff</span> ' + diffAvg.toLocaleString() + ' (' + diffAvgLbs + ')</span>';
     }
     row2 += '<span class="dm-card-metric"><span class="dm-card-label">Food</span> ' + summary.foodCalories + '</span>';
 
@@ -3504,7 +3564,7 @@ function _dmBuildSummaryCardHtml(summary, title) {
     '</div>';
 }
 
-function _dmBuildCards(records, summary) {
+function _dmBuildCards(records, summary, nextMonthRec) {
     var stdLabels = [
         { key: 'weight',       label: 'Wt' },
         { key: 'sleepScore',   label: 'Sleep' },
@@ -3588,7 +3648,20 @@ function _dmBuildCards(records, summary) {
         '</div>';
     }).join('');
 
-    return summaryHtml + cardsHtml;
+    // For past months: prepend a dimmed card showing the next month's first weigh-in.
+    // It represents the ending weight of this month — weight only, no other metrics.
+    var nextMonthCardHtml = '';
+    if (nextMonthRec) {
+        nextMonthCardHtml =
+            '<div class="dm-card dm-card-next-month" data-date="' + _exEsc(nextMonthRec.date) + '">' +
+                '<div class="dm-card-date">' + _exEsc(_dmFmtDate(nextMonthRec.date)) + '</div>' +
+                '<div class="dm-card-row">' +
+                    '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + nextMonthRec.w + '</span>' +
+                '</div>' +
+            '</div>';
+    }
+
+    return summaryHtml + nextMonthCardHtml + cardsHtml;
 }
 
 function _dmShowNoteOverlay(iconEl, noteText) {

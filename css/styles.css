@@ -17800,6 +17800,13 @@ a.legacy-fin-card:hover {
     cursor: pointer;
 }
 .dm-card:hover { background: #fafafa; }
+.dm-card-next-month {
+    background: #f5f5f5;
+    border-color: #bbb;
+    opacity: 0.75;
+    cursor: default;
+}
+.dm-card-next-month:hover { background: #f5f5f5; }
 .dm-card-date {
     font-weight: 600;
     font-size: 0.9rem;
