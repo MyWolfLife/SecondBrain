@@ -3346,13 +3346,6 @@ async function _dmRenderWeightChart(range) {
         }
 
         // ── Render ────────────────────────────────────────────────────────────
-        // Auto-scale width: ~35px per data point, capped at full container width.
-        // _dmWeightChartShrink (set by the Reduce Width control) tightens it further.
-        _dmWeightChartNaturalW = Math.min(pts.length * 35, wrap.parentElement.offsetWidth);
-        wrap.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
-        wrap.innerHTML = '<canvas id="dmWeightChartCanvas"></canvas>';
-        var canvas = document.getElementById('dmWeightChartCanvas');
-
         var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
         // Build chart-level arrays — append the next-month point (if any) at the end.
@@ -3364,6 +3357,16 @@ async function _dmRenderWeightChart(range) {
         // Goal/projected padded with null so dataset lengths match
         var chartGoalArr = (goalArr && nextMonthPt) ? goalArr.concat([null]) : goalArr;
         var chartProjArr = (projArr && nextMonthPt) ? projArr.concat([null]) : projArr;
+
+        // Auto-scale width: ~35px per data point, capped at full container width.
+        // Treated as at least 7 points so early-month views (1-3 days in) don't
+        // render as a razor-thin sliver — the chart holds a sensible minimum width
+        // even though only a few points are actually plotted.
+        // _dmWeightChartShrink (set by the Reduce Width control) tightens it further.
+        _dmWeightChartNaturalW = Math.min(Math.max(chartPts.length, 7) * 35, wrap.parentElement.offsetWidth);
+        wrap.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
+        wrap.innerHTML = '<canvas id="dmWeightChartCanvas"></canvas>';
+        var canvas = document.getElementById('dmWeightChartCanvas');
 
         function _wcChartLabel(pt) {
             // For the next-month extra point, prepend the month abbreviation so it's clearly labeled
