@@ -348,8 +348,11 @@ async function loadHelpPage(screenName) {
         var fullText    = await _helpFetch();
         var sectionText = _helpParseSection(fullText, sectionKey);
 
-        // Fall back to main if no content found for this screen
-        if (!sectionText) {
+        // Fall back to main if no content found for this screen.
+        // Topics pages are synthetic indexes with no AppHelp.md section of their own
+        // (rendered entirely by _helpRenderSectionTopics below), so they're exempt —
+        // otherwise this fallback would stomp the "Topics: X" title already set above.
+        if (!sectionText && !HELP_TOPICS_SECTIONS[screenName]) {
             sectionText = _helpParseSection(fullText, 'main');
             if (sectionText && titleEl) titleEl.textContent = 'Help: Getting Started';
         }
