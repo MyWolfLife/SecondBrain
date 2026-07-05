@@ -829,6 +829,9 @@ async function clAddItemToRun(runId, templateId, label, card, inputEl) {
                     var tmplItems = (tmplDoc.data().items || []).concat([{ label: label }]);
                     await userCol('checklistTemplates').doc(templateId).update({ items: tmplItems });
                 }
+                // Refresh the templates section so the item count and the
+                // template's own edit modal reflect the new item immediately.
+                clLoadTemplates();
             }
         }
 
