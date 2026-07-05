@@ -172,23 +172,27 @@ Free-form rich text: withdrawal strategy, RMDs, Social Security timing, who to c
 - Link to financial advisor Contact
 
 ### 6. Important Documents & Where to Find Them
-For each: exists (yes/no/unknown), physical location, digital location, notes
-Fixed list (checkable) + free-form extras:
-- Will / Last Will & Testament
-- Trust documents
-- Healthcare directive / Living will
-- DNR order
-- Durable Power of Attorney (financial)
-- Healthcare proxy / Medical POA
-- Birth certificate
-- Marriage certificate
-- Social Security card
-- Passport
-- Car title(s)
-- House deed / mortgage documents
-- Homeowner's insurance policy
-- Tax returns (last 3 years)
-- Free-form "other documents" entries
+
+**DECIDED — Design:**
+
+Single unified list of document entries (online and physical together). User controls order via drag-and-drop (most important at top). Clicking a row expands it inline (accordion) to show details. Edit/Delete buttons inside the expanded view open an edit modal.
+
+**Modal fields:**
+- Online / Physical toggle (radio)
+- Document Type (dropdown): Will, Trust, Power of Attorney, Advance Directive / Living Will, Insurance Policy, Real Estate Deed, Vehicle Title, Financial Account, Medical Records, Other
+- Title (text, required)
+- Why it matters (textarea)
+- **If Online**: URL (text)
+- **If Physical**: Where is it (multi-line textarea — handles both "filing cabinet in office" and "Attorney John Smith, 123 Main St, 612-555-1234")
+
+**List row (collapsed):** type badge · title · drag handle (≡)
+**Expanded:** shows Why it matters + URL (clickable link) or Where is it + Edit / Delete buttons
+
+**Ordering:** `sortOrder` integer on each doc. Drag-and-drop reorders and bulk-updates `sortOrder`. New docs append to end (highest sortOrder + 1).
+
+**Drag-and-drop implementation:** SortableJS via CDN (same pattern as Leaflet/Cropper — external CDN, not cached by service worker). Handles both mouse and touch.
+
+**Firestore:** `legacyDocuments` — `isOnline` (bool), `docType`, `title`, `whyMatters`, `url`, `whereIsIt`, `sortOrder`, `createdAt`
 
 ### 7. Medical Wishes / Healthcare Directives
 - Resuscitation (CPR): yes / no / depends on circumstances
@@ -415,6 +419,13 @@ A button on the Legacy landing page (or in Settings) that generates a clean prin
 - Reference Links: labeled URL list, add/remove rows, opens in new tab
 - Pre-arrangement: yes/no toggle + funeral home name, phone, docs location, notes
 - Organ donation removed (hospital-handled, not a day-after decision)
+
+### Section: People to Notify — DECIDED
+- Two add buttons: "From Contacts" (contact picker) and "Add Manually" (modal)
+- **Contact-linked entries**: runtime lookup from `people` for name, phone, email, howDoIKnowThem — nothing stored except `contactId`; row has delete button only
+- **Free-form entries**: modal with name, phone, email, address, howDoIKnowThem; clicking row re-opens edit modal; delete inside modal
+- **List display**: name · phone · email on line 1; "how do I know them" on line 2 (both types identical shape)
+- Firestore: `legacyNotify` — `contactId` (nullable), `name`, `phone`, `email`, `address`, `howDoIKnowThem`, `createdAt`
 
 ### Section: Pets — DECIDED
 - Add Pet button creates a new Firestore doc in `legacyPets` and prepends an auto-expanded card

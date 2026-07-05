@@ -357,6 +357,293 @@ Replaces the simple hard-delete stub from Phase 2. When user taps **Delete** on 
 
 ---
 
+## Testing
+
+End-to-end test cases for the Neighbors feature. Each test includes preconditions, steps, and expected result.
+
+---
+
+### T1 — Create a Neighborhood
+
+**Precondition**: No neighborhoods exist (fresh state)
+
+1. Navigate to Contacts → tap **🏘 Neighbors**
+2. Tap **+ Add**
+3. Verify the Add Neighborhood modal opens
+4. Enter name: "Townside"
+5. Tap Save without uploading an image
+6. **Expected**: Save button is disabled; cannot save without image
+7. Tap Upload, select a neighborhood map image
+8. Verify image preview appears in the modal
+9. Tap Save
+10. **Expected**: Modal closes; "Townside" appears in the neighborhoods list with "0 houses"
+
+---
+
+### T2 — Edit a Neighborhood
+
+**Precondition**: "Townside" neighborhood exists
+
+1. On the neighborhoods list, tap the **✏️** edit button on "Townside"
+2. **Expected**: Modal opens pre-filled with current name; image hint says "Upload a new image to replace the current one (optional)"
+3. Change name to "Townside Neighborhood"
+4. Tap Save
+5. **Expected**: Card updates to show new name
+
+---
+
+### T3 — Open the Map View
+
+**Precondition**: "Townside" neighborhood exists
+
+1. Tap the neighborhood card
+2. **Expected**: Map page opens; uploaded image fills the container; pan/zoom work; **+ Add House** button and **Edit** button in header
+
+---
+
+### T4 — Add a House Pin (Placement Mode)
+
+**Precondition**: On the Townside map page
+
+1. Tap **+ Add House**
+2. **Expected**: Amber banner appears: "Tap the map to place a house pin"; cursor changes to crosshair
+3. Tap on a house location in the map image
+4. **Expected**: Add House modal opens
+5. Leave nickname blank, tap Save
+6. **Expected**: Save is disabled (nickname required)
+7. Enter nickname "The Smiths", address "123 Townside Dr"
+8. Tap Save
+9. **Expected**: Pin appears at the tapped location; label "The Smiths" shows below the pin; pin is gray (no interactions yet)
+
+---
+
+### T5 — Drag a Pin to Reposition
+
+**Precondition**: "The Smiths" pin exists on the map
+
+1. Press and drag the "The Smiths" pin to a new location on the map
+2. **Expected**: Pin moves smoothly; label stays attached
+3. Reload the map page (navigate away and back)
+4. **Expected**: Pin appears at the new position (fractions saved to Firestore)
+
+---
+
+### T6 — Edit a House
+
+**Precondition**: On the "The Smiths" house detail page
+
+1. Tap **Edit**
+2. **Expected**: Modal opens pre-filled with nickname and address
+3. Change address to "125 Townside Dr"
+4. Tap Save
+5. **Expected**: Address updates on the detail page header
+
+---
+
+### T7 — Add Resident (From Contacts)
+
+**Precondition**: At least one existing contact in the app; on the house detail page for "The Smiths"
+
+1. Tap **+ From Contacts**
+2. **Expected**: Resident picker modal opens in search mode
+3. Type partial name of an existing contact
+4. **Expected**: Matching results appear
+5. Tap a result
+6. **Expected**: Picker advances to role selection step
+7. Select role "Owner"
+8. Tap Save
+9. **Expected**: Resident card appears in Residents section with name, "Owner" badge, and "No interactions yet"
+
+---
+
+### T8 — Add Resident (New Person)
+
+**Precondition**: On the "The Smiths" house detail page
+
+1. Tap **+ New Person**
+2. **Expected**: New Person modal opens
+3. Enter name "Jane Smith"
+4. Select role "Spouse"
+5. Tap Save
+6. **Expected**: "Jane Smith" resident card appears; contact "Jane Smith" created in Contacts (category: Personal, type: Neighbor)
+
+---
+
+### T9 — Intel Panel Expand/Collapse
+
+**Precondition**: A resident has at least one fact or interaction logged
+
+1. On a resident card, tap **▼ Intel**
+2. **Expected**: Panel expands showing up to 2 facts and up to 2 recent interactions
+3. Tap **▲ Intel**
+4. **Expected**: Panel collapses
+
+---
+
+### T10 — Remove a Resident
+
+**Precondition**: At least one resident on the house
+
+1. Tap the **×** button on a resident card
+2. **Expected**: Resident is removed from the house; contact record is unchanged (verify by going to Contacts)
+
+---
+
+### T11 — Add a House Note
+
+**Precondition**: On the "The Smiths" house detail page
+
+1. Tap **+ Add Note**
+2. **Expected**: House Note modal opens with today's date pre-filled
+3. Enter text "Their landscaper is Green Thumb Co"
+4. Tap Save
+5. **Expected**: Note card appears in House Notes section with date and text
+
+---
+
+### T12 — Edit a House Note
+
+**Precondition**: A house note exists
+
+1. Tap **Edit** on the note card
+2. Change the text
+3. Tap Save
+4. **Expected**: Note text updates in place
+
+---
+
+### T13 — Delete a House Note
+
+**Precondition**: A house note exists
+
+1. Tap **Delete** on the note card
+2. **Expected**: Confirm dialog appears
+3. Confirm
+4. **Expected**: Note removed from the list
+
+---
+
+### T14 — Pin Color Updates After Interaction
+
+**Precondition**: "The Smiths" pin is gray; resident is linked to the house
+
+1. Navigate to the resident's Contact page
+2. Log a new interaction (today's date)
+3. Navigate back to the Townside map
+4. **Expected**: "The Smiths" pin is now **green** (interaction within 60 days)
+
+---
+
+### T15 — Archive a Family (Family Moved Away)
+
+**Precondition**: "The Smiths" house has at least one current resident
+
+1. On the house detail page, tap **Delete**
+2. **Expected**: Delete/Archive modal opens; "Archive — Family Moved Away" is selected by default
+3. Enter move note "Moved to Florida"
+4. Tap **Confirm**
+5. **Expected**: 
+   - Residents section shows "No current residents"
+   - "Previous Families" section appears with one entry showing today's date and "Moved to Florida"
+   - Map pin turns gray
+6. Navigate back to the map
+7. **Expected**: Pin still visible on the map
+
+---
+
+### T16 — View Archived Family
+
+**Precondition**: T15 completed
+
+1. Tap the archived entry in "Previous Families" section
+2. **Expected**: Read-only archived family view opens; amber banner shows archive date; "Moved to Florida" note displayed; resident cards show name, role, and "View Contact" button
+3. Tap "View Contact" on a resident
+4. **Expected**: Navigates to that contact's full profile page
+
+---
+
+### T17 — Add New Family to Same House After Archive
+
+**Precondition**: T15 completed; house is now empty
+
+1. On the house detail page (now empty), tap **+ New Person**
+2. Add "Bob Jones" as Owner
+3. **Expected**: New resident appears; "Previous Families" section still shows the archived Smith family below
+4. Navigate to map
+5. **Expected**: Pin turns green if Bob has a recent interaction, otherwise gray
+
+---
+
+### T18 — Hard Delete a House
+
+**Precondition**: A test house exists on the map (use a secondary house, not "The Smiths")
+
+1. On the house detail page, tap **Delete**
+2. Select **Hard Delete** option
+3. Tap **Confirm**
+4. **Expected**: 
+   - Navigates back to map
+   - Pin no longer appears on the map
+   - Contacts referenced as residents are unaffected (verify)
+
+---
+
+### T19 — Delete a Neighborhood
+
+**Precondition**: A test neighborhood with houses exists
+
+1. On the neighborhoods list, tap **🗑** on the test neighborhood
+2. **Expected**: Confirmation dialog warns that all houses will be deleted
+3. Confirm
+4. **Expected**: Neighborhood removed from the list
+
+---
+
+### T20 — Journal Mentions Section
+
+**Precondition**: A resident has at least one journal entry with an @-mention of that person
+
+1. Navigate to the house detail page
+2. **Expected**: "Journal Mentions" section appears below Previous Families
+3. Verify entries are sorted newest-first
+4. Tap an entry card
+5. **Expected**: Navigates to the full journal entry view
+
+---
+
+### T21 — Journal Mentions Hidden When No Residents
+
+**Precondition**: House has no current residents (all archived or never added)
+
+1. Navigate to the house detail page
+2. **Expected**: "Journal Mentions" section is not visible
+
+---
+
+### T22 — Breadcrumb Navigation
+
+1. Navigate: Neighborhoods → Townside → The Smiths house
+2. Tap "Map" in the breadcrumb
+3. **Expected**: Returns to the Townside map
+4. Tap "Neighborhoods" in the breadcrumb
+5. **Expected**: Returns to the neighborhoods list
+
+---
+
+### T23 — Cancel Placement Mode
+
+**Precondition**: On the map page
+
+1. Tap **+ Add House** to enter placement mode
+2. Tap **Cancel** in the amber banner
+3. **Expected**: Placement mode exits; no pin dropped; banner hidden
+
+---
+
+*Testing section added: 2026-05-26*
+
+---
+
 ## Things We Considered and Discarded
 
 | Idea | Why Discarded |
