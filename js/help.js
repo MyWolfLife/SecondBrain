@@ -58,6 +58,9 @@ var HELP_SECTION_MAP = {
     'investments-import'             : 'investments-import',
     'investments-ai-analysis'        : 'investments-ai',        // route slug differs from section key
 
+    // ── Life sub-routes ─────────────────────────────────────────
+    'life-calendar'                  : 'lifecalendar',          // route slug differs from section key
+
     // ── Budget sub-routes ───────────────────────────────────────
     'budget-nonmonthly'              : 'budget-nonmonthly',     // trailing id stripped
 
@@ -411,7 +414,7 @@ function _helpMajorSection(screenName) {
                          'health-medications','health-supplements','health-bloodwork',
                          'health-vitals','health-insurance','health-emergency',
                          'health-allergies','health-vaccinations','health-eye','health-care-team'];
-    var lifeScreens = ['life','journal','contacts','notes','lifecalendar'];
+    var lifeScreens = ['life','journal','contacts','notes','lifecalendar','life-calendar'];
     var vehicleScreens = ['vehicles','vehicle','garage','garageroom','garagething','garagesubthing',
                           'structures','structure','structurething','structuresubthing',
                           'collections','collection','collectionitem'];
