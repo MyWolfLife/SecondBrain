@@ -327,6 +327,8 @@ async function clLoadActiveRuns() {
             .filter(function(run) { return !run.archived; })
             .filter(clMatchesFilter)
             .sort(function(a, b) {
+                var pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+                if (pinDiff !== 0) return pinDiff;
                 return (b.startedAt || '').localeCompare(a.startedAt || '');
             });
 
@@ -372,16 +374,29 @@ async function clLoadActiveRuns() {
  */
 function clBuildRunCard(run) {
     var card = document.createElement('div');
-    card.className  = 'cl-run-card';
+    card.className  = 'cl-run-card' + (run.pinned ? ' cl-run-card--pinned' : '');
     card.dataset.id = run.id;
 
     var items = run.items || [];
 
-    // ── Title ──────────────────────────────────────────────────
+    // ── Title (with pin toggle) ─────────────────────────────────
+    var titleRow = document.createElement('div');
+    titleRow.className = 'cl-run-title-row';
+
+    var pinBtn = document.createElement('button');
+    pinBtn.type      = 'button';
+    pinBtn.className = 'cl-pin-btn' + (run.pinned ? ' cl-pin-btn--active' : '');
+    pinBtn.title     = run.pinned ? 'Unpin' : 'Pin to top';
+    pinBtn.textContent = run.pinned ? '★' : '☆';
+    pinBtn.addEventListener('click', function() { clToggleRunPin(run.id, !run.pinned); });
+    titleRow.appendChild(pinBtn);
+
     var title = document.createElement('div');
     title.className   = 'cl-run-title';
     title.textContent = run.templateName || 'Checklist';
-    card.appendChild(title);
+    titleRow.appendChild(title);
+
+    card.appendChild(titleRow);
 
     // ── Location badge (optional) ──────────────────────────────
     if (run.targetName) {
@@ -1031,6 +1046,21 @@ async function clMarkRunComplete(runId) {
 }
 
 /**
+ * Toggles the pinned flag on an active run. Pinned runs sort to the top
+ * of the Active section, ahead of the normal newest-started-first order.
+ * @param {string}  runId
+ * @param {boolean} newPinned
+ */
+async function clToggleRunPin(runId, newPinned) {
+    try {
+        await userCol('checklistRuns').doc(runId).update({ pinned: newPinned });
+        clLoadActiveRuns();
+    } catch (err) {
+        console.error('Error toggling checklist pin:', err);
+    }
+}
+
+/**
  * Deletes a run after confirmation.
  * @param {string} runId
  * @param {string} section — 'active' or 'completed'
@@ -1079,7 +1109,12 @@ async function clLoadTemplates() {
 
         var templates = snap.docs
             .map(function(doc) { return Object.assign({ id: doc.id }, doc.data()); })
-            .filter(function(t) { return clMatchesContext(t, ctx); });
+            .filter(function(t) { return clMatchesContext(t, ctx); })
+            .sort(function(a, b) {
+                // Pinned templates first; otherwise preserve the alphabetical
+                // order already applied by the Firestore query (stable sort).
+                return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+            });
 
         if (templates.length === 0) {
             emptyEl.classList.remove('hidden');
@@ -1111,10 +1146,26 @@ function clBuildTemplateCard(template) {
     var info = document.createElement('div');
     info.className = 'cl-template-info';
 
+    var nameRow = document.createElement('div');
+    nameRow.className = 'cl-template-name-row';
+
+    var pinBtn = document.createElement('button');
+    pinBtn.type      = 'button';
+    pinBtn.className = 'cl-pin-btn' + (template.pinned ? ' cl-pin-btn--active' : '');
+    pinBtn.title     = template.pinned ? 'Unpin' : 'Pin to top';
+    pinBtn.textContent = template.pinned ? '★' : '☆';
+    pinBtn.addEventListener('click', function(e) {
+        e.stopPropagation();  // don't open the edit modal when clicking the pin
+        clToggleTemplatePin(template.id, !template.pinned);
+    });
+    nameRow.appendChild(pinBtn);
+
     var name = document.createElement('div');
     name.className   = 'cl-template-name';
     name.textContent = template.name;
-    info.appendChild(name);
+    nameRow.appendChild(name);
+
+    info.appendChild(nameRow);
 
     // Location badge — helpful when viewing a roll-up (e.g. all zone templates on the Yard page)
     if (template.targetName) {
@@ -1192,6 +1243,21 @@ async function clStartRun(template) {
     } catch (err) {
         console.error('Error starting checklist run:', err);
         alert('Error starting checklist. Please try again.');
+    }
+}
+
+/**
+ * Toggles the pinned flag on a template. Pinned templates sort to the top
+ * of the Templates section, ahead of the normal alphabetical order.
+ * @param {string}  templateId
+ * @param {boolean} newPinned
+ */
+async function clToggleTemplatePin(templateId, newPinned) {
+    try {
+        await userCol('checklistTemplates').doc(templateId).update({ pinned: newPinned });
+        clLoadTemplates();
+    } catch (err) {
+        console.error('Error toggling template pin:', err);
     }
 }
 

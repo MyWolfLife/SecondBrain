@@ -2746,10 +2746,11 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
   - Room: shows that room only
   - Vehicle: shows that vehicle only
   - Life: shows all life-tagged templates/runs (no sub-targets)
-- **Templates** (`checklistTemplates`): `{ name, tags[], targetType, targetId, targetName, items:[{label, indent}], createdAt }`
+- **Templates** (`checklistTemplates`): `{ name, tags[], targetType, targetId, targetName, items:[{label, indent}], createdAt, pinned }`
   - `tags[]`: string array of user-defined tags (e.g., ["Danielle", "Finance"]) — entered comma-separated in the modal; displayed as chips on cards; copied to runs when starting
   - `items[].indent`: 0 = normal, 1 = indented sub-item (level 1 ~28px), 2 = double-indented sub-item (level 2 ~56px)
-- **Runs** (`checklistRuns`): same fields copied from template; `items:[{label, done, doneAt, note, indent}]`; `archived: boolean` (false by default)
+  - `pinned`: boolean (false/absent by default) — toggled via the ☆/★ star next to the template name; pinned templates sort above unpinned ones (alphabetical order preserved within each group)
+- **Runs** (`checklistRuns`): same fields copied from template; `items:[{label, done, doneAt, note, indent}]`; `archived: boolean` (false by default); `pinned: boolean` (false/absent by default) — independent of the source template's pinned state; toggled via the ☆/★ star next to the run title; pinned runs sort above unpinned ones in the Active section (newest-started-first within each group)
 - **Template modal**: Location dropdown shows the full hierarchy for the current context (e.g., Yard → zones → subzones), defaulting to the entity the user was on when they clicked Checklists; full hierarchy shown so user can pick any level. Delete button is inside the edit modal.
   - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button, the text input, and a ✕ remove button
   - **Indent levels**: 3-way cycle — 0 (normal) → 1 (28px) → 2 (56px) → back to 0. Button shows `→` at levels 0–1, `←` at level 2.
@@ -2762,7 +2763,7 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
 - **Filter bar**: text input above Active runs. Filters by name, tags, or item labels. 250ms debounce. Applies to completed/archived when those sections are open.
 - **Active run cards (Google Keep-style inline cards)**:
   - **Multi-column layout**: CSS grid (`auto-fill, minmax(280px, 1fr)`) — cards fill available width on desktop; on phone defaults to 1 column, toggle button (⊞/⊟) switches to 2-column view; preference saved in `localStorage.clColumnLayout` ('1' = 1-col, '2' = 2-col; default '1').
-  - Items displayed directly on card — no accordion. Title, optional location badge, started date at top.
+  - Items displayed directly on card — no accordion. Title (with ☆/★ pin toggle), optional location badge, started date at top.
   - **Completed items**: collapse into a "▶ X completed" toggle row (click to expand/collapse inline). No progress bar.
   - **Footer**: tags chips on the left; action icon buttons on the right (✓ Mark Complete, ✏️ Edit, 📦 Archive, 🗑️ Abandon).
   - **Hover-reveal actions**: action buttons have `opacity: 0`, revealed on card hover. Always visible on touch devices (`@media (hover: none)`) and in edit mode.

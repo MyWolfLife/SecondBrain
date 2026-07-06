@@ -2502,12 +2502,15 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Active checklists stay open until you mark them complete or archive them
 - Tap **✏️ Edit** on a card to reorder, add, or remove items — and to edit item text inline
 - Use **📝** on any item to add or edit a note
+- Tap the **☆** next to a checklist or template name to pin your favorite to the top
 
 ### Details
 
 **Templates vs. runs**: A template is a saved checklist blueprint. Tapping **▶ Start** creates a "run" — a live copy you work through. Runs are independent; edits to a run don't affect the original template.
 
 **Indenting items**: Each item row has a `→` / `←` indent button. Click it to cycle through 3 levels: normal → indented (level 1) → double-indented (level 2) → back to normal. This button appears in both the **template editor** and in **active run cards** (when in edit mode ✏️). In the template editor you can also use **Tab** to indent and **Shift+Tab** to unindent while typing. Indentation carries over from templates into runs.
+
+**Pinning favorites**: Every checklist card and template card has a ☆ star next to its name. Tap it to pin (★) — pinned checklists/templates always sort above unpinned ones (pinned runs still sort newest-first among themselves; pinned templates stay alphabetical among themselves). Tap the ★ again to unpin. Pinning a run and pinning its source template are independent.
 
 **Active run cards**:
 - Items are shown directly on the card. Undone items are at the top; checked items collapse into a "▶ X completed" toggle.

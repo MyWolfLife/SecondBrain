@@ -4369,6 +4369,7 @@ button {
 }
 .cl-run-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 .cl-run-card--focused { outline: 2px solid #1976d2; }
+.cl-run-card--pinned { border-color: #f9d776; background: #fffdf3; }
 
 /* Column toggle button (phone only by default; visible always) */
 .cl-col-toggle-btn {
@@ -4388,6 +4389,13 @@ button {
     .cl-col-toggle-btn { display: none; }
 }
 
+.cl-run-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.cl-run-title-row .cl-run-title { margin-bottom: 0; }
+
 .cl-run-title {
     font-size: 1rem;
     font-weight: 700;
@@ -4395,6 +4403,20 @@ button {
     margin-bottom: 2px;
     word-break: break-word;
 }
+
+/* Pin/favorite star toggle — shown on run and template cards */
+.cl-pin-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.05rem;
+    color: #ccc;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.cl-pin-btn:hover { color: #f9a825; }
+.cl-pin-btn--active { color: #f9a825; }
 
 .cl-run-date {
     font-size: 0.75rem;
@@ -4695,6 +4717,12 @@ button {
 }
 
 .cl-template-info { flex: 1; min-width: 0; }
+
+.cl-template-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 
 /* Clickable template card — pointer cursor + subtle hover highlight */
 .cl-template-card--clickable {
