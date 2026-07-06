@@ -464,6 +464,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - A "⭐ Current Profile Photo" (or "⭐ Current Thumbnail" for collection items) badge appears above the nav bar when the photo you're viewing is the one currently used as the entity's profile/thumbnail image
 - Tap a photo to view it full-screen
 - In full-screen: pinch to zoom, drag to pan when zoomed, long-press (hold for 600ms) to download
+- Tap **✂ Crop** in full-screen view to go straight into the crop tool (with rotate) on that photo — no extra "Crop" confirmation click needed
 - Edit a caption by tapping the caption area
 - Delete with the trash icon
 

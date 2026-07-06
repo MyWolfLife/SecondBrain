@@ -2559,12 +2559,16 @@ These features are used across multiple sections. The implementation lives prima
 
 **Crop tool**: Cropper.js instance shown before save — user can adjust framing. Optional, can skip. Also accessible from the View lightbox (see below). **↺ / ↻ rotate buttons** (90° left/right) sit next to the crop/apply button in both the main crop-preview modal and the LLM photo-staging crop modal — rotation is baked into the image by `getCroppedCanvas()` on Apply/Crop, so no separate save step is needed.
 
+- **New-upload flow** (`showCropPreview()` called from `handlePhotoFile`): shows the "Use Photo" / "✂ Crop" / "Cancel" preview step first, since intent isn't yet known — user may just want to save as-is.
+- **Existing-photo flow** (`showCropPreview(file, true)` called from `cropExistingPhoto`, triggered by the lightbox's Crop button): skips the preview step and goes straight into Cropper.js, since tapping Crop in the lightbox already signals intent — avoids requiring two separate "Crop" clicks in a row.
+- Shared helper `_startCropperOnPreviewImage()` in `photos.js` initializes the Cropper.js instance and switches the modal to the apply-crop button row; used by both the manual "✂ Crop" preview button and the auto-start path above.
+
 **View Lightbox** (`openPhotoLightbox()` in `photos.js`):
 - Tapping **🔍 View** opens a full-screen dark overlay (z-index 9999)
 - **Pinch-to-zoom**: 2-finger pinch gesture scales the image from 1× up to 5×
 - **Pan**: 1-finger drag pans the image when zoomed in (no-op at 1×)
 - **Long-press download**: Hold finger on the image for ~650ms to trigger a download of the photo as `photo.jpg`
-- **✂ Crop button**: shown at the bottom — closes lightbox and opens the Cropper.js flow
+- **✂ Crop button**: shown at the bottom — closes lightbox and opens the Cropper.js flow, going straight into crop mode (see Existing-photo flow above)
 - **✕ close button**: top-right corner dismisses the overlay
 - Implemented as a dynamically-created DOM element appended to `document.body` (no static modal in `index.html`)
 

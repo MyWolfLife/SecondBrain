@@ -481,15 +481,37 @@ document.addEventListener('click', function(e) {
 // ---------- Crop Preview ----------
 
 /**
+ * Initializes Cropper.js on the current #cropPreviewImage and switches the
+ * modal to the "apply crop" button state. Shared by the manual "✂ Crop"
+ * button and the auto-start path used when the user already clicked Crop
+ * from the photo lightbox (see cropExistingPhoto).
+ */
+function _startCropperOnPreviewImage() {
+    var img = document.getElementById('cropPreviewImage');
+    _cropperInstance = new Cropper(img, {
+        viewMode:      1,
+        movable:       true,
+        zoomable:      true,
+        scalable:      false,
+        autoCropArea:  0.9,
+    });
+    document.getElementById('cropPreviewButtons').style.display = 'none';
+    document.getElementById('cropApplyButtons').style.display  = '';
+}
+
+/**
  * Shows a modal preview of a captured photo. The user can either:
  *   - "Use Photo" — accept as-is (resolves with the original File/Blob)
  *   - "Crop" — launch Cropper.js, then "Apply Crop" (resolves with a cropped Blob)
  *   - "Cancel" — reject with 'cancelled'
  *
  * @param {File|Blob} file
+ * @param {boolean} [autoStartCrop] - If true, skip the preview step and go
+ *   straight into Cropper.js. Used when the user already expressed intent to
+ *   crop (tapping "✂ Crop" from the lightbox on an existing photo).
  * @returns {Promise<File|Blob>} Resolves with the final image to save.
  */
-function showCropPreview(file) {
+function showCropPreview(file, autoStartCrop) {
     return new Promise(function(resolve, reject) {
         _cropResolve      = resolve;
         _cropReject       = reject;
@@ -508,11 +530,15 @@ function showCropPreview(file) {
             container.innerHTML = '<img id="cropPreviewImage" style="max-width:100%;display:block;margin:0 auto;">';
             document.getElementById('cropPreviewImage').src = e.target.result;
 
-            // Show the preview buttons, hide the apply-crop buttons
-            document.getElementById('cropPreviewButtons').style.display = '';
-            document.getElementById('cropApplyButtons').style.display  = 'none';
-
             openModal('cropPreviewModal');
+
+            if (autoStartCrop) {
+                _startCropperOnPreviewImage();
+            } else {
+                // Show the preview buttons, hide the apply-crop buttons
+                document.getElementById('cropPreviewButtons').style.display = '';
+                document.getElementById('cropApplyButtons').style.display  = 'none';
+            }
         };
         reader.readAsDataURL(file);
     });
@@ -956,10 +982,11 @@ async function cropExistingPhoto(photo, targetType, containerId) {
         return;
     }
 
-    // Open the existing crop modal; user can crop or cancel
+    // Open the crop modal straight into Cropper.js — the user already tapped
+    // "✂ Crop" in the lightbox, so skip the "Use Photo / Crop" preview step.
     var croppedBlob;
     try {
-        croppedBlob = await showCropPreview(blob);
+        croppedBlob = await showCropPreview(blob, true);
     } catch (e) {
         return; // User cancelled — nothing to do
     }
@@ -1113,18 +1140,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Start Crop: launch Cropper.js on the preview image
-    document.getElementById('cropStartBtn').addEventListener('click', function() {
-        var img = document.getElementById('cropPreviewImage');
-        _cropperInstance = new Cropper(img, {
-            viewMode:      1,
-            movable:       true,
-            zoomable:      true,
-            scalable:      false,
-            autoCropArea:  0.9,
-        });
-        document.getElementById('cropPreviewButtons').style.display = 'none';
-        document.getElementById('cropApplyButtons').style.display  = '';
-    });
+    document.getElementById('cropStartBtn').addEventListener('click', _startCropperOnPreviewImage);
 
     // Rotate left/right 90° — getCroppedCanvas() bakes the rotation into the export
     document.getElementById('cropRotateLeftBtn').addEventListener('click', function() {
