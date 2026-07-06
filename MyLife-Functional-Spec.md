@@ -1732,14 +1732,15 @@ Dashboard page showing totals for the selected group.
 | `#investments/ss-benefits` | SS Benefits list — snapshots per person |
 | `#investments/ss-benefits/new` | Create new SS Benefits snapshot |
 | `#investments/ss-benefits/edit/:id` | Edit existing SS Benefits snapshot |
-| `#investments/ai-analysis` | AI Investment Analysis — LLM-generated plain-English portfolio analysis |
+| `#investments/ai-setup` | Ask AI setup — choose which data groups to send and edit the prompt before running |
+| `#investments/ai-analysis` | AI Investment Analysis — LLM-generated plain-English portfolio analysis, plus a growing follow-up thread |
 | `#investments/import` | Import Snapshots — AI vision parses screenshot, review grid, bulk write |
 
 ---
 
-### AI Analysis (`#investments/ai-analysis`)
+### Ask AI Setup (`#investments/ai-setup`)
 
-Sends a structured JSON snapshot of the selected group's financial picture to the configured LLM and displays a plain-English analysis. Accessed via **🤖 Ask AI** buttons on the hub and summary pages.
+Compose screen shown before every AI analysis run. Lets the user choose which data groups to send to the LLM and optionally replace the default prompt with a custom one. Accessed via **🤖 Ask AI** buttons on the hub and summary pages.
 
 **Entry points**:
 - Hub page: "Ask AI" button near the Retire Estimate accordion (sets back route to `#investments`)
@@ -1748,36 +1749,50 @@ Sends a structured JSON snapshot of the selected group's financial picture to th
 **Page layout**:
 - Back button (returns to hub or summary depending on entry point)
 - Group name shown as subtitle
-- Optional specific-question textarea + **Ask AI** button (runs full analysis)
-- Status / loading area
-- Result area (rendered markdown from LLM)
-- Cached result displayed below on load if one exists, with a "Re-run" button
+- **Data groups** checklist (5 logical groups — see Payload below): all checked and **disabled** by default
+- **Clear** / **Load Default Prompt** buttons
+- **Prompt** textarea, pre-filled with the default system prompt
+- **Ask AI** / **Cancel** buttons
+- If a cached default analysis exists for the group, a "Last Analysis" notice below with **View** and **Re-run Default** buttons
 
-**Call 1 — Full Analysis**:
-- Assembles JSON payload via `_investAiBuildPayload(groupId)` (see Payload below)
-- Sends system prompt + JSON + optional user question to LLM
-- Renders markdown response; caches result per group in `userCol('investmentConfig').doc('aiAnalysis_{groupId}')`
-- Follow-up textarea + "Ask follow-up" button appear below the result
+**Lock mechanic**: The data-group checkboxes are locked (checked, disabled) whenever the prompt matches the default — the default prompt's fixed sections assume every group is present. Clicking **Clear** empties the prompt box and unlocks the checkboxes so specific groups can be excluded while writing a custom prompt. Clicking **Load Default Prompt** restores the canonical prompt text and re-locks all groups as included.
 
-**Call 2 — Follow-Up Question**:
-- Sends same JSON + prior analysis text + follow-up question to LLM
-- LLM responds only to the follow-up; does not repeat the full analysis
-- Follow-up response shown in a visually distinct block (blue tint)
-- Not cached — transient for the current page visit
+**Ask AI**: Builds the JSON payload from only the checked groups, sends `[system: prompt, user: JSON data]` to the LLM, and navigates to the results screen with the new run. A run only persists to the per-group cache when it used the unmodified default prompt AND all five groups — anything else (a custom prompt and/or excluded groups) is session-only and lost on navigating away or refreshing.
 
-**Caching**: Per group. Each group stores its last analysis in `investmentConfig/aiAnalysis_{groupId}` with fields: `responseText`, `question`, `groupId`, `groupName`, `asOfDate`, `runAt` (ISO string). Cached result loads automatically on page entry; "Re-run" overwrites it.
+---
 
-**Payload** (`_investAiBuildPayload`): Assembled from live Firestore reads each run:
-- `group.members[]`: label, currentAge (from birthday in `peopleImportantDates`), retirementAge, yearsToRetirement
-- `socialSecurity[]`: all breakpoints per person from the most recent `ssBenefits` snapshot
-- `portfolioSummary`: totalValue, byCategory (roth/preTax/brokerage/cash/investmentCash), top 15 holdings by value
-- `accounts[]`: per-account name, type, owner, cashBalance, holdings (ticker, shares, lastPrice, value)
-- `budgets[]`: all non-archived budgets with monthlyTotal, annualTotal, isDefault, category totals
-- `investmentConfig`: projectedRoR, afterTaxPct
+### AI Analysis Results (`#investments/ai-analysis`)
 
-**LLM**: Uses the same provider config as SecondBrain (`userCol('settings').doc('llm')`). Supports OpenAI (`gpt-4o`) and Grok (`grok-3`). System prompt instructs "knowledgeable friend" tone with 7 sections: Summary, Retirement Readiness, Budget Gap Analysis, SS Strategy, Portfolio Composition, Concentration Risk, Cash Position, Key Observations. Uses configured `projectedRoR` — not the 4% rule.
+Displays the analysis produced by the setup screen and supports an ongoing, growing follow-up conversation about it.
 
-**Module**: `js/investments-ai.js`. Module state: `_investAiBackRoute`, `_investAiGroupId`, `_investAiAnalysis`.
+**Page layout**:
+- Back button, group name + run timestamp subtitle
+- "Excluded from this analysis: ..." badge if the run left out any data groups
+- **New Question** (returns to Ask AI Setup) / **Re-run Default** action row
+- Rendered markdown analysis
+- Growing **Q&A thread** — every follow-up question and answer is appended and shown in order, oldest first
+- Follow-up textarea + "Ask follow-up" button, always at the bottom of the thread
+
+If the page is opened with no pending run and no cached default exists yet, it shows a "No analysis yet" message linking back to Ask AI Setup.
+
+**Follow-up questions**: True multi-turn conversation — each follow-up appends `{role: user}` then `{role: assistant}` to the run's `messages[]` array and resends the whole array (original system prompt + data + every prior turn) to the LLM. The thread grows indefinitely for that run; there's no separate follow-up system prompt.
+
+**Re-run Default**: Available on both the Setup screen and the Results screen. Always builds a fresh run with the unmodified default prompt and all five data groups, regardless of what's currently on screen, and overwrites the persisted cache. Updates in place if already on the results screen.
+
+**Caching**: Per group, default runs only. Each group's canonical default run (including its growing follow-up thread) is stored in `investmentConfig/aiAnalysis_{groupId}` with fields: `messages` (the full conversation array), `excludedLabels` (always `[]` for a default run), `isDefault` (`true`), `groupId`, `groupName`, `asOfDate`, `runAt` (ISO string). Custom runs (non-default prompt and/or excluded groups) are never written here.
+
+**Payload** (`_investAiBuildPayload(groupId, includedGroupKeys)`): Assembled from live Firestore reads each run, gated by which of the 5 logical groups were included:
+- **Household Members & Ages**: `group.members[]` — label, currentAge (from birthday in `peopleImportantDates`)
+- **Retirement Config**: `investmentConfig` (projectedRoR, afterTaxPct) as a top-level object; also adds `retirementAge`/`yearsToRetirement` onto each `group.members[]` entry (only meaningful when Household is also included)
+- **Accounts & Holdings**: `portfolioSummary` (totalValue, byCategory, top 15 holdings by value) and `accounts[]` (name, type, owner, cashBalance, holdings)
+- **Social Security**: `socialSecurity[]` — all breakpoints per person from the most recent `ssBenefits` snapshot
+- **Budgets**: `budgets[]` — all non-archived budgets with monthlyTotal, annualTotal, isDefault, category totals
+
+Person display names are always resolved (used for account owners and SS entries) regardless of whether the Household group is included.
+
+**LLM**: Uses the same provider config as SecondBrain (`userCol('settings').doc('llm')`). Supports OpenAI (`gpt-4o`) and Grok (`grok-3`). The default system prompt instructs "knowledgeable friend" tone with 7 sections: Summary, Retirement Readiness, Budget Gap Analysis, SS Strategy, Portfolio Composition, Concentration Risk, Cash Position, Key Observations, and now also tells the model to note (rather than guess) when a section's data wasn't provided. Uses configured `projectedRoR` — not the 4% rule.
+
+**Module**: `js/investments-ai.js`. Module state: `_investAiBackRoute`, `_investAiGroupId`, `_investAiPendingRun` (hand-off from setup to results), `_investAiCurrentRun` (run shown on the results screen), `_investAiLastCachedRun` (cached default run, shown on the setup screen).
 
 ---
 

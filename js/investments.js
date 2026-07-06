@@ -271,7 +271,7 @@ function _investHubDashboardHtml(totals, baselines, groupId, retireData) {
     }
     var retireBarHtml = retireHtml
         ? '<div class="invest-hub-update-bar">' +
-              '<a class="btn btn-secondary btn-small invest-ai-entry-btn" href="#investments/ai-analysis" ' +
+              '<a class="btn btn-secondary btn-small invest-ai-entry-btn" href="#investments/ai-setup" ' +
                   'onclick="_investAiBackRoute=\'investments\'">🤖 Ask AI</a>' +
           '</div>'
         : '';
@@ -3974,7 +3974,7 @@ async function _investRenderSummaryPage() {
         }) +
 
         '<div class="invest-ai-entry-wrap">' +
-            '<a class="btn btn-secondary btn-small invest-ai-entry-btn" href="#investments/ai-analysis" ' +
+            '<a class="btn btn-secondary btn-small invest-ai-entry-btn" href="#investments/ai-setup" ' +
                 'onclick="_investAiBackRoute=\'investments/summary\'">🤖 Ask AI</a>' +
         '</div>' +
 

@@ -1,17 +1,32 @@
 // ============================================================
 // investments-ai.js — AI Investment Analysis
-// Assembles a financial snapshot payload, calls the configured
-// LLM, and displays a plain-English analysis. Results cached
-// per group in investmentConfig/aiAnalysis_{groupId}.
+// Two screens: a setup/compose screen (choose data groups +
+// prompt) and a results screen (analysis + growing follow-up
+// thread). Only the default prompt + all-groups run is cached
+// per group in investmentConfig/aiAnalysis_{groupId}; custom
+// runs are session-only.
 // ============================================================
 
 // ---------- Module State ----------
 
-var _investAiBackRoute = 'investments'; // where the Back button returns
-var _investAiGroupId   = null;          // group currently being analyzed
-var _investAiAnalysis  = null;          // most-recent response text (for follow-up use)
+var _investAiBackRoute    = 'investments'; // where the Back/Cancel buttons return
+var _investAiGroupId      = null;          // group currently being analyzed
+var _investAiPendingRun   = null;          // hand-off from setup screen to results screen
+var _investAiCurrentRun   = null;          // run currently shown on the results screen
+var _investAiLastCachedRun = null;         // cached default run, shown on the setup screen
 
-// ---------- System Prompts ----------
+// ---------- Data Groups ----------
+
+var _INVEST_AI_GROUPS = [
+    { key: 'household', label: 'Household Members & Ages' },
+    { key: 'accounts',  label: 'Accounts & Holdings' },
+    { key: 'ss',        label: 'Social Security' },
+    { key: 'budgets',   label: 'Budgets' },
+    { key: 'retireCfg', label: 'Retirement Config (return rate, after-tax %, retirement ages)' }
+];
+var _INVEST_AI_ALL_KEYS = _INVEST_AI_GROUPS.map(function(g) { return g.key; });
+
+// ---------- Default System Prompt ----------
 
 var _INVEST_AI_SYSTEM = [
     'You are a personal financial analysis assistant. The user will provide a JSON snapshot of their household financial picture.',
@@ -22,7 +37,7 @@ var _INVEST_AI_SYSTEM = [
     '',
     'Use dollar amounts, percentages, and ages from the data — show your math in plain terms when it adds clarity.',
     'Use the projectedRoR value from the JSON as the expected annual return. Do not substitute the 4% rule or any other default.',
-    'Do not make up numbers that are not in the data.',
+    'Do not make up numbers that are not in the data. If a section below depends on data that was not provided, say so briefly instead of guessing, or skip that section.',
     '',
     'Structure your response exactly as follows:',
     '',
@@ -64,17 +79,220 @@ var _INVEST_AI_SYSTEM = [
     '*Brief disclaimer: This is an automated analysis based on the data provided. It is not professional financial advice. Consult a licensed advisor for decisions with significant consequences.*'
 ].join('\n');
 
-var _INVEST_AI_FOLLOWUP_SYSTEM = [
-    'You are a personal financial analysis assistant. You previously analyzed a household\'s financial data and produced a written analysis.',
-    'The user now has a follow-up question. Answer their question directly and concisely, drawing on the financial data and your prior analysis.',
-    'Do not repeat or re-summarize the full analysis. One brief disclaimer at the end if needed.'
-].join('\n');
+// ---------- Setup / Compose Page ----------
 
-// ---------- Page Loader ----------
+async function loadInvestmentsAiSetupPage() {
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#investments">Financial</a>' +
+        '<span class="separator">&rsaquo;</span>' +
+        '<span>Ask AI</span>';
+    document.getElementById('headerTitle').innerHTML =
+        '<a href="#main" class="home-link">' + escapeHtml(window.appName || 'My Life') + '</a>';
+
+    var page = document.getElementById('page-investments-ai-setup');
+    if (!page) return;
+    page.innerHTML = '<p class="muted-text">Loading…</p>';
+
+    await _investLoadGroups();
+    await _investLoadConfig();
+    await _investLoadAll();
+
+    if (!_investAiGroupId) {
+        _investAiGroupId = _investActiveGroupId ||
+            localStorage.getItem('investActiveGroupId') ||
+            (_investGroups.length > 0 ? _investGroups[0].id : null);
+    }
+
+    _investAiLastCachedRun = await _investAiLoadCache(_investAiGroupId);
+
+    _investAiSetupRender();
+}
+
+function _investAiSetupRender() {
+    var page = document.getElementById('page-investments-ai-setup');
+    if (!page) return;
+
+    var group     = _investGroups.find(function(g) { return g.id === _investAiGroupId; });
+    var groupName = group ? group.name : 'Unknown Group';
+
+    var groupsHtml = _INVEST_AI_GROUPS.map(function(g) {
+        return '<label class="invest-ai-group-check">' +
+            '<input type="checkbox" class="invest-ai-group-checkbox" data-group="' + g.key + '" checked disabled> ' +
+            escapeHtml(g.label) +
+        '</label>';
+    }).join('');
+
+    var cachedHtml = '';
+    if (_investAiLastCachedRun && _investAiLastCachedRun.messages && _investAiLastCachedRun.messages[2]) {
+        var runAt = _investAiLastCachedRun.runAt ? new Date(_investAiLastCachedRun.runAt).toLocaleString() : '';
+        cachedHtml =
+            '<div class="invest-ai-divider"><span>Last Analysis</span></div>' +
+            '<div class="invest-ai-cached-notice">' +
+                '<span>' +
+                    'Default analysis for <strong>' + escapeHtml(_investAiLastCachedRun.groupName || groupName) + '</strong>' +
+                    (runAt ? ' — run ' + escapeHtml(runAt) : '') +
+                '</span>' +
+                '<div class="invest-ai-cached-actions">' +
+                    '<button class="btn btn-secondary btn-small" onclick="_investAiViewLastDefault()">View</button>' +
+                    '<button class="btn btn-secondary btn-small" onclick="_investAiRerunDefault()">Re-run Default</button>' +
+                '</div>' +
+            '</div>';
+    }
+
+    page.innerHTML =
+        '<div class="page-header">' +
+            '<button class="btn btn-secondary btn-small" onclick="location.hash=\'' + escapeHtml(_investAiBackRoute) + '\'">&larr; Back</button>' +
+            '<h2>🤖 Ask AI</h2>' +
+        '</div>' +
+        '<div class="invest-ai-group-name muted-text">' + escapeHtml(groupName) + '</div>' +
+
+        '<div class="invest-ai-setup-section">' +
+            '<label class="invest-ai-setup-label">Include data</label>' +
+            '<div class="invest-ai-groups-list">' + groupsHtml + '</div>' +
+
+            '<div class="invest-ai-prompt-actions">' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="_investAiClearPrompt()">Clear</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="_investAiLoadDefaultPrompt()">Load Default Prompt</button>' +
+            '</div>' +
+            '<div class="form-group">' +
+                '<label>Prompt</label>' +
+                '<textarea id="investAiPromptBox" rows="14">' + escapeHtml(_INVEST_AI_SYSTEM) + '</textarea>' +
+            '</div>' +
+        '</div>' +
+
+        '<div id="investAiSetupStatus"></div>' +
+
+        '<div class="invest-ai-setup-buttons">' +
+            '<button class="btn btn-secondary" onclick="location.hash=\'' + escapeHtml(_investAiBackRoute) + '\'">Cancel</button>' +
+            '<button class="btn btn-primary" id="investAiAskBtn" onclick="_investAiSubmit()">✨ Ask AI</button>' +
+        '</div>' +
+        cachedHtml;
+}
+
+// Unlocks the data-group checkboxes so the user can opt specific groups out
+// while writing a custom prompt.
+function _investAiClearPrompt() {
+    var box = document.getElementById('investAiPromptBox');
+    if (box) box.value = '';
+    document.querySelectorAll('.invest-ai-group-checkbox').forEach(function(cb) {
+        cb.disabled = false;
+    });
+}
+
+// Restores the canonical prompt and re-locks all groups as included — the
+// default prompt's fixed sections assume every data group is present.
+function _investAiLoadDefaultPrompt() {
+    var box = document.getElementById('investAiPromptBox');
+    if (box) box.value = _INVEST_AI_SYSTEM;
+    document.querySelectorAll('.invest-ai-group-checkbox').forEach(function(cb) {
+        cb.checked  = true;
+        cb.disabled = true;
+    });
+}
+
+function _investAiViewLastDefault() {
+    _investAiPendingRun = _investAiLastCachedRun;
+    location.hash = 'investments/ai-analysis';
+}
+
+async function _investAiSubmit() {
+    var btn      = document.getElementById('investAiAskBtn');
+    var statusEl = document.getElementById('investAiSetupStatus');
+    var box      = document.getElementById('investAiPromptBox');
+    var promptText = (box ? box.value : '').trim();
+
+    if (!promptText) {
+        if (statusEl) statusEl.innerHTML =
+            '<p class="error-text">Enter a prompt, or click "Load Default Prompt".</p>';
+        return;
+    }
+
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.invest-ai-group-checkbox'));
+    var includedGroups = checkboxes.filter(function(cb) { return cb.checked; })
+        .map(function(cb) { return cb.dataset.group; });
+    var isDefault = (promptText === _INVEST_AI_SYSTEM.trim()) &&
+        (includedGroups.length === _INVEST_AI_GROUPS.length);
+
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyzing…'; }
+    if (statusEl) statusEl.innerHTML =
+        '<div class="invest-ai-loading">⏳ Analyzing your portfolio — this may take 15–30 seconds…</div>';
+
+    try {
+        var run = await _investAiRunNewAnalysis(promptText, includedGroups, isDefault);
+        _investAiPendingRun = run;
+        location.hash = 'investments/ai-analysis';
+    } catch (err) {
+        if (statusEl) statusEl.innerHTML =
+            '<p class="error-text">Error: ' + escapeHtml(err.message) + '</p>';
+        if (btn) { btn.disabled = false; btn.textContent = '✨ Ask AI'; }
+    }
+}
+
+// Builds the payload, calls the LLM, and returns a run object. Saves to the
+// per-group cache only when isDefault is true.
+async function _investAiRunNewAnalysis(promptText, includedGroups, isDefault) {
+    var payload = await _investAiBuildPayload(_investAiGroupId, includedGroups);
+    var userMsg = 'Here is my financial data:\n```json\n' + JSON.stringify(payload, null, 2) + '\n```';
+
+    var messages = [
+        { role: 'system', content: promptText },
+        { role: 'user',   content: userMsg }
+    ];
+    var responseText = await _investAiCallLLM(messages);
+    messages.push({ role: 'assistant', content: responseText });
+
+    var groupName = ((_investGroups.find(function(g) { return g.id === _investAiGroupId; })) || {}).name || '';
+    var excludedLabels = _INVEST_AI_GROUPS
+        .filter(function(g) { return includedGroups.indexOf(g.key) < 0; })
+        .map(function(g) { return g.label; });
+
+    var run = {
+        messages      : messages,
+        excludedLabels: excludedLabels,
+        isDefault     : isDefault,
+        groupId       : _investAiGroupId,
+        groupName     : groupName,
+        asOfDate      : payload.asOfDate,
+        runAt         : new Date().toISOString()
+    };
+
+    if (isDefault) {
+        await _investAiSaveCache(_investAiGroupId, run);
+        _investAiLastCachedRun = run;
+    }
+
+    return run;
+}
+
+// Always runs the canonical default prompt against every data group,
+// overwriting the persisted cache. Callable from either the setup screen or
+// the results screen — updates in place if already on the results screen.
+async function _investAiRerunDefault() {
+    var resultsPage = document.getElementById('page-investments-ai');
+    var onResultsPage = resultsPage && !resultsPage.classList.contains('hidden');
+    var busyEl = onResultsPage ? resultsPage : document.getElementById('page-investments-ai-setup');
+    var prevHtml = busyEl ? busyEl.innerHTML : '';
+    if (busyEl) busyEl.innerHTML = '<p class="muted-text">⏳ Running default analysis…</p>';
+
+    try {
+        var run = await _investAiRunNewAnalysis(_INVEST_AI_SYSTEM, _INVEST_AI_ALL_KEYS, true);
+        _investAiCurrentRun = run;
+
+        if (onResultsPage) {
+            _investAiRenderResults();
+        } else {
+            _investAiPendingRun = run;
+            location.hash = 'investments/ai-analysis';
+        }
+    } catch (err) {
+        if (busyEl) busyEl.innerHTML = prevHtml;
+        alert('Error running default analysis: ' + err.message);
+    }
+}
+
+// ---------- Results Page ----------
 
 async function loadInvestmentsAiPage() {
-    _investAiAnalysis = null;
-
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#investments">Financial</a>' +
         '<span class="separator">&rsaquo;</span>' +
@@ -90,43 +308,56 @@ async function loadInvestmentsAiPage() {
     await _investLoadConfig();
     await _investLoadAll();
 
-    // Resolve active group
     if (!_investAiGroupId) {
         _investAiGroupId = _investActiveGroupId ||
             localStorage.getItem('investActiveGroupId') ||
             (_investGroups.length > 0 ? _investGroups[0].id : null);
     }
 
-    await _investAiRender();
+    if (_investAiPendingRun) {
+        _investAiCurrentRun = _investAiPendingRun;
+        _investAiPendingRun = null;
+    } else if (!_investAiCurrentRun) {
+        _investAiCurrentRun = await _investAiLoadCache(_investAiGroupId);
+    }
+
+    _investAiRenderResults();
 }
 
-// ---------- Page Renderer ----------
-
-async function _investAiRender() {
+function _investAiRenderResults() {
     var page = document.getElementById('page-investments-ai');
     if (!page) return;
 
-    var group     = _investGroups.find(function(g) { return g.id === _investAiGroupId; });
-    var groupName = group ? group.name : 'Unknown Group';
-    var cached    = await _investAiLoadCache(_investAiGroupId);
-
-    var cachedHtml = '';
-    if (cached && cached.responseText) {
-        var runAt = cached.runAt ? new Date(cached.runAt).toLocaleString() : '';
-        cachedHtml =
-            '<div class="invest-ai-divider"><span>Last Analysis</span></div>' +
-            '<div class="invest-ai-cached-notice">' +
-                '<span>' +
-                    'Cached result for <strong>' + escapeHtml(cached.groupName || groupName) + '</strong>' +
-                    (runAt ? ' — run ' + escapeHtml(runAt) : '') +
-                '</span>' +
-                '<button class="btn btn-secondary btn-small" onclick="_investAiRunAnalysis()">Re-run</button>' +
+    var run = _investAiCurrentRun;
+    if (!run || !run.messages || !run.messages[2]) {
+        page.innerHTML =
+            '<div class="page-header">' +
+                '<button class="btn btn-secondary btn-small" onclick="location.hash=\'' + escapeHtml(_investAiBackRoute) + '\'">&larr; Back</button>' +
+                '<h2>🤖 AI Analysis</h2>' +
             '</div>' +
-            (cached.question
-                ? '<div class="invest-ai-question-asked">Question asked: <em>' + escapeHtml(cached.question) + '</em></div>'
-                : '') +
-            '<div class="invest-ai-response">' + marked.parse(cached.responseText) + '</div>' +
-            _investAiFollowupSectionHtml();
+            '<p class="muted-text">No analysis yet. <a href="#investments/ai-setup">Ask a question</a> to get started.</p>';
+        return;
+    }
+
+    var runAtStr = run.runAt ? new Date(run.runAt).toLocaleString() : '';
+    var excludedHtml = (run.excludedLabels && run.excludedLabels.length)
+        ? '<div class="invest-ai-excluded-badge">Excluded from this analysis: ' + escapeHtml(run.excludedLabels.join(', ')) + '</div>'
+        : '';
+
+    // messages[0] = system prompt, [1] = data message, [2] = initial analysis.
+    // From index 3 on, alternating user/assistant follow-up turns.
+    var initialAnalysis = run.messages[2].content || '';
+    var threadHtml = '';
+    for (var i = 3; i < run.messages.length; i += 2) {
+        var q = run.messages[i]     ? run.messages[i].content     : '';
+        var a = run.messages[i + 1] ? run.messages[i + 1].content : '';
+        threadHtml +=
+            '<div class="invest-ai-followup-response">' +
+                '<div class="invest-ai-followup-q"><strong>Q:</strong> ' + escapeHtml(q) + '</div>' +
+                (a
+                    ? '<div class="invest-ai-followup-a">' + marked.parse(a) + '</div>'
+                    : '<div class="invest-ai-loading">⏳ Thinking…</div>') +
+            '</div>';
     }
 
     page.innerHTML =
@@ -134,141 +365,67 @@ async function _investAiRender() {
             '<button class="btn btn-secondary btn-small" onclick="location.hash=\'' + escapeHtml(_investAiBackRoute) + '\'">&larr; Back</button>' +
             '<h2>🤖 AI Analysis</h2>' +
         '</div>' +
-        '<div class="invest-ai-group-name muted-text">' + escapeHtml(groupName) + '</div>' +
-
-        '<div class="invest-ai-run-section">' +
+        '<div class="invest-ai-group-name muted-text">' +
+            escapeHtml(run.groupName || 'Unknown Group') +
+            (runAtStr ? ' — run ' + escapeHtml(runAtStr) : '') +
+        '</div>' +
+        excludedHtml +
+        '<div class="invest-ai-result-actions">' +
+            '<a class="btn btn-secondary btn-small" href="#investments/ai-setup">New Question</a>' +
+            '<button class="btn btn-secondary btn-small" onclick="_investAiRerunDefault()">Re-run Default</button>' +
+        '</div>' +
+        '<div class="invest-ai-response">' + marked.parse(initialAnalysis) + '</div>' +
+        '<div id="investAiThread">' + threadHtml + '</div>' +
+        '<div class="invest-ai-followup-section">' +
             '<div class="form-group">' +
-                '<label>Specific question <span class="field-optional">(optional)</span></label>' +
-                '<textarea id="investAiQuestion" rows="3" ' +
-                    'placeholder="e.g. Am I on track to retire at 65? Should I move more into Roth?"></textarea>' +
+                '<label>Ask a follow-up question</label>' +
+                '<textarea id="investAiFollowup" rows="3" ' +
+                    'placeholder="e.g. Should I convert some pre-tax to Roth now?"></textarea>' +
             '</div>' +
-            '<button class="btn btn-primary" id="investAiRunBtn" onclick="_investAiRunAnalysis()">✨ Ask AI</button>' +
+            '<button class="btn btn-secondary btn-small" id="investAiFollowupBtn" ' +
+                'onclick="_investAiRunFollowUp()">Ask follow-up</button>' +
         '</div>' +
-
-        '<div id="investAiStatus"></div>' +
-        '<div id="investAiResult"></div>' +
-        cachedHtml;
+        '<div id="investAiFollowupStatus"></div>';
 }
-
-// Returns the follow-up question textarea + response area HTML.
-function _investAiFollowupSectionHtml() {
-    return '<div class="invest-ai-followup-section">' +
-        '<div class="form-group">' +
-            '<label>Ask a follow-up question</label>' +
-            '<textarea id="investAiFollowup" rows="3" ' +
-                'placeholder="e.g. Should I convert some pre-tax to Roth now?"></textarea>' +
-        '</div>' +
-        '<button class="btn btn-secondary btn-small" id="investAiFollowupBtn" ' +
-            'onclick="_investAiRunFollowUp()">Ask follow-up</button>' +
-    '</div>' +
-    '<div id="investAiFollowupResult"></div>';
-}
-
-// ---------- Call 1 — Full Analysis ----------
-
-async function _investAiRunAnalysis() {
-    var btn      = document.getElementById('investAiRunBtn');
-    var statusEl = document.getElementById('investAiStatus');
-    var resultEl = document.getElementById('investAiResult');
-    var question = (document.getElementById('investAiQuestion') || {}).value || '';
-
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyzing…'; }
-    if (statusEl) statusEl.innerHTML =
-        '<div class="invest-ai-loading">⏳ Analyzing your portfolio — this may take 15–30 seconds…</div>';
-    if (resultEl) resultEl.innerHTML = '';
-
-    try {
-        var payload = await _investAiBuildPayload(_investAiGroupId);
-        var userMsg = 'Here is my financial data:\n```json\n' +
-            JSON.stringify(payload, null, 2) + '\n```';
-        if (question.trim()) {
-            userMsg += '\n\nIn addition to your general analysis, please specifically address: ' + question.trim();
-        }
-
-        var responseText = await _investAiCallLLM(_INVEST_AI_SYSTEM, userMsg);
-        _investAiAnalysis = responseText;
-
-        // Cache result per group
-        var groupName = ((_investGroups.find(function(g) { return g.id === _investAiGroupId; })) || {}).name || '';
-        await _investAiSaveCache(_investAiGroupId, {
-            responseText : responseText,
-            question     : question.trim(),
-            groupId      : _investAiGroupId,
-            groupName    : groupName,
-            asOfDate     : payload.asOfDate,
-            runAt        : new Date().toISOString()
-        });
-
-        if (statusEl) statusEl.innerHTML = '';
-        if (resultEl) resultEl.innerHTML =
-            '<div class="invest-ai-divider"><span>Analysis</span></div>' +
-            (question.trim()
-                ? '<div class="invest-ai-question-asked">Question asked: <em>' + escapeHtml(question.trim()) + '</em></div>'
-                : '') +
-            '<div class="invest-ai-response">' + marked.parse(responseText) + '</div>' +
-            _investAiFollowupSectionHtml();
-
-    } catch (err) {
-        if (statusEl) statusEl.innerHTML =
-            '<p class="error-text">Error: ' + escapeHtml(err.message) + '</p>';
-    }
-
-    if (btn) { btn.disabled = false; btn.textContent = '✨ Ask AI'; }
-}
-
-// ---------- Call 2 — Follow-Up Question ----------
 
 async function _investAiRunFollowUp() {
-    var followupEl     = document.getElementById('investAiFollowup');
-    var followupResult = document.getElementById('investAiFollowupResult');
-    var btn            = document.getElementById('investAiFollowupBtn');
-    if (!followupEl || !followupResult) return;
+    var followupEl = document.getElementById('investAiFollowup');
+    var statusEl   = document.getElementById('investAiFollowupStatus');
+    var btn        = document.getElementById('investAiFollowupBtn');
+    if (!followupEl || !_investAiCurrentRun) return;
 
     var question = followupEl.value.trim();
     if (!question) { followupEl.focus(); return; }
 
-    // Prefer fresh analysis from this session; fall back to cached
-    var priorAnalysis = _investAiAnalysis;
-    if (!priorAnalysis) {
-        var cached = await _investAiLoadCache(_investAiGroupId);
-        priorAnalysis = cached ? cached.responseText : null;
-    }
-    if (!priorAnalysis) {
-        followupResult.innerHTML =
-            '<p class="error-text">No prior analysis found. Run a full analysis first.</p>';
-        return;
-    }
+    var run = _investAiCurrentRun;
+    run.messages.push({ role: 'user', content: question });
 
     if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
-    followupResult.innerHTML = '<div class="invest-ai-loading">⏳ Thinking…</div>';
+    if (statusEl) statusEl.innerHTML = '<div class="invest-ai-loading">⏳ Thinking…</div>';
 
     try {
-        var payload = await _investAiBuildPayload(_investAiGroupId);
-        var userMsg =
-            'Here is my financial data:\n```json\n' +
-            JSON.stringify(payload, null, 2) + '\n```\n\n' +
-            'Here is the analysis you previously provided:\n' + priorAnalysis + '\n\n' +
-            'My follow-up question: ' + question;
+        var responseText = await _investAiCallLLM(run.messages);
+        run.messages.push({ role: 'assistant', content: responseText });
 
-        var responseText = await _investAiCallLLM(_INVEST_AI_FOLLOWUP_SYSTEM, userMsg);
+        if (run.isDefault) {
+            await _investAiSaveCache(run.groupId, run);
+            _investAiLastCachedRun = run;
+        }
 
-        followupResult.innerHTML =
-            '<div class="invest-ai-followup-response">' +
-                '<div class="invest-ai-followup-q"><strong>Q:</strong> ' + escapeHtml(question) + '</div>' +
-                '<div class="invest-ai-followup-a">' + marked.parse(responseText) + '</div>' +
-            '</div>';
-
+        followupEl.value = '';
+        if (statusEl) statusEl.innerHTML = '';
+        _investAiRenderResults();
     } catch (err) {
-        followupResult.innerHTML =
+        run.messages.pop(); // drop the unanswered question so a retry is clean
+        if (statusEl) statusEl.innerHTML =
             '<p class="error-text">Error: ' + escapeHtml(err.message) + '</p>';
+        if (btn) { btn.disabled = false; btn.textContent = 'Ask follow-up'; }
     }
-
-    if (btn) { btn.disabled = false; btn.textContent = 'Ask follow-up'; }
 }
 
 // ---------- LLM HTTP Call ----------
 
-async function _investAiCallLLM(systemPrompt, userText) {
+async function _investAiCallLLM(messages) {
     var doc = await userCol('settings').doc('llm').get();
     if (!doc.exists) throw new Error('LLM not configured. Go to Settings → AI to add your API key.');
 
@@ -291,10 +448,7 @@ async function _investAiCallLLM(systemPrompt, userText) {
         },
         body: JSON.stringify({
             model                : model || ep.model,
-            messages             : [
-                { role: 'system', content: systemPrompt },
-                { role: 'user',   content: userText     }
-            ],
+            messages             : messages,
             max_completion_tokens: 4000
         })
     });
@@ -324,7 +478,10 @@ async function _investAiSaveCache(groupId, data) {
 
 // ---------- Payload Builder ----------
 
-async function _investAiBuildPayload(groupId) {
+async function _investAiBuildPayload(groupId, includedGroupKeys) {
+    includedGroupKeys = includedGroupKeys || _INVEST_AI_ALL_KEYS;
+    function has(key) { return includedGroupKeys.indexOf(key) >= 0; }
+
     var group = _investGroups.find(function(g) { return g.id === groupId; });
     if (!group) throw new Error('Group not found.');
 
@@ -332,171 +489,104 @@ async function _investAiBuildPayload(groupId) {
     var todayStr  = today.toISOString().slice(0, 10);
     var personIds = group.personIds || ['self'];
 
-    // Person display names
+    // Person display names — used for account owners and SS entries regardless
+    // of whether the Household group itself is included.
     var personNames = { self: 'Me' };
     (_investPeople || []).forEach(function(p) { personNames[p.id] = p.name; });
 
-    // Current age per person (best-effort via birthday lookup)
-    var personAges = {};
-    var meAgeInfo  = await _investGetMeAge();
-    if (meAgeInfo.age !== undefined) personAges['self'] = meAgeInfo.age;
+    var payload = { asOfDate: todayStr, group: { name: group.name } };
 
-    for (var pi = 0; pi < personIds.length; pi++) {
-        var pid = personIds[pi];
-        if (pid === 'self' || personAges[pid] !== undefined) continue;
-        try {
-            var dSnap = await userCol('peopleImportantDates').where('personId', '==', pid).get();
-            dSnap.forEach(function(d) {
-                var lbl = (d.data().label || '').toLowerCase().replace(/\s+/g, '');
-                if ((lbl === 'birthday' || lbl === 'bday' || lbl === 'birthdate') && d.data().year) {
-                    var age = today.getFullYear() - parseInt(d.data().year);
-                    var m = d.data().month || 0, dy = d.data().day || 0;
-                    if (m && dy && (today.getMonth() + 1 < m ||
-                        (today.getMonth() + 1 === m && today.getDate() < dy))) age--;
-                    personAges[pid] = age;
+    // ---------- Household Members & Ages ----------
+    if (has('household')) {
+        var personAges = {};
+        var meAgeInfo  = await _investGetMeAge();
+        if (meAgeInfo.age !== undefined) personAges['self'] = meAgeInfo.age;
+
+        for (var pi = 0; pi < personIds.length; pi++) {
+            var pid = personIds[pi];
+            if (pid === 'self' || personAges[pid] !== undefined) continue;
+            try {
+                var dSnap = await userCol('peopleImportantDates').where('personId', '==', pid).get();
+                dSnap.forEach(function(d) {
+                    var lbl = (d.data().label || '').toLowerCase().replace(/\s+/g, '');
+                    if ((lbl === 'birthday' || lbl === 'bday' || lbl === 'birthdate') && d.data().year) {
+                        var age = today.getFullYear() - parseInt(d.data().year);
+                        var m = d.data().month || 0, dy = d.data().day || 0;
+                        if (m && dy && (today.getMonth() + 1 < m ||
+                            (today.getMonth() + 1 === m && today.getDate() < dy))) age--;
+                        personAges[pid] = age;
+                    }
+                });
+            } catch (e) { /* skip — age stays null */ }
+        }
+
+        var retireAges = _investConfig.retirementAges || {};
+        payload.group.members = personIds.map(function(pid) {
+            var currentAge = (personAges[pid] !== undefined) ? personAges[pid] : null;
+            var member = { label: personNames[pid] || pid, currentAge: currentAge };
+            if (has('retireCfg')) {
+                var retireAge = retireAges[pid] ? parseInt(retireAges[pid]) : null;
+                member.retirementAge     = retireAge;
+                member.yearsToRetirement = (currentAge !== null && retireAge) ? Math.max(0, retireAge - currentAge) : null;
+            }
+            return member;
+        });
+    }
+
+    // ---------- Accounts & Holdings ----------
+    if (has('accounts')) {
+        var accounts      = await _investLoadGroupAccounts(group);
+        var cats          = _investComputeGroupTotals(accounts);
+        var holdingRollup = {};
+
+        var accountList = accounts.map(function(acct) {
+            var holdings = (acct._holdings || []).map(function(h) {
+                var value          = (h.shares || 0) * (h.lastPrice || 0);
+                var costBasisTotal = (h.costBasis != null && h.shares != null)
+                    ? Math.round(h.costBasis * h.shares * 100) / 100
+                    : null;
+                if (h.ticker) {
+                    if (!holdingRollup[h.ticker]) {
+                        holdingRollup[h.ticker] = { companyName: h.companyName || '', totalValue: 0 };
+                    }
+                    holdingRollup[h.ticker].totalValue += value;
                 }
+                var holding = {
+                    ticker          : h.ticker      || '',
+                    companyName     : h.companyName || '',
+                    shares          : h.shares      || 0,
+                    lastPrice       : h.lastPrice   || 0,
+                    value           : Math.round(value * 100) / 100
+                };
+                if (costBasisTotal !== null) {
+                    holding.costBasisPerShare  = Math.round(h.costBasis * 100) / 100;
+                    holding.totalCostBasis     = costBasisTotal;
+                    holding.estimatedGainLoss  = Math.round((value - costBasisTotal) * 100) / 100;
+                }
+                return holding;
             });
-        } catch (e) { /* skip — age stays null */ }
-    }
-
-    // Members array
-    var retireAges = _investConfig.retirementAges || {};
-    var members = personIds.map(function(pid) {
-        var currentAge   = (personAges[pid] !== undefined) ? personAges[pid] : null;
-        var retireAge    = retireAges[pid] ? parseInt(retireAges[pid]) : null;
-        var yearsToRetire = (currentAge !== null && retireAge) ? Math.max(0, retireAge - currentAge) : null;
-        return {
-            label            : personNames[pid] || pid,
-            currentAge       : currentAge,
-            retirementAge    : retireAge,
-            yearsToRetirement: yearsToRetire
-        };
-    });
-
-    // Accounts + holdings — reuse existing group loader for consistency
-    var accounts      = await _investLoadGroupAccounts(group);
-    var cats          = _investComputeGroupTotals(accounts);
-    var holdingRollup = {};
-
-    var accountList = accounts.map(function(acct) {
-        var holdings = (acct._holdings || []).map(function(h) {
-            var value      = (h.shares || 0) * (h.lastPrice || 0);
-            var costBasisTotal = (h.costBasis != null && h.shares != null)
-                ? Math.round(h.costBasis * h.shares * 100) / 100
-                : null;
-            if (h.ticker) {
-                if (!holdingRollup[h.ticker]) {
-                    holdingRollup[h.ticker] = { companyName: h.companyName || '', totalValue: 0 };
-                }
-                holdingRollup[h.ticker].totalValue += value;
-            }
-            var holding = {
-                ticker          : h.ticker      || '',
-                companyName     : h.companyName || '',
-                shares          : h.shares      || 0,
-                lastPrice       : h.lastPrice   || 0,
-                value           : Math.round(value * 100) / 100
+            return {
+                name       : acct.nickname || '(untitled)',
+                type       : _investTypeLabel(acct.accountType || ''),
+                owner      : personNames[acct._ns] || acct._ns,
+                cashBalance: acct.cashBalance || 0,
+                holdings   : holdings
             };
-            if (costBasisTotal !== null) {
-                holding.costBasisPerShare  = Math.round(h.costBasis * 100) / 100;
-                holding.totalCostBasis     = costBasisTotal;
-                holding.estimatedGainLoss  = Math.round((value - costBasisTotal) * 100) / 100;
-            }
-            return holding;
-        });
-        return {
-            name       : acct.nickname || '(untitled)',
-            type       : _investTypeLabel(acct.accountType || ''),
-            owner      : personNames[acct._ns] || acct._ns,
-            cashBalance: acct.cashBalance || 0,
-            holdings   : holdings
-        };
-    });
-
-    var totalValue  = cats.netWorth;
-    var topHoldings = Object.keys(holdingRollup).map(function(ticker) {
-        return {
-            ticker        : ticker,
-            companyName   : holdingRollup[ticker].companyName,
-            totalValue    : Math.round(holdingRollup[ticker].totalValue * 100) / 100,
-            pctOfPortfolio: totalValue > 0
-                ? Math.round(holdingRollup[ticker].totalValue / totalValue * 1000) / 10
-                : 0
-        };
-    }).sort(function(a, b) { return b.totalValue - a.totalValue; }).slice(0, 15);
-
-    // SS benefits — all breakpoints per person (most recent snapshot)
-    var allSsSnap  = await userCol('ssBenefits').get();
-    var ssByPerson = {};
-    allSsSnap.forEach(function(d) {
-        var data = d.data();
-        if (!ssByPerson[data.personId]) ssByPerson[data.personId] = [];
-        ssByPerson[data.personId].push(data);
-    });
-    Object.keys(ssByPerson).forEach(function(pid) {
-        ssByPerson[pid].sort(function(a, b) {
-            return (b.asOfDate || '').localeCompare(a.asOfDate || '');
-        });
-    });
-
-    var socialSecurity = personIds
-        .filter(function(pid) { return ssByPerson[pid] && ssByPerson[pid].length > 0; })
-        .map(function(pid) {
-            var entries = (ssByPerson[pid][0].entries || [])
-                .map(function(e) {
-                    return { claimAge: parseInt(e.age), monthly: parseFloat(e.monthly) || 0 };
-                })
-                .sort(function(a, b) { return a.claimAge - b.claimAge; });
-            return { person: personNames[pid] || pid, benefits: entries };
         });
 
-    // Budgets — all non-archived, category totals only
-    var budgetSnap      = await userCol('budgets').where('isArchived', '==', false).get();
-    var appSettingsDoc  = await userCol('settings').doc('app').get().catch(function() { return { exists: false, data: function() { return {}; } }; });
-    var defaultBudgetId = _investConfig.selectedBudgetId ||
-        (appSettingsDoc.exists ? (appSettingsDoc.data().defaultBudgetId || null) : null);
+        var totalValue  = cats.netWorth;
+        var topHoldings = Object.keys(holdingRollup).map(function(ticker) {
+            return {
+                ticker        : ticker,
+                companyName   : holdingRollup[ticker].companyName,
+                totalValue    : Math.round(holdingRollup[ticker].totalValue * 100) / 100,
+                pctOfPortfolio: totalValue > 0
+                    ? Math.round(holdingRollup[ticker].totalValue / totalValue * 1000) / 10
+                    : 0
+            };
+        }).sort(function(a, b) { return b.totalValue - a.totalValue; }).slice(0, 15);
 
-    var budgets = [];
-    for (var bi = 0; bi < budgetSnap.docs.length; bi++) {
-        var bDoc    = budgetSnap.docs[bi];
-        var bData   = bDoc.data();
-        var bRes    = await Promise.all([
-            bDoc.ref.collection('categories').orderBy('sortOrder').get(),
-            bDoc.ref.collection('lineItems').get()
-        ]);
-        var catsSnap  = bRes[0];
-        var itemsSnap = bRes[1];
-
-        var catMap = {};
-        catsSnap.docs.forEach(function(cd) {
-            catMap[cd.id] = { name: cd.data().name || '', monthly: 0 };
-        });
-        var monthlyTotal = 0;
-        itemsSnap.docs.forEach(function(id) {
-            var item = id.data();
-            var amt  = parseFloat(item.amount) || 0;
-            monthlyTotal += amt;
-            if (catMap[item.categoryId]) catMap[item.categoryId].monthly += amt;
-        });
-
-        budgets.push({
-            name        : bData.name || 'Budget',
-            monthlyTotal: Math.round(monthlyTotal * 100) / 100,
-            annualTotal : Math.round(monthlyTotal * 12 * 100) / 100,
-            isDefault   : bDoc.id === defaultBudgetId,
-            categories  : Object.values(catMap)
-                .filter(function(c) { return c.monthly > 0; })
-                .map(function(c) {
-                    return { name: c.name, monthly: Math.round(c.monthly * 100) / 100 };
-                })
-        });
-    }
-
-    return {
-        asOfDate        : todayStr,
-        group           : { name: group.name, members: members },
-        socialSecurity  : socialSecurity,
-        portfolioSummary: {
+        payload.portfolioSummary = {
             totalValue       : Math.round(totalValue * 100) / 100,
             byCategory       : {
                 roth          : Math.round(cats.roth      * 100) / 100,
@@ -510,12 +600,89 @@ async function _investAiBuildPayload(groupId) {
                 investmentCash: Math.round(cats.invCash   * 100) / 100
             },
             topHoldingsByValue: topHoldings
-        },
-        accounts        : accountList,
-        budgets         : budgets,
-        investmentConfig: {
+        };
+        payload.accounts = accountList;
+    }
+
+    // ---------- Social Security ----------
+    if (has('ss')) {
+        var allSsSnap  = await userCol('ssBenefits').get();
+        var ssByPerson = {};
+        allSsSnap.forEach(function(d) {
+            var data = d.data();
+            if (!ssByPerson[data.personId]) ssByPerson[data.personId] = [];
+            ssByPerson[data.personId].push(data);
+        });
+        Object.keys(ssByPerson).forEach(function(pid) {
+            ssByPerson[pid].sort(function(a, b) {
+                return (b.asOfDate || '').localeCompare(a.asOfDate || '');
+            });
+        });
+
+        payload.socialSecurity = personIds
+            .filter(function(pid) { return ssByPerson[pid] && ssByPerson[pid].length > 0; })
+            .map(function(pid) {
+                var entries = (ssByPerson[pid][0].entries || [])
+                    .map(function(e) {
+                        return { claimAge: parseInt(e.age), monthly: parseFloat(e.monthly) || 0 };
+                    })
+                    .sort(function(a, b) { return a.claimAge - b.claimAge; });
+                return { person: personNames[pid] || pid, benefits: entries };
+            });
+    }
+
+    // ---------- Budgets ----------
+    if (has('budgets')) {
+        var budgetSnap      = await userCol('budgets').where('isArchived', '==', false).get();
+        var appSettingsDoc  = await userCol('settings').doc('app').get().catch(function() { return { exists: false, data: function() { return {}; } }; });
+        var defaultBudgetId = _investConfig.selectedBudgetId ||
+            (appSettingsDoc.exists ? (appSettingsDoc.data().defaultBudgetId || null) : null);
+
+        var budgets = [];
+        for (var bi = 0; bi < budgetSnap.docs.length; bi++) {
+            var bDoc    = budgetSnap.docs[bi];
+            var bData   = bDoc.data();
+            var bRes    = await Promise.all([
+                bDoc.ref.collection('categories').orderBy('sortOrder').get(),
+                bDoc.ref.collection('lineItems').get()
+            ]);
+            var catsSnap  = bRes[0];
+            var itemsSnap = bRes[1];
+
+            var catMap = {};
+            catsSnap.docs.forEach(function(cd) {
+                catMap[cd.id] = { name: cd.data().name || '', monthly: 0 };
+            });
+            var monthlyTotal = 0;
+            itemsSnap.docs.forEach(function(id) {
+                var item = id.data();
+                var amt  = parseFloat(item.amount) || 0;
+                monthlyTotal += amt;
+                if (catMap[item.categoryId]) catMap[item.categoryId].monthly += amt;
+            });
+
+            budgets.push({
+                name        : bData.name || 'Budget',
+                monthlyTotal: Math.round(monthlyTotal * 100) / 100,
+                annualTotal : Math.round(monthlyTotal * 12 * 100) / 100,
+                isDefault   : bDoc.id === defaultBudgetId,
+                categories  : Object.values(catMap)
+                    .filter(function(c) { return c.monthly > 0; })
+                    .map(function(c) {
+                        return { name: c.name, monthly: Math.round(c.monthly * 100) / 100 };
+                    })
+            });
+        }
+        payload.budgets = budgets;
+    }
+
+    // ---------- Retirement Config ----------
+    if (has('retireCfg')) {
+        payload.investmentConfig = {
             projectedRoR: _investConfig.projectedRoR || 0.06,
             afterTaxPct : _investConfig.afterTaxPct  || 0.82
-        }
-    };
+        };
+    }
+
+    return payload;
 }

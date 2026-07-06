@@ -17307,6 +17307,79 @@ a.legacy-fin-card:hover {
     .invest-ai-cached-notice { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
 
+/* Setup / compose screen (#investments/ai-setup) */
+.invest-ai-setup-section {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.invest-ai-setup-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 8px;
+}
+.invest-ai-groups-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.invest-ai-group-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #333;
+}
+.invest-ai-group-check input[disabled] {
+    cursor: not-allowed;
+}
+.invest-ai-prompt-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.invest-ai-setup-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* Excluded-data badge on the results screen */
+.invest-ai-excluded-badge {
+    background: #fdf2e9;
+    border: 1px solid #f3c99a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: #8a5a1e;
+    margin-bottom: 12px;
+}
+
+/* Result-screen action row (New Question / Re-run Default) */
+.invest-ai-result-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.invest-ai-cached-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    .invest-ai-setup-section { padding: 12px 14px; }
+    .invest-ai-setup-buttons { flex-direction: column-reverse; }
+    .invest-ai-setup-buttons .btn { width: 100%; }
+}
+
 
 /* ─── Snapshot Import Screen (#investments/import) ─────────────────────────── */
 

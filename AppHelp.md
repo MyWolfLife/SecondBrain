@@ -1793,7 +1793,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - If you have more than one group, a **Group** selector appears at the top — switch groups to see a different portfolio view
 - **Performance** accordion: four cards (Day, Week, Month, YTD) showing $ gain and % vs. your most recent snapshot of each type. "—" means no snapshot of that type yet
 - **Retire Estimate** accordion: the same retirement income widget as the Summary page — estimated annual/monthly income, budget comparison, NW Shortfall, % of Target, and the ⚙ settings gear
-- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the AI Analysis page and generates a plain-English analysis of your full portfolio picture for the active group
+- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
 - **All-Time Highs** accordion: four ATH cards (Daily / Weekly / Monthly / Yearly) plus a "vs Daily ATH" companion card showing how far above or below you are right now
 - Each accordion remembers its open/closed state across sessions
 - Below the dashboard are nav cards linking to **Accounts**, **Summary**, **Stock Rollup**, **Snapshots**, **Budgets**, **SS Benefits**, and two coming-soon sections
@@ -2037,15 +2037,30 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 ---
 
+## screen:investments-ai-setup
+
+### Quick Help
+- Compose screen shown every time you click **🤖 Ask AI** — choose what data to send and optionally rewrite the prompt before running the analysis
+- **Data groups** checklist: Household Members & Ages, Accounts & Holdings, Social Security, Budgets, and Retirement Config (return rate, after-tax %, retirement ages) — all checked and locked by default
+- The checklist is locked whenever the prompt matches the default, since the default prompt's sections assume every group is present
+- Click **Clear** to empty the prompt box and unlock the checklist — now you can uncheck any group you don't want sent, and write your own prompt
+- Click **Load Default Prompt** to restore the built-in prompt text and re-lock the checklist back to all groups included
+- Click **✨ Ask AI** to run the analysis and go to the results screen, or **Cancel** to go back without asking
+- Only a run using the **unmodified default prompt with all groups checked** is saved — anything customized is shown once and not kept, so it won't be there if you navigate away and come back
+- If a saved default analysis already exists for this group, a **Last Analysis** notice appears below with **View** (jump straight to it) and **Re-run Default** (redo it fresh) buttons
+
+---
+
 ## screen:investments-ai
 
 ### Quick Help
-- Sends your portfolio data to an AI and returns a plain-English analysis — written like advice from a knowledgeable friend, not a formal advisor
-- Optionally type a **specific question** before clicking **✨ Ask AI** (e.g. "Am I on track to retire at 65?") — the AI answers it in addition to the full analysis
-- After reading the analysis, use the **Ask a follow-up question** field to ask anything specific without re-running the full analysis
-- Results are **cached per group** — come back anytime to read the last analysis without paying for a new LLM call; click **Re-run** to refresh
-- The analysis always uses the currently selected group; switch groups to analyze a different portfolio
-- Data sent to the AI: accounts + holdings, portfolio category totals, Social Security breakpoints, all budgets (category totals), ages, retirement ages, and your configured return rate
+- Shows the plain-English analysis generated from Ask AI Setup — written like advice from a knowledgeable friend, not a formal advisor
+- If any data groups were excluded on the setup screen, an **"Excluded from this analysis"** notice appears above the result
+- Use the **Ask a follow-up question** field to keep the conversation going — each follow-up remembers everything asked before it, so you can build on prior answers
+- Follow-up questions and answers stack up below the analysis in order, oldest first
+- **New Question** returns to Ask AI Setup to start over with a different prompt or data selection
+- **Re-run Default** redoes the analysis fresh with the built-in prompt and all data groups, replacing whatever is currently on screen
+- Only the default (unmodified prompt, all groups) run is **cached per group** — come back anytime to read it without paying for a new LLM call. Custom runs are not saved.
 
 ### Analysis Sections
 1. **Summary** — 2–4 sentence big-picture overview
@@ -2075,7 +2090,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 ### Quick Help
 - Shows **Net Worth** and **Invested** totals across all accounts in the selected group
 - **Retire Estimate** section: six stat cards (Annual, Monthly, Current Income, % To Goal, NW Shortfall, % of Target) — tap **?** on any card to see a plain-English explanation plus the formula with your real numbers; tap ⚙ to configure return rate, after-tax %, ages, and budget
-- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the AI Analysis page and generates a plain-English analysis of your full portfolio picture for the active group
+- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
 - **All-Time Highs** section: four ATH cards plus a "vs Daily ATH" card — collapsible accordion; open/closed state is remembered
 - **Category Breakdown**: Roth, Pre-Tax, Brokerage, Cash, and Uninvested Cash totals with % of Net Worth
 - **Period Performance**: Day / Week / Month / YTD gain or loss vs the most recent snapshot of each type
