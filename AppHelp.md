@@ -983,6 +983,7 @@ Switching modes clears any selection and resets to Select tool.
 - Select Room tool. Click corner points to trace the perimeter (rectilinear -- all 90 degree angles; L/T/U shapes supported). Close the shape by clicking the first point.
 - A dialog links the shape to an existing room record or creates a new room.
 - Snap-to-grid in 0.25 ft (3-inch) increments. Grid tiers: 5ft dark, 1ft medium, 0.5ft light, 0.25ft very faint.
+- Changed your mind, or picked the wrong room? Select the shape and tap **Edit Room** -- a **Linked Room** dropdown under the name field lets you switch it to a different room on the floor, or choose "No linked room" to unlink it entirely.
 
 **Room dimensions:** Automatically calculated from the polygon. Shown in the room detail page and floor plan view. The Type tool lets you enter dimensions manually.
 

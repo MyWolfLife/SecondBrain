@@ -385,6 +385,7 @@ All other items (doors, windows, fixtures, etc.) store:
 - SVG cursor label also shows position + segment length near the cursor
 - Rectilinear room polygons (all 90° angles; L/T/U shapes supported)
 - **Room link modal**: fresh Firestore query on open; unplaced rooms listed first; "Create new room" option; new-name field only shown when "Create new" is selected
+- **Re-linking an existing shape**: Edit Room modal has a **Linked Room** dropdown below the label field — fresh Firestore query on open, listing rooms on the floor not already used by another shape plus this shape's current room (so it isn't excluded from its own list) and a "— No linked room —" option to unlink entirely. Changing it and saving updates `shape.roomId`. The shape's `label` (display text) is independent and is not changed by re-linking.
 - **Dimensions auto-save**: confirming the Dimensions modal immediately saves to Firestore
 - Stairs shown with hatch pattern and label; connects-to floor shown in label
 

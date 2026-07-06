@@ -1976,7 +1976,47 @@ function fpOpenRoomEditModal() {
 
     document.getElementById('fpRoomEditModal').dataset.editId = fpSelectedId;
     fpConfigureModalViewMode('fpRoomEditModal', 'fpRoomEditSaveBtn');
+
+    // Populate the linked-room dropdown: rooms on this floor not already used by
+    // another shape, plus this shape's current room (if any) and a "no link" option.
+    var linkedSelect = document.getElementById('fpRoomEditLinkedRoom');
+    linkedSelect.innerHTML = '<option value="">Loading rooms…</option>';
     openModal('fpRoomEditModal');
+
+    userCol('rooms').where('floorId', '==', fpFloorId).get()
+        .then(function(snap) {
+            fpRoomList = [];
+            snap.forEach(function(d) {
+                fpRoomList.push(Object.assign({ id: d.id }, d.data()));
+            });
+            fpRoomList.sort(function(a, b) {
+                var ta = a.createdAt ? a.createdAt.toMillis() : 0;
+                var tb = b.createdAt ? b.createdAt.toMillis() : 0;
+                return ta - tb;
+            });
+
+            var usedIds = (fpPlan.rooms || [])
+                .filter(function(r) { return r.id !== room.id; })
+                .map(function(r) { return r.roomId; });
+            var available = fpRoomList.filter(function(r) { return !usedIds.includes(r.id); });
+
+            linkedSelect.innerHTML = '';
+            var noneOpt = document.createElement('option');
+            noneOpt.value       = '';
+            noneOpt.textContent = '— No linked room —';
+            linkedSelect.appendChild(noneOpt);
+            available.forEach(function(r) {
+                var opt = document.createElement('option');
+                opt.value       = r.id;
+                opt.textContent = r.name;
+                linkedSelect.appendChild(opt);
+            });
+            linkedSelect.value = room.roomId || '';
+        })
+        .catch(function(err) {
+            console.error('fpOpenRoomEditModal rooms query error:', err);
+            linkedSelect.innerHTML = '<option value="">— No linked room —</option>';
+        });
 }
 
 document.getElementById('fpRoomEditSaveBtn').addEventListener('click', function() {
@@ -1984,8 +2024,9 @@ document.getElementById('fpRoomEditSaveBtn').addEventListener('click', function(
     var room    = (fpPlan.rooms || []).find(function(r) { return r.id === shapeId; });
     if (!room) { closeModal('fpRoomEditModal'); return; }
 
-    room.label = document.getElementById('fpRoomEditLabel').value.trim() || room.label;
-    room.color = document.getElementById('fpRoomEditColor').value;
+    room.label  = document.getElementById('fpRoomEditLabel').value.trim() || room.label;
+    room.color  = document.getElementById('fpRoomEditColor').value;
+    room.roomId = document.getElementById('fpRoomEditLinkedRoom').value || null;
 
     document.querySelectorAll('.fp-corner-x').forEach(function(inp) {
         var i = parseInt(inp.dataset.idx, 10);
