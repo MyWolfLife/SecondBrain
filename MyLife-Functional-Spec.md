@@ -565,9 +565,11 @@ Layout items (rooms, doors, windows, fixtures) can only be interacted with in La
 
 #### Corner Editing
 
-**Drag**: drag a corner handle dot; coords bar shows live cyan/orange wall lengths for the two adjacent segments.
+**Click a corner handle**: highlights the two adjacent wall segments (cyan/orange) and shows a read-only readout in the coords bar — corner number (1-based, matches point order in the room's `points` array) plus both segment lengths. Persists until the room is deselected, a different corner is clicked, or the tool is switched away from Select — not just while the mouse button is held down.
 
-**Double-click**: inline edit mode — two number inputs (cyan/orange) for the adjacent wall lengths; Enter/Escape exits.
+**Drag**: drag a corner handle dot; coords bar keeps showing the corner number and live cyan/orange wall lengths for the two adjacent segments while dragging.
+
+**Double-click**: inline edit mode — two number inputs (cyan/orange) for the adjacent wall lengths, labeled with the corner number; Enter/Escape exits back to the read-only readout for that corner.
 
 ### Floor Plan Item Detail (`floorplanitem.js`)
 A detail page for any individual floor plan object (door, window, fixture, recessed light, etc.).

@@ -58,7 +58,8 @@ var fpViewY      = 0;    // viewBox origin Y in SVG pixels
 var fpViewW      = 800;  // viewBox width  in SVG pixels  (fpSvgW / fpZoom)
 var fpViewH      = 600;  // viewBox height in SVG pixels  (fpSvgH / fpZoom)
 var fpPinchState = null; // active pinch gesture: {startDist, startZoom, midX, midY}
-var fpDragState  = null; // active corner drag: {roomId, ptIndex} — drives segment highlighting
+var fpFocusedCorner = null; // {roomId, ptIndex} of the last-clicked corner handle — drives segment highlight + coords-bar readout until deselected
+var fpCornerInfoForBar = null; // {x, y, lenA, lenB, cornerNum} stashed by fpRenderRoom, consumed at end of fpRender() to sync the coords bar
 var fpCornerEditState = null; // active corner length edit: {room, ptIndex, isAHorizontal, signA, signB}
 
 // Type Numbers mode state
@@ -82,7 +83,7 @@ function loadFloorPlanPage(floorId) {
     fpDrawPoints   = [];
     fpPreviewPoint = null;
     fpSelectedId   = null;
-    fpDragState       = null;
+    fpFocusedCorner   = null;
     fpCornerEditState = null;
     fpTypeMode     = false;
     fpTypeAnchor   = null;
@@ -272,6 +273,7 @@ function fpZoomTo(newZoom, clientX, clientY) {
 function fpRender() {
     var svg = document.getElementById('fpSvg');
     svg.innerHTML = '';
+    fpCornerInfoForBar = null;
 
     // --- SVG Defs (patterns, markers) ---
     var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -385,6 +387,17 @@ function fpRender() {
     // Type Numbers mode preview
     if (fpTypeMode && fpTypeAnchor) {
         fpRenderTypePreview(svg);
+    }
+
+    // Sync the coords bar to the focused corner (if any). Skipped while inline
+    // corner-edit inputs or the draw-preview label own the bar instead.
+    if (!fpCornerEditState && !(fpDrawing && fpDrawPoints.length > 0)) {
+        if (fpCornerInfoForBar) {
+            fpShowDragCoordsBar(fpCornerInfoForBar.x, fpCornerInfoForBar.y,
+                fpCornerInfoForBar.lenA, fpCornerInfoForBar.lenB, fpCornerInfoForBar.cornerNum);
+        } else {
+            fpClearCoordsBar();
+        }
     }
 
     // Update Row 3 properties bar based on current selection
@@ -567,10 +580,10 @@ function fpRenderRoom(svg, room) {
         dimText.textContent = bbox.w.toFixed(0) + '\xd7' + bbox.h.toFixed(0) + ' ft  (' + areaFt.toFixed(0) + ' sq ft)';
     }
 
-    // Highlighted segments + colored handles during corner drag OR corner edit
+    // Highlighted segments + colored handles when a corner is focused (clicked/dragged) OR being inline-edited
     var dragInfo = null;
-    if (fpDragState && fpDragState.roomId === room.id) {
-        dragInfo = { ptIndex: fpDragState.ptIndex };
+    if (fpFocusedCorner && fpFocusedCorner.roomId === room.id) {
+        dragInfo = { ptIndex: fpFocusedCorner.ptIndex };
     } else if (fpCornerEditState && fpCornerEditState.room === room) {
         dragInfo = { ptIndex: fpCornerEditState.ptIndex };
     }
@@ -593,6 +606,16 @@ function fpRenderRoom(svg, room) {
             x2: fp2px(dNext.x), y2: fp2px(dNext.y),
             stroke: FP_DRAG_COLOR_B, 'stroke-width': 3, 'pointer-events': 'none'
         });
+
+        // Stash for the coords-bar readout (skipped while inline corner-edit inputs own the bar)
+        if (!fpCornerEditState) {
+            fpCornerInfoForBar = {
+                x: dCurr.x, y: dCurr.y,
+                lenA: Math.hypot(dCurr.x - dPrev.x, dCurr.y - dPrev.y),
+                lenB: Math.hypot(dNext.x - dCurr.x, dNext.y - dCurr.y),
+                cornerNum: di + 1
+            };
+        }
     }
 
     // Corner drag handles when selected
@@ -675,39 +698,28 @@ function fpMakeDraggableHandle(handle, room, ptIndex) {
         eDown.preventDefault();
         eDown.stopPropagation();
 
-        fpDragState = { roomId: room.id, ptIndex: ptIndex };
+        fpFocusedCorner = { roomId: room.id, ptIndex: ptIndex };
         var dragged = false;
 
-        fpRender();  // draw highlighted segments immediately (no coords bar yet)
+        fpRender();  // highlight segments + show corner number/lengths in the coords bar immediately
 
         function onMove(eMove) {
             var pt = fpMouseToFeet(eMove);
             room.points[ptIndex] = pt;
             fpDirty = true;
             dragged = true;
-
-            // Update coords bar: position + two colored segment lengths
-            var n    = room.points.length;
-            var prev = room.points[(ptIndex - 1 + n) % n];
-            var next = room.points[(ptIndex + 1) % n];
-            var lenA = Math.hypot(pt.x - prev.x, pt.y - prev.y);
-            var lenB = Math.hypot(next.x - pt.x, next.y - pt.y);
-            fpShowDragCoordsBar(pt.x, pt.y, lenA, lenB);
-
-            fpRender();
+            fpRender();  // coords bar updates automatically from fpFocusedCorner
         }
 
         function onUp() {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
-            fpDragState = null;
             if (dragged) {
-                // Only clear/re-render if we actually moved the point
-                fpClearCoordsBar();
                 fpRender();
                 fpSilentSave();
             }
-            // If not dragged (tap/click), skip clear so dblclick can show edit inputs cleanly
+            // fpFocusedCorner stays set — coords bar keeps showing this corner's
+            // number/lengths until the room is deselected or another corner is clicked
         }
 
         document.addEventListener('mousemove', onMove);
@@ -1042,21 +1054,21 @@ function fpEnterCornerEdit(room, ptIndex) {
     var lenA = Math.hypot(corner.x - prev.x, corner.y - prev.y);
     var lenB = Math.hypot(next.x - corner.x, next.y - corner.y);
 
-    fpShowCornerEditInputs(lenA, lenB, corner);
+    fpShowCornerEditInputs(lenA, lenB, corner, ptIndex);
     fpRender(); // show highlighted segments
 }
 
 /**
  * Render the coords bar with two editable number inputs (cyan + orange).
  */
-function fpShowCornerEditInputs(lenA, lenB, corner) {
+function fpShowCornerEditInputs(lenA, lenB, corner, ptIndex) {
     var bar   = document.getElementById('fpCoordsBar');
     var posEl = document.getElementById('fpCoordsPos');
     var lenEl = document.getElementById('fpCoordsLen');
     var sepEl = bar ? bar.querySelector('.fp-coords-sep') : null;
     if (!bar || !posEl || !lenEl) return;
 
-    posEl.textContent = 'Edit corner: ' + corner.x.toFixed(2) + ', ' + corner.y.toFixed(2) + ' ft  (Enter or Esc to finish)';
+    posEl.textContent = 'Edit corner ' + (ptIndex + 1) + ': ' + corner.x.toFixed(2) + ', ' + corner.y.toFixed(2) + ' ft  (Enter or Esc to finish)';
     if (sepEl) sepEl.style.display = '';
     lenEl.style.display = '';
 
@@ -1077,7 +1089,7 @@ function fpShowCornerEditInputs(lenA, lenB, corner) {
         if (!isNaN(vA) && vA >= 0.25 && !isNaN(vB) && vB >= 0.25) {
             fpApplyCornerLengths(fpCornerEditState, vA, vB);
             var c = fpCornerEditState.room.points[fpCornerEditState.ptIndex];
-            posEl.textContent = 'Edit corner: ' + c.x.toFixed(2) + ', ' + c.y.toFixed(2) + ' ft  (Enter or Esc to finish)';
+            posEl.textContent = 'Edit corner ' + (ptIndex + 1) + ': ' + c.x.toFixed(2) + ', ' + c.y.toFixed(2) + ' ft  (Enter or Esc to finish)';
         }
     }
 
@@ -1121,8 +1133,7 @@ function fpApplyCornerLengths(state, lenA, lenB) {
 /** Exit corner length edit mode */
 function fpExitCornerEdit() {
     fpCornerEditState = null;
-    fpClearCoordsBar();
-    fpRender();
+    fpRender();  // falls back to the read-only corner readout via fpFocusedCorner, or clears if none
 }
 
 /** Clear the coords bar back to a blank state */
@@ -1274,14 +1285,14 @@ function fpRenderTypePreview(svg) {
     });
 }
 
-/** Show coords bar with position + two colored segment lengths during corner drag */
-function fpShowDragCoordsBar(x, y, lenA, lenB) {
+/** Show coords bar with corner number, position, and two colored segment lengths for a focused corner */
+function fpShowDragCoordsBar(x, y, lenA, lenB, cornerNum) {
     var bar   = document.getElementById('fpCoordsBar');
     var posEl = document.getElementById('fpCoordsPos');
     var lenEl = document.getElementById('fpCoordsLen');
     var sepEl = bar ? bar.querySelector('.fp-coords-sep') : null;
     if (!bar || !posEl || !lenEl) return;
-    posEl.textContent = 'Position: ' + x.toFixed(2) + ', ' + y.toFixed(2) + ' ft';
+    posEl.textContent = (cornerNum ? 'Corner ' + cornerNum + ' — ' : 'Position: ') + x.toFixed(2) + ', ' + y.toFixed(2) + ' ft';
     if (sepEl) sepEl.style.display = '';
     lenEl.innerHTML =
         '<span style="color:' + FP_DRAG_COLOR_A + '">' + lenA.toFixed(2) + ' ft</span>' +
@@ -1659,6 +1670,7 @@ function fpUpdateCoordsBar(x, y, len) {
             // Background click → deselect
             fpSelectedId        = null;
             fpSelectedSlotIndex = null;
+            fpFocusedCorner     = null;
             if (fpCornerEditState) fpExitCornerEdit();
             fpSetStatus('Ready.');
             fpRender();
@@ -1924,8 +1936,9 @@ document.getElementById('fpRoomLinkCancelBtn').addEventListener('click', functio
 // ============================================================
 
 function fpSelectShape(shapeId) {
-    fpSelectedId   = (fpSelectedId === shapeId && fpSelectedType === 'room') ? null : shapeId;
-    fpSelectedType = 'room';
+    fpSelectedId    = (fpSelectedId === shapeId && fpSelectedType === 'room') ? null : shapeId;
+    fpSelectedType  = 'room';
+    fpFocusedCorner = null;  // selecting/reselecting via the room body isn't about a specific corner
     fpRender();
     if (fpSelectedId) {
         var room = (fpPlan.rooms || []).find(function(r) { return r.id === fpSelectedId; });
@@ -2953,6 +2966,7 @@ function fpSetTool(tool) {
 
     // Clear coords bar when switching tools (bar is always visible)
     if (tool !== 'room') fpClearCoordsBar();
+    if (tool !== 'select') fpFocusedCorner = null;  // corner focus only makes sense in Select tool
 
     var svg = document.getElementById('fpSvg');
     svg.style.cursor = (tool === 'select') ? 'default' : 'crosshair';

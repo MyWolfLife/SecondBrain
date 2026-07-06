@@ -986,6 +986,8 @@ Switching modes clears any selection and resets to Select tool.
 
 **Room dimensions:** Automatically calculated from the polygon. Shown in the room detail page and floor plan view. The Type tool lets you enter dimensions manually.
 
+**Reshaping a room (Edit mode, Select tool):** Select a room to reveal its corner handles (small circles). Clicking a handle highlights the two adjacent walls (cyan/orange) and shows the corner number plus both wall lengths in the coords bar -- useful for lining up which corner you're about to change. Drag a handle to move that corner. Double-click a handle to type exact lengths for both adjacent walls instead of dragging.
+
 **Door subtypes:**
 - **Single** -- swing arc with hinge dot and jamb ticks. Swing direction (inward/outward, left/right) configurable.
 - **French** -- two panels with center post. Inward or outward only.
