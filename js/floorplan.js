@@ -188,23 +188,19 @@ function loadFloorPlanPage(floorId) {
 // ============================================================
 
 /**
- * Calculate pixels-per-foot so the floor fits in the available area,
- * then set the SVG element's width and height.
+ * Calculate pixels-per-foot so the floor fits the available width,
+ * then set the SVG element's width and height. Height is not
+ * constrained — if the plan is tall, the canvas wrapper scrolls
+ * vertically rather than shrinking the whole plan to fit.
  */
 function fpInitSvg() {
     var wrapper = document.getElementById('fpCanvasWrapper');
     var svg     = document.getElementById('fpSvg');
 
-    var containerW = wrapper.clientWidth  || 800;
-    var containerH = wrapper.clientHeight || 500;
-
+    var containerW = wrapper.clientWidth || 800;
     var pxW = Math.max(300, containerW - 32);
-    var pxH = Math.max(200, containerH - 32);
 
-    var scaleW = pxW / fpPlan.widthFt;
-    var scaleH = pxH / fpPlan.heightFt;
-
-    fpPixPerFoot = Math.min(scaleW, scaleH, FP_MAX_PX_PER_FOOT);
+    fpPixPerFoot = Math.min(pxW / fpPlan.widthFt, FP_MAX_PX_PER_FOOT);
     fpSvgW = Math.round(fpPlan.widthFt  * fpPixPerFoot);
     fpSvgH = Math.round(fpPlan.heightFt * fpPixPerFoot);
 

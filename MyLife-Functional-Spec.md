@@ -552,7 +552,7 @@ Layout items (rooms, doors, windows, fixtures) can only be interacted with in La
 
 - Slider (25%–800%); mouse wheel; two-finger pinch (all centered on focal point)
 - Double-click zoom label → reset to 100%
-- Resets to fit-to-window on every plan load
+- Resets to 100% (fit-to-width) on every plan load
 
 #### Pan
 
