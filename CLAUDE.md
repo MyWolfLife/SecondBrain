@@ -298,6 +298,13 @@ Summary of that workflow:
 
 Do this for the stated ID only. Never touch other dev notes.
 
+## Commit & Push Cadence — REQUIRED BEHAVIOR
+**IMPORTANT: Always commit and push completed changes, unless the user says not to.**
+- Default behavior for this project is the opposite of the general "only commit when asked" caution — here, finishing a change means committing and pushing it, every time, without waiting to be asked.
+- This applies to code fixes, spec/help updates, cache bumps — the whole set of changes for the task, committed together.
+- Still follow the notify-before-push step below. Still run the full pre-commit checklist (spec, help, cache bump) first.
+- Skip this only when the user explicitly says to hold off (e.g. "don't push yet", "I want to test locally first").
+
 ## Git Push — REQUIRED BEHAVIOR
 **IMPORTANT: git push requires a Windows credential confirmation prompt. Always notify BEFORE pushing.**
 - Before every `git push`, send this curl notification first:
