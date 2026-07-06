@@ -456,7 +456,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 1. Go to the Photos section on any entity's detail page
 2. Tap **+ Add Photo**
 3. Choose: Camera (take a new photo), Gallery (pick from device), or Paste (from clipboard)
-4. Crop the photo if desired, then save
+4. Crop the photo if desired — use the **↺ / ↻** buttons to rotate 90° left/right before applying the crop — then save
 
 **Viewing photos:**
 - Navigate with **Newer** / **Older** buttons

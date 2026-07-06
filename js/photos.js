@@ -1126,6 +1126,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('cropApplyButtons').style.display  = '';
     });
 
+    // Rotate left/right 90° — getCroppedCanvas() bakes the rotation into the export
+    document.getElementById('cropRotateLeftBtn').addEventListener('click', function() {
+        if (_cropperInstance) _cropperInstance.rotate(-90);
+    });
+    document.getElementById('cropRotateRightBtn').addEventListener('click', function() {
+        if (_cropperInstance) _cropperInstance.rotate(90);
+    });
+
     // Back: destroy Cropper, return to plain preview of original file
     document.getElementById('cropBackBtn').addEventListener('click', function() {
         if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
@@ -1399,4 +1407,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('stagingCropApplyBtn').addEventListener('click', _stagingCropApply);
     document.getElementById('stagingCropSkipBtn').addEventListener('click',  _stagingCropSkip);
     document.getElementById('stagingCropCancelBtn').addEventListener('click', _stagingCropCancel);
+    document.getElementById('stagingCropRotateLeftBtn').addEventListener('click', function() {
+        if (_stagingCropperInstance) _stagingCropperInstance.rotate(-90);
+    });
+    document.getElementById('stagingCropRotateRightBtn').addEventListener('click', function() {
+        if (_stagingCropperInstance) _stagingCropperInstance.rotate(90);
+    });
 });

@@ -2557,7 +2557,7 @@ These features are used across multiple sections. The implementation lives prima
 - Clipboard paste
 - LLM identification flow (photos staged and compressed before sending)
 
-**Crop tool**: Cropper.js instance shown before save — user can adjust framing. Optional, can skip. Also accessible from the View lightbox (see below).
+**Crop tool**: Cropper.js instance shown before save — user can adjust framing. Optional, can skip. Also accessible from the View lightbox (see below). **↺ / ↻ rotate buttons** (90° left/right) sit next to the crop/apply button in both the main crop-preview modal and the LLM photo-staging crop modal — rotation is baked into the image by `getCroppedCanvas()` on Apply/Crop, so no separate save step is needed.
 
 **View Lightbox** (`openPhotoLightbox()` in `photos.js`):
 - Tapping **🔍 View** opens a full-screen dark overlay (z-index 9999)
