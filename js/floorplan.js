@@ -298,6 +298,7 @@ function fpRender() {
 
     // Background rectangle
     fpSvgEl(svg, 'rect', {
+        id: 'fpBgRect',
         x: 0, y: 0, width: fpSvgW, height: fpSvgH,
         fill: '#f8f8f8', stroke: '#444', 'stroke-width': 2
     });
@@ -6122,6 +6123,123 @@ function fpUpdatePropsBar() {
         var svg  = document.getElementById('fpSvg');
         var rect = svg.getBoundingClientRect();
         fpZoomTo(1.0, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    });
+}());
+
+// ============================================================
+// PAN — drag on empty background, space+drag anywhere, one-finger
+// touch drag. Lets you reach any part of the plan once zoomed in.
+// ============================================================
+
+var fpPanState  = null;   // active drag: {lastX, lastY, moved}
+var fpSpaceDown = false;  // spacebar held — pans from anywhere, even over rooms
+
+/** True if a mouse/touch target is empty canvas (background rect or grid line), not a room/handle/marker. */
+function fpIsPanBackground(target) {
+    if (!target) return false;
+    if (target.id === 'fpBgRect') return true;
+    return !!(target.closest && target.closest('.fp-grid'));
+}
+
+/** Shift the viewBox by a screen-pixel delta, clamped to stay inside the floor (mirrors fpZoomTo's clamp). */
+function fpPanBy(dxClient, dyClient) {
+    var svg  = document.getElementById('fpSvg');
+    var rect = svg.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var scaleX = fpViewW / rect.width;
+    var scaleY = fpViewH / rect.height;
+    fpViewX = Math.max(0, Math.min(fpSvgW - fpViewW, fpViewX - dxClient * scaleX));
+    fpViewY = Math.max(0, Math.min(fpSvgH - fpViewH, fpViewY - dyClient * scaleY));
+    fpApplyViewBox();
+}
+
+(function() {
+    var svg  = document.getElementById('fpSvg');
+    var wrap = document.getElementById('fpCanvasWrapper');
+
+    // After a real drag, swallow the click that follows so it doesn't also
+    // deselect or start drawing a room.
+    function suppressNextClick() {
+        svg.addEventListener('click', function suppressor(e) {
+            e.stopImmediatePropagation();
+            svg.removeEventListener('click', suppressor, true);
+        }, true);
+    }
+
+    // Spacebar held → pan-drag works from anywhere, even on top of a room (Figma/Photoshop style)
+    document.addEventListener('keydown', function(e) {
+        if (e.code !== 'Space' || fpSpaceDown) return;
+        var page = document.getElementById('page-floorplan');
+        if (!page || page.classList.contains('hidden')) return;
+        var activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' ||
+            (document.activeElement && document.activeElement.isContentEditable)) return;
+        fpSpaceDown = true;
+        wrap.style.cursor = 'grab';
+        e.preventDefault();
+    });
+    document.addEventListener('keyup', function(e) {
+        if (e.code === 'Space') {
+            fpSpaceDown = false;
+            if (!fpPanState) wrap.style.cursor = '';
+        }
+    });
+
+    // Mouse: drag on empty background pans; holding Space pans from anywhere.
+    // Registered on capture so Space+drag pre-empts room/handle drag handlers.
+    svg.addEventListener('mousedown', function(e) {
+        if (e.button !== 0 || !fpPlan) return;
+        var wantsPan = fpSpaceDown || (fpIsPanBackground(e.target) && !fpDrawing && !fpTypeMode);
+        if (!wantsPan) return;
+        if (fpSpaceDown) { e.preventDefault(); e.stopPropagation(); }
+
+        fpPanState = { lastX: e.clientX, lastY: e.clientY, moved: false };
+        wrap.style.cursor = 'grabbing';
+
+        function onMove(eMove) {
+            if (!fpPanState) return;
+            var dx = eMove.clientX - fpPanState.lastX;
+            var dy = eMove.clientY - fpPanState.lastY;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) fpPanState.moved = true;
+            fpPanBy(dx, dy);
+            fpPanState.lastX = eMove.clientX;
+            fpPanState.lastY = eMove.clientY;
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            wrap.style.cursor = fpSpaceDown ? 'grab' : '';
+            if (fpPanState && fpPanState.moved) suppressNextClick();
+            fpPanState = null;
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }, true);
+
+    // Touch: one-finger drag on empty background pans (two-finger pinch still zooms — see above).
+    var touchPan = null;
+    wrap.addEventListener('touchstart', function(e) {
+        if (e.touches.length !== 1 || fpDrawing || fpTypeMode) { touchPan = null; return; }
+        var t = e.touches[0];
+        if (!fpIsPanBackground(document.elementFromPoint(t.clientX, t.clientY))) { touchPan = null; return; }
+        touchPan = { lastX: t.clientX, lastY: t.clientY, moved: false };
+    }, { passive: true });
+
+    wrap.addEventListener('touchmove', function(e) {
+        if (!touchPan || e.touches.length !== 1) return;
+        var t = e.touches[0];
+        var dx = t.clientX - touchPan.lastX;
+        var dy = t.clientY - touchPan.lastY;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) touchPan.moved = true;
+        fpPanBy(dx, dy);
+        touchPan.lastX = t.clientX;
+        touchPan.lastY = t.clientY;
+        e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener('touchend', function() {
+        if (touchPan && touchPan.moved) suppressNextClick();
+        touchPan = null;
     });
 }());
 

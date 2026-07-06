@@ -554,6 +554,13 @@ Layout items (rooms, doors, windows, fixtures) can only be interacted with in La
 - Double-click zoom label → reset to 100%
 - Resets to fit-to-window on every plan load
 
+#### Pan
+
+- **Mouse**: click-and-drag on empty canvas (background or grid, not a room/handle/marker) pans the view; holding **Space** pans by dragging from anywhere, including on top of rooms
+- **Touch**: one-finger drag on empty canvas pans; two-finger pinch still zooms
+- A drag beyond a small movement threshold suppresses the click that would otherwise follow (so panning doesn't also deselect or start drawing a room)
+- Lets you reach any part of the floor plan after zooming in, regardless of where the viewport currently sits
+
 ---
 
 #### Corner Editing

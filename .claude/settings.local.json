@@ -73,7 +73,9 @@
       "Bash(sed 's/$/\\\\r/' md/NeighborsPlan.md)",
       "Bash(python -c ' *)",
       "Bash(cp /c/Personal/git/md/DeathPlan.md /c/Personal/git/SecondBrain/DeathPlan.md)",
-      "Bash(cp /c/Personal/git/md/NeighborsPlan.md /c/Personal/git/SecondBrain/NeighborsPlan.md)"
+      "Bash(cp /c/Personal/git/md/NeighborsPlan.md /c/Personal/git/SecondBrain/NeighborsPlan.md)",
+      "Bash(ls -la \"C:\\\\Personal\\\\WorkMachineMemory\\\\C--personal-Bishop\" 2>&1)",
+      "Bash(find \"C:\\\\Users\\\\snkgo\\\\.claude\" -iname \"*fixbishop*\" 2>&1)"
     ]
   }
 }

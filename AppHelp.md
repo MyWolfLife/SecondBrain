@@ -1023,6 +1023,10 @@ Switching modes clears any selection and resets to Select tool.
 
 **Coords bar:** Always visible above the canvas. Shows cursor position in feet and, during drawing, the current wall segment length.
 
+**Zoom & Pan:**
+- Zoom: slider, mouse wheel, or two-finger pinch (25%-800%). Double-tap the zoom percentage label to reset to 100%.
+- Pan: click-and-drag on empty canvas (not on a room/item) to move the view. Hold **Space** and drag to pan from anywhere, even over a room. On touch, one-finger drag pans (two-finger pinch still zooms). Use this to reach parts of the plan that scroll off-screen after zooming in.
+
 **Saving:** Tap **Save** in the header. The plan saves automatically when you confirm the Dimensions dialog.
 
 **Dim toggle:** In Electrical and Plumbing modes. Makes room shapes semi-transparent so items placed inside are easier to see and click.
