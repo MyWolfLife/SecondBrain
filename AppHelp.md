@@ -976,7 +976,7 @@ Switching modes clears any selection and resets to Select tool.
 *Row 3 -- Properties bar (appears when an item is selected):*
 - Edit mode (non-room items): **Edit Marker**, **Remove**, **Details**
 - View mode (non-room items): **View Marker** (read-only), **Details**
-- Rooms: **Edit Room** / **View Room** (no Remove, no Details)
+- Rooms: **Edit Room** / **View Room** (no Remove, no Details), plus a **Goto Room** button when the shape is linked to a Room record -- jumps straight to that room's page, same as clicking the room from the House/Floor page
 - Fixtures: **Rotate** button cycles orientation 0/90/180/270 degrees
 
 **Drawing rooms:**

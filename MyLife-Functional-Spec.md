@@ -516,6 +516,7 @@ Placed in Plumbing mode. Click inside a room to drop (no modal for spigot; modal
 - **Rotate** (⟳) button: fixtures only; edit mode only; cycles orientation
 - **Edit Targets** button: wall plates in Electrical mode only; edit mode only; enters target-selection mode
 - For rooms in edit mode: **Edit Room** button (no Remove, no Details); in view mode: **View Room**
+- **Goto Room** button: rooms only, in both edit and view mode; shown only when the shape is linked to a Room record (`shape.roomId` set) — hidden for unlinked shapes. Auto-saves pending changes (if `fpDirty`) then navigates directly to `#room/{roomId}`, no confirmation prompt (unlike the double-click-to-navigate gesture on the shape itself, which still confirms first)
 
 Layout items (rooms, doors, windows, fixtures) can only be interacted with in Layout mode. Electrical items only in Electrical mode. Plumbing items only in Plumbing mode.
 

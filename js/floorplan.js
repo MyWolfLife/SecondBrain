@@ -6064,6 +6064,21 @@ function fpUpdatePropsBar() {
     });
     bar.appendChild(editBtn);
 
+    // Goto Room button — rooms only, only when this shape is linked to a Room record
+    if (type === 'room') {
+        var roomShape = (fpPlan.rooms || []).find(function(r) { return r.id === fpSelectedId; });
+        if (roomShape && roomShape.roomId) {
+            var gotoBtn = document.createElement('button');
+            gotoBtn.className   = 'btn btn-secondary btn-small';
+            gotoBtn.textContent = 'Goto Room';
+            gotoBtn.addEventListener('click', function() {
+                if (fpDirty) fpSilentSave();
+                window.location.hash = '#room/' + roomShape.roomId;
+            });
+            bar.appendChild(gotoBtn);
+        }
+    }
+
     // Rotate button — fixtures only, edit mode only
     if (!fpViewMode && type === 'fixture') {
         var fix = (fpPlan.fixtures || []).find(function(f) { return f.id === fpSelectedId; });
