@@ -808,7 +808,7 @@ function renderFloorDetail(floor) {
     loadActivities('floor', floor.id, 'floorActivityContainer', 'floorActivityEmptyState')
         .then(function() { _setDetailAccCount('floorActivityAccCount', 'floorActivityContainer'); });
     loadPhotos('floor', floor.id, 'floorPhotoContainer', 'floorPhotoEmptyState')
-        .then(function() { _setDetailAccCount('floorPhotosAccCount', 'floorPhotoContainer'); });
+        .then(function() { _setPhotoAccCount('floorPhotosAccCount', 'floor'); });
 
     if (typeof loadEventsForTarget === 'function') {
         var months = parseInt(document.getElementById('floorCalendarRangeSelect').value, 10) || 3;
@@ -1006,7 +1006,7 @@ function renderRoomDetail(room, floor) {
     loadActivities('room', room.id, 'roomActivityContainer', 'roomActivityEmptyState')
         .then(function() { _setDetailAccCount('roomActivityAccCount', 'roomActivityContainer'); });
     loadPhotos('room', room.id, 'roomPhotoContainer', 'roomPhotoEmptyState')
-        .then(function() { _setDetailAccCount('roomPhotosAccCount', 'roomPhotoContainer'); });
+        .then(function() { _setPhotoAccCount('roomPhotosAccCount', 'room'); });
 
     if (typeof loadEventsForTarget === 'function') {
         var months = parseInt(document.getElementById('roomCalendarRangeSelect').value, 10) || 3;
@@ -2107,7 +2107,7 @@ function renderThingDetail(thing, room, floor) {
     loadActivities('thing', thing.id, 'thingActivityContainer', 'thingActivityEmptyState')
         .then(function() { _setDetailAccCount('thingActivityAccCount', 'thingActivityContainer'); });
     loadPhotos('thing', thing.id, 'thingPhotoContainer', 'thingPhotoEmptyState')
-        .then(function() { _setDetailAccCount('thingPhotosAccCount', 'thingPhotoContainer'); });
+        .then(function() { _setPhotoAccCount('thingPhotosAccCount', 'thing'); });
 
     if (typeof loadEventsForTarget === 'function') {
         var months = parseInt(document.getElementById('thingCalendarRangeSelect').value, 10) || 3;
@@ -3463,7 +3463,7 @@ function renderSubThingDetail(subThing, thing, room, floor) {
     loadActivities('subthing', subThing.id, 'stActivityContainer', 'stActivityEmptyState')
         .then(function() { _setDetailAccCount('stActivityAccCount', 'stActivityContainer'); });
     loadPhotos(    'subthing', subThing.id, 'stPhotoContainer',    'stPhotoEmptyState')
-        .then(function() { _setDetailAccCount('stPhotosAccCount', 'stPhotoContainer'); });
+        .then(function() { _setPhotoAccCount('stPhotosAccCount', 'subthing'); });
 
     if (typeof loadEventsForTarget === 'function') {
         var months = parseInt(document.getElementById('stCalendarRangeSelect').value, 10) || 3;
@@ -5104,7 +5104,7 @@ function renderItemDetail(item, subThing, thing, room, floor) {
     loadActivities('item', item.id, 'siActivityContainer', 'siActivityEmptyState')
         .then(function() { _setDetailAccCount('siActivityAccCount', 'siActivityContainer'); });
     loadPhotos(    'item', item.id, 'siPhotoContainer',    'siPhotoEmptyState')
-        .then(function() { _setDetailAccCount('siPhotosAccCount', 'siPhotoContainer'); });
+        .then(function() { _setPhotoAccCount('siPhotosAccCount', 'item'); });
 
     if (typeof loadEventsForTarget === 'function') {
         var months = parseInt(document.getElementById('siCalendarRangeSelect').value, 10) || 3;

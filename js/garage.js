@@ -149,7 +149,7 @@ function renderGarageRoomPage(room) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'garageroom', room.id, 'garageRoomPhotosSection',           'garageRoomPhotosEmpty')
-        .then(function() { _setDetailAccCount('garageRoomPhotosAccCount', 'garageRoomPhotosSection'); });
+        .then(function() { _setPhotoAccCount('garageRoomPhotosAccCount', 'garageroom'); });
     loadActivities('garageroom', room.id, 'garageRoomActivitiesContainer',     'garageRoomActivitiesEmpty')
         .then(function() { _setDetailAccCount('garageRoomActivityAccCount', 'garageRoomActivitiesContainer'); });
     loadProblems(  'garageroom', room.id, 'garageRoomProblemsContainer',       'garageRoomProblemsEmpty')
@@ -460,7 +460,7 @@ function renderGarageThingPage(thing, room) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'garagething', thing.id, 'garageThingPhotosSection',           'garageThingPhotosEmpty')
-        .then(function() { _setDetailAccCount('garageThingPhotosAccCount', 'garageThingPhotosSection'); });
+        .then(function() { _setPhotoAccCount('garageThingPhotosAccCount', 'garagething'); });
     loadActivities('garagething', thing.id, 'garageThingActivitiesContainer',     'garageThingActivitiesEmpty')
         .then(function() { _setDetailAccCount('garageThingActivityAccCount', 'garageThingActivitiesContainer'); });
     loadProblems(  'garagething', thing.id, 'garageThingProblemsContainer',       'garageThingProblemsEmpty')
@@ -739,7 +739,7 @@ function renderGarageSubThingPage(subThing, thing, room) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'garagesubthing', subThing.id, 'garageSubThingPhotosSection',       'garageSubThingPhotosEmpty')
-        .then(function() { _setDetailAccCount('garageSubThingPhotosAccCount', 'garageSubThingPhotosSection'); });
+        .then(function() { _setPhotoAccCount('garageSubThingPhotosAccCount', 'garagesubthing'); });
     loadActivities('garagesubthing', subThing.id, 'garageSubThingActivitiesContainer', 'garageSubThingActivitiesEmpty')
         .then(function() { _setDetailAccCount('garageSubThingActivityAccCount', 'garageSubThingActivitiesContainer'); });
     loadProblems(  'garagesubthing', subThing.id, 'garageSubThingProblemsContainer',   'garageSubThingProblemsEmpty')

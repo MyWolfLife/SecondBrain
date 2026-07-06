@@ -1447,6 +1447,18 @@ button {
     margin: 4px 0 2px;
 }
 
+.photo-default-badge {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #92650a;
+    background: #fef3c7;
+    border-radius: 12px;
+    padding: 3px 10px;
+    margin: 6px auto 0;
+    width: fit-content;
+}
+
 .photo-nav-bar {
     display: flex;
     align-items: center;

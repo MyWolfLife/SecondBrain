@@ -254,7 +254,7 @@ function renderStructurePage(structure) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'structure', structure.id, 'structurePhotosSection',          'structurePhotosEmpty')
-        .then(function() { _setDetailAccCount('structurePhotosAccCount', 'structurePhotosSection'); });
+        .then(function() { _setPhotoAccCount('structurePhotosAccCount', 'structure'); });
     loadActivities('structure', structure.id, 'structureActivitiesContainer',    'structureActivitiesEmpty')
         .then(function() { _setDetailAccCount('structureActivityAccCount', 'structureActivitiesContainer'); });
     loadProblems(  'structure', structure.id, 'structureProblemsContainer',      'structureProblemsEmpty')
@@ -547,7 +547,7 @@ function renderStructureThingPage(thing, structure) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'structurething', thing.id, 'structureThingPhotosSection',          'structureThingPhotosEmpty')
-        .then(function() { _setDetailAccCount('structureThingPhotosAccCount', 'structureThingPhotosSection'); });
+        .then(function() { _setPhotoAccCount('structureThingPhotosAccCount', 'structurething'); });
     loadActivities('structurething', thing.id, 'structureThingActivitiesContainer',    'structureThingActivitiesEmpty')
         .then(function() { _setDetailAccCount('structureThingActivityAccCount', 'structureThingActivitiesContainer'); });
     loadProblems(  'structurething', thing.id, 'structureThingProblemsContainer',      'structureThingProblemsEmpty')
@@ -845,7 +845,7 @@ function renderStructureSubThingPage(subThing, thing, structure) {
 
     // ---- Load all cross-entity feature sections ----
     loadPhotos(    'structuresubthing', subThing.id, 'structureSubThingPhotosSection',          'structureSubThingPhotosEmpty')
-        .then(function() { _setDetailAccCount('structureSubThingPhotosAccCount', 'structureSubThingPhotosSection'); });
+        .then(function() { _setPhotoAccCount('structureSubThingPhotosAccCount', 'structuresubthing'); });
     loadActivities('structuresubthing', subThing.id, 'structureSubThingActivitiesContainer',    'structureSubThingActivitiesEmpty')
         .then(function() { _setDetailAccCount('structureSubThingActivityAccCount', 'structureSubThingActivitiesContainer'); });
     loadProblems(  'structuresubthing', subThing.id, 'structureSubThingProblemsContainer',      'structureSubThingProblemsEmpty')

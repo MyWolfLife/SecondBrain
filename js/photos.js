@@ -132,6 +132,32 @@ async function loadPhotos(targetType, targetId, containerId, emptyStateId) {
     }
 }
 
+// ---------- Accordion Count Badge ----------
+
+/**
+ * Sets a detail-accordion count badge for a photo section using the actual
+ * number of loaded photos. Unlike _setDetailAccCount (which counts DOM
+ * children), this reads photoViewerState[targetType].photos.length —
+ * the photo container only ever renders one <div class="photo-viewer">
+ * regardless of how many photos exist, so counting DOM children always
+ * gives 1 whenever there's at least one photo.
+ * @param {string} countId    - ID of the <span class="detail-acc-count"> element.
+ * @param {string} targetType - targetType key used in photoViewerState (e.g. "plant").
+ */
+function _setPhotoAccCount(countId, targetType) {
+    var countEl = document.getElementById(countId);
+    if (!countEl) return;
+    var state = photoViewerState[targetType];
+    var count = state ? state.photos.length : 0;
+    if (count > 0) {
+        countEl.textContent = '(' + count + ')';
+        countEl.classList.remove('hidden');
+    } else {
+        countEl.textContent = '';
+        countEl.classList.add('hidden');
+    }
+}
+
 // ---------- Render the Photo Viewer ----------
 
 /**
@@ -177,6 +203,17 @@ function renderPhotoViewer(targetType, containerId) {
         stampEl.className = 'photo-taken-date';
         stampEl.textContent = formatDateTime(rawDate);
         viewer.appendChild(stampEl);
+    }
+
+    // Badge showing whether this is the photo currently used as the entity's
+    // profile/thumbnail image (set via "Use as Profile" below).
+    var profileEntity = PROFILE_PHOTO_TYPES.indexOf(targetType) !== -1 ? _getPasteEntity(targetType) : null;
+    var isDefaultPhoto = !!(profileEntity && profileEntity.id === photo.targetId && profileEntity.profilePhotoId === photo.id);
+    if (isDefaultPhoto) {
+        var defaultBadge = document.createElement('div');
+        defaultBadge.className = 'photo-default-badge';
+        defaultBadge.textContent = (targetType === 'collectionitem') ? '⭐ Current Thumbnail' : '⭐ Current Profile Photo';
+        viewer.appendChild(defaultBadge);
     }
 
     // Navigation bar: [< Newer]  [counter]  [Older >]
@@ -233,7 +270,8 @@ function renderPhotoViewer(targetType, containerId) {
         var profileBtnLabel = (targetType === 'collectionitem') ? '⭐ Use as Thumbnail' : '⭐ Use as Profile';
         var profileBtn = document.createElement('button');
         profileBtn.className = 'btn btn-small btn-secondary';
-        profileBtn.textContent = profileBtnLabel;
+        profileBtn.textContent = isDefaultPhoto ? '✓ Current Default' : profileBtnLabel;
+        profileBtn.disabled = isDefaultPhoto;
         profileBtn.addEventListener('click', async function() {
             var btn = this;
             btn.disabled = true;
@@ -241,24 +279,22 @@ function renderPhotoViewer(targetType, containerId) {
             var thumbData = await setProfilePhoto(photo, targetType);
             if (thumbData) {
                 btn.textContent = '✓ Set!';
+                // Update in-memory entity so the badge/button reflect the new default on next render
+                if (profileEntity && profileEntity.id === photo.targetId) {
+                    profileEntity.profilePhotoData = thumbData;
+                    profileEntity.profilePhotoId = photo.id;
+                }
                 // Live-update person detail avatar without a page reload
                 if (targetType === 'person' && window.currentPerson &&
                         window.currentPerson.id === photo.targetId) {
-                    window.currentPerson.profilePhotoData = thumbData;
                     var avatarEl = document.getElementById('personDetailAvatar');
                     if (avatarEl && typeof _buildAvatarHtml === 'function') {
                         avatarEl.innerHTML = _buildAvatarHtml(window.currentPerson, 'person-detail-avatar');
                     }
                 }
-                // Live-update currentCollectionItem so the row thumbnail reflects the change
-                if (targetType === 'collectionitem' && window.currentCollectionItem &&
-                        window.currentCollectionItem.id === photo.targetId) {
-                    window.currentCollectionItem.profilePhotoData = thumbData;
-                }
                 setTimeout(function() {
-                    btn.textContent = profileBtnLabel;
-                    btn.disabled = false;
-                }, 2000);
+                    renderPhotoViewer(targetType, containerId);
+                }, 800);
             } else {
                 btn.textContent = profileBtnLabel;
                 btn.disabled = false;
@@ -527,7 +563,7 @@ async function handlePhotoFile(file, targetType, targetId) {
         var caption = prompt('Add a caption (optional):') || '';
 
         // Save to Firestore
-        await userCol('photos').add({
+        var newPhotoRef = await userCol('photos').add({
             targetType: targetType,
             targetId: targetId,
             imageData: imageData,
@@ -544,7 +580,7 @@ async function handlePhotoFile(file, targetType, targetId) {
             var autoSnap = await userCol(autoThumbCollection).doc(targetId).get();
             if (autoSnap.exists && !autoSnap.data().profilePhotoData) {
                 var autoThumb = await _compressToThumb(imageData);
-                await userCol(autoThumbCollection).doc(targetId).update({ profilePhotoData: autoThumb });
+                await userCol(autoThumbCollection).doc(targetId).update({ profilePhotoData: autoThumb, profilePhotoId: newPhotoRef.id });
                 // Update the in-memory state object for the current entity
                 var stateMap = {
                     thing:          'currentThing',
@@ -557,6 +593,7 @@ async function handlePhotoFile(file, targetType, targetId) {
                 var stateKey = stateMap[targetType];
                 if (stateKey && window[stateKey] && window[stateKey].id === targetId) {
                     window[stateKey].profilePhotoData = autoThumb;
+                    window[stateKey].profilePhotoId = newPhotoRef.id;
                 }
             }
         }
@@ -709,10 +746,11 @@ function _compressToThumb(dataUrl) {
 
 /**
  * Save a gallery photo as the profile thumbnail for its entity.
- * Compresses to thumbnail size and writes profilePhotoData to the entity doc.
+ * Compresses to thumbnail size and writes profilePhotoData + profilePhotoId
+ * (the source photo's id, so the gallery viewer can mark it as the default) to the entity doc.
  * Returns the compressed data URL on success, null on failure.
  *
- * @param {Object} photo      - Photo object from photoViewerState (has .imageData, .targetId)
+ * @param {Object} photo      - Photo object from photoViewerState (has .id, .imageData, .targetId)
  * @param {string} targetType - e.g. 'plant', 'weed', 'person', 'vehicle', 'thing'
  * @returns {Promise<string|null>}
  */
@@ -721,7 +759,7 @@ async function setProfilePhoto(photo, targetType) {
     if (!collection) return null;
     try {
         var thumbData = await _compressToThumb(photo.imageData);
-        await userCol(collection).doc(photo.targetId).update({ profilePhotoData: thumbData });
+        await userCol(collection).doc(photo.targetId).update({ profilePhotoData: thumbData, profilePhotoId: photo.id });
         return thumbData;
     } catch (err) {
         console.error('setProfilePhoto error:', err);

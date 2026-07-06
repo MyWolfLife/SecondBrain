@@ -284,7 +284,7 @@ async function loadPlantDetail(plantId) {
 
         // Load photos
         loadPhotos('plant', doc.id, 'plantPhotoContainer', 'plantPhotoEmptyState')
-            .then(function() { _setDetailAccCount('plantPhotosAccCount', 'plantPhotoContainer'); });
+            .then(function() { _setPhotoAccCount('plantPhotosAccCount', 'plant'); });
 
     } catch (error) {
         console.error('Error loading plant detail:', error);

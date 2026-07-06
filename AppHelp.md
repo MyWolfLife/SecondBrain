@@ -460,6 +460,8 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Viewing photos:**
 - Navigate with **Newer** / **Older** buttons
+- A counter below the image shows your position (e.g. "2 of 5"); the Photos section header badge shows the total count
+- A "⭐ Current Profile Photo" (or "⭐ Current Thumbnail" for collection items) badge appears above the nav bar when the photo you're viewing is the one currently used as the entity's profile/thumbnail image
 - Tap a photo to view it full-screen
 - In full-screen: pinch to zoom, drag to pan when zoomed, long-press (hold for 600ms) to download
 - Edit a caption by tapping the caption area
@@ -467,6 +469,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Tips:**
 - The first photo you add to a plant, weed, person, or vehicle automatically becomes the profile thumbnail.
+- Use the **⭐ Use as Profile** (or **⭐ Use as Thumbnail**) button on any photo to change which one is the default — the button is disabled and reads "✓ Current Default" when already viewing the current one.
 - Photos are compressed automatically (targets ~150KB each) to keep storage manageable.
 - Up to 4 photos can be submitted at once for AI identification flows (plant ID, weed ID, bottle scan).
 

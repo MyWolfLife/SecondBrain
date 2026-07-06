@@ -348,7 +348,7 @@ function renderVehicleDetail(vehicle) {
 
     // ---- Load cross-entity sections ----
     loadPhotos('vehicle', vehicle.id, 'vehiclePhotoContainer', 'vehiclePhotoEmptyState')
-        .then(function() { _setDetailAccCount('vehiclePhotosAccCount', 'vehiclePhotoContainer'); });
+        .then(function() { _setPhotoAccCount('vehiclePhotosAccCount', 'vehicle'); });
     loadActivities('vehicle', vehicle.id, 'vehicleActivitiesContainer', 'vehicleActivitiesEmptyState')
         .then(function() { _setDetailAccCount('vehicleActivityAccCount', 'vehicleActivitiesContainer'); });
     loadProblems('vehicle', vehicle.id, 'vehicleProblemsContainer', 'vehicleProblemsEmptyState')

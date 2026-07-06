@@ -164,7 +164,7 @@ async function loadZoneDetail(zoneId) {
         loadActivities('zone', zoneId, 'zoneActivityContainer', 'zoneActivityEmptyState')
             .then(function() { _setDetailAccCount('zoneActivityAccCount', 'zoneActivityContainer'); });
         loadPhotos('zone', zoneId, 'zonePhotoContainer', 'zonePhotoEmptyState')
-            .then(function() { _setDetailAccCount('zonePhotosAccCount', 'zonePhotoContainer'); });
+            .then(function() { _setPhotoAccCount('zonePhotosAccCount', 'zone'); });
         if (typeof loadGpsSection === 'function') {
             loadGpsSection(zoneId)
                 .then(function() { _setDetailAccCount('zoneGpsAccCount', 'zoneGpsPreview'); });

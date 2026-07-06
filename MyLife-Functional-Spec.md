@@ -2546,8 +2546,10 @@ These features are used across multiple sections. The implementation lives prima
 **Gallery UI**:
 - Shows newest photo by default
 - Newer / Older navigation buttons with counter (e.g., "2 of 5")
+- Detail-page accordion header shows a `(N)` count badge for the Photos section, computed from `photoViewerState[targetType].photos.length` via `_setPhotoAccCount()` — not from counting DOM children, since the gallery container only ever renders one `.photo-viewer` div regardless of photo count
+- "⭐ Current Profile Photo" (or "⭐ Current Thumbnail" for collection items) badge shown above the nav bar when the currently-viewed photo is the entity's default profile/thumbnail photo
 - Caption shown below photo (edit caption or add caption button)
-- Action buttons per photo: **⭐ Use as Profile/Thumbnail** (supported types only), **🔍 View**, **Edit/Add Caption**, **Delete Photo**
+- Action buttons per photo: **⭐ Use as Profile/Thumbnail** (supported types only, disabled and reads "✓ Current Default" when already the default), **🔍 View**, **Edit/Add Caption**, **Delete Photo**
 
 **Photo upload paths**:
 - Camera input (`<input type="file" accept="image/*" capture>`)
@@ -2568,10 +2570,10 @@ These features are used across multiple sections. The implementation lives prima
 
 **Profile / Thumbnail photos**:
 - Supported entity types: `plant`, `weed`, `person`, `vehicle`, `thing`, `subthing`, `item`, `collectionitem`
-- Stored as `profilePhotoData` directly on the entity document (compressed further to ~300px max dimension)
-- **Auto-set**: When the first photo is added to a supported entity (via LLM flow or manual add), `profilePhotoData` is auto-set from that first photo
+- Stored as `profilePhotoData` (compressed further to ~300px max dimension) plus `profilePhotoId` (the source photo's Firestore doc ID) directly on the entity document — `profilePhotoId` lets the gallery viewer identify and badge the default photo as you scroll
+- **Auto-set**: When the first photo is added to a supported entity (via LLM flow or manual add), `profilePhotoData`/`profilePhotoId` are auto-set from that first photo
 - **Manual override**: "⭐ Use as Profile" (or "⭐ Use as Thumbnail" for collection items) button in the gallery sets any photo as the thumbnail
-- **Live update**: Setting a thumbnail updates the in-memory `window.current*` state object so the UI reflects the change without a full page reload
+- **Live update**: Setting a thumbnail updates the in-memory `window.current*`/entity state object and re-renders the gallery so the badge and button state reflect the change without a full page reload
 
 **Key maps in `photos.js`**:
 ```js
