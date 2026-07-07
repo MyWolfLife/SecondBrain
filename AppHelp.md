@@ -330,6 +330,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 **Common tasks:**
 - **Add an event:** Tap **+ Add Event** — set title, description, date, and whether it recurs
 - **Complete an event:** Tap **✓ Complete** on any event card — this automatically creates an activity record for any linked zones
+- **Mark a maintenance schedule In Progress:** On a Reset Interval or Fixed Months occurrence, tap **In Progress** — set a start date (defaults to today) and optional notes. The occurrence stays open (you can still Complete it) and shows a "🔨 In Progress" badge. Tap **Edit Progress** to change the date/notes, or use **Clear Status** in that modal to revert it back to plain due/overdue.
 - **Edit an event:** Tap **Edit** on the card
 - **Copy an event:** Tap **Copy** — creates a new one-time event pre-filled with the same title and description (date is cleared for you to set a new one)
 - **Add to Google Calendar:** Tap **+ GCal** on any event card to open a pre-filled Google Calendar "new event" page in a new tab. No sign-in to the app required — this is a direct deep link. The button only appears when Google Calendar sync is not connected.

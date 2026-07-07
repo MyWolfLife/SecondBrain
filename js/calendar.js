@@ -12,7 +12,8 @@
 //   zoneIds? (string[], IDs of linked zones — multi-zone support),
 //   savedActionId? (string|null),
 //   completed (boolean, for one-time events),
-//   completedDates (string[], ISO dates of completed recurring occurrences),
+//   completedDates (string[], ISO dates of completed recurring occurrences — weekly/
+//     monthly/every_x_days only),
 //   cancelledDates (string[], ISO dates of deleted single occurrences of a recurring event)
 //
 // recurring.type === 'reset_interval' (maintenance schedule, e.g. "change hot tub
@@ -25,9 +26,14 @@
 // recurring.type === 'fixed_months' (maintenance schedule, e.g. "fertilize in May,
 // July, and October"): additional fields months (number[], 1-12), dayOfMonth
 // (number), and minSpacingDays (number, not yet enforced — see MaintenanceSchedulePlan.md).
-// One independent occurrence per configured month, every year. Uses the ordinary
-// completedDates[]/cancelledDates[] arrays like weekly/monthly/every_x_days, unlike
-// reset_interval.
+// One independent occurrence per configured month, every year. Per-occurrence delete
+// still uses cancelledDates[] like the other types, but completion status does not.
+//
+// occurrenceStatus (map, reset_interval and fixed_months ONLY — replaces
+// completedDates for these two types): keyed by occurrence date string, value is
+// { status: 'completed'|'in_progress', startedAt?, notes? }. 'in_progress' entries
+// carry a start date and free-text notes; occurrences in this state still count as
+// open/actionable (completed stays false) until actually marked Completed.
 //
 // See MaintenanceSchedulePlan.md for the full feature design.
 // ============================================================
@@ -47,6 +53,12 @@ var calendarEventModalReloadFn = null;
  * Occurrence currently being completed (stored for use by handleCompleteEvent).
  */
 var pendingCompleteOccurrence = null;
+
+/**
+ * Occurrence currently being marked In Progress (stored for use by handleSaveInProgress
+ * and handleClearInProgress).
+ */
+var pendingInProgressOccurrence = null;
 
 /**
  * Pending recurring-event delete (stored while the deleteRecurringModal is open).
@@ -504,13 +516,18 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
             ? addInterval(new Date(event.lastCompletedDate + 'T00:00:00'), event.recurring.intervalUnit, event.recurring.intervalValue)
             : new Date(event.date + 'T00:00:00');
         if (dueDate >= rangeStartDate && dueDate <= rangeEndDate) {
+            var riDateStr = formatDateISO(dueDate);
+            var riStatus = (event.occurrenceStatus && event.occurrenceStatus[riDateStr]) || null;
             occurrences.push({
                 eventId: event.id,
                 title: event.title,
                 description: event.description || '',
-                occurrenceDate: formatDateISO(dueDate),
+                occurrenceDate: riDateStr,
                 recurring: event.recurring,
-                completed: false,
+                completed: !!(riStatus && riStatus.status === 'completed'),
+                status: riStatus ? riStatus.status : null,
+                statusStartedAt: (riStatus && riStatus.startedAt) || null,
+                statusNotes: (riStatus && riStatus.notes) || null,
                 targetType: event.targetType || null,
                 targetId: event.targetId || null,
                 savedActionId: event.savedActionId || null,
@@ -523,8 +540,10 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
 
     // Fixed-months event — one independent occurrence per configured month, every
     // year, anchored to the event's original date (so a month that already passed
-    // in the creation year doesn't generate a phantom occurrence). Uses the ordinary
-    // completedDates[]/cancelledDates[] arrays, same as weekly/monthly/every_x_days.
+    // in the creation year doesn't generate a phantom occurrence). Completion status
+    // is tracked via occurrenceStatus[dateStr] (see reset_interval above), but
+    // per-occurrence delete still uses the ordinary cancelledDates[] array — deleting
+    // an occurrence is a different concern (permanent removal) from its status.
     if (event.recurring.type === 'fixed_months') {
         var fmMonths = event.recurring.months || [];
         var fmDayOfMonth = event.recurring.dayOfMonth || 1;
@@ -543,13 +562,17 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
                 var fmDateStr = formatDateISO(fmOccDate);
                 if (cancelledDates.indexOf(fmDateStr) !== -1) continue;
 
+                var fmStatus = (event.occurrenceStatus && event.occurrenceStatus[fmDateStr]) || null;
                 occurrences.push({
                     eventId: event.id,
                     title: event.title,
                     description: event.description || '',
                     occurrenceDate: fmDateStr,
                     recurring: event.recurring,
-                    completed: completedDates.indexOf(fmDateStr) >= 0,
+                    completed: !!(fmStatus && fmStatus.status === 'completed'),
+                    status: fmStatus ? fmStatus.status : null,
+                    statusStartedAt: (fmStatus && fmStatus.startedAt) || null,
+                    statusNotes: (fmStatus && fmStatus.notes) || null,
                     targetType: event.targetType || null,
                     targetId: event.targetId || null,
                     savedActionId: event.savedActionId || null,
@@ -684,6 +707,9 @@ function createCalendarEventCard(occ, reloadFn) {
     if (occ.completed) {
         card.classList.add('calendar-event-card--completed');
     }
+    if (occ.status === 'in_progress') {
+        card.classList.add('calendar-inprogress-card');
+    }
 
     // Date line
     var dateLine = document.createElement('div');
@@ -760,12 +786,31 @@ function createCalendarEventCard(occ, reloadFn) {
         card.appendChild(badge);
     }
 
+    // Maintenance-schedule types (reset_interval, fixed_months) get extra status
+    // handling (In Progress) and lose a couple of features that don't apply to them
+    // (Reschedule \u2014 see below).
+    var isMaintenanceType = occ.recurring &&
+        (occ.recurring.type === 'reset_interval' || occ.recurring.type === 'fixed_months');
+
     // Completed badge
     if (occ.completed) {
         var completedBadge = document.createElement('span');
         completedBadge.className = 'calendar-completed-badge';
         completedBadge.textContent = '\u2713 Completed';
         card.appendChild(completedBadge);
+    }
+
+    // In Progress badge (maintenance schedules only)
+    if (occ.status === 'in_progress') {
+        var inProgressBadge = document.createElement('span');
+        inProgressBadge.className = 'calendar-inprogress-badge';
+        var startedText = '';
+        if (occ.statusStartedAt) {
+            var startedDateObj = new Date(occ.statusStartedAt + 'T00:00:00');
+            startedText = ' since ' + startedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        inProgressBadge.textContent = '\u{1F528} In Progress' + startedText;
+        card.appendChild(inProgressBadge);
     }
 
     // Overdue badge
@@ -783,10 +828,8 @@ function createCalendarEventCard(occ, reloadFn) {
     // lastCompletedDate; fixed_months computes from months[]/dayOfMonth) — the
     // reset-interval equivalent is Postpone (see MS-4); fixed_months occurrences
     // use per-occurrence delete (cancelledDates) instead, which still works normally.
-    var isNoRescheduleType = occ.recurring &&
-        (occ.recurring.type === 'reset_interval' || occ.recurring.type === 'fixed_months');
     var rescheduleRow = null;
-    if (occ.overdue && !isNoRescheduleType) {
+    if (occ.overdue && !isMaintenanceType) {
         rescheduleRow = document.createElement('div');
         rescheduleRow.className = 'cal-reschedule-row hidden';
 
@@ -834,8 +877,19 @@ function createCalendarEventCard(occ, reloadFn) {
         actions.appendChild(completeBtn);
     }
 
+    // In Progress / Edit Progress button — maintenance schedules only, uncompleted occurrences only
+    if (isMaintenanceType && !occ.completed) {
+        var inProgressBtn = document.createElement('button');
+        inProgressBtn.className = 'btn btn-small btn-secondary';
+        inProgressBtn.textContent = (occ.status === 'in_progress') ? 'Edit Progress' : 'In Progress';
+        inProgressBtn.addEventListener('click', function() {
+            openInProgressModal(occ, reloadFn);
+        });
+        actions.appendChild(inProgressBtn);
+    }
+
     // Reschedule button — only shown for overdue occurrences (see exclusions above)
-    if (occ.overdue && !isNoRescheduleType) {
+    if (occ.overdue && !isMaintenanceType) {
         var rescheduleBtn = document.createElement('button');
         rescheduleBtn.className = 'btn btn-small btn-reschedule';
         rescheduleBtn.textContent = 'Reschedule';
@@ -1020,6 +1074,7 @@ async function handleCompleteEvent() {
 
         // Mark the event as completed in Firestore
         var eventRef = userCol('calendarEvents').doc(occ.eventId);
+        var isFixedMonths = occ.recurring && occ.recurring.type === 'fixed_months';
         if (!occ.recurring) {
             // One-time event: mark as completed
             await eventRef.update({
@@ -1027,12 +1082,20 @@ async function handleCompleteEvent() {
                 completedAt: occ.occurrenceDate
             });
         } else if (isResetInterval) {
-            // Reset-interval: advance the anchor to today. There is no completedDates
-            // list for this type — the next due date is computed fresh from
-            // lastCompletedDate each time (see generateOccurrences).
-            await eventRef.update({
-                lastCompletedDate: completionDate
-            });
+            // Reset-interval: advance the anchor to today (drives the next due date —
+            // see generateOccurrences) and record a status entry for history, keyed by
+            // the occurrence actually being completed (clears any In Progress entry
+            // at that same key).
+            var riUpdate = {};
+            riUpdate.lastCompletedDate = completionDate;
+            riUpdate['occurrenceStatus.' + occ.occurrenceDate] = { status: 'completed' };
+            await eventRef.update(riUpdate);
+        } else if (isFixedMonths) {
+            // Fixed-months: status map only (no completedDates for this type) — clears
+            // any In Progress entry at the same key.
+            var fmUpdate = {};
+            fmUpdate['occurrenceStatus.' + occ.occurrenceDate] = { status: 'completed' };
+            await eventRef.update(fmUpdate);
         } else {
             // Recurring event: add this occurrence date to completedDates array
             await eventRef.update({
@@ -1095,6 +1158,86 @@ async function handleCompleteEvent() {
     } catch (error) {
         console.error('Error completing event:', error);
         alert('Error completing event. Check console for details.');
+    }
+}
+
+// ---------- In Progress Modal (maintenance schedules only) ----------
+
+/**
+ * Opens the In Progress modal for a reset_interval or fixed_months occurrence.
+ * Pre-fills the start date and notes if the occurrence is already In Progress
+ * (editing), otherwise defaults the start date to today.
+ * @param {Object} occ - The occurrence object.
+ * @param {Function} reloadFn - Callback to call after saving.
+ */
+function openInProgressModal(occ, reloadFn) {
+    var dateObj = new Date(occ.occurrenceDate + 'T00:00:00');
+    var dateStr = dateObj.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    });
+    document.getElementById('inProgressInfo').textContent = occ.title + ' — ' + dateStr;
+
+    var isEditing = occ.status === 'in_progress';
+    document.getElementById('inProgressStartDateInput').value = isEditing && occ.statusStartedAt
+        ? occ.statusStartedAt
+        : formatDateISO(new Date());
+    document.getElementById('inProgressNotesInput').value = isEditing ? (occ.statusNotes || '') : '';
+    document.getElementById('inProgressClearBtn').style.display = isEditing ? 'inline-block' : 'none';
+
+    pendingInProgressOccurrence = { occ: occ, reloadFn: reloadFn };
+
+    openModal('inProgressModal');
+    document.getElementById('inProgressStartDateInput').focus();
+}
+
+/**
+ * Saves the In Progress status (start date + notes) for the pending occurrence.
+ */
+async function handleSaveInProgress() {
+    if (!pendingInProgressOccurrence) return;
+
+    var occ = pendingInProgressOccurrence.occ;
+    var reloadFn = pendingInProgressOccurrence.reloadFn;
+    var startedAt = document.getElementById('inProgressStartDateInput').value || formatDateISO(new Date());
+    var notes = document.getElementById('inProgressNotesInput').value.trim();
+
+    closeModal('inProgressModal');
+    pendingInProgressOccurrence = null;
+
+    try {
+        var update = {};
+        update['occurrenceStatus.' + occ.occurrenceDate] = { status: 'in_progress', startedAt: startedAt, notes: notes };
+        await userCol('calendarEvents').doc(occ.eventId).update(update);
+        console.log('Marked In Progress:', occ.title, occ.occurrenceDate);
+        if (typeof reloadFn === 'function') reloadFn();
+    } catch (error) {
+        console.error('Error marking In Progress:', error);
+        alert('Error saving status. Check console for details.');
+    }
+}
+
+/**
+ * Clears the In Progress status for the pending occurrence, reverting it to
+ * plain due/overdue (removes the occurrenceStatus entry entirely).
+ */
+async function handleClearInProgress() {
+    if (!pendingInProgressOccurrence) return;
+
+    var occ = pendingInProgressOccurrence.occ;
+    var reloadFn = pendingInProgressOccurrence.reloadFn;
+
+    closeModal('inProgressModal');
+    pendingInProgressOccurrence = null;
+
+    try {
+        var update = {};
+        update['occurrenceStatus.' + occ.occurrenceDate] = firebase.firestore.FieldValue.delete();
+        await userCol('calendarEvents').doc(occ.eventId).update(update);
+        console.log('Cleared In Progress:', occ.title, occ.occurrenceDate);
+        if (typeof reloadFn === 'function') reloadFn();
+    } catch (error) {
+        console.error('Error clearing status:', error);
+        alert('Error clearing status. Check console for details.');
     }
 }
 
@@ -2026,6 +2169,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === this) {
             closeModal('completeEventModal');
             pendingCompleteOccurrence = null;
+        }
+    });
+
+    // In Progress modal — Save button
+    document.getElementById('inProgressSaveBtn').addEventListener('click', handleSaveInProgress);
+
+    // In Progress modal — Clear Status button
+    document.getElementById('inProgressClearBtn').addEventListener('click', handleClearInProgress);
+
+    // In Progress modal — Cancel button
+    document.getElementById('inProgressCancelBtn').addEventListener('click', function() {
+        closeModal('inProgressModal');
+        pendingInProgressOccurrence = null;
+    });
+
+    // In Progress modal — Close on overlay click
+    document.getElementById('inProgressModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal('inProgressModal');
+            pendingInProgressOccurrence = null;
         }
     });
 });

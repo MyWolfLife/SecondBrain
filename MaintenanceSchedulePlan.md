@@ -333,7 +333,8 @@ yet (minSpacingDays not wired up until MS-4).
 
 ---
 
-### MS-3: Complete + In-Progress statuses
+### MS-3: Complete + In-Progress statuses ✅ COMPLETE
+
 **Goal**: Introduce the real `occurrenceStatus` map and the first new status beyond Completed.
 
 - Introduce `occurrenceStatus` map on maintenance-type events (replacing `completedDates` /

@@ -1769,6 +1769,22 @@ button {
     margin-bottom: 4px;
 }
 
+.calendar-inprogress-card {
+    border-left: 3px solid #1565c0;
+}
+
+.calendar-inprogress-badge {
+    display: inline-block;
+    background-color: #1565c0;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    margin-right: 4px;
+}
+
 /* Overdue events section */
 .calendar-overdue-heading {
     color: #e65100;
