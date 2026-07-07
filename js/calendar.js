@@ -61,6 +61,11 @@ var pendingCompleteOccurrence = null;
 var pendingInProgressOccurrence = null;
 
 /**
+ * Occurrence currently being postponed (stored for use by handleSavePostpone).
+ */
+var pendingPostponeOccurrence = null;
+
+/**
  * Pending recurring-event delete (stored while the deleteRecurringModal is open).
  */
 var pendingDeleteRecurring = null;
@@ -321,7 +326,10 @@ async function loadEventsForTarget(targetType, targetId, containerId, emptyState
             } else {
                 var pastOccs = generateOccurrences(event, event.date, yesterdayStr);
                 pastOccs.forEach(function(occ) {
-                    if (!occ.completed) { occ.overdue = true; overdueOccs.push(occ); }
+                    if (!occ.completed && occ.status !== 'skipped' && occ.status !== 'unnecessary') {
+                        occ.overdue = true;
+                        overdueOccs.push(occ);
+                    }
                 });
             }
         });
@@ -434,7 +442,7 @@ async function loadOverdueEvents() {
                 var rangeEnd = formatDateISO(yesterday);
                 var pastOccs = generateOccurrences(event, event.date, rangeEnd);
                 pastOccs.forEach(function(occ) {
-                    if (!occ.completed) {
+                    if (!occ.completed && occ.status !== 'skipped' && occ.status !== 'unnecessary') {
                         occ.overdue = true;
                         overdueOccurrences.push(occ);
                     }
@@ -512,6 +520,17 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
     // "next" one only exists once this one is marked Completed (see
     // handleCompleteEvent, which sets lastCompletedDate).
     if (event.recurring.type === 'reset_interval') {
+        // Postponed: fully suppressed from every view while postponedUntil is in the
+        // future — matches "no reminder." The real due date is never touched, so once
+        // postponedUntil passes, the occurrence resumes showing exactly as it would
+        // have if never postponed (likely already overdue by then).
+        if (event.postponedUntil) {
+            var todayForPostpone = new Date();
+            todayForPostpone.setHours(0, 0, 0, 0);
+            if (todayForPostpone < new Date(event.postponedUntil + 'T00:00:00')) {
+                return occurrences;
+            }
+        }
         var dueDate = event.lastCompletedDate
             ? addInterval(new Date(event.lastCompletedDate + 'T00:00:00'), event.recurring.intervalUnit, event.recurring.intervalValue)
             : new Date(event.date + 'T00:00:00');
@@ -693,6 +712,33 @@ function monthAbbrev(m) {
     return names[m - 1] || '';
 }
 
+/**
+ * Finds the next fixed_months occurrence date strictly after the given date,
+ * wrapping to the following year if the given date's month is the last configured
+ * one. Used by the auto-Unnecessary check in handleCompleteEvent.
+ * @param {Object} recurring - The event's recurring config ({months, dayOfMonth}).
+ * @param {Date} afterDate - The date to search after (the occurrence just completed).
+ * @returns {Date|null} The next occurrence's Date, or null if no months configured.
+ */
+function _fmNextOccurrenceDate(recurring, afterDate) {
+    var months = (recurring.months || []).slice().sort(function(a, b) { return a - b; });
+    if (months.length === 0) return null;
+    var dayOfMonth = recurring.dayOfMonth || 1;
+    var year = afterDate.getFullYear();
+    var month = afterDate.getMonth() + 1; // 1-12
+
+    for (var i = 0; i < months.length; i++) {
+        if (months[i] > month) {
+            var lastDay = new Date(year, months[i], 0).getDate();
+            return new Date(year, months[i] - 1, Math.min(dayOfMonth, lastDay));
+        }
+    }
+    // Wrap to next year's first configured month
+    var firstMonth = months[0];
+    var lastDayNextYear = new Date(year + 1, firstMonth, 0).getDate();
+    return new Date(year + 1, firstMonth - 1, Math.min(dayOfMonth, lastDayNextYear));
+}
+
 // ---------- Create Event Card ----------
 
 /**
@@ -813,8 +859,25 @@ function createCalendarEventCard(occ, reloadFn) {
         card.appendChild(inProgressBadge);
     }
 
-    // Overdue badge
-    if (occ.overdue) {
+    // Skipped badge (fixed_months only — user-initiated)
+    if (occ.status === 'skipped') {
+        var skippedBadge = document.createElement('span');
+        skippedBadge.className = 'calendar-skipped-badge';
+        skippedBadge.textContent = '⏭ Skipped';
+        card.appendChild(skippedBadge);
+    }
+
+    // Unnecessary badge (fixed_months only — system-set via minSpacingDays)
+    if (occ.status === 'unnecessary') {
+        var unnecessaryBadge = document.createElement('span');
+        unnecessaryBadge.className = 'calendar-skipped-badge';
+        unnecessaryBadge.textContent = '➖ Unnecessary';
+        card.appendChild(unnecessaryBadge);
+    }
+
+    // Overdue badge — suppressed for resolved statuses (skipped/unnecessary): showing
+    // "OVERDUE" alongside "no action needed" would be a contradiction
+    if (occ.overdue && occ.status !== 'skipped' && occ.status !== 'unnecessary') {
         var overdueBadge = document.createElement('span');
         overdueBadge.className = 'calendar-overdue-badge';
         overdueBadge.textContent = 'OVERDUE';
@@ -886,6 +949,40 @@ function createCalendarEventCard(occ, reloadFn) {
             openInProgressModal(occ, reloadFn);
         });
         actions.appendChild(inProgressBtn);
+    }
+
+    // Skip / Unskip button — fixed_months only, uncompleted occurrences only
+    if (occ.recurring && occ.recurring.type === 'fixed_months' && !occ.completed) {
+        var skipBtn = document.createElement('button');
+        skipBtn.className = 'btn btn-small btn-secondary';
+        skipBtn.textContent = (occ.status === 'skipped') ? 'Unskip' : 'Skip';
+        skipBtn.addEventListener('click', function() {
+            handleToggleSkip(occ, reloadFn);
+        });
+        actions.appendChild(skipBtn);
+    }
+
+    // Postpone button — reset_interval only, uncompleted occurrences only
+    if (occ.recurring && occ.recurring.type === 'reset_interval' && !occ.completed) {
+        var postponeBtn = document.createElement('button');
+        postponeBtn.className = 'btn btn-small btn-secondary';
+        postponeBtn.textContent = 'Postpone';
+        postponeBtn.addEventListener('click', function() {
+            openPostponeModal(occ, reloadFn);
+        });
+        actions.appendChild(postponeBtn);
+    }
+
+    // Clear Status button — for the system-set Unnecessary status only (Skip and
+    // In Progress each have their own toggle/edit button that doubles as a clear path)
+    if (occ.status === 'unnecessary') {
+        var clearStatusBtn = document.createElement('button');
+        clearStatusBtn.className = 'btn btn-small btn-secondary';
+        clearStatusBtn.textContent = 'Clear Status';
+        clearStatusBtn.addEventListener('click', function() {
+            clearOccurrenceStatus(occ, reloadFn);
+        });
+        actions.appendChild(clearStatusBtn);
     }
 
     // Reschedule button — only shown for overdue occurrences (see exclusions above)
@@ -1095,6 +1192,22 @@ async function handleCompleteEvent() {
             // any In Progress entry at the same key.
             var fmUpdate = {};
             fmUpdate['occurrenceStatus.' + occ.occurrenceDate] = { status: 'completed' };
+
+            // Auto-Unnecessary: if the next scheduled occurrence falls within
+            // minSpacingDays of today (the actual moment of completion — not the
+            // possibly-stale occurrence date, since a late completion is exactly what
+            // should trigger this), it's redundant to do it again that soon.
+            var minSpacing = occ.recurring.minSpacingDays || 45;
+            var nextFmDate = _fmNextOccurrenceDate(occ.recurring, new Date(occ.occurrenceDate + 'T00:00:00'));
+            if (nextFmDate) {
+                var todayForSpacing = new Date();
+                todayForSpacing.setHours(0, 0, 0, 0);
+                var gapDays = Math.round((nextFmDate - todayForSpacing) / 86400000);
+                if (gapDays <= minSpacing) {
+                    fmUpdate['occurrenceStatus.' + formatDateISO(nextFmDate)] = { status: 'unnecessary' };
+                }
+            }
+
             await eventRef.update(fmUpdate);
         } else {
             // Recurring event: add this occurrence date to completedDates array
@@ -1161,6 +1274,47 @@ async function handleCompleteEvent() {
     }
 }
 
+// ---------- Occurrence Status Helpers (maintenance schedules only) ----------
+
+/**
+ * Writes an occurrenceStatus entry for a single occurrence. Generic helper used
+ * by In Progress, Skip, and the auto-Unnecessary logic.
+ * @param {Object} occ - The occurrence object.
+ * @param {Object} statusObj - e.g. { status: 'skipped' }.
+ * @param {Function|null} reloadFn - Callback to call after saving.
+ */
+async function setOccurrenceStatus(occ, statusObj, reloadFn) {
+    try {
+        var update = {};
+        update['occurrenceStatus.' + occ.occurrenceDate] = statusObj;
+        await userCol('calendarEvents').doc(occ.eventId).update(update);
+        console.log('Occurrence status set:', occ.title, occ.occurrenceDate, statusObj.status);
+        if (typeof reloadFn === 'function') reloadFn();
+    } catch (error) {
+        console.error('Error updating occurrence status:', error);
+        alert('Error updating status. Check console for details.');
+    }
+}
+
+/**
+ * Clears the occurrenceStatus entry for a single occurrence, reverting it to
+ * plain due/overdue.
+ * @param {Object} occ - The occurrence object.
+ * @param {Function|null} reloadFn - Callback to call after clearing.
+ */
+async function clearOccurrenceStatus(occ, reloadFn) {
+    try {
+        var update = {};
+        update['occurrenceStatus.' + occ.occurrenceDate] = firebase.firestore.FieldValue.delete();
+        await userCol('calendarEvents').doc(occ.eventId).update(update);
+        console.log('Occurrence status cleared:', occ.title, occ.occurrenceDate);
+        if (typeof reloadFn === 'function') reloadFn();
+    } catch (error) {
+        console.error('Error clearing occurrence status:', error);
+        alert('Error clearing status. Check console for details.');
+    }
+}
+
 // ---------- In Progress Modal (maintenance schedules only) ----------
 
 /**
@@ -1204,23 +1358,14 @@ async function handleSaveInProgress() {
     closeModal('inProgressModal');
     pendingInProgressOccurrence = null;
 
-    try {
-        var update = {};
-        update['occurrenceStatus.' + occ.occurrenceDate] = { status: 'in_progress', startedAt: startedAt, notes: notes };
-        await userCol('calendarEvents').doc(occ.eventId).update(update);
-        console.log('Marked In Progress:', occ.title, occ.occurrenceDate);
-        if (typeof reloadFn === 'function') reloadFn();
-    } catch (error) {
-        console.error('Error marking In Progress:', error);
-        alert('Error saving status. Check console for details.');
-    }
+    setOccurrenceStatus(occ, { status: 'in_progress', startedAt: startedAt, notes: notes }, reloadFn);
 }
 
 /**
  * Clears the In Progress status for the pending occurrence, reverting it to
- * plain due/overdue (removes the occurrenceStatus entry entirely).
+ * plain due/overdue.
  */
-async function handleClearInProgress() {
+function handleClearInProgress() {
     if (!pendingInProgressOccurrence) return;
 
     var occ = pendingInProgressOccurrence.occ;
@@ -1229,15 +1374,84 @@ async function handleClearInProgress() {
     closeModal('inProgressModal');
     pendingInProgressOccurrence = null;
 
+    clearOccurrenceStatus(occ, reloadFn);
+}
+
+// ---------- Skip (fixed_months only) ----------
+
+/**
+ * Toggles Skipped status for a fixed_months occurrence. No confirmation on
+ * un-skip (non-destructive); confirms before skipping since it's a deliberate
+ * "not doing this one" choice. No Activity is logged either way.
+ * @param {Object} occ - The occurrence object.
+ * @param {Function} reloadFn - Callback to call after saving.
+ */
+function handleToggleSkip(occ, reloadFn) {
+    if (occ.status === 'skipped') {
+        clearOccurrenceStatus(occ, reloadFn);
+        return;
+    }
+    if (!confirm('Skip this occurrence? No activity will be logged, and the next scheduled occurrence is unaffected.')) return;
+    setOccurrenceStatus(occ, { status: 'skipped' }, reloadFn);
+}
+
+// ---------- Postpone Modal (reset_interval only) ----------
+
+/**
+ * Opens the Postpone modal for a reset_interval occurrence.
+ * @param {Object} occ - The occurrence object.
+ * @param {Function} reloadFn - Callback to call after saving.
+ */
+function openPostponeModal(occ, reloadFn) {
+    var dateObj = new Date(occ.occurrenceDate + 'T00:00:00');
+    var dateStr = dateObj.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    });
+    document.getElementById('postponeInfo').textContent = occ.title + ' — ' + dateStr;
+    document.getElementById('postponeDateInput').value = '';
+
+    pendingPostponeOccurrence = { occ: occ, reloadFn: reloadFn };
+
+    openModal('postponeModal');
+}
+
+/**
+ * Sets the postpone date input to today + N days (used by the quick-pick buttons).
+ * @param {number} days - Number of days from today.
+ */
+function _calSetPostponeQuickPick(days) {
+    var d = new Date();
+    d.setDate(d.getDate() + days);
+    document.getElementById('postponeDateInput').value = formatDateISO(d);
+}
+
+/**
+ * Saves postponedUntil on the pending occurrence's event. While in the future,
+ * the reset_interval occurrence is fully suppressed from display (see
+ * generateOccurrences) — the real due date is untouched.
+ */
+async function handleSavePostpone() {
+    if (!pendingPostponeOccurrence) return;
+
+    var occ = pendingPostponeOccurrence.occ;
+    var reloadFn = pendingPostponeOccurrence.reloadFn;
+    var postponedUntil = document.getElementById('postponeDateInput').value;
+
+    if (!postponedUntil) {
+        alert('Please pick a date, or use one of the quick-pick buttons.');
+        return;
+    }
+
+    closeModal('postponeModal');
+    pendingPostponeOccurrence = null;
+
     try {
-        var update = {};
-        update['occurrenceStatus.' + occ.occurrenceDate] = firebase.firestore.FieldValue.delete();
-        await userCol('calendarEvents').doc(occ.eventId).update(update);
-        console.log('Cleared In Progress:', occ.title, occ.occurrenceDate);
+        await userCol('calendarEvents').doc(occ.eventId).update({ postponedUntil: postponedUntil });
+        console.log('Postponed:', occ.title, 'until', postponedUntil);
         if (typeof reloadFn === 'function') reloadFn();
     } catch (error) {
-        console.error('Error clearing status:', error);
-        alert('Error clearing status. Check console for details.');
+        console.error('Error postponing event:', error);
+        alert('Error postponing. Check console for details.');
     }
 }
 
@@ -2189,6 +2403,28 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === this) {
             closeModal('inProgressModal');
             pendingInProgressOccurrence = null;
+        }
+    });
+
+    // Postpone modal — quick-pick buttons
+    document.getElementById('postponeWeekBtn').addEventListener('click', function() { _calSetPostponeQuickPick(7); });
+    document.getElementById('postponeTwoWeeksBtn').addEventListener('click', function() { _calSetPostponeQuickPick(14); });
+    document.getElementById('postponeMonthBtn').addEventListener('click', function() { _calSetPostponeQuickPick(30); });
+
+    // Postpone modal — Save button
+    document.getElementById('postponeSaveBtn').addEventListener('click', handleSavePostpone);
+
+    // Postpone modal — Cancel button
+    document.getElementById('postponeCancelBtn').addEventListener('click', function() {
+        closeModal('postponeModal');
+        pendingPostponeOccurrence = null;
+    });
+
+    // Postpone modal — Close on overlay click
+    document.getElementById('postponeModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal('postponeModal');
+            pendingPostponeOccurrence = null;
         }
     });
 });

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=760">
+    <link rel="stylesheet" href="css/styles.css?v=761">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -5471,6 +5471,31 @@ service firebase.storage {
                 <button class="btn btn-danger" id="inProgressClearBtn" style="display:none;">Clear Status</button>
                 <button class="btn btn-secondary" id="inProgressCancelBtn">Cancel</button>
                 <button class="btn btn-primary" id="inProgressSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Postpone Modal (maintenance schedules: reset_interval only) -->
+    <div class="modal-overlay" id="postponeModal">
+        <div class="modal">
+            <h3>Postpone</h3>
+            <div id="postponeInfo" class="modal-info-line"></div>
+            <p class="form-hint" style="margin-top:0;">The reminder goes quiet until this date. The real due date doesn't change — it just resumes showing as due/overdue once this date passes.</p>
+            <div class="form-group">
+                <label>Quick pick</label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-small btn-secondary" id="postponeWeekBtn">1 Week</button>
+                    <button type="button" class="btn btn-small btn-secondary" id="postponeTwoWeeksBtn">2 Weeks</button>
+                    <button type="button" class="btn btn-small btn-secondary" id="postponeMonthBtn">1 Month</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="postponeDateInput">Or pick a date</label>
+                <input type="date" id="postponeDateInput">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="postponeCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="postponeSaveBtn">Postpone</button>
             </div>
         </div>
     </div>
@@ -11224,7 +11249,7 @@ export default {
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="js/photos.js?v=396"></script>
     <script src="js/weeds.js?v=351"></script>
-    <script src="js/calendar.js?v=358"></script>
+    <script src="js/calendar.js?v=359"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>

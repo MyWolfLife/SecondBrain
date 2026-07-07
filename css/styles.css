@@ -1785,6 +1785,18 @@ button {
     margin-right: 4px;
 }
 
+.calendar-skipped-badge {
+    display: inline-block;
+    background-color: #757575;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    margin-right: 4px;
+}
+
 /* Overdue events section */
 .calendar-overdue-heading {
     color: #e65100;

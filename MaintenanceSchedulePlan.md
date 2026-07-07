@@ -354,7 +354,8 @@ the fact works (e.g. re-open In Progress back to due, or straight to Completed).
 
 ---
 
-### MS-4: Skip + Postpone + auto-Unnecessary
+### MS-4: Skip + Postpone + auto-Unnecessary ✅ COMPLETE
+
 **Goal**: The two type-specific "close this cycle without doing the work" actions, plus the
 automatic suppression rule for fixed-months.
 
