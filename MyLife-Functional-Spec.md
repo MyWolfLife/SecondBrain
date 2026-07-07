@@ -2736,6 +2736,25 @@ Both maintenance-schedule types are part of the broader Maintenance Schedule fea
 
 **Used by**: All sections (yard, house, garage, vehicles, life, structures)
 
+**Entity link on occurrence cards**: The zone/plant/entity line on every occurrence card (`calendar.js`, shared by the Calendar page, entity detail pages, and `#maintenance`) is a clickable link to the linked entity — `#plant/{id}`, `#zone/{id}` (one link per zone for multi-zone events), `#vehicle/{id}`, or the relevant house/garage/structure route. House-context entities (floor/room/thing) keep their breadcrumb-style label (e.g., "House › 1st Floor › Kitchen") via `getHouseContextLabel()`, wrapped in the same link.
+
+### Maintenance Schedules List (`#maintenance`, `calendar.js`)
+
+**What it's for**: A dedicated cross-entity view of every `reset_interval` and `fixed_months` calendar event, regardless of which zone/room/vehicle/etc. it's linked to — the "what maintenance needs attention" list, separate from the general Calendar page which mixes in every other event type.
+
+**Query**: `calendarEvents` where `recurring.type` is `in ['reset_interval', 'fixed_months']` — a single Firestore query across the whole collection, not scoped to any entity.
+
+**Three sections**:
+- **Overdue** — open (not completed/skipped/unnecessary) occurrences past due, most-recently-overdue first. Same styling as the Calendar page's Overdue section (orange left border, "OVERDUE" badge).
+- **Upcoming** — open occurrences due within the next 12 months, soonest first.
+- **Resolved** — Completed, Skipped, and Unnecessary occurrences, most-recent first. **Hidden by default** — the **Show resolved** checkbox in the page header reveals it, matching the Problems/Quick Task List "show resolved/completed" convention.
+
+Postponed `reset_interval` occurrences never appear in any section while `postponedUntil` is in the future — `generateOccurrences()` already fully suppresses them at the source, so no special-casing is needed here; they simply reappear on their own once the postpone window passes.
+
+**Status actions**: Every card is built with the same `createCalendarEventCard()` used everywhere else — Complete, In Progress, Skip/Postpone, Clear Status, Edit, Copy, etc. all behave identically here as on the Calendar page or an entity detail page. Single source of truth; no divergent logic.
+
+**Nav**: "Maintenance" link in both the Yard and House nav bars (desktop + mobile), positioned next to Calendar. Shared page (like Calendar/Settings) — doesn't force a nav-context switch, retains whichever of Yard/House was last active.
+
 ### GPS / Location (`gps.js`, `BishopGps.md`)
 - Zones can be assigned GPS coordinates
 - `#yardmap`: shows all zones with coordinates on an interactive map
@@ -2803,8 +2822,8 @@ The app has three navigation contexts, each with its own nav bar:
 
 | Context | Nav Items |
 |---------|-----------|
-| **Yard** | Zones, Calendar, History, Checklists, Structures, Search, Chat |
-| **House** | House (floors), Rooms, Calendar, Checklists, Yard, Things, Collections, Search, Chat |
+| **Yard** | Zones, Calendar, Maintenance, History, Checklists, Structures, Search, Chat |
+| **House** | House (floors), Rooms, Calendar, Maintenance, Checklists, Yard, Things, Collections, Search, Chat |
 | **Life** | Journal, Contacts, Notes, Checklists, Chat |
 
 **Shared pages** (retain last active context): Settings, Change Password, GPS Map, Checklists

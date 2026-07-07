@@ -138,6 +138,7 @@
             <nav class="header-nav" id="yardNav">
             <a href="#zones" class="nav-link" data-page="home">Zones</a>
             <a href="#calendar" class="nav-link" data-page="calendar">Calendar</a>
+            <a href="#maintenance" class="nav-link" data-page="maintenance">Maintenance</a>
             <a href="#activityreport" class="nav-link" data-page="activityreport">History</a>
             <a href="#checklists" class="nav-link" data-page="checklists">Checklists</a>
             <a href="#house" class="nav-link" data-page="house">House</a>
@@ -153,6 +154,7 @@
             <a href="#house" class="nav-link" data-page="house">Floors</a>
             <a href="#rooms" class="nav-link" data-page="rooms">Rooms</a>
             <a href="#calendar" class="nav-link" data-page="calendar">Calendar</a>
+            <a href="#maintenance" class="nav-link" data-page="maintenance">Maintenance</a>
             <a href="#checklists" class="nav-link" data-page="checklists">Checklists</a>
             <a href="#zones" class="nav-link" data-page="yard">Yard</a>
             <a href="#things" class="nav-link" data-page="things">Things</a>
@@ -205,6 +207,7 @@
         <div id="mobileNavYard">
             <a href="#zones" class="nav-link" data-page="home">Zones</a>
             <a href="#calendar" class="nav-link" data-page="calendar">Calendar</a>
+            <a href="#maintenance" class="nav-link" data-page="maintenance">Maintenance</a>
             <a href="#activityreport" class="nav-link" data-page="activityreport">History</a>
             <a href="#checklists" class="nav-link" data-page="checklists">Checklists</a>
             <a href="#house" class="nav-link" data-page="house">House</a>
@@ -243,6 +246,7 @@
             <a href="#house" class="nav-link" data-page="house">Floors</a>
             <a href="#rooms" class="nav-link" data-page="rooms">Rooms</a>
             <a href="#calendar" class="nav-link" data-page="calendar">Calendar</a>
+            <a href="#maintenance" class="nav-link" data-page="maintenance">Maintenance</a>
             <a href="#checklists" class="nav-link" data-page="checklists">Checklists</a>
             <a href="#zones" class="nav-link" data-page="yard">Yard</a>
             <a href="#things" class="nav-link" data-page="things">Things</a>
@@ -2845,6 +2849,19 @@
             </div>
             <div id="calendarEventsContainer"></div>
             <p class="empty-state" id="calendarEmptyState">Loading...</p>
+        </section>
+
+        <!-- Page: Maintenance Schedules (#maintenance) -->
+        <section class="page hidden" id="page-maintenance">
+            <div class="page-header">
+                <h2>Maintenance Schedules</h2>
+                <div class="page-header-actions">
+                    <label class="show-toggle"><input type="checkbox" id="showResolvedMaintenance"> Show resolved</label>
+                </div>
+            </div>
+            <p class="form-hint" style="margin-top:0;">Every Reset Interval and Fixed Months schedule across the whole app, in one place — regardless of which zone, room, or vehicle it's linked to.</p>
+            <div id="maintenanceListContainer"></div>
+            <p class="empty-state" id="maintenanceEmptyState">Loading...</p>
         </section>
 
         <!-- Page: Chemicals / Products -->
@@ -11249,7 +11266,7 @@ export default {
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="js/photos.js?v=396"></script>
     <script src="js/weeds.js?v=351"></script>
-    <script src="js/calendar.js?v=359"></script>
+    <script src="js/calendar.js?v=361"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>
@@ -11299,7 +11316,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=668"></script>
+    <script src="js/app.js?v=669"></script>
 
 </body>
 </html>

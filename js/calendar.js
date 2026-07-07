@@ -474,6 +474,136 @@ async function loadOverdueEvents() {
     }
 }
 
+// ---------- Maintenance List (#maintenance) ----------
+
+/**
+ * Loads the dedicated cross-entity maintenance-schedule list: every
+ * calendarEvents doc whose recurring.type is 'reset_interval' or 'fixed_months',
+ * regardless of which entity it's linked to. Reuses createCalendarEventCard so
+ * status actions here are identical to the calendar page and entity detail pages —
+ * single source of truth, no divergence.
+ *
+ * Three buckets: Overdue (open, past-due), Upcoming (open, next 12 months),
+ * Resolved (Completed/Skipped/Unnecessary — only collected and shown when the
+ * "Show resolved" toggle is checked, matching the Problems/Quick Task List
+ * convention). Postponed reset_interval occurrences don't appear anywhere here —
+ * generateOccurrences already fully suppresses them while postponedUntil is in
+ * the future, so they drop out on their own without needing special handling.
+ */
+async function loadMaintenanceList() {
+    var container = document.getElementById('maintenanceListContainer');
+    var emptyState = document.getElementById('maintenanceEmptyState');
+    var showResolved = document.getElementById('showResolvedMaintenance').checked;
+
+    container.innerHTML = '';
+    emptyState.style.display = 'none';
+
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var todayStr = formatDateISO(today);
+    var yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    var yesterdayStr = formatDateISO(yesterday);
+    var rangeEndDate = new Date(today);
+    rangeEndDate.setMonth(rangeEndDate.getMonth() + 12);
+    var rangeEndStr = formatDateISO(rangeEndDate);
+
+    function isResolved(occ) {
+        return occ.completed || occ.status === 'skipped' || occ.status === 'unnecessary';
+    }
+
+    try {
+        var snapshot = await userCol('calendarEvents')
+            .where('recurring.type', 'in', ['reset_interval', 'fixed_months'])
+            .get();
+
+        if (snapshot.empty) {
+            emptyState.textContent = 'No maintenance schedules yet. Create one from the Calendar page — choose "Reset Interval" or "Fixed Months" as the frequency.';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        var events = [];
+        snapshot.forEach(function(doc) { events.push({ id: doc.id, ...doc.data() }); });
+
+        var overdueOccs = [];
+        var upcomingOccs = [];
+        var resolvedOccs = [];
+
+        events.forEach(function(event) {
+            var pastOccs = generateOccurrences(event, event.date, yesterdayStr);
+            pastOccs.forEach(function(occ) {
+                if (isResolved(occ)) {
+                    if (showResolved) resolvedOccs.push(occ);
+                } else {
+                    occ.overdue = true;
+                    overdueOccs.push(occ);
+                }
+            });
+
+            var futureOccs = generateOccurrences(event, todayStr, rangeEndStr);
+            futureOccs.forEach(function(occ) {
+                if (isResolved(occ)) {
+                    if (showResolved) resolvedOccs.push(occ);
+                } else {
+                    upcomingOccs.push(occ);
+                }
+            });
+        });
+
+        overdueOccs.sort(function(a, b) { return b.occurrenceDate.localeCompare(a.occurrenceDate); });
+        upcomingOccs.sort(function(a, b) { return a.occurrenceDate.localeCompare(b.occurrenceDate); });
+        resolvedOccs.sort(function(a, b) { return b.occurrenceDate.localeCompare(a.occurrenceDate); });
+
+        if (overdueOccs.length === 0 && upcomingOccs.length === 0 && resolvedOccs.length === 0) {
+            emptyState.textContent = showResolved
+                ? 'No maintenance schedules in the next 12 months.'
+                : 'Nothing needs attention right now. Turn on "Show resolved" to see completed, skipped, or unnecessary items.';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        var reloadFn = loadMaintenanceList;
+
+        if (overdueOccs.length > 0) {
+            var overdueHeader = document.createElement('h3');
+            overdueHeader.className = 'section-heading calendar-overdue-heading';
+            overdueHeader.textContent = 'Overdue';
+            container.appendChild(overdueHeader);
+            overdueOccs.forEach(function(occ) {
+                var card = createCalendarEventCard(occ, reloadFn);
+                card.classList.add('calendar-overdue-card');
+                container.appendChild(card);
+            });
+        }
+
+        if (upcomingOccs.length > 0) {
+            var upcomingHeader = document.createElement('h3');
+            upcomingHeader.className = 'section-heading';
+            upcomingHeader.textContent = 'Upcoming';
+            container.appendChild(upcomingHeader);
+            upcomingOccs.forEach(function(occ) {
+                container.appendChild(createCalendarEventCard(occ, reloadFn));
+            });
+        }
+
+        if (resolvedOccs.length > 0) {
+            var resolvedHeader = document.createElement('h3');
+            resolvedHeader.className = 'section-heading';
+            resolvedHeader.textContent = 'Resolved';
+            container.appendChild(resolvedHeader);
+            resolvedOccs.forEach(function(occ) {
+                container.appendChild(createCalendarEventCard(occ, reloadFn));
+            });
+        }
+
+    } catch (error) {
+        console.error('Error loading maintenance list:', error);
+        emptyState.textContent = 'Error loading maintenance schedules.';
+        emptyState.style.display = 'block';
+    }
+}
+
 // ---------- Generate Occurrences ----------
 
 /**
@@ -739,6 +869,36 @@ function _fmNextOccurrenceDate(recurring, afterDate) {
     return new Date(year + 1, firstMonth - 1, Math.min(dayOfMonth, lastDayNextYear));
 }
 
+/**
+ * Appends a clickable link (with leading text already part of the label) to a
+ * container element. Small shared helper for the target-entity line.
+ * @param {HTMLElement} container
+ * @param {string} label - Full link text, e.g. "Vehicle: 2019 Ford F-150".
+ * @param {string} href - e.g. "#vehicle/abc123".
+ */
+function _calAppendTargetLink(container, label, href) {
+    var a = document.createElement('a');
+    a.href = href;
+    a.textContent = label;
+    container.appendChild(a);
+}
+
+/**
+ * Friendly label prefix for a targetType, used by the generic entity-link
+ * fallback in createCalendarEventCard.
+ * @param {string} type
+ * @returns {string}
+ */
+function _calTargetTypeLabel(type) {
+    var labels = {
+        vehicle: 'Vehicle', weed: 'Weed',
+        subthing: 'Sub-Thing', item: 'Item',
+        structure: 'Structure', structurething: 'Thing', structuresubthing: 'Sub-Thing',
+        garageroom: 'Garage Room', garagething: 'Thing', garagesubthing: 'Sub-Thing'
+    };
+    return labels[type] || 'Linked to';
+}
+
 // ---------- Create Event Card ----------
 
 /**
@@ -783,7 +943,9 @@ function createCalendarEventCard(occ, reloadFn) {
         card.appendChild(desc);
     }
 
-    // Zone / plant association line — populated async
+    // Zone / plant / entity association line — populated async, rendered as a
+    // clickable link to the linked entity (needed by the #maintenance list, which
+    // has no other way to reach the underlying zone/plant/vehicle/etc.).
     var targetEl = document.createElement('div');
     targetEl.className = 'calendar-event-target';
     card.appendChild(targetEl);
@@ -792,22 +954,37 @@ function createCalendarEventCard(occ, reloadFn) {
             if (occ.targetType === 'plant' && occ.targetId) {
                 var plantDoc = await userCol('plants').doc(occ.targetId).get();
                 if (plantDoc.exists) {
-                    targetEl.textContent = 'Plant: ' + plantDoc.data().name;
+                    _calAppendTargetLink(targetEl, 'Plant: ' + plantDoc.data().name, '#plant/' + occ.targetId);
                 }
             } else if (occ.zoneIds && occ.zoneIds.length > 0) {
-                var zoneNames = [];
+                var zoneEntries = [];
                 for (var zi = 0; zi < occ.zoneIds.length; zi++) {
                     var zDoc = await userCol('zones').doc(occ.zoneIds[zi]).get();
-                    if (zDoc.exists) zoneNames.push(zDoc.data().name);
+                    if (zDoc.exists) zoneEntries.push({ id: occ.zoneIds[zi], name: zDoc.data().name });
                 }
-                if (zoneNames.length > 0) {
-                    targetEl.textContent = (zoneNames.length === 1 ? 'Zone: ' : 'Zones: ') + zoneNames.join(', ');
+                if (zoneEntries.length > 0) {
+                    targetEl.appendChild(document.createTextNode(zoneEntries.length === 1 ? 'Zone: ' : 'Zones: '));
+                    zoneEntries.forEach(function(z, idx) {
+                        var zLink = document.createElement('a');
+                        zLink.href = '#zone/' + z.id;
+                        zLink.textContent = z.name;
+                        targetEl.appendChild(zLink);
+                        if (idx < zoneEntries.length - 1) targetEl.appendChild(document.createTextNode(', '));
+                    });
                 }
             } else if ((occ.targetType === 'floor' || occ.targetType === 'room' || occ.targetType === 'thing') && occ.targetId) {
                 // House context label — resolved by house.js to keep calendar.js yard-agnostic
                 if (typeof getHouseContextLabel === 'function') {
                     var houseLabel = await getHouseContextLabel(occ.targetType, occ.targetId);
-                    if (houseLabel) targetEl.textContent = houseLabel;
+                    if (houseLabel) _calAppendTargetLink(targetEl, houseLabel, '#' + occ.targetType + '/' + occ.targetId);
+                }
+            } else if (occ.targetType && occ.targetId) {
+                // Generic fallback for any other linkable entity type (vehicle, weed,
+                // subthing, item, structure, structurething, structuresubthing,
+                // garageroom, garagething, garagesubthing).
+                var entityName = await resolveTargetName(occ.targetType, occ.targetId);
+                if (entityName && entityName !== occ.targetId) {
+                    _calAppendTargetLink(targetEl, _calTargetTypeLabel(occ.targetType) + ': ' + entityName, '#' + occ.targetType + '/' + occ.targetId);
                 }
             }
         } catch (e) { /* silently skip if lookup fails */ }
@@ -1956,7 +2133,15 @@ async function resolveTargetName(targetType, targetId) {
         var col = TYPE_COLLECTION[targetType];
         if (!col) return targetId;
         var doc = await userCol(col).doc(targetId).get();
-        if (doc.exists) return doc.data().name || targetId;
+        if (doc.exists) {
+            var data = doc.data();
+            // Vehicles have no single "name" field — build one from year/make/model,
+            // same pattern used elsewhere in the app (e.g. app.js clCaptureContext).
+            if (targetType === 'vehicle') {
+                return [data.year, data.make, data.model].filter(Boolean).join(' ') || targetId;
+            }
+            return data.name || targetId;
+        }
     } catch (e) { /* ignore */ }
     return targetId;
 }
@@ -2279,6 +2464,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // "Show completed" checkbox — reload calendar to include/exclude completed events
     document.getElementById('showCompletedCalendarEvents').addEventListener('change', function() {
         loadCalendar();
+    });
+
+    // Maintenance list — "Show resolved" checkbox
+    document.getElementById('showResolvedMaintenance').addEventListener('change', function() {
+        loadMaintenanceList();
     });
 
     // Calendar event modal — Save button

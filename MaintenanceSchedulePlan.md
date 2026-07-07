@@ -381,7 +381,8 @@ once the postponed date passes (can fast-forward by editing `postponedUntil` dir
 
 ---
 
-### MS-5: "Open Maintenance Items" list (`#maintenance`)
+### MS-5: "Open Maintenance Items" list (`#maintenance`) ✅ COMPLETE
+
 **Goal**: The dedicated cross-entity view tying the whole feature together.
 
 - New route `#maintenance`. Query all `calendarEvents` where `recurring.type` is `reset_interval`
@@ -463,16 +464,16 @@ handles a tag with only one type of tagged content gracefully, not just projects
 
 ## Phase Summary
 
-| Phase | Delivers | Key Files |
-|-------|----------|-----------|
-| MS-1 | `reset_interval` schedules (hot tub, AC filter, oil change) | `calendar.js`, `index.html` |
-| MS-2 | `fixed_months` schedules (hedge pruning, fertilizing) | `calendar.js`, `index.html` |
-| MS-3 | `occurrenceStatus` model + Complete/In-Progress | `calendar.js`, `index.html` |
-| MS-4 | Skip, Postpone, auto-Unnecessary | `calendar.js`, `index.html` |
-| MS-5 | `#maintenance` open items list | `calendar.js` (new fns), `index.html`, `app.js` (routing) |
-| TAG-1 | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
-| TAG-2 | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
-| TAG-3 | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
-| TAG-4 | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
+| Phase | Status | Delivers | Key Files |
+|-------|--------|----------|-----------|
+| MS-1 | ✅ Done | `reset_interval` schedules (hot tub, AC filter, oil change) | `calendar.js`, `index.html` |
+| MS-2 | ✅ Done | `fixed_months` schedules (hedge pruning, fertilizing) | `calendar.js`, `index.html` |
+| MS-3 | ✅ Done | `occurrenceStatus` model + Complete/In-Progress | `calendar.js`, `index.html` |
+| MS-4 | ✅ Done | Skip, Postpone, auto-Unnecessary | `calendar.js`, `index.html` |
+| MS-5 | ✅ Done | `#maintenance` open items list | `calendar.js` (new fns), `index.html`, `app.js` (routing) |
+| TAG-1 | Not started | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
+| TAG-2 | Not started | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
+| TAG-3 | Not started | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
+| TAG-4 | Not started | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
 
 Prompt me with the phase name/number ("do MS-1", "start TAG-2", etc.) to begin work on it.

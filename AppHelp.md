@@ -349,11 +349,33 @@ The health indicator also appears on the plant card in the zone view, so you can
 **Tips:**
 - Recurring events use the original date as the anchor — completions and cancellations are tracked per-occurrence without changing the series.
 - Delete "this occurrence only" adds the date to a cancelled list — the series continues.
+- Every event card shows a clickable link to whatever it's linked to (zone, plant, vehicle, room, etc.) — tap it to jump straight to that entity's page.
 
 ### See Also
 - [Zone Detail](#help/zone)
 - [Activity Report](#help/activityreport)
 - [Saved Actions](#help/actions)
+- [Maintenance Schedules](#help/maintenance)
+
+---
+
+## screen:maintenance
+
+**What this screen is for:** A dedicated list of every Reset Interval and Fixed Months maintenance schedule across the whole app — hot tub, fertilizing, oil changes, anything set up as one of those two schedule types — in one place, regardless of which zone, room, or vehicle it's tied to. The regular Calendar page mixes these in with every other event; this page filters down to just the maintenance schedules.
+
+**Three sections:**
+- **Overdue** — schedules that are past due and still need attention, most-recently-overdue first
+- **Upcoming** — schedules due within the next 12 months, soonest first
+- **Resolved** — Completed, Skipped, and Unnecessary occurrences. Hidden by default — check **Show resolved** at the top to reveal this section.
+
+**Status actions:** Every card here works exactly the same as on the Calendar page or an entity's own page — Complete, In Progress, Skip, Postpone, Clear Status, Edit, Copy. Nothing is different or separate; this is just a filtered view into the same data.
+
+**Postponed items:** A Reset Interval schedule you've postponed won't show up anywhere on this page (or anywhere else) until the postpone date passes — that's intentional, matching "no reminder" while postponed.
+
+**Creating a new schedule:** This page doesn't have its own "Add" button — create Reset Interval and Fixed Months schedules the same way as any other calendar event, from the Calendar page or from an entity's detail page, then choose the frequency type.
+
+### See Also
+- [Calendar](#help/calendar)
 
 ---
 

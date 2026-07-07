@@ -165,7 +165,7 @@ function _pwaDismiss() {
  * List of top-level pages that map to nav links.
  * These pages clear the breadcrumb bar when shown.
  */
-const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'chemicals', 'actions', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'devnotes',
+const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals', 'actions', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'devnotes',
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
@@ -448,6 +448,9 @@ function handleRoute() {
     } else if (page === 'calendar') {
         showPage('calendar');
         loadCalendar();
+    } else if (page === 'maintenance') {
+        showPage('maintenance');
+        loadMaintenanceList();
     } else if (page === 'chemical' && id) {
         showPage('chemical');
         loadChemicalDetail(id);
