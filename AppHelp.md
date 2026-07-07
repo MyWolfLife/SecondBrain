@@ -376,6 +376,26 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 ### See Also
 - [Calendar](#help/calendar)
+- [Tags](#help/tags)
+
+---
+
+## screen:tags
+
+**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. This first version just manages the list itself; a future update will let you tag calendar events and Quick Task List items so you can view everything tied to one tag together (e.g. a "Yard Plan" view or a mixed dated/dateless project).
+
+**Common tasks:**
+- **Add a tag:** Tap **+ Add** and enter a name
+- **Rename a tag:** Tap **Edit** on a tag, change the name, **Save**
+- **Archive a tag:** Tap **Edit** → **Archive**. Archived tags are hidden from the default list and from any future picker, but nothing that's already tagged with it is affected.
+- **See archived tags:** Check **Show archived** at the bottom of the page. Tap **Unarchive** to bring one back.
+
+**Tips:**
+- Tags are never permanently deleted, only archived — this keeps anything already tagged working correctly.
+
+### See Also
+- [Maintenance](#help/maintenance)
+- [Calendar](#help/calendar)
 
 ---
 

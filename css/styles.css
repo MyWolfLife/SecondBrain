@@ -1522,11 +1522,15 @@ button {
 .landing-tile--settings-weeds {
     background: #f0fdf4; border-color: #86efac; color: #14532d;
 }
+.landing-tile--settings-tags {
+    background: #fff1f2; border-color: #fda4af; color: #881337;
+}
 .landing-tile--settings-general:hover,
 .landing-tile--settings-places:hover,
 .landing-tile--settings-products:hover,
 .landing-tile--settings-actions:hover,
-.landing-tile--settings-weeds:hover {
+.landing-tile--settings-weeds:hover,
+.landing-tile--settings-tags:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }

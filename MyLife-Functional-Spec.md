@@ -2755,6 +2755,23 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 
 **Nav**: "Maintenance" link in both the Yard and House nav bars (desktop + mobile), positioned next to Calendar. Shared page (like Calendar/Settings) — doesn't force a nav-context switch, retains whichever of Yard/House was last active.
 
+### Tags (`tags.js`)
+
+**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. This first phase builds the managed tag list itself; nothing references it yet (calendar events and Quick Task List pickers are a later phase — see `MaintenanceSchedulePlan.md`).
+
+**Firestore**: `tags` — `name`, `active` (bool, default `true`), `createdAt`
+
+**Route**: `#tags` — reachable from the Settings hub ("🏷️ Tags" tile)
+
+**Soft delete only**: There is no hard-delete. "Archive" sets `active: false`; there is no separate confirm step beyond the standard confirm dialog. Archiving is intentionally non-destructive since future phases will reference tags by ID (`tagIds[]`) from calendar events and quick tasks — an archived tag's name must keep resolving for anything already tagged with it.
+
+**Page layout**:
+- Active tags list (name + Edit button), alphabetical
+- "Archived" section below, collapsed by default behind a **Show archived** toggle (matches the Checklists "show archived" convention) — lists archived tags with an Unarchive button
+- **+ Add** button in the header opens the same modal used for Edit, with Save/Cancel; the Edit modal additionally shows an Archive button
+
+**Helper**: `getAllTags()` returns all active tags (id, name, sorted) for use by future picker UIs (TAG-2/TAG-3).
+
 ### GPS / Location (`gps.js`, `BishopGps.md`)
 - Zones can be assigned GPS coordinates
 - `#yardmap`: shows all zones with coordinates on an interactive map
@@ -2953,6 +2970,7 @@ All collections live under `/users/{uid}/`. Every module uses `userCol('collecti
 | `chemicals` | name, notes, createdAt |
 | `activities` | targetType, targetId, description, notes, date, chemicalIds[], savedActionId?, placeId? |
 | `savedActions` | name, description, chemicalIds[], notes |
+| `tags` | name, active (bool, default true), createdAt |
 
 ### House
 

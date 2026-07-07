@@ -817,6 +817,10 @@
                     <span class="landing-tile-icon">🌿</span>
                     <span class="landing-tile-label">Weeds</span>
                 </a>
+                <a href="#tags" class="landing-tile landing-tile--settings-tags">
+                    <span class="landing-tile-icon">🏷️</span>
+                    <span class="landing-tile-label">Tags</span>
+                </a>
                 <a href="#settings-contact-lists" class="landing-tile">
                     <span class="landing-tile-icon">👥</span>
                     <span class="landing-tile-label">Contact Types</span>
@@ -2916,6 +2920,29 @@
             </div>
             <div id="chemicalUsageContainer"></div>
             <p class="empty-state" id="chemicalUsageEmptyState">No activities recorded with this chemical.</p>
+        </section>
+
+        <!-- Page: Tags -->
+        <section class="page hidden" id="page-tags">
+            <div class="page-header">
+                <h2>Tags</h2>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary btn-small" id="addTagBtn">+ Add</button>
+                </div>
+            </div>
+            <p class="form-hint" style="margin-top:0;">Tags let you group calendar events and quick tasks together across different zones, rooms, or vehicles — e.g. a "Yard Plan" view or a multi-item project.</p>
+            <div class="card-list" id="tagsListContainer"></div>
+            <p class="empty-state" id="tagsEmptyState">Loading...</p>
+
+            <!-- Archived tags -->
+            <div class="section-header" style="margin-top:8px;">
+                <h3 class="section-heading">Archived</h3>
+                <label class="show-toggle">
+                    <input type="checkbox" id="tagsShowArchivedToggle"> Show archived
+                </label>
+            </div>
+            <div id="tagsArchivedContainer" class="hidden"></div>
+            <p class="empty-state hidden" id="tagsArchivedEmptyState">No archived tags.</p>
         </section>
 
         <!-- Page: Checklists -->
@@ -5120,6 +5147,22 @@ service firebase.storage {
                 <button class="btn btn-danger" id="chemicalModalDeleteBtn" style="display:none;">Delete</button>
                 <button class="btn btn-secondary" id="chemicalModalCancelBtn">Cancel</button>
                 <button class="btn btn-primary" id="chemicalModalSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag Modal (Add/Edit) -->
+    <div class="modal-overlay" id="tagModal">
+        <div class="modal">
+            <h3 id="tagModalTitle">Add Tag</h3>
+            <div class="form-group">
+                <label for="tagNameInput">Name</label>
+                <input type="text" id="tagNameInput" placeholder="e.g., Yard Plan, Putting Green">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="tagModalArchiveBtn" style="display:none;">Archive</button>
+                <button class="btn btn-secondary" id="tagModalCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="tagModalSaveBtn">Save</button>
             </div>
         </div>
     </div>
@@ -11259,6 +11302,7 @@ export default {
     <script src="js/facts.js?v=350"></script>
     <script src="js/projects.js?v=403"></script>
     <script src="js/chemicals.js?v=350"></script>
+    <script src="js/tags.js?v=1"></script>
     <script src="js/activities.js?v=352"></script>
     <!-- Cropper.js — client-side image cropping library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>

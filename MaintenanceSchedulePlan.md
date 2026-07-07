@@ -400,7 +400,7 @@ match what shows on the calendar and entity detail pages (single source of truth
 
 ---
 
-### TAG-1: Tags data model + management page (`#tags`)
+### TAG-1: Tags data model + management page (`#tags`) ✅ COMPLETE
 **Goal**: The managed tag list exists and is fully CRUD-able, independent of anything that will
 reference it yet.
 
@@ -471,7 +471,7 @@ handles a tag with only one type of tagged content gracefully, not just projects
 | MS-3 | ✅ Done | `occurrenceStatus` model + Complete/In-Progress | `calendar.js`, `index.html` |
 | MS-4 | ✅ Done | Skip, Postpone, auto-Unnecessary | `calendar.js`, `index.html` |
 | MS-5 | ✅ Done | `#maintenance` open items list | `calendar.js` (new fns), `index.html`, `app.js` (routing) |
-| TAG-1 | Not started | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
+| TAG-1 | ✅ Done | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
 | TAG-2 | Not started | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
 | TAG-3 | Not started | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
 | TAG-4 | Not started | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |

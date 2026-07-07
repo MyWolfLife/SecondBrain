@@ -2,7 +2,7 @@
 // Caches all local static assets so the app loads offline.
 // IMPORTANT: Bump CACHE_NAME on every deploy so users get fresh files.
 
-var CACHE_NAME = 'bishop-v437';
+var CACHE_NAME = 'bishop-v438';
 
 var STATIC_ASSETS = [
     '/SecondBrain/',
@@ -17,6 +17,7 @@ var STATIC_ASSETS = [
     '/SecondBrain/js/facts.js',
     '/SecondBrain/js/projects.js',
     '/SecondBrain/js/chemicals.js',
+    '/SecondBrain/js/tags.js',
     '/SecondBrain/js/activities.js',
     '/SecondBrain/js/photos.js',
     '/SecondBrain/js/weeds.js',
