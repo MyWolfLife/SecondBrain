@@ -1,6 +1,6 @@
 # Maintenance Schedule Plan
 
-## Status: DISCUSSION — core decisions made, Tags section still informal, not ready to code yet
+## Status: ✅ ALL PHASES COMPLETE — MS-1 through MS-5 and TAG-1 through TAG-4 all shipped
 
 ---
 
@@ -443,7 +443,7 @@ it "Putting Green." Confirm the tag chip displays and persists.
 
 ---
 
-### TAG-4: Tag view page (`#tag/{id}`) + tag browser
+### TAG-4: Tag view page (`#tag/{id}`) + tag browser ✅ COMPLETE
 **Goal**: The payoff — a single page showing everything tied to a tag, regardless of what entity
 it's attached to. This is the "Yard Plan" yearly view and the putting-green project view, both for
 free from the same mechanism.
@@ -474,6 +474,6 @@ handles a tag with only one type of tagged content gracefully, not just projects
 | TAG-1 | ✅ Done | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
 | TAG-2 | ✅ Done | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
 | TAG-3 | ✅ Done | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
-| TAG-4 | Not started | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
+| TAG-4 | ✅ Done | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
 
 Prompt me with the phase name/number ("do MS-1", "start TAG-2", etc.) to begin work on it.

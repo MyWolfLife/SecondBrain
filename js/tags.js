@@ -17,7 +17,10 @@ async function loadTagsList() {
     const emptyState = document.getElementById('tagsEmptyState');
 
     try {
-        const snapshot = await userCol('tags').get();
+        const [snapshot, counts] = await Promise.all([
+            userCol('tags').get(),
+            getTagUsageCounts()
+        ]);
 
         container.innerHTML = '';
 
@@ -39,7 +42,7 @@ async function loadTagsList() {
         tags.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
         tags.forEach(function(tag) {
-            container.appendChild(createTagItem(tag, false));
+            container.appendChild(createTagItem(tag, false, counts[tag.id] || 0));
         });
 
     } catch (error) {
@@ -47,6 +50,30 @@ async function loadTagsList() {
         emptyState.textContent = 'Error loading tags.';
         emptyState.style.display = 'block';
     }
+}
+
+/**
+ * Counts how many calendarEvents and projects reference each tag ID.
+ * Fetches both collections once and tallies client-side rather than running
+ * a query per tag — cheap at this app's scale, and one round trip either way.
+ * @returns {Promise<Object>} Map of { tagId: totalCount }.
+ */
+async function getTagUsageCounts() {
+    var [eventsSnap, projectsSnap] = await Promise.all([
+        userCol('calendarEvents').get(),
+        userCol('projects').get()
+    ]);
+
+    var counts = {};
+    function tally(snap) {
+        snap.forEach(function(doc) {
+            var tagIds = doc.data().tagIds || [];
+            tagIds.forEach(function(id) { counts[id] = (counts[id] || 0) + 1; });
+        });
+    }
+    tally(eventsSnap);
+    tally(projectsSnap);
+    return counts;
 }
 
 /**
@@ -61,7 +88,10 @@ async function loadArchivedTags() {
     emptyState.classList.add('hidden');
 
     try {
-        const snapshot = await userCol('tags').where('active', '==', false).get();
+        const [snapshot, counts] = await Promise.all([
+            userCol('tags').where('active', '==', false).get(),
+            getTagUsageCounts()
+        ]);
 
         const tags = [];
         snapshot.forEach(function(doc) {
@@ -76,7 +106,7 @@ async function loadArchivedTags() {
         tags.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
         tags.forEach(function(tag) {
-            container.appendChild(createTagItem(tag, true));
+            container.appendChild(createTagItem(tag, true, counts[tag.id] || 0));
         });
 
     } catch (error) {
@@ -91,9 +121,10 @@ async function loadArchivedTags() {
  * Creates a DOM element representing a single tag.
  * @param {Object} tag - The tag data (id, name, active).
  * @param {boolean} isArchived - Whether this card is being rendered in the Archived section.
+ * @param {number} usageCount - Number of calendar events + quick tasks tagged with this tag.
  * @returns {HTMLElement} The tag item element.
  */
-function createTagItem(tag, isArchived) {
+function createTagItem(tag, isArchived, usageCount) {
     const item = document.createElement('div');
     item.className = isArchived ? 'cl-archived-card' : 'card tag-item';
 
@@ -101,10 +132,20 @@ function createTagItem(tag, isArchived) {
     info.className = isArchived ? 'cl-archived-info' : '';
     info.style.flex = '1';
 
-    const title = document.createElement('div');
-    title.className = 'card-title';
+    // Tag name links to the #tag/{id} view (shows everything tagged with it),
+    // even for archived tags — archiving only hides it from the picker, not from browsing.
+    const title = document.createElement('a');
+    title.className = 'card-title card-title--link';
+    title.href = '#tag/' + tag.id;
     title.textContent = tag.name;
     info.appendChild(title);
+
+    if (usageCount > 0) {
+        const countEl = document.createElement('span');
+        countEl.className = 'card-subtitle';
+        countEl.textContent = usageCount + ' item' + (usageCount === 1 ? '' : 's');
+        info.appendChild(countEl);
+    }
 
     item.appendChild(info);
 
@@ -241,6 +282,206 @@ async function handleArchiveTag(tagId, active) {
     } catch (error) {
         console.error('Error updating tag:', error);
         alert('Error updating tag. Check console for details.');
+    }
+}
+
+// ---------- Tag Detail Page (#tag/{id}) ----------
+// The payoff: everything tagged with a given tag in one place, regardless of
+// which entity it's individually attached to — a "Yard Plan" yearly view, or
+// a mixed dated/dateless project view, for free from the same tagIds[] data.
+
+/** The tag ID currently shown on the #tag/{id} page — used by the range/show-completed reload. */
+var _tagDetailId = null;
+
+/**
+ * Loads the tag detail page: header + tagged Quick Tasks + tagged Calendar Events.
+ * @param {string} tagId - The tag's Firestore document ID.
+ */
+async function loadTagDetail(tagId) {
+    _tagDetailId = tagId;
+
+    try {
+        var doc = await userCol('tags').doc(tagId).get();
+        if (!doc.exists) {
+            document.getElementById('tagDetailName').textContent = 'Tag not found';
+            return;
+        }
+        var tag = { id: doc.id, ...doc.data() };
+
+        document.getElementById('tagDetailName').textContent =
+            tag.name + (tag.active === false ? ' (archived)' : '');
+
+        var crumb = document.getElementById('breadcrumbBar');
+        if (crumb) {
+            crumb.innerHTML =
+                '<a href="#tags">Tags</a>' +
+                '<span class="separator">&rsaquo;</span>' +
+                '<span>' + escapeHtml(tag.name) + '</span>';
+        }
+
+        await Promise.all([
+            _loadTagDetailProjects(tagId),
+            _loadTagDetailEvents(tagId)
+        ]);
+
+    } catch (error) {
+        console.error('Error loading tag detail:', error);
+        document.getElementById('tagDetailName').textContent = 'Error loading tag';
+    }
+}
+
+/**
+ * Loads and renders every Quick Task project tagged with this tag, each
+ * labeled with its source entity (since tagged items can span any zone/room/
+ * vehicle/etc.) via the generic resolveTargetName() helper from calendar.js.
+ */
+async function _loadTagDetailProjects(tagId) {
+    var container = document.getElementById('tagDetailProjectsContainer');
+    var emptyState = document.getElementById('tagDetailProjectsEmptyState');
+    container.innerHTML = '';
+
+    try {
+        var snap = await userCol('projects').where('tagIds', 'array-contains', tagId).get();
+
+        if (snap.empty) {
+            emptyState.textContent = 'No quick tasks tagged with this tag.';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+
+        var projects = [];
+        snap.forEach(function(doc) { projects.push({ id: doc.id, ...doc.data() }); });
+        projects.sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+
+        for (var i = 0; i < projects.length; i++) {
+            var p = projects[i];
+            var card = createProjectCard(p, p.targetType, p.targetId);
+            try {
+                var name = await resolveTargetName(p.targetType, p.targetId);
+                if (name && name !== p.targetId) {
+                    var sourceLabel = document.createElement('div');
+                    sourceLabel.className = 'project-source-label';
+                    sourceLabel.textContent = '📍 ' + name;
+                    card.insertBefore(sourceLabel, card.firstChild);
+                }
+            } catch (e) { /* skip label if resolution fails — card still renders */ }
+            container.appendChild(card);
+        }
+
+    } catch (error) {
+        console.error('Error loading tagged projects:', error);
+        container.innerHTML = '';
+        emptyState.textContent = 'Error loading quick tasks.';
+        emptyState.style.display = 'block';
+    }
+}
+
+/**
+ * Loads and renders every Calendar Event occurrence tagged with this tag —
+ * one-time, recurring, and maintenance schedules alike — split into an
+ * Overdue section and a month-grouped upcoming list, mirroring the main
+ * Calendar page's layout and range picker.
+ */
+async function _loadTagDetailEvents(tagId) {
+    var container       = document.getElementById('tagDetailEventsContainer');
+    var emptyState      = document.getElementById('tagDetailEventsEmptyState');
+    var overdueSection   = document.getElementById('tagDetailOverdueSection');
+    var overdueContainer = document.getElementById('tagDetailOverdueContainer');
+    var rangeMonths   = parseInt(document.getElementById('tagDetailRangeSelect').value) || 3;
+    var showCompleted = document.getElementById('tagDetailShowCompleted').checked;
+
+    container.innerHTML = '';
+    overdueContainer.innerHTML = '';
+    overdueSection.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var rangeStart = formatDateISO(today);
+    var yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    var yesterdayStr = formatDateISO(yesterday);
+    var rangeEndDate = new Date(today);
+    rangeEndDate.setMonth(rangeEndDate.getMonth() + rangeMonths);
+    var rangeEnd = formatDateISO(rangeEndDate);
+
+    var reloadFn = function() { _loadTagDetailEvents(tagId); };
+
+    try {
+        var snap = await userCol('calendarEvents').where('tagIds', 'array-contains', tagId).get();
+
+        if (snap.empty) {
+            emptyState.textContent = 'No calendar events tagged with this tag.';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        var events = [];
+        snap.forEach(function(doc) { events.push({ id: doc.id, ...doc.data() }); });
+
+        // Overdue — same convention as the main Calendar and #maintenance pages:
+        // past uncompleted occurrences, excluding resolved maintenance statuses.
+        var overdueOccs = [];
+        events.forEach(function(event) {
+            if (!event.date) return;
+            var eventStart = new Date(event.date + 'T00:00:00');
+            if (eventStart >= today) return;
+            var pastOccs = generateOccurrences(event, event.date, yesterdayStr);
+            pastOccs.forEach(function(occ) {
+                if (!occ.completed && occ.status !== 'skipped' && occ.status !== 'unnecessary') {
+                    occ.overdue = true;
+                    overdueOccs.push(occ);
+                }
+            });
+        });
+        overdueOccs.sort(function(a, b) { return b.occurrenceDate.localeCompare(a.occurrenceDate); });
+
+        if (overdueOccs.length > 0) {
+            overdueSection.style.display = 'block';
+            overdueOccs.forEach(function(occ) {
+                overdueContainer.appendChild(createCalendarEventCard(occ, reloadFn));
+            });
+        }
+
+        // Upcoming — within the selected range, respecting "Show completed"
+        var allOccurrences = [];
+        events.forEach(function(event) {
+            var occs = generateOccurrences(event, rangeStart, rangeEnd);
+            var relevant = showCompleted ? occs : occs.filter(function(occ) { return !occ.completed; });
+            allOccurrences = allOccurrences.concat(relevant);
+        });
+        allOccurrences.sort(function(a, b) { return a.occurrenceDate.localeCompare(b.occurrenceDate); });
+
+        if (allOccurrences.length === 0) {
+            emptyState.textContent = overdueOccs.length === 0
+                ? 'No calendar events tagged with this tag.'
+                : ('No upcoming events in the next ' + rangeMonths + ' month' + (rangeMonths > 1 ? 's' : '') + '.');
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        var currentMonth = '';
+        allOccurrences.forEach(function(occ) {
+            var monthKey = occ.occurrenceDate.substring(0, 7); // "YYYY-MM"
+            if (monthKey !== currentMonth) {
+                currentMonth = monthKey;
+                var monthHeader = document.createElement('h3');
+                monthHeader.className = 'calendar-month-header';
+                var parts = monthKey.split('-');
+                var monthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                monthHeader.textContent = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                container.appendChild(monthHeader);
+            }
+            container.appendChild(createCalendarEventCard(occ, reloadFn));
+        });
+
+    } catch (error) {
+        console.error('Error loading tagged calendar events:', error);
+        container.innerHTML = '';
+        emptyState.textContent = 'Error loading calendar events.';
+        emptyState.style.display = 'block';
     }
 }
 
@@ -462,5 +703,13 @@ document.addEventListener('DOMContentLoaded', function() {
             container.classList.add('hidden');
             document.getElementById('tagsArchivedEmptyState').classList.add('hidden');
         }
+    });
+
+    // Tag detail page — range picker and "Show completed" toggle reload just the events section
+    document.getElementById('tagDetailRangeSelect').addEventListener('change', function() {
+        if (_tagDetailId) _loadTagDetailEvents(_tagDetailId);
+    });
+    document.getElementById('tagDetailShowCompleted').addEventListener('change', function() {
+        if (_tagDetailId) _loadTagDetailEvents(_tagDetailId);
     });
 });

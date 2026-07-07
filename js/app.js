@@ -182,7 +182,7 @@ const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals'
  */
 const ALL_PAGES = [
     ...TOP_LEVEL_PAGES,
-    'zone', 'plant', 'weed', 'chemical', 'gpsmap', 'yardmap',
+    'zone', 'plant', 'weed', 'chemical', 'tag', 'gpsmap', 'yardmap',
     'floor', 'room', 'thing', 'subthing', 'item', 'floorplan', 'panel', 'rooms', 'things', 'house-problems', 'house-projects', 'house-calendar-events', 'yard-projects', 'yard-problems', 'floorplanitem',
     'backup', 'vehicle',
     'garageroom', 'garagething', 'garagesubthing',
@@ -463,6 +463,9 @@ function handleRoute() {
     } else if (page === 'tags') {
         showPage('tags');
         loadTagsList();
+    } else if (page === 'tag' && id) {
+        showPage('tag');
+        loadTagDetail(id);
     } else if (page === 'gpsmap' && id) {
         showPage('gpsmap');
         loadGpsMapPage(id);

@@ -384,16 +384,18 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 ## screen:tags
 
-**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. You can tag both Calendar Events and Quick Task List items today (see their help pages), which is what lets a mixed dated/dateless project (e.g. "Putting Green" — some to-dos, some scheduled work) or a "Yard Plan" view come together under one tag, regardless of which zone/room/vehicle each item is on. A dedicated page showing everything tied to a tag in one place is a planned future update — for now, tags are visible as chips on each item's own card.
+**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. You can tag both Calendar Events and Quick Task List items (see their help pages), and tapping a tag's name here shows everything tagged with it in one place — a "Yard Plan" view pulling together scattered maintenance events, or a mixed dated/dateless project (e.g. "Putting Green" — some to-dos, some scheduled work) regardless of which zone/room/vehicle each item is individually on.
 
 **Common tasks:**
-- **Add a tag:** Tap **+ Add** and enter a name (you can also create a tag inline while tagging a calendar event — see the Calendar help page)
+- **Add a tag:** Tap **+ Add** and enter a name (you can also create a tag inline while tagging a calendar event or quick task — see their help pages)
+- **View everything tagged with a tag:** Tap the tag's name — shows a count of tagged items next to each tag in the list, and opens a page with all tagged Quick Tasks plus all tagged Calendar Events (Overdue and upcoming, with the same 1/3/6/12-month range picker as the Calendar page)
 - **Rename a tag:** Tap **Edit** on a tag, change the name, **Save**
-- **Archive a tag:** Tap **Edit** → **Archive**. Archived tags are hidden from the default list and from the tag picker, but any event already tagged with it keeps showing that tag's name normally.
+- **Archive a tag:** Tap **Edit** → **Archive**. Archived tags are hidden from the default list and from the tag picker, but any event or task already tagged with it keeps showing that tag's name normally, and you can still tap into an archived tag's page from the "Show archived" section.
 - **See archived tags:** Check **Show archived** at the bottom of the page. Tap **Unarchive** to bring one back.
 
 **Tips:**
 - Tags are never permanently deleted, only archived — this keeps anything already tagged working correctly.
+- A tag with only tasks or only events tagged is fine — the page just shows whichever section has content.
 
 ### See Also
 - [Maintenance](#help/maintenance)

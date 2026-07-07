@@ -2761,22 +2761,30 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 
 ### Tags (`tags.js`)
 
-**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. Both Calendar Events and Quick Task List items can be tagged today (see their sections above); a dedicated `#tag/{id}` view aggregating everything tagged together is a later phase — see `MaintenanceSchedulePlan.md`.
+**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. Both Calendar Events and Quick Task List items can be tagged (see their sections above), and the `#tag/{id}` view (below) is where that payoff shows up — everything tagged together, in one place.
 
 **Firestore**: `tags` — `name`, `active` (bool, default `true`), `createdAt`
 
 **Route**: `#tags` — reachable from the Settings hub ("🏷️ Tags" tile)
 
-**Soft delete only**: There is no hard-delete. "Archive" sets `active: false`; there is no separate confirm step beyond the standard confirm dialog. Archiving is intentionally non-destructive since future phases will reference tags by ID (`tagIds[]`) from calendar events and quick tasks — an archived tag's name must keep resolving for anything already tagged with it.
+**Soft delete only**: There is no hard-delete. "Archive" sets `active: false`; there is no separate confirm step beyond the standard confirm dialog. Archiving is intentionally non-destructive since calendar events and quick tasks reference tags by ID (`tagIds[]`) — an archived tag's name must keep resolving for anything already tagged with it.
 
-**Page layout**:
-- Active tags list (name + Edit button), alphabetical
-- "Archived" section below, collapsed by default behind a **Show archived** toggle (matches the Checklists "show archived" convention) — lists archived tags with an Unarchive button
+**Page layout** (`#tags`, doubles as both management page and browser):
+- Active tags list, alphabetical — each row's name is a clickable link to `#tag/{id}`, with a usage count ("N items" — tagged calendar events + tagged quick tasks combined) shown when non-zero, and an Edit button
+- "Archived" section below, collapsed by default behind a **Show archived** toggle (matches the Checklists "show archived" convention) — archived tags are also clickable into `#tag/{id}` (browsing doesn't require the tag be active), with an Unarchive button instead of Edit
 - **+ Add** button in the header opens the same modal used for Edit, with Save/Cancel; the Edit modal additionally shows an Archive button
+- Usage counts computed by `getTagUsageCounts()` — fetches all `calendarEvents` and `projects` once and tallies `tagIds[]` client-side, rather than one query per tag
+
+**Tag detail page** (`#tag/{id}`, `loadTagDetail()`): the aggregate view — everything tagged with this tag, regardless of what entity it's individually attached to.
+- Header shows the tag name (with "(archived)" suffix if inactive); breadcrumb "Tags › {name}"
+- **Quick Tasks section**: every tagged `projects` doc, rendered with the same `createProjectCard()` used everywhere else, each labeled with a "📍 {entity name}" source line resolved via `resolveTargetName()` (from `calendar.js`) since tagged tasks can belong to any entity type
+- **Calendar Events section**: every tagged `calendarEvents` doc (one-time, recurring, and maintenance schedules alike), split into an **Overdue** section (same convention as the main Calendar/`#maintenance` pages — excludes skipped/unnecessary) and a month-grouped upcoming list, with the same 1/3/6/12-month range picker and **Show completed** toggle as the main Calendar page. Cards are the same `createCalendarEventCard()`, so Complete/Edit/Skip/Postpone/etc. all behave identically here
+- Each section handles being empty independently — a tag with only tasks or only events renders correctly rather than showing a blank page
 
 **Helpers**:
 - `getAllTags()` — all active tags (id, name, sorted), used by the picker
 - `getTagNameMap()` — id→name map of ALL tags (active + archived), used to resolve chip labels so an archived tag's name still shows on anything already tagged with it
+- `getTagUsageCounts()` — id→count map (tagged events + tagged projects), used by the `#tags` browser
 - `buildTagCheckboxList(containerId, selectedIds)` / `getCheckedTagIds(containerId)` — the reusable picker component (checkbox list + inline "+ Add new tag" row), wired into both the Calendar Event modal and the Quick Task modal (see their sections above). If a tag in `selectedIds` has since been archived, it's still included in the list (labeled "(archived)") so re-saving the form after an unrelated edit doesn't silently strip it — archiving only blocks it from being picked fresh on other items, not remove it from ones already tagged.
 - `renderTagChips(containerEl, tagIds)` — renders resolved tag names as `.mtag-chip` pills into a container
 

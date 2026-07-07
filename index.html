@@ -2945,6 +2945,42 @@
             <p class="empty-state hidden" id="tagsArchivedEmptyState">No archived tags.</p>
         </section>
 
+        <!-- Page: Tag Detail (#tag/{id}) -->
+        <section class="page hidden" id="page-tag">
+            <div class="page-header">
+                <h2 id="tagDetailName">Tag</h2>
+            </div>
+
+            <!-- Quick Tasks tagged with this tag -->
+            <div class="section-header" style="margin-top:8px;">
+                <h3 class="section-heading">Quick Tasks</h3>
+            </div>
+            <div id="tagDetailProjectsContainer"></div>
+            <p class="empty-state" id="tagDetailProjectsEmptyState">Loading...</p>
+
+            <!-- Calendar Events tagged with this tag -->
+            <div class="section-header" style="margin-top:20px;">
+                <h3 class="section-heading">Calendar Events</h3>
+                <div class="calendar-range-picker">
+                    <label for="tagDetailRangeSelect">Show next</label>
+                    <select id="tagDetailRangeSelect" class="range-select">
+                        <option value="1">1 month</option>
+                        <option value="3" selected>3 months</option>
+                        <option value="6">6 months</option>
+                        <option value="12">12 months</option>
+                    </select>
+                </div>
+                <label class="show-toggle"><input type="checkbox" id="tagDetailShowCompleted"> Show completed</label>
+            </div>
+            <!-- Overdue events section (past uncompleted) -->
+            <div id="tagDetailOverdueSection" style="display:none;">
+                <h3 class="section-heading calendar-overdue-heading">Overdue</h3>
+                <div id="tagDetailOverdueContainer"></div>
+            </div>
+            <div id="tagDetailEventsContainer"></div>
+            <p class="empty-state" id="tagDetailEventsEmptyState">Loading...</p>
+        </section>
+
         <!-- Page: Checklists -->
         <section class="page hidden" id="page-checklists">
             <div class="page-header">
@@ -11311,7 +11347,7 @@ export default {
     <script src="js/facts.js?v=350"></script>
     <script src="js/projects.js?v=404"></script>
     <script src="js/chemicals.js?v=350"></script>
-    <script src="js/tags.js?v=3"></script>
+    <script src="js/tags.js?v=4"></script>
     <script src="js/activities.js?v=352"></script>
     <!-- Cropper.js — client-side image cropping library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
@@ -11369,7 +11405,7 @@ export default {
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=669"></script>
+    <script src="js/app.js?v=670"></script>
 
 </body>
 </html>
