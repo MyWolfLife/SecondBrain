@@ -2695,9 +2695,11 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
 
 ### Calendar Events (`calendar.js`)
 
-**Firestore**: `calendarEvents` — `title`, `description`, `date` (ISO string), `recurring` (null or `{type, intervalDays}`), `targetType?`, `targetId?`, `zoneIds[]`, `savedActionId?`, `trackingCategory?` (string, journal category name), `completed`, `completedDates[]`, `cancelledDates[]`, `createdAt`
+**Firestore**: `calendarEvents` — `title`, `description`, `date` (ISO string), `recurring` (null or `{type, intervalDays}`, or for `reset_interval` type: `{type: 'reset_interval', intervalUnit, intervalValue}`), `targetType?`, `targetId?`, `zoneIds[]`, `savedActionId?`, `trackingCategory?` (string, journal category name), `completed`, `completedDates[]`, `cancelledDates[]`, `lastCompletedDate?` (ISO string, `reset_interval` only), `createdAt`
 
-**Recurring types**: `weekly` (+7 days), `monthly` (same day next month, clamped to month-end), `every_x_days` (user-specified interval)
+**Recurring types**: `weekly` (+7 days), `monthly` (same day next month, clamped to month-end), `every_x_days` (user-specified interval), `reset_interval` (maintenance-schedule type — see below)
+
+**Reset-interval schedules** (`recurring.type === 'reset_interval'`, e.g. "change hot tub water every 3 months"): unlike the other recurring types, only **one occurrence is ever active at a time**. Configured with `intervalUnit` (`days` or `months`) and `intervalValue` (number). Its due date is `lastCompletedDate + interval`, or the event's original `date` if never completed — nothing is scheduled further ahead until the current occurrence is marked Completed, so a never-completed schedule simply grows more overdue rather than accumulating missed occurrences. Completing it anchors the next due date to the actual completion date (today), not the stale original due date — so completing late genuinely resets the clock from when it was actually done. Because there's only ever one occurrence, this type has no per-occurrence delete (deleting always removes the whole schedule) and no Reschedule button on overdue cards (rescheduling by editing `date` has no effect once `lastCompletedDate` is set — a future Postpone action supersedes this, not yet built). Part of the Maintenance Schedule feature — see `MaintenanceSchedulePlan.md`.
 
 **Display range**: Configurable 1/3/6/12 months. Default is 3 months. Events shown chronologically, grouped by month with headers.
 

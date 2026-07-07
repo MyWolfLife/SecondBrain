@@ -1,6 +1,7 @@
 // ============================================================
 // Calendar.js — Calendar event management and display
-// Supports one-time and recurring events (weekly, monthly, every X days).
+// Supports one-time and recurring events (weekly, monthly, every X days,
+// and reset_interval — a maintenance-schedule type that resets from completion).
 // Displays events chronologically grouped by month.
 // Shows a configurable range (default: next 3 months).
 // Firestore collection: "calendarEvents"
@@ -13,6 +14,13 @@
 //   completed (boolean, for one-time events),
 //   completedDates (string[], ISO dates of completed recurring occurrences),
 //   cancelledDates (string[], ISO dates of deleted single occurrences of a recurring event)
+//
+// recurring.type === 'reset_interval' (maintenance schedule, e.g. "change hot tub
+// water every 3 months"): additional fields intervalUnit ('days'|'months') and
+// intervalValue (number). Unlike the other recurring types, only ONE occurrence is
+// ever active at a time — its due date is `lastCompletedDate + interval`, or the
+// event's original `date` if never completed. Nothing is scheduled further ahead
+// until the current occurrence is actually marked Completed. See MaintenanceSchedulePlan.md.
 // ============================================================
 
 // ---------- Module State ----------
@@ -477,6 +485,33 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
         return occurrences;
     }
 
+    // Reset-interval event — exactly one active occurrence, anchored to the last
+    // completion (or the original date if never completed). Unlike the other
+    // recurring types, no future occurrences are generated ahead of time; the
+    // "next" one only exists once this one is marked Completed (see
+    // handleCompleteEvent, which sets lastCompletedDate).
+    if (event.recurring.type === 'reset_interval') {
+        var dueDate = event.lastCompletedDate
+            ? addInterval(new Date(event.lastCompletedDate + 'T00:00:00'), event.recurring.intervalUnit, event.recurring.intervalValue)
+            : new Date(event.date + 'T00:00:00');
+        if (dueDate >= rangeStartDate && dueDate <= rangeEndDate) {
+            occurrences.push({
+                eventId: event.id,
+                title: event.title,
+                description: event.description || '',
+                occurrenceDate: formatDateISO(dueDate),
+                recurring: event.recurring,
+                completed: false,
+                targetType: event.targetType || null,
+                targetId: event.targetId || null,
+                savedActionId: event.savedActionId || null,
+                zoneIds: event.zoneIds || [],
+                trackingCategory: event.trackingCategory || ''
+            });
+        }
+        return occurrences;
+    }
+
     // Recurring event — generate occurrences
     var startDate = new Date(event.date + 'T00:00:00');
     var originalDay = startDate.getDate();
@@ -547,6 +582,29 @@ function advanceRecurringDate(date, type, intervalDays, originalDay) {
         next.setDate(next.getDate() + intervalDays);
     }
 
+    return next;
+}
+
+/**
+ * Adds an interval (in days or months) to a date. Used for reset_interval scheduling.
+ * Month addition clamps to the end of the resulting month (e.g. Jan 31 + 1 month -> Feb 28).
+ * @param {Date} date - The starting date.
+ * @param {string} unit - "days" or "months".
+ * @param {number} value - The interval amount.
+ * @returns {Date} A new Date object advanced by the interval.
+ */
+function addInterval(date, unit, value) {
+    var next = new Date(date);
+    if (unit === 'months') {
+        var day = next.getDate();
+        var targetMonth = next.getMonth() + value;
+        var targetYear = next.getFullYear() + Math.floor(targetMonth / 12);
+        targetMonth = ((targetMonth % 12) + 12) % 12;
+        var lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+        next = new Date(targetYear, targetMonth, Math.min(day, lastDay));
+    } else {
+        next.setDate(next.getDate() + value);
+    }
     return next;
 }
 
@@ -630,6 +688,9 @@ function createCalendarEventCard(occ, reloadFn) {
         else if (occ.recurring.type === 'monthly') label += 'Monthly';
         else if (occ.recurring.type === 'every_x_days') {
             label += 'Every ' + (occ.recurring.intervalDays || 14) + ' days';
+        } else if (occ.recurring.type === 'reset_interval') {
+            label += 'Every ' + (occ.recurring.intervalValue || 1) + ' ' +
+                (occ.recurring.intervalUnit || 'months') + ' (resets on completion)';
         }
         badge.textContent = label;
         card.appendChild(badge);
@@ -653,8 +714,12 @@ function createCalendarEventCard(occ, reloadFn) {
 
     // Inline reschedule row — built early so the button click handler can reference it.
     // Hidden by default; revealed when the Reschedule button is clicked.
+    // Reset-interval events don't get this: rescheduling by changing `date` has no
+    // effect once lastCompletedDate is set (the due date is computed from that
+    // instead) — the equivalent action for this type is Postpone (see MS-4).
+    var isResetIntervalOcc = occ.recurring && occ.recurring.type === 'reset_interval';
     var rescheduleRow = null;
-    if (occ.overdue) {
+    if (occ.overdue && !isResetIntervalOcc) {
         rescheduleRow = document.createElement('div');
         rescheduleRow.className = 'cal-reschedule-row hidden';
 
@@ -702,8 +767,8 @@ function createCalendarEventCard(occ, reloadFn) {
         actions.appendChild(completeBtn);
     }
 
-    // Reschedule button — only shown for overdue occurrences
-    if (occ.overdue) {
+    // Reschedule button — only shown for overdue occurrences (not reset-interval; see above)
+    if (occ.overdue && !isResetIntervalOcc) {
         var rescheduleBtn = document.createElement('button');
         rescheduleBtn.className = 'btn btn-small btn-reschedule';
         rescheduleBtn.textContent = 'Reschedule';
@@ -837,6 +902,13 @@ async function handleCompleteEvent() {
     closeModal('completeEventModal');
     pendingCompleteOccurrence = null;
 
+    // Reset-interval schedules anchor the next due date to the actual completion
+    // date (today), not the stale occurrence date — matches "reset the timer from
+    // when it was actually done," which may be well after the original due date.
+    // All other event types keep logging against the occurrence's own date.
+    var isResetInterval = occ.recurring && occ.recurring.type === 'reset_interval';
+    var completionDate = isResetInterval ? formatDateISO(new Date()) : occ.occurrenceDate;
+
     try {
         // Collect chemicalIds from the saved action (if any)
         var chemicalIds = [];
@@ -858,7 +930,7 @@ async function handleCompleteEvent() {
                 targetType: 'plant',
                 targetId: occ.targetId,
                 description: occ.title,
-                date: occ.occurrenceDate,
+                date: completionDate,
                 notes: notes,
                 chemicalIds: chemicalIds,
                 savedActionId: occ.savedActionId || null,
@@ -870,7 +942,7 @@ async function handleCompleteEvent() {
                     targetType: 'zone',
                     targetId: zoneIds[i],
                     description: occ.title,
-                    date: occ.occurrenceDate,
+                    date: completionDate,
                     notes: notes,
                     chemicalIds: chemicalIds,
                     savedActionId: occ.savedActionId || null,
@@ -887,6 +959,13 @@ async function handleCompleteEvent() {
                 completed: true,
                 completedAt: occ.occurrenceDate
             });
+        } else if (isResetInterval) {
+            // Reset-interval: advance the anchor to today. There is no completedDates
+            // list for this type — the next due date is computed fresh from
+            // lastCompletedDate each time (see generateOccurrences).
+            await eventRef.update({
+                lastCompletedDate: completionDate
+            });
         } else {
             // Recurring event: add this occurrence date to completedDates array
             await eventRef.update({
@@ -900,27 +979,27 @@ async function handleCompleteEvent() {
         if (occ.trackingCategory) {
             try {
                 var existingSnap = await userCol('journalTrackingItems')
-                    .where('date', '==', occ.occurrenceDate)
+                    .where('date', '==', completionDate)
                     .where('category', '==', occ.trackingCategory)
                     .limit(1)
                     .get();
                 if (existingSnap.empty) {
                     await userCol('journalTrackingItems').add({
-                        date: occ.occurrenceDate,
+                        date: completionDate,
                         category: occ.trackingCategory,
                         value: occ.description || occ.title || '',
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log('Tracking item created:', occ.trackingCategory, occ.occurrenceDate);
+                    console.log('Tracking item created:', occ.trackingCategory, completionDate);
                 } else {
-                    console.log('Tracking item already exists — skipped:', occ.trackingCategory, occ.occurrenceDate);
+                    console.log('Tracking item already exists — skipped:', occ.trackingCategory, completionDate);
                 }
             } catch (e) {
                 console.warn('Could not create tracking item on attend:', e);
             }
         }
 
-        console.log('Event completed:', occ.title, occ.occurrenceDate, '— activities created:', occ.targetType === 'plant' ? 1 : zoneIds.length);
+        console.log('Event completed:', occ.title, completionDate, '— activities created:', occ.targetType === 'plant' ? 1 : zoneIds.length);
 
         // GCal sync — re-read updated doc so ✓ prefix is applied (fire-and-forget)
         if (typeof gcalIsConnected === 'function' && gcalIsConnected()) {
@@ -972,6 +1051,8 @@ async function openAddCalendarEventModal(targetType, targetId, reloadFn) {
     document.getElementById('calEventDateInput').value = '';
     document.getElementById('calEventFrequencySelect').value = 'weekly';
     document.getElementById('calEventIntervalInput').value = '14';
+    document.getElementById('calResetIntervalValueInput').value = '3';
+    document.getElementById('calResetIntervalUnitSelect').value = 'months';
 
     modal.dataset.mode = 'add';
     modal.dataset.targetType = targetType || '';
@@ -1054,10 +1135,14 @@ async function openEditCalendarEventModal(eventId, reloadFn, occurrenceDate) {
             document.getElementById('calEventTypeSelect').value = 'recurring';
             document.getElementById('calEventFrequencySelect').value = event.recurring.type || 'weekly';
             document.getElementById('calEventIntervalInput').value = event.recurring.intervalDays || 14;
+            document.getElementById('calResetIntervalValueInput').value = event.recurring.intervalValue || 3;
+            document.getElementById('calResetIntervalUnitSelect').value = event.recurring.intervalUnit || 'months';
         } else {
             document.getElementById('calEventTypeSelect').value = 'one-time';
             document.getElementById('calEventFrequencySelect').value = 'weekly';
             document.getElementById('calEventIntervalInput').value = '14';
+            document.getElementById('calResetIntervalValueInput').value = '3';
+            document.getElementById('calResetIntervalUnitSelect').value = 'months';
         }
 
         modal.dataset.mode = 'edit';
@@ -1146,6 +1231,8 @@ async function openCopyCalendarEventModal(eventId, reloadFn) {
         document.getElementById('calEventDateInput').value = '';
         document.getElementById('calEventFrequencySelect').value = 'weekly';
         document.getElementById('calEventIntervalInput').value = '14';
+        document.getElementById('calResetIntervalValueInput').value = '3';
+        document.getElementById('calResetIntervalUnitSelect').value = 'months';
 
         modal.dataset.mode = 'add'; // It's a new event (copy)
         modal.dataset.targetType = '';
@@ -1189,6 +1276,8 @@ async function handleCalendarEventModalSave() {
     var date = document.getElementById('calEventDateInput').value;
     var frequency = document.getElementById('calEventFrequencySelect').value;
     var intervalDays = parseInt(document.getElementById('calEventIntervalInput').value) || 14;
+    var resetIntervalValue = parseInt(document.getElementById('calResetIntervalValueInput').value) || 3;
+    var resetIntervalUnit = document.getElementById('calResetIntervalUnitSelect').value || 'months';
     var savedActionId = document.getElementById('calEventSavedActionSelect').value || null;
     var trackingEnabled = document.getElementById('calEventTrackingEnabled').checked;
     var trackingCategory = (trackingEnabled && document.getElementById('calEventTrackingCategory').value) || '';
@@ -1228,6 +1317,9 @@ async function handleCalendarEventModalSave() {
         recurring = { type: frequency };
         if (frequency === 'every_x_days') {
             recurring.intervalDays = intervalDays;
+        } else if (frequency === 'reset_interval') {
+            recurring.intervalValue = resetIntervalValue;
+            recurring.intervalUnit = resetIntervalUnit;
         }
     }
 
@@ -1495,17 +1587,15 @@ function toggleRecurringOptions() {
 }
 
 /**
- * Shows/hides the "Every X Days" interval input based on frequency selection.
+ * Shows/hides the "Every X Days" and "Reset Interval" fields based on frequency selection.
  */
 function toggleIntervalInput() {
     var frequency = document.getElementById('calEventFrequencySelect').value;
     var intervalGroup = document.getElementById('calIntervalGroup');
+    var resetIntervalGroup = document.getElementById('calResetIntervalGroup');
 
-    if (frequency === 'every_x_days') {
-        intervalGroup.style.display = 'block';
-    } else {
-        intervalGroup.style.display = 'none';
-    }
+    intervalGroup.style.display = (frequency === 'every_x_days') ? 'block' : 'none';
+    resetIntervalGroup.style.display = (frequency === 'reset_interval') ? 'block' : 'none';
 }
 
 /**
@@ -1735,8 +1825,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!doc.exists) return;
             var event = doc.data();
 
-            if (event.recurring && occurrenceDate) {
-                // Recurring event opened from a specific occurrence card — offer choice
+            if (event.recurring && event.recurring.type !== 'reset_interval' && occurrenceDate) {
+                // Recurring event opened from a specific occurrence card — offer choice.
+                // Reset-interval events skip this: there's only ever one active occurrence,
+                // so "delete just this occurrence" (cancelledDates) has no meaning for this
+                // type — deleting always means deleting the whole schedule.
                 closeModal('calendarEventModal');
                 openDeleteRecurringModal(eventId, occurrenceDate, event.title, reloadFn);
             } else {
