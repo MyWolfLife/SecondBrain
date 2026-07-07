@@ -628,6 +628,15 @@ function createProjectCard(project, targetType, targetId, sourceLabel) {
 
     header.appendChild(titleArea);
 
+    // Tag chips (if any) — resolved async since it needs a Firestore lookup;
+    // includes archived tags so already-tagged projects keep showing the name.
+    if (project.tagIds && project.tagIds.length > 0) {
+        var tagChipsEl = document.createElement('div');
+        tagChipsEl.className = 'tag-chips-display';
+        header.appendChild(tagChipsEl);
+        renderTagChips(tagChipsEl, project.tagIds);
+    }
+
     var headerActions = document.createElement('div');
     headerActions.className = 'project-header-actions';
 
@@ -868,6 +877,8 @@ function openAddProjectModal(targetType, targetId) {
     modal.dataset.targetType = targetType;
     modal.dataset.targetId = targetId;
 
+    buildTagCheckboxList('projectTagsCheckboxList', []);
+
     openModal('projectModal');
     titleInput.focus();
 }
@@ -895,6 +906,8 @@ function openEditProjectModal(project, targetType, targetId) {
     modal.dataset.targetType = targetType;
     modal.dataset.targetId = targetId;
 
+    buildTagCheckboxList('projectTagsCheckboxList', project.tagIds || []);
+
     openModal('projectModal');
     titleInput.focus();
 }
@@ -921,6 +934,7 @@ async function handleProjectModalSave() {
     var mode = modal.dataset.mode;
     var targetType = modal.dataset.targetType;
     var targetId = modal.dataset.targetId;
+    var tagIds = getCheckedTagIds('projectTagsCheckboxList');
 
     try {
         if (mode === 'add') {
@@ -929,6 +943,7 @@ async function handleProjectModalSave() {
                 targetId: targetId,
                 title: title,
                 notes: notes,
+                tagIds: tagIds,
                 items: [],          // Empty checklist to start
                 status: 'active',   // New projects start as active
                 completedAt: null,
@@ -940,7 +955,8 @@ async function handleProjectModalSave() {
             var projectId = modal.dataset.editId;
             await userCol('projects').doc(projectId).update({
                 title: title,
-                notes: notes
+                notes: notes,
+                tagIds: tagIds
             });
             console.log('Project updated:', title);
         }

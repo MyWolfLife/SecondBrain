@@ -431,7 +431,7 @@ immediately usable.
 
 ---
 
-### TAG-3: Tag picker on Quick Task List
+### TAG-3: Tag picker on Quick Task List ✅ COMPLETE
 **Goal**: Quick Task List projects can be tagged, enabling the mixed dated/dateless project case
 (e.g. the putting green build).
 
@@ -473,7 +473,7 @@ handles a tag with only one type of tagged content gracefully, not just projects
 | MS-5 | ✅ Done | `#maintenance` open items list | `calendar.js` (new fns), `index.html`, `app.js` (routing) |
 | TAG-1 | ✅ Done | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
 | TAG-2 | ✅ Done | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
-| TAG-3 | Not started | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
+| TAG-3 | ✅ Done | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
 | TAG-4 | Not started | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
 
 Prompt me with the phase name/number ("do MS-1", "start TAG-2", etc.) to begin work on it.

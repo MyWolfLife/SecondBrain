@@ -2675,9 +2675,11 @@ var PHOTO_CONTAINERS = { /* ... all entity types ... */ };
 
 Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish from the new Life Projects system.
 
-**Firestore**: `projects` — `targetType`, `targetId`, `title`, `notes`, `status` (active/completed), `items[]` (array of `{text, done, completedAt, notes}`), `completedAt`, `createdAt`
+**Firestore**: `projects` — `targetType`, `targetId`, `title`, `notes`, `tagIds[]`, `status` (active/completed), `items[]` (array of `{text, done, completedAt, notes}`), `completedAt`, `createdAt`
 
 **UI**: Collapsible cards — collapsed shows title + item count badge; expanded shows full checklist.
+
+**Tags**: Quick tasks can be tagged via the same reusable picker built for Calendar Events (`buildTagCheckboxList()` in `tags.js`) — a "Tags (optional)" checkbox list with an inline "+ Add new tag" row in the Add/Edit modal. Selected tags render as pink chips (`.mtag-chip`) in the card header, visible even when the card is collapsed. This is what lets a loose project (e.g. "Build Putting Green") tie together its dateless checklist items here with any dated Calendar Events tagged the same way — see the Tags section below.
 
 **Checklist items**: Click item to toggle done. Completion timestamp recorded per item. Notes can be added to individual items.
 
@@ -2759,7 +2761,7 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 
 ### Tags (`tags.js`)
 
-**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. Calendar Events can be tagged today (see Calendar Events above); Quick Task List tagging is a later phase — see `MaintenanceSchedulePlan.md`.
+**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. Both Calendar Events and Quick Task List items can be tagged today (see their sections above); a dedicated `#tag/{id}` view aggregating everything tagged together is a later phase — see `MaintenanceSchedulePlan.md`.
 
 **Firestore**: `tags` — `name`, `active` (bool, default `true`), `createdAt`
 
@@ -2775,7 +2777,7 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 **Helpers**:
 - `getAllTags()` — all active tags (id, name, sorted), used by the picker
 - `getTagNameMap()` — id→name map of ALL tags (active + archived), used to resolve chip labels so an archived tag's name still shows on anything already tagged with it
-- `buildTagCheckboxList(containerId, selectedIds)` / `getCheckedTagIds(containerId)` — the reusable picker component (checkbox list + inline "+ Add new tag" row), wired into the Calendar Event modal (see Calendar Events above); intended for reuse by the Quick Task List modal in a later phase. If a tag in `selectedIds` has since been archived, it's still included in the list (labeled "(archived)") so re-saving the form after an unrelated edit doesn't silently strip it — archiving only blocks it from being picked fresh on other items, not remove it from ones already tagged.
+- `buildTagCheckboxList(containerId, selectedIds)` / `getCheckedTagIds(containerId)` — the reusable picker component (checkbox list + inline "+ Add new tag" row), wired into both the Calendar Event modal and the Quick Task modal (see their sections above). If a tag in `selectedIds` has since been archived, it's still included in the list (labeled "(archived)") so re-saving the form after an unrelated edit doesn't silently strip it — archiving only blocks it from being picked fresh on other items, not remove it from ones already tagged.
 - `renderTagChips(containerEl, tagIds)` — renders resolved tag names as `.mtag-chip` pills into a container
 
 ### GPS / Location (`gps.js`, `BishopGps.md`)
@@ -3064,7 +3066,7 @@ All collections live under `/users/{uid}/`. Every module uses `userCol('collecti
 | `photos` | targetType, targetId, imageData (Base64), caption, takenAt, createdAt |
 | `facts` | targetType, targetId, label, value, createdAt |
 | `problems` | targetType, targetId, description, notes, status, dateLogged, resolvedAt |
-| `projects` | targetType, targetId, title, notes, status, items[], completedAt |
+| `projects` | targetType, targetId, title, notes, tagIds[], status, items[], completedAt |
 | `calendarEvents` | title, description, date, recurring{type,intervalDays}?, targetType?, targetId?, zoneIds[], savedActionId?, trackingCategory?, completed, completedDates[], cancelledDates[] |
 
 ### Life Projects

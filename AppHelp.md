@@ -384,7 +384,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 ## screen:tags
 
-**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. You can now tag Calendar Events (see the Calendar help page); tagging Quick Task List items is a planned future update, so you can eventually view everything tied to one tag together (e.g. a "Yard Plan" view or a mixed dated/dateless project) regardless of which zone/room/vehicle each item is on.
+**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. You can tag both Calendar Events and Quick Task List items today (see their help pages), which is what lets a mixed dated/dateless project (e.g. "Putting Green" — some to-dos, some scheduled work) or a "Yard Plan" view come together under one tag, regardless of which zone/room/vehicle each item is on. A dedicated page showing everything tied to a tag in one place is a planned future update — for now, tags are visible as chips on each item's own card.
 
 **Common tasks:**
 - **Add a tag:** Tap **+ Add** and enter a name (you can also create a tag inline while tagging a calendar event — see the Calendar help page)
@@ -580,11 +580,16 @@ The health indicator also appears on the plant card in the zone view, so you can
 - Tap **Complete** to close the entire task (records a completion date)
 - Tap **Reopen** to reactivate a completed task
 - Add notes to individual checklist items with the Notes button
+- **Tag a task:** In the Add/Edit form, check any tags under **Tags**, or add a new one inline with the **+ Add new tag** box — same picker used on Calendar Events. Tags show as small pink chips on the task card, even when collapsed. This is useful for tying a task's checklist together with dated Calendar Events under one tag (e.g. a "Putting Green" project with both to-dos and scheduled work).
 
 **Tips:**
 - Active tasks appear first; completed tasks are hidden by default.
 - The Yard Projects page shows all tasks across all zones and plants in one list.
 - Sub-zone tasks appear on a parent zone's page with a "from: Sub-zone Name" label.
+
+### See Also
+- [Calendar](#help/calendar)
+- [Tags](#help/tags)
 
 ---
 
