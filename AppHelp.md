@@ -325,6 +325,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - **One-time** — A specific date (e.g., "Fertilize roses — May 15")
 - **Recurring** — Repeats weekly, monthly, or every X days (e.g., "Check irrigation — every 7 days")
 - **Reset Interval** — A maintenance-schedule type for things like "change hot tub water every 3 months." Only one occurrence is ever due at a time — the next one is scheduled that many days/months after you mark it Completed, not on a fixed calendar date. If you never complete it, it just keeps showing as more and more overdue rather than piling up missed occurrences. Because there's only ever one active occurrence, this type has no "delete just this occurrence" option (deleting removes the whole schedule) and no Reschedule button on overdue cards.
+- **Fixed Months** — A maintenance-schedule type for things like "fertilize in May, July, and October." Pick any combination of months plus a day of the month — each month gets its own independent occurrence every year. Unlike Reset Interval, "delete just this occurrence" still works normally. There's no Reschedule button on overdue cards, since the occurrence dates come entirely from the months you picked, not from a single date field.
 
 **Common tasks:**
 - **Add an event:** Tap **+ Add Event** — set title, description, date, and whether it recurs

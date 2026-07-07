@@ -291,7 +291,8 @@ applies uniformly to all of them.
 
 ---
 
-### MS-1: `reset_interval` frequency type
+### MS-1: `reset_interval` frequency type ✅ COMPLETE
+
 **Goal**: The simpler of the two new schedule types works end-to-end — create it, see it on the
 calendar, see the correct single due date.
 
@@ -314,7 +315,8 @@ schedule just grows more overdue and never spawns a second occurrence.
 
 ---
 
-### MS-2: `fixed_months` frequency type
+### MS-2: `fixed_months` frequency type ✅ COMPLETE
+
 **Goal**: The annual-months schedule type works end-to-end, independent of the spacing/suppression
 rule (that comes in MS-4, since it's triggered by completion behavior, not by scheduling alone).
 

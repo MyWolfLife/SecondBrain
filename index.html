@@ -5347,6 +5347,7 @@ service firebase.storage {
                         <option value="monthly">Monthly</option>
                         <option value="every_x_days">Every X Days</option>
                         <option value="reset_interval">Reset Interval (resets from completion)</option>
+                        <option value="fixed_months">Fixed Months (e.g. May, Jul, Oct)</option>
                     </select>
                 </div>
                 <div class="form-group" id="calIntervalGroup" style="display:none;">
@@ -5363,6 +5364,28 @@ service firebase.storage {
                         </select>
                     </div>
                     <p class="form-hint">Only one occurrence is ever due at a time. The next one is scheduled this many days/months after you mark it Completed — not on a fixed calendar date.</p>
+                </div>
+                <div class="form-group" id="calFixedMonthsGroup" style="display:none;">
+                    <label>Which months?</label>
+                    <div class="zone-checkbox-list" id="calFixedMonthsCheckboxList">
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="1"><span>January</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="2"><span>February</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="3"><span>March</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="4"><span>April</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="5"><span>May</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="6"><span>June</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="7"><span>July</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="8"><span>August</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="9"><span>September</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="10"><span>October</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="11"><span>November</span></label>
+                        <label class="zone-checkbox-item"><input type="checkbox" class="calFixedMonthCheckbox" value="12"><span>December</span></label>
+                    </div>
+                    <label for="calFixedMonthsDayInput" style="margin-top:8px;">Day of month</label>
+                    <input type="number" id="calFixedMonthsDayInput" min="1" max="31" value="1" style="max-width:100px;">
+                    <label for="calFixedMonthsSpacingInput" style="margin-top:8px;">Minimum days between occurrences</label>
+                    <input type="number" id="calFixedMonthsSpacingInput" min="1" value="45" style="max-width:100px;">
+                    <p class="form-hint">If you complete one occurrence within this many days of the next scheduled month, the next one is automatically marked Unnecessary instead of also showing as due. (Not yet active — coming in a later phase.)</p>
                 </div>
             </div>
             <!-- Linked saved action (optional) -->
@@ -11180,7 +11203,7 @@ export default {
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="js/photos.js?v=396"></script>
     <script src="js/weeds.js?v=351"></script>
-    <script src="js/calendar.js?v=356"></script>
+    <script src="js/calendar.js?v=357"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>

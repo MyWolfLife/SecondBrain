@@ -1,7 +1,7 @@
 // ============================================================
 // Calendar.js — Calendar event management and display
 // Supports one-time and recurring events (weekly, monthly, every X days,
-// and reset_interval — a maintenance-schedule type that resets from completion).
+// and two maintenance-schedule types: reset_interval and fixed_months).
 // Displays events chronologically grouped by month.
 // Shows a configurable range (default: next 3 months).
 // Firestore collection: "calendarEvents"
@@ -20,7 +20,16 @@
 // intervalValue (number). Unlike the other recurring types, only ONE occurrence is
 // ever active at a time — its due date is `lastCompletedDate + interval`, or the
 // event's original `date` if never completed. Nothing is scheduled further ahead
-// until the current occurrence is actually marked Completed. See MaintenanceSchedulePlan.md.
+// until the current occurrence is actually marked Completed.
+//
+// recurring.type === 'fixed_months' (maintenance schedule, e.g. "fertilize in May,
+// July, and October"): additional fields months (number[], 1-12), dayOfMonth
+// (number), and minSpacingDays (number, not yet enforced — see MaintenanceSchedulePlan.md).
+// One independent occurrence per configured month, every year. Uses the ordinary
+// completedDates[]/cancelledDates[] arrays like weekly/monthly/every_x_days, unlike
+// reset_interval.
+//
+// See MaintenanceSchedulePlan.md for the full feature design.
 // ============================================================
 
 // ---------- Module State ----------
@@ -512,6 +521,48 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
         return occurrences;
     }
 
+    // Fixed-months event — one independent occurrence per configured month, every
+    // year, anchored to the event's original date (so a month that already passed
+    // in the creation year doesn't generate a phantom occurrence). Uses the ordinary
+    // completedDates[]/cancelledDates[] arrays, same as weekly/monthly/every_x_days.
+    if (event.recurring.type === 'fixed_months') {
+        var fmMonths = event.recurring.months || [];
+        var fmDayOfMonth = event.recurring.dayOfMonth || 1;
+        var fmAnchor = new Date(event.date + 'T00:00:00');
+        var fmStartYear = rangeStartDate.getFullYear();
+        var fmEndYear = rangeEndDate.getFullYear();
+
+        for (var fy = fmStartYear; fy <= fmEndYear; fy++) {
+            for (var fmi = 0; fmi < fmMonths.length; fmi++) {
+                var fmMonth = fmMonths[fmi]; // 1-12
+                var fmLastDay = new Date(fy, fmMonth, 0).getDate();
+                var fmOccDate = new Date(fy, fmMonth - 1, Math.min(fmDayOfMonth, fmLastDay));
+                if (fmOccDate < fmAnchor) continue; // schedule hasn't started yet
+                if (fmOccDate < rangeStartDate || fmOccDate > rangeEndDate) continue;
+
+                var fmDateStr = formatDateISO(fmOccDate);
+                if (cancelledDates.indexOf(fmDateStr) !== -1) continue;
+
+                occurrences.push({
+                    eventId: event.id,
+                    title: event.title,
+                    description: event.description || '',
+                    occurrenceDate: fmDateStr,
+                    recurring: event.recurring,
+                    completed: completedDates.indexOf(fmDateStr) >= 0,
+                    targetType: event.targetType || null,
+                    targetId: event.targetId || null,
+                    savedActionId: event.savedActionId || null,
+                    zoneIds: event.zoneIds || [],
+                    trackingCategory: event.trackingCategory || ''
+                });
+            }
+        }
+
+        occurrences.sort(function(a, b) { return a.occurrenceDate.localeCompare(b.occurrenceDate); });
+        return occurrences;
+    }
+
     // Recurring event — generate occurrences
     var startDate = new Date(event.date + 'T00:00:00');
     var originalDay = startDate.getDate();
@@ -608,6 +659,17 @@ function addInterval(date, unit, value) {
     return next;
 }
 
+/**
+ * Returns the 3-letter abbreviation for a 1-12 month number. Used by the
+ * fixed_months recurring badge (e.g. "May, Jul, Oct").
+ * @param {number} m - Month number, 1-12.
+ * @returns {string} 3-letter month abbreviation.
+ */
+function monthAbbrev(m) {
+    var names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return names[m - 1] || '';
+}
+
 // ---------- Create Event Card ----------
 
 /**
@@ -691,6 +753,8 @@ function createCalendarEventCard(occ, reloadFn) {
         } else if (occ.recurring.type === 'reset_interval') {
             label += 'Every ' + (occ.recurring.intervalValue || 1) + ' ' +
                 (occ.recurring.intervalUnit || 'months') + ' (resets on completion)';
+        } else if (occ.recurring.type === 'fixed_months') {
+            label += (occ.recurring.months || []).map(monthAbbrev).join(', ');
         }
         badge.textContent = label;
         card.appendChild(badge);
@@ -714,12 +778,15 @@ function createCalendarEventCard(occ, reloadFn) {
 
     // Inline reschedule row — built early so the button click handler can reference it.
     // Hidden by default; revealed when the Reschedule button is clicked.
-    // Reset-interval events don't get this: rescheduling by changing `date` has no
-    // effect once lastCompletedDate is set (the due date is computed from that
-    // instead) — the equivalent action for this type is Postpone (see MS-4).
-    var isResetIntervalOcc = occ.recurring && occ.recurring.type === 'reset_interval';
+    // Reset-interval and fixed-months events don't get this: editing `date` has no
+    // effect on either type's occurrence dates (reset_interval computes from
+    // lastCompletedDate; fixed_months computes from months[]/dayOfMonth) — the
+    // reset-interval equivalent is Postpone (see MS-4); fixed_months occurrences
+    // use per-occurrence delete (cancelledDates) instead, which still works normally.
+    var isNoRescheduleType = occ.recurring &&
+        (occ.recurring.type === 'reset_interval' || occ.recurring.type === 'fixed_months');
     var rescheduleRow = null;
-    if (occ.overdue && !isResetIntervalOcc) {
+    if (occ.overdue && !isNoRescheduleType) {
         rescheduleRow = document.createElement('div');
         rescheduleRow.className = 'cal-reschedule-row hidden';
 
@@ -767,8 +834,8 @@ function createCalendarEventCard(occ, reloadFn) {
         actions.appendChild(completeBtn);
     }
 
-    // Reschedule button — only shown for overdue occurrences (not reset-interval; see above)
-    if (occ.overdue && !isResetIntervalOcc) {
+    // Reschedule button — only shown for overdue occurrences (see exclusions above)
+    if (occ.overdue && !isNoRescheduleType) {
         var rescheduleBtn = document.createElement('button');
         rescheduleBtn.className = 'btn btn-small btn-reschedule';
         rescheduleBtn.textContent = 'Reschedule';
@@ -1053,6 +1120,9 @@ async function openAddCalendarEventModal(targetType, targetId, reloadFn) {
     document.getElementById('calEventIntervalInput').value = '14';
     document.getElementById('calResetIntervalValueInput').value = '3';
     document.getElementById('calResetIntervalUnitSelect').value = 'months';
+    _calSetFixedMonthCheckboxes([]);
+    document.getElementById('calFixedMonthsDayInput').value = '1';
+    document.getElementById('calFixedMonthsSpacingInput').value = '45';
 
     modal.dataset.mode = 'add';
     modal.dataset.targetType = targetType || '';
@@ -1137,12 +1207,18 @@ async function openEditCalendarEventModal(eventId, reloadFn, occurrenceDate) {
             document.getElementById('calEventIntervalInput').value = event.recurring.intervalDays || 14;
             document.getElementById('calResetIntervalValueInput').value = event.recurring.intervalValue || 3;
             document.getElementById('calResetIntervalUnitSelect').value = event.recurring.intervalUnit || 'months';
+            _calSetFixedMonthCheckboxes(event.recurring.months || []);
+            document.getElementById('calFixedMonthsDayInput').value = event.recurring.dayOfMonth || 1;
+            document.getElementById('calFixedMonthsSpacingInput').value = event.recurring.minSpacingDays || 45;
         } else {
             document.getElementById('calEventTypeSelect').value = 'one-time';
             document.getElementById('calEventFrequencySelect').value = 'weekly';
             document.getElementById('calEventIntervalInput').value = '14';
             document.getElementById('calResetIntervalValueInput').value = '3';
             document.getElementById('calResetIntervalUnitSelect').value = 'months';
+            _calSetFixedMonthCheckboxes([]);
+            document.getElementById('calFixedMonthsDayInput').value = '1';
+            document.getElementById('calFixedMonthsSpacingInput').value = '45';
         }
 
         modal.dataset.mode = 'edit';
@@ -1233,6 +1309,9 @@ async function openCopyCalendarEventModal(eventId, reloadFn) {
         document.getElementById('calEventIntervalInput').value = '14';
         document.getElementById('calResetIntervalValueInput').value = '3';
         document.getElementById('calResetIntervalUnitSelect').value = 'months';
+        _calSetFixedMonthCheckboxes([]);
+        document.getElementById('calFixedMonthsDayInput').value = '1';
+        document.getElementById('calFixedMonthsSpacingInput').value = '45';
 
         modal.dataset.mode = 'add'; // It's a new event (copy)
         modal.dataset.targetType = '';
@@ -1278,6 +1357,9 @@ async function handleCalendarEventModalSave() {
     var intervalDays = parseInt(document.getElementById('calEventIntervalInput').value) || 14;
     var resetIntervalValue = parseInt(document.getElementById('calResetIntervalValueInput').value) || 3;
     var resetIntervalUnit = document.getElementById('calResetIntervalUnitSelect').value || 'months';
+    var fixedMonths = _calGetFixedMonthCheckboxes();
+    var fixedMonthsDay = parseInt(document.getElementById('calFixedMonthsDayInput').value) || 1;
+    var fixedMonthsSpacing = parseInt(document.getElementById('calFixedMonthsSpacingInput').value) || 45;
     var savedActionId = document.getElementById('calEventSavedActionSelect').value || null;
     var trackingEnabled = document.getElementById('calEventTrackingEnabled').checked;
     var trackingCategory = (trackingEnabled && document.getElementById('calEventTrackingCategory').value) || '';
@@ -1302,6 +1384,11 @@ async function handleCalendarEventModalSave() {
         return;
     }
 
+    if (eventType === 'recurring' && frequency === 'fixed_months' && fixedMonths.length === 0) {
+        alert('Please select at least one month.');
+        return;
+    }
+
     // Zone selection is only required for standalone or yard-linked (zone/weed) events.
     // Entity-linked events (plant, thing, room, vehicle, etc.) carry their own location context.
     var saveTargetType = modal.dataset.targetType || '';
@@ -1320,6 +1407,10 @@ async function handleCalendarEventModalSave() {
         } else if (frequency === 'reset_interval') {
             recurring.intervalValue = resetIntervalValue;
             recurring.intervalUnit = resetIntervalUnit;
+        } else if (frequency === 'fixed_months') {
+            recurring.months = fixedMonths;
+            recurring.dayOfMonth = fixedMonthsDay;
+            recurring.minSpacingDays = fixedMonthsSpacing;
         }
     }
 
@@ -1564,6 +1655,29 @@ async function loadCalEventZoneCheckboxes(selectedZoneIds) {
     }
 }
 
+/**
+ * Checks/unchecks the fixed_months month checkboxes to match the given month numbers.
+ * @param {number[]} months - Month numbers (1-12) to pre-check. Empty array clears all.
+ */
+function _calSetFixedMonthCheckboxes(months) {
+    var boxes = document.querySelectorAll('.calFixedMonthCheckbox');
+    boxes.forEach(function(cb) {
+        cb.checked = months.indexOf(parseInt(cb.value)) !== -1;
+    });
+}
+
+/**
+ * Reads the currently-checked fixed_months month checkboxes.
+ * @returns {number[]} Sorted array of checked month numbers (1-12).
+ */
+function _calGetFixedMonthCheckboxes() {
+    var checked = document.querySelectorAll('.calFixedMonthCheckbox:checked');
+    var months = [];
+    checked.forEach(function(cb) { months.push(parseInt(cb.value)); });
+    months.sort(function(a, b) { return a - b; });
+    return months;
+}
+
 // ---------- UI Helpers ----------
 
 /**
@@ -1593,9 +1707,11 @@ function toggleIntervalInput() {
     var frequency = document.getElementById('calEventFrequencySelect').value;
     var intervalGroup = document.getElementById('calIntervalGroup');
     var resetIntervalGroup = document.getElementById('calResetIntervalGroup');
+    var fixedMonthsGroup = document.getElementById('calFixedMonthsGroup');
 
     intervalGroup.style.display = (frequency === 'every_x_days') ? 'block' : 'none';
     resetIntervalGroup.style.display = (frequency === 'reset_interval') ? 'block' : 'none';
+    fixedMonthsGroup.style.display = (frequency === 'fixed_months') ? 'block' : 'none';
 }
 
 /**
