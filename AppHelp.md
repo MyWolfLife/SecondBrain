@@ -351,6 +351,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 **Linking events to zones:** When adding an event, you can link it to one or more zones. Completing that event creates an activity for each linked zone.
 
 **Tips:**
+- Switching an event's type to Recurring automatically fills in today's date as the Start Date if the date field is still blank — you can change it before saving. Switching back to One-time keeps whatever date is there.
 - Recurring events use the original date as the anchor — completions and cancellations are tracked per-occurrence without changing the series.
 - Delete "this occurrence only" adds the date to a cancelled list — the series continues.
 - Every event card shows a clickable link to whatever it's linked to (zone, plant, vehicle, room, etc.) — tap it to jump straight to that entity's page.

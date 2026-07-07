@@ -2258,13 +2258,23 @@ function _calGetFixedMonthCheckboxes() {
 function toggleRecurringOptions() {
     var eventType = document.getElementById('calEventTypeSelect').value;
     var recurringOptions = document.getElementById('calRecurringOptions');
+    var frequencyGroup = document.getElementById('calFrequencyGroup');
     var dateLabel = document.getElementById('calEventDateLabel');
+    var dateInput = document.getElementById('calEventDateInput');
 
     if (eventType === 'recurring') {
         recurringOptions.style.display = 'block';
+        frequencyGroup.style.display = 'block';
         dateLabel.textContent = 'Start Date';
+        // Default to today so the schedule starts immediately unless the user picks
+        // a different date. Only applies when the field is still blank, so it never
+        // overwrites a date already entered before switching to Recurring.
+        if (!dateInput.value) {
+            dateInput.value = formatDateISO(new Date());
+        }
     } else {
         recurringOptions.style.display = 'none';
+        frequencyGroup.style.display = 'none';
         dateLabel.textContent = 'Date';
     }
 

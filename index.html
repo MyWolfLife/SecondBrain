@@ -5434,22 +5434,22 @@ service firebase.storage {
                     <option value="recurring">Recurring</option>
                 </select>
             </div>
+            <div class="form-group" id="calFrequencyGroup" style="display:none;">
+                <label for="calEventFrequencySelect">Frequency</label>
+                <select id="calEventFrequencySelect">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="every_x_days">Every X Days</option>
+                    <option value="reset_interval">Reset Interval (resets from completion)</option>
+                    <option value="fixed_months">Fixed Months (e.g. May, Jul, Oct)</option>
+                </select>
+            </div>
             <div class="form-group">
                 <label for="calEventDateInput" id="calEventDateLabel">Date</label>
                 <input type="date" id="calEventDateInput">
             </div>
             <!-- Recurring options (hidden by default) -->
             <div id="calRecurringOptions" style="display:none;">
-                <div class="form-group">
-                    <label for="calEventFrequencySelect">Frequency</label>
-                    <select id="calEventFrequencySelect">
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="every_x_days">Every X Days</option>
-                        <option value="reset_interval">Reset Interval (resets from completion)</option>
-                        <option value="fixed_months">Fixed Months (e.g. May, Jul, Oct)</option>
-                    </select>
-                </div>
                 <div class="form-group" id="calIntervalGroup" style="display:none;">
                     <label for="calEventIntervalInput">Every how many days?</label>
                     <input type="number" id="calEventIntervalInput" min="1" value="14" placeholder="e.g., 14">
@@ -11358,7 +11358,7 @@ export default {
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="js/photos.js?v=396"></script>
     <script src="js/weeds.js?v=351"></script>
-    <script src="js/calendar.js?v=363"></script>
+    <script src="js/calendar.js?v=364"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>
