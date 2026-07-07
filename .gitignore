@@ -13,3 +13,6 @@ Thumbs.db
 
 # Local dev notes (never commit)
 .test-credentials.md
+
+# Personal Claude Code permission overrides (machine-specific)
+.claude/settings.local.json
