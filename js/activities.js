@@ -755,6 +755,10 @@ async function loadSavedActionsList() {
 function createSavedActionItem(action, chemicalNames) {
     const item = document.createElement('div');
     item.className = 'saved-action-item card';
+    item.style.cursor = 'pointer';
+    item.addEventListener('click', function() {
+        openEditSavedActionModal(action);
+    });
 
     const info = document.createElement('div');
     info.style.flex = '1';
@@ -790,30 +794,6 @@ function createSavedActionItem(action, chemicalNames) {
     }
 
     item.appendChild(info);
-
-    const actions = document.createElement('div');
-    actions.className = 'item-actions';
-    actions.style.flexShrink = '0';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn btn-small btn-secondary';
-    editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        openEditSavedActionModal(action);
-    });
-    actions.appendChild(editBtn);
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn btn-small btn-danger';
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        handleDeleteSavedAction(action.id);
-    });
-    actions.appendChild(deleteBtn);
-
-    item.appendChild(actions);
 
     return item;
 }
@@ -915,6 +895,8 @@ async function openSaveAsActionModal(activity) {
     notesInput.value = activity.notes || '';
 
     modal.dataset.mode = 'add';
+    delete modal.dataset.editId;
+    document.getElementById('savedActionModalDeleteBtn').style.display = 'none';
 
     // Set selected chemicals from the activity and render the display
     savedActionSelectedChemicalIds = normalizeChemicalIds(activity);
@@ -942,6 +924,8 @@ async function openAddSavedActionModal() {
     notesInput.value = '';
 
     modal.dataset.mode = 'add';
+    delete modal.dataset.editId;
+    document.getElementById('savedActionModalDeleteBtn').style.display = 'none';
 
     // Reset selected chemicals and render empty display
     savedActionSelectedChemicalIds = [];
@@ -971,6 +955,7 @@ async function openEditSavedActionModal(action) {
 
     modal.dataset.mode = 'edit';
     modal.dataset.editId = action.id;
+    document.getElementById('savedActionModalDeleteBtn').style.display = '';
 
     // Set selected chemicals from the action and render the display
     savedActionSelectedChemicalIds = normalizeChemicalIds(action);
@@ -1262,6 +1247,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Saved action modal — Cancel button
     document.getElementById('savedActionModalCancelBtn').addEventListener('click', function() {
         closeModal('savedActionModal');
+    });
+
+    // Saved action modal — Delete button (edit mode only)
+    document.getElementById('savedActionModalDeleteBtn').addEventListener('click', function() {
+        var editId = document.getElementById('savedActionModal').dataset.editId;
+        if (!editId) return;
+        closeModal('savedActionModal');
+        handleDeleteSavedAction(editId);
     });
 
     // Chemical picker — Edit button inside the activity modal

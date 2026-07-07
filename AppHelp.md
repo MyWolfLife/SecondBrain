@@ -303,7 +303,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Common tasks:**
 - **Create a saved action:** Tap **+ Add Action** and fill in the name, description, chemicals, and notes
-- **Edit or delete:** Tap the pencil icon on any saved action card
+- **Edit or delete:** Tap anywhere on a saved action card to open it for editing; tap **Delete** inside that screen to remove it
 - **Use a saved action:** When logging a new activity on any screen, tap the **Saved Action** dropdown and pick one — it pre-fills the form
 
 **Tips:**
