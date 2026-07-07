@@ -415,7 +415,7 @@ archived toggle. Un-archive it, confirm it's back to active.
 
 ---
 
-### TAG-2: Tag picker on Calendar Events
+### TAG-2: Tag picker on Calendar Events ✅ COMPLETE
 **Goal**: Any calendar event (including maintenance schedules) can be tagged.
 
 - Add `tagIds[]` to `calendarEvents`.
@@ -472,7 +472,7 @@ handles a tag with only one type of tagged content gracefully, not just projects
 | MS-4 | ✅ Done | Skip, Postpone, auto-Unnecessary | `calendar.js`, `index.html` |
 | MS-5 | ✅ Done | `#maintenance` open items list | `calendar.js` (new fns), `index.html`, `app.js` (routing) |
 | TAG-1 | ✅ Done | `tags` collection + `#tags` management page | new `js/tags.js`, `index.html`, `app.js` |
-| TAG-2 | Not started | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
+| TAG-2 | ✅ Done | Tag picker on Calendar Events | `js/tags.js`, `calendar.js`, `index.html` |
 | TAG-3 | Not started | Tag picker on Quick Task List | `js/tags.js`, `projects.js`, `index.html` |
 | TAG-4 | Not started | `#tag/{id}` view + `#tags` browser | `js/tags.js`, `index.html`, `app.js` |
 

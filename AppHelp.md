@@ -329,6 +329,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Common tasks:**
 - **Add an event:** Tap **+ Add Event** — set title, description, date, and whether it recurs
+- **Tag an event:** In the Add/Edit Event form, check any tags you want under **Tags**, or type a new name in the **+ Add new tag** box at the top of the list and tap **Add** — it's created and checked immediately, no need to leave the form. Selected tags show as small pink chips on the event card.
 - **Complete an event:** Tap **✓ Complete** on any event card — this automatically creates an activity record for any linked zones
 - **Mark a maintenance schedule In Progress:** On a Reset Interval or Fixed Months occurrence, tap **In Progress** — set a start date (defaults to today) and optional notes. The occurrence stays open (you can still Complete it) and shows a "🔨 In Progress" badge. Tap **Edit Progress** to change the date/notes, or use **Clear Status** in that modal to revert it back to plain due/overdue.
 - **Skip a Fixed Months occurrence:** Tap **Skip** on the occurrence — you'll be asked to confirm. No activity is logged, and it does not affect the next scheduled month (e.g. skipping May doesn't touch July). Shows a "⏭ Skipped" badge; tap **Unskip** to revert.
@@ -356,6 +357,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - [Activity Report](#help/activityreport)
 - [Saved Actions](#help/actions)
 - [Maintenance Schedules](#help/maintenance)
+- [Tags](#help/tags)
 
 ---
 
@@ -382,12 +384,12 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 ## screen:tags
 
-**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. This first version just manages the list itself; a future update will let you tag calendar events and Quick Task List items so you can view everything tied to one tag together (e.g. a "Yard Plan" view or a mixed dated/dateless project).
+**What this screen is for:** Tags are a managed, reusable label list — reached from **Settings → Tags**. You can now tag Calendar Events (see the Calendar help page); tagging Quick Task List items is a planned future update, so you can eventually view everything tied to one tag together (e.g. a "Yard Plan" view or a mixed dated/dateless project) regardless of which zone/room/vehicle each item is on.
 
 **Common tasks:**
-- **Add a tag:** Tap **+ Add** and enter a name
+- **Add a tag:** Tap **+ Add** and enter a name (you can also create a tag inline while tagging a calendar event — see the Calendar help page)
 - **Rename a tag:** Tap **Edit** on a tag, change the name, **Save**
-- **Archive a tag:** Tap **Edit** → **Archive**. Archived tags are hidden from the default list and from any future picker, but nothing that's already tagged with it is affected.
+- **Archive a tag:** Tap **Edit** → **Archive**. Archived tags are hidden from the default list and from the tag picker, but any event already tagged with it keeps showing that tag's name normally.
 - **See archived tags:** Check **Show archived** at the bottom of the page. Tap **Unarchive** to bring one back.
 
 **Tips:**

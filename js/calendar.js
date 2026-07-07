@@ -320,6 +320,7 @@ async function loadEventsForTarget(targetType, targetId, containerId, emptyState
                         targetId: event.targetId || null,
                         savedActionId: event.savedActionId || null,
                         zoneIds: event.zoneIds || [],
+                        tagIds: event.tagIds || [],
                         trackingCategory: event.trackingCategory || ''
                     });
                 }
@@ -432,6 +433,7 @@ async function loadOverdueEvents() {
                         targetType: event.targetType || null,
                         targetId: event.targetId || null,
                         savedActionId: event.savedActionId || null,
+                        tagIds: event.tagIds || [],
                         overdue: true,
                         trackingCategory: event.trackingCategory || ''
                     });
@@ -638,6 +640,7 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
                 targetId: event.targetId || null,
                 savedActionId: event.savedActionId || null,
                 zoneIds: event.zoneIds || [],
+                tagIds: event.tagIds || [],
                 trackingCategory: event.trackingCategory || ''
             });
         }
@@ -681,6 +684,7 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
                 targetId: event.targetId || null,
                 savedActionId: event.savedActionId || null,
                 zoneIds: event.zoneIds || [],
+                tagIds: event.tagIds || [],
                 trackingCategory: event.trackingCategory || ''
             });
         }
@@ -726,6 +730,7 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
                     targetId: event.targetId || null,
                     savedActionId: event.savedActionId || null,
                     zoneIds: event.zoneIds || [],
+                    tagIds: event.tagIds || [],
                     trackingCategory: event.trackingCategory || ''
                 });
             }
@@ -767,6 +772,7 @@ function generateOccurrences(event, rangeStart, rangeEnd) {
                 targetId: event.targetId || null,
                 savedActionId: event.savedActionId || null,
                 zoneIds: event.zoneIds || [],
+                tagIds: event.tagIds || [],
                 trackingCategory: event.trackingCategory || ''
             });
         }
@@ -941,6 +947,15 @@ function createCalendarEventCard(occ, reloadFn) {
         desc.className = 'calendar-event-desc';
         desc.textContent = occ.description;
         card.appendChild(desc);
+    }
+
+    // Tag chips (if any) — resolved async since it needs a Firestore lookup;
+    // includes archived tags so already-tagged events keep showing the name.
+    if (occ.tagIds && occ.tagIds.length > 0) {
+        var tagChipsEl = document.createElement('div');
+        tagChipsEl.className = 'tag-chips-display';
+        card.appendChild(tagChipsEl);
+        renderTagChips(tagChipsEl, occ.tagIds);
     }
 
     // Zone / plant / entity association line — populated async, rendered as a
@@ -1692,6 +1707,9 @@ async function openAddCalendarEventModal(targetType, targetId, reloadFn) {
     // Load saved actions into dropdown
     await populateSavedActionsDropdown('calEventSavedActionSelect', null);
 
+    // Load tag checkboxes (none pre-selected for a new event)
+    await buildTagCheckboxList('calEventTagsCheckboxList', []);
+
     // Reset tracking-on-attended fields
     var trackChk = document.getElementById('calEventTrackingEnabled');
     if (trackChk) trackChk.checked = false;
@@ -1789,6 +1807,9 @@ async function openEditCalendarEventModal(eventId, reloadFn, occurrenceDate) {
         // Load saved actions dropdown with current selection
         await populateSavedActionsDropdown('calEventSavedActionSelect', event.savedActionId || null);
 
+        // Load tag checkboxes with current selection
+        await buildTagCheckboxList('calEventTagsCheckboxList', event.tagIds || []);
+
         // Populate tracking-on-attended fields
         var trackingCat = event.trackingCategory || '';
         var trackChk = document.getElementById('calEventTrackingEnabled');
@@ -1864,6 +1885,9 @@ async function openCopyCalendarEventModal(eventId, reloadFn) {
         // Load saved actions dropdown (no pre-selection for a copy)
         await populateSavedActionsDropdown('calEventSavedActionSelect', null);
 
+        // Tags are not carried over to the copy (consistent with saved action above)
+        await buildTagCheckboxList('calEventTagsCheckboxList', []);
+
         calendarEventModalReloadFn = reloadFn || null;
 
         toggleRecurringOptions();
@@ -1907,6 +1931,9 @@ async function handleCalendarEventModalSave() {
             zoneIds.push(cb.value);
         });
     }
+
+    // Collect selected tag IDs
+    var tagIds = getCheckedTagIds('calEventTagsCheckboxList');
 
     if (!title) {
         alert('Please enter a title.');
@@ -1962,6 +1989,7 @@ async function handleCalendarEventModalSave() {
                 targetType: targetType || null,
                 targetId: targetId || null,
                 zoneIds: zoneIds,
+                tagIds: tagIds,
                 savedActionId: savedActionId,
                 trackingCategory: trackingCategory,
                 completed: false,
@@ -1988,6 +2016,7 @@ async function handleCalendarEventModalSave() {
                 targetType: targetType || null,
                 targetId: targetId || null,
                 zoneIds: zoneIds,
+                tagIds: tagIds,
                 savedActionId: savedActionId,
                 trackingCategory: trackingCategory
             });

@@ -2695,7 +2695,7 @@ Formerly named "Future Projects" — renamed to "Quick Task List" to distinguish
 
 ### Calendar Events (`calendar.js`)
 
-**Firestore**: `calendarEvents` — `title`, `description`, `date` (ISO string), `recurring` (null, `{type, intervalDays}`, `{type: 'reset_interval', intervalUnit, intervalValue}`, or `{type: 'fixed_months', months, dayOfMonth, minSpacingDays}`), `targetType?`, `targetId?`, `zoneIds[]`, `savedActionId?`, `trackingCategory?` (string, journal category name), `completed`, `completedDates[]`, `cancelledDates[]`, `lastCompletedDate?` (ISO string, `reset_interval` only), `postponedUntil?` (ISO string, `reset_interval` only), `occurrenceStatus?` (map, `reset_interval`/`fixed_months` only — see below), `createdAt`
+**Firestore**: `calendarEvents` — `title`, `description`, `date` (ISO string), `recurring` (null, `{type, intervalDays}`, `{type: 'reset_interval', intervalUnit, intervalValue}`, or `{type: 'fixed_months', months, dayOfMonth, minSpacingDays}`), `targetType?`, `targetId?`, `zoneIds[]`, `tagIds[]`, `savedActionId?`, `trackingCategory?` (string, journal category name), `completed`, `completedDates[]`, `cancelledDates[]`, `lastCompletedDate?` (ISO string, `reset_interval` only), `postponedUntil?` (ISO string, `reset_interval` only), `occurrenceStatus?` (map, `reset_interval`/`fixed_months` only — see below), `createdAt`
 
 **Recurring types**: `weekly` (+7 days), `monthly` (same day next month, clamped to month-end), `every_x_days` (user-specified interval), `reset_interval` and `fixed_months` (maintenance-schedule types — see below)
 
@@ -2738,6 +2738,8 @@ Both maintenance-schedule types are part of the broader Maintenance Schedule fea
 
 **Entity link on occurrence cards**: The zone/plant/entity line on every occurrence card (`calendar.js`, shared by the Calendar page, entity detail pages, and `#maintenance`) is a clickable link to the linked entity — `#plant/{id}`, `#zone/{id}` (one link per zone for multi-zone events), `#vehicle/{id}`, or the relevant house/garage/structure route. House-context entities (floor/room/thing) keep their breadcrumb-style label (e.g., "House › 1st Floor › Kitchen") via `getHouseContextLabel()`, wrapped in the same link.
 
+**Tags**: Any event (one-time, recurring, or maintenance-schedule) can be tagged via `tagIds[]`. The Add/Edit Event modal has a "Tags (optional)" checkbox list (`buildTagCheckboxList()` in `tags.js`) with an inline "+ Add new tag" row at the top — typing a name and clicking Add creates the tag immediately and checks it, no detour to the Tags page required. Selected tags render as pink chips (`.mtag-chip`) below the description on every occurrence card, resolved via `getTagNameMap()` (active + archived, so an archived tag's name keeps resolving on events already tagged with it — see the Tags section below). Copying an event does not carry over its tags (starts blank, same as the saved-action dropdown).
+
 ### Maintenance Schedules List (`#maintenance`, `calendar.js`)
 
 **What it's for**: A dedicated cross-entity view of every `reset_interval` and `fixed_months` calendar event, regardless of which zone/room/vehicle/etc. it's linked to — the "what maintenance needs attention" list, separate from the general Calendar page which mixes in every other event type.
@@ -2757,7 +2759,7 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 
 ### Tags (`tags.js`)
 
-**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. This first phase builds the managed tag list itself; nothing references it yet (calendar events and Quick Task List pickers are a later phase — see `MaintenanceSchedulePlan.md`).
+**What it's for**: A managed, reusable label that groups items across different entities — e.g. tagging every event/task in a "Yard Plan" so they can be viewed together regardless of which zone/room/vehicle each is individually linked to, or tagging a mix of dated calendar events and dateless Quick Task items as one loose project. Calendar Events can be tagged today (see Calendar Events above); Quick Task List tagging is a later phase — see `MaintenanceSchedulePlan.md`.
 
 **Firestore**: `tags` — `name`, `active` (bool, default `true`), `createdAt`
 
@@ -2770,7 +2772,11 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
 - "Archived" section below, collapsed by default behind a **Show archived** toggle (matches the Checklists "show archived" convention) — lists archived tags with an Unarchive button
 - **+ Add** button in the header opens the same modal used for Edit, with Save/Cancel; the Edit modal additionally shows an Archive button
 
-**Helper**: `getAllTags()` returns all active tags (id, name, sorted) for use by future picker UIs (TAG-2/TAG-3).
+**Helpers**:
+- `getAllTags()` — all active tags (id, name, sorted), used by the picker
+- `getTagNameMap()` — id→name map of ALL tags (active + archived), used to resolve chip labels so an archived tag's name still shows on anything already tagged with it
+- `buildTagCheckboxList(containerId, selectedIds)` / `getCheckedTagIds(containerId)` — the reusable picker component (checkbox list + inline "+ Add new tag" row), wired into the Calendar Event modal (see Calendar Events above); intended for reuse by the Quick Task List modal in a later phase. If a tag in `selectedIds` has since been archived, it's still included in the list (labeled "(archived)") so re-saving the form after an unrelated edit doesn't silently strip it — archiving only blocks it from being picked fresh on other items, not remove it from ones already tagged.
+- `renderTagChips(containerEl, tagIds)` — renders resolved tag names as `.mtag-chip` pills into a container
 
 ### GPS / Location (`gps.js`, `BishopGps.md`)
 - Zones can be assigned GPS coordinates

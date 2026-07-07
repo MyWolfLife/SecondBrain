@@ -260,6 +260,166 @@ async function getAllTags() {
     return tags;
 }
 
+/**
+ * Loads every tag (active AND archived) as an id -> name map, for resolving
+ * chip labels on already-tagged items — an archived tag must keep resolving
+ * its name even though it no longer appears in the picker.
+ * @returns {Promise<Object>} Map of { tagId: tagName }.
+ */
+async function getTagNameMap() {
+    const snapshot = await userCol('tags').get();
+    const map = {};
+    snapshot.forEach(function(doc) { map[doc.id] = doc.data().name; });
+    return map;
+}
+
+// ---------- Tag Picker (checkbox list + inline "+ Add new tag" row) ----------
+// Reusable component: built for the Calendar Event modal (TAG-2), intended to
+// be reused as-is for the Quick Task List modal (TAG-3).
+
+/**
+ * Builds a checkbox list of all active tags inside a container element,
+ * with an inline "+ Add new tag" row at the top that creates a tag
+ * immediately and checks it — no detour to the Tags management page.
+ * @param {string} containerId - The ID of the div to populate.
+ * @param {string[]} selectedIds - Array of tag IDs to pre-check.
+ */
+async function buildTagCheckboxList(containerId, selectedIds) {
+    var container = document.getElementById(containerId);
+    container.innerHTML = '<em style="color:#888;font-size:0.85em;">Loading...</em>';
+
+    try {
+        var tags = await getAllTags();
+
+        // If any currently-selected tag has since been archived, it won't be in the
+        // active list above — include it anyway (marked archived) so it round-trips
+        // through a save instead of silently being dropped just because the event
+        // was re-edited for something unrelated. Archiving only blocks *new* picks.
+        if (selectedIds && selectedIds.length) {
+            var activeIds = tags.map(function(t) { return t.id; });
+            var missingIds = selectedIds.filter(function(id) { return activeIds.indexOf(id) === -1; });
+            if (missingIds.length) {
+                var nameMap = await getTagNameMap();
+                missingIds.forEach(function(id) {
+                    if (nameMap[id]) tags.push({ id: id, name: nameMap[id], archived: true });
+                });
+                tags.sort(function(a, b) { return a.name.localeCompare(b.name); });
+            }
+        }
+
+        container.innerHTML = '';
+
+        // Inline "+ Add new tag" row — always shown at the top of the list
+        var addRow = document.createElement('div');
+        addRow.className = 'tag-picker-add-row';
+
+        var addInput = document.createElement('input');
+        addInput.type = 'text';
+        addInput.className = 'tag-picker-add-input';
+        addInput.placeholder = '+ Add new tag';
+
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn btn-secondary btn-small';
+        addBtn.textContent = 'Add';
+
+        async function doAddNewTag() {
+            var name = addInput.value.trim();
+            if (!name) return;
+            addBtn.disabled = true;
+            try {
+                var docRef = await userCol('tags').add({
+                    name: name,
+                    active: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                var stillChecked = getCheckedTagIds(containerId);
+                stillChecked.push(docRef.id);
+                await buildTagCheckboxList(containerId, stillChecked);
+            } catch (e) {
+                console.error('Error adding tag from picker:', e);
+                alert('Error adding tag.');
+                addBtn.disabled = false;
+            }
+        }
+
+        addBtn.addEventListener('click', doAddNewTag);
+        addInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); doAddNewTag(); }
+        });
+
+        addRow.appendChild(addInput);
+        addRow.appendChild(addBtn);
+        container.appendChild(addRow);
+
+        if (tags.length === 0) {
+            var none = document.createElement('em');
+            none.style.cssText = 'color:#888;font-size:0.85em;display:block;padding:6px 14px;';
+            none.textContent = 'No tags yet — add one above.';
+            container.appendChild(none);
+        } else {
+            tags.forEach(function(tag) {
+                var label = document.createElement('label');
+                label.className = 'zone-checkbox-item';
+
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = tag.id;
+                checkbox.checked = selectedIds && selectedIds.indexOf(tag.id) >= 0;
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(' ' + tag.name + (tag.archived ? ' (archived)' : '')));
+                container.appendChild(label);
+            });
+        }
+
+    } catch (e) {
+        console.error('Error loading tags for checkbox list:', e);
+        container.innerHTML = '<em style="color:#888;font-size:0.85em;">Error loading tags.</em>';
+    }
+}
+
+/**
+ * Reads all checked tag IDs from a tag picker checkbox list container.
+ * @param {string} containerId - The ID of the checkbox list container.
+ * @returns {string[]} Array of checked tag IDs.
+ */
+function getCheckedTagIds(containerId) {
+    var container = document.getElementById(containerId);
+    var checked = [];
+    var checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(function(cb) {
+        if (cb.checked) checked.push(cb.value);
+    });
+    return checked;
+}
+
+/**
+ * Renders tag chips into a container element for a given set of tag IDs.
+ * Resolves names via getTagNameMap() (active + archived), since an already-
+ * tagged item must keep showing the tag name even after it's archived.
+ * @param {HTMLElement} containerEl - Element to render chips into.
+ * @param {string[]} tagIds - Array of tag IDs to display.
+ */
+async function renderTagChips(containerEl, tagIds) {
+    if (!tagIds || tagIds.length === 0) return;
+
+    try {
+        var nameMap = await getTagNameMap();
+        containerEl.innerHTML = '';
+        tagIds.forEach(function(id) {
+            var name = nameMap[id];
+            if (!name) return; // tag was hard-deleted (shouldn't happen — soft delete only)
+            var chip = document.createElement('span');
+            chip.className = 'mtag-chip';
+            chip.textContent = name;
+            containerEl.appendChild(chip);
+        });
+    } catch (e) {
+        console.error('Error rendering tag chips:', e);
+    }
+}
+
 // ---------- Event Listeners ----------
 
 document.addEventListener('DOMContentLoaded', function() {

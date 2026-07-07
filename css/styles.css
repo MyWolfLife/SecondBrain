@@ -755,6 +755,45 @@ button {
     gap: 4px;
 }
 
+/* Managed-tag chip (calendarEvents.tagIds[] / tags collection) — same visual
+   pattern as .chemical-tag. Named .mtag-chip (not .tag-chip) to avoid colliding
+   with the existing free-text .tag-chip class used by the sub-thing tag input. */
+.mtag-chip {
+    display: inline-block;
+    background: #fff1f2;
+    color: #881337;
+    border: 1px solid #fda4af;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    margin: 2px 4px 2px 0;
+}
+
+.tag-chips-display {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    margin: 2px 0 4px;
+}
+
+/* Inline "+ Add new tag" row at the top of the tag picker checkbox list */
+.tag-picker-add-row {
+    display: flex;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.tag-picker-add-input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
 .card-subtitle {
     font-size: 0.85rem;
     color: #888;
