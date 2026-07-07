@@ -590,6 +590,8 @@ Sync your Yard and Life Calendar events to Google Calendar so you get reminders 
 
 **Note:** If you previously used the "Add to Google Calendar" links to add events manually and then connect the full sync, running Sync All may create duplicates. Delete the duplicates directly in Google Calendar.
 
+**If a connection attempt fails or hangs:** Bishop shows a **Google Calendar Connection Problem** popup with 4 steps to check in Google Cloud Console (re-adding this app's web address under "Authorized JavaScript origins" for your OAuth Client ID). This is the most common cause of a Google "Access blocked: Authorization Error" (origin_mismatch) page, and typically happens after the app's URL changes.
+
 ### Private Storage Setup
 
 The **Private Storage** accordion in General Settings activates an encrypted personal vault — visible as a **Private** tile on the Life screen once activated.

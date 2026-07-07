@@ -79,10 +79,39 @@ function _gcalInitTokenClient(clientId) {
 }
 
 /**
+ * Request a GIS token, racing the callback against a timeout.
+ * A config error like origin_mismatch surfaces as a Google-hosted error page
+ * that never posts back to us — cross-origin, so we can't read what it says.
+ * GIS's callback simply never fires in that case, so a stalled callback is
+ * the only signal available that something went wrong.
+ * @param {string} prompt    - '' for silent re-auth, 'consent' for full consent screen
+ * @param {number} timeoutMs
+ * @returns {Promise<{timedOut:boolean, response?:Object}>}
+ */
+function _gcalRequestToken(prompt, timeoutMs) {
+    return new Promise(function(resolve) {
+        var settled = false;
+        var timer = setTimeout(function() {
+            if (settled) return;
+            settled = true;
+            resolve({ timedOut: true });
+        }, timeoutMs);
+
+        _gcalTokenClient.callback = function(response) {
+            if (settled) return; // we already timed out; ignore a late callback
+            settled = true;
+            clearTimeout(timer);
+            resolve({ timedOut: false, response: response });
+        };
+        _gcalTokenClient.requestAccessToken({ prompt: prompt });
+    });
+}
+
+/**
  * Ensure a valid access token is available.
  * First checks the cached token's expiry. If expired, attempts a silent
  * re-authorization (no popup if the user has already approved the app).
- * Only shows UI (toast) if silent re-auth fails and the user must reconnect.
+ * Only shows UI (toast/modal) if silent re-auth fails and the user must reconnect.
  * @returns {Promise<boolean>} true if a valid token is now available.
  */
 async function gcalEnsureToken() {
@@ -106,25 +135,30 @@ async function gcalEnsureToken() {
     }
 
     // Attempt silent re-auth (prompt: '' = no popup if already approved)
-    return new Promise(function(resolve) {
-        _gcalTokenClient.callback = async function(response) {
-            if (response.error || !response.access_token) {
-                await gcalSaveSettings({ connected: false, accessToken: '', tokenExpiry: 0 });
-                if (typeof gcalRefreshSettingsUI === 'function') gcalRefreshSettingsUI();
-                _gcalToast('Google Calendar disconnected — reconnect in Settings');
-                resolve(false);
-                return;
-            }
-            var expiry = Date.now() + (response.expires_in - 60) * 1000;
-            await gcalSaveSettings({
-                accessToken: response.access_token,
-                tokenExpiry: expiry,
-                connected: true
-            });
-            resolve(true);
-        };
-        _gcalTokenClient.requestAccessToken({ prompt: '' });
+    var result = await _gcalRequestToken('', 12000);
+
+    if (result.timedOut) {
+        await gcalSaveSettings({ connected: false, accessToken: '', tokenExpiry: 0 });
+        if (typeof gcalRefreshSettingsUI === 'function') gcalRefreshSettingsUI();
+        _gcalShowOriginErrorModal();
+        return false;
+    }
+
+    var response = result.response;
+    if (response.error || !response.access_token) {
+        await gcalSaveSettings({ connected: false, accessToken: '', tokenExpiry: 0 });
+        if (typeof gcalRefreshSettingsUI === 'function') gcalRefreshSettingsUI();
+        _gcalToast('Google Calendar disconnected — reconnect in Settings');
+        return false;
+    }
+
+    var expiry = Date.now() + (response.expires_in - 60) * 1000;
+    await gcalSaveSettings({
+        accessToken: response.access_token,
+        tokenExpiry: expiry,
+        connected: true
     });
+    return true;
 }
 
 // ============================================================
@@ -443,41 +477,42 @@ async function gcalConnect() {
         return;
     }
 
-    return new Promise(function(resolve) {
-        _gcalTokenClient.callback = async function(response) {
-            if (response.error || !response.access_token) {
-                _gcalToast('Connection cancelled or failed — try again.');
-                resolve(false);
-                return;
-            }
+    // 'consent' forces Google to show the account/scope screen on first connect
+    var result = await _gcalRequestToken('consent', 15000);
 
-            var expiry = Date.now() + (response.expires_in - 60) * 1000;
-            await gcalSaveSettings({
-                accessToken: response.access_token,
-                tokenExpiry: expiry,
-                connected: true
-            });
+    if (result.timedOut) {
+        _gcalShowOriginErrorModal();
+        return false;
+    }
 
-            // Ensure the Bishop calendar exists
-            try {
-                await gcalEnsureCalendar();
-            } catch (err) {
-                console.error('gcalConnect — calendar create error:', err);
-                _gcalToast('Connected, but could not create calendar — try Recreate Calendar in Settings');
-            }
+    var response = result.response;
+    if (response.error || !response.access_token) {
+        _gcalToast('Connection cancelled or failed — try again.');
+        return false;
+    }
 
-            // Refresh Settings UI
-            if (typeof gcalRefreshSettingsUI === 'function') gcalRefreshSettingsUI();
-
-            // Fire first-connect bulk-sync prompt (GC-5)
-            if (typeof gcalFirstConnectPrompt === 'function') gcalFirstConnectPrompt();
-
-            resolve(true);
-        };
-
-        // 'consent' forces Google to show the account/scope screen on first connect
-        _gcalTokenClient.requestAccessToken({ prompt: 'consent' });
+    var expiry = Date.now() + (response.expires_in - 60) * 1000;
+    await gcalSaveSettings({
+        accessToken: response.access_token,
+        tokenExpiry: expiry,
+        connected: true
     });
+
+    // Ensure the Bishop calendar exists
+    try {
+        await gcalEnsureCalendar();
+    } catch (err) {
+        console.error('gcalConnect — calendar create error:', err);
+        _gcalToast('Connected, but could not create calendar — try Recreate Calendar in Settings');
+    }
+
+    // Refresh Settings UI
+    if (typeof gcalRefreshSettingsUI === 'function') gcalRefreshSettingsUI();
+
+    // Fire first-connect bulk-sync prompt (GC-5)
+    if (typeof gcalFirstConnectPrompt === 'function') gcalFirstConnectPrompt();
+
+    return true;
 }
 
 /**
@@ -1006,4 +1041,26 @@ function _gcalToast(msg) {
     t.style.display = 'block';
     clearTimeout(t._hideTimer);
     t._hideTimer = setTimeout(function() { t.style.display = 'none'; }, 3500);
+}
+
+// ============================================================
+// Origin-mismatch / stalled-connection modal
+// ============================================================
+
+/** Last time the origin-error modal was shown (Date.now() ms), for throttling. */
+var _gcalOriginErrorShownAt = 0;
+
+/**
+ * Show the "connection didn't complete" modal with origin-mismatch
+ * troubleshooting steps. Throttled to once per minute so a background
+ * auto-sync retrying on every event save doesn't stack modals.
+ */
+function _gcalShowOriginErrorModal() {
+    if (Date.now() - _gcalOriginErrorShownAt < 60000) return;
+    _gcalOriginErrorShownAt = Date.now();
+    if (typeof openModal === 'function' && document.getElementById('gcalOriginErrorModal')) {
+        openModal('gcalOriginErrorModal');
+    } else {
+        _gcalToast('Google Calendar connection failed — see Settings for troubleshooting steps');
+    }
 }

@@ -10685,6 +10685,30 @@ export default {
         </div>
     </div>
 
+    <!-- ===== Google Calendar Connection Problem Modal ===== -->
+    <div class="modal-overlay" id="gcalOriginErrorModal">
+        <div class="modal">
+            <h3>Google Calendar Connection Problem</h3>
+            <div class="fsq-help-body">
+                <p>Bishop tried to sign in to Google Calendar but never got a response back — the sign-in window may have shown an error instead of completing.</p>
+                <p>If you saw a page saying <strong>"Access blocked: Authorization Error"</strong> (<code style="background:#f5f5f5;padding:2px 6px;border-radius:3px;">origin_mismatch</code>), this app's web address needs to be re-registered with Google. This usually happens after the app's URL changes (for example, after moving to a new hosting account).</p>
+                <p style="font-weight:600;margin-bottom:4px;">To fix it:</p>
+                <ol style="margin-top:4px;padding-left:20px;line-height:1.8;">
+                    <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> → <strong>APIs &amp; Services → Credentials</strong></li>
+                    <li>Open the OAuth 2.0 Client ID used in Settings → Google Calendar</li>
+                    <li>Under <strong>Authorized JavaScript origins</strong>, add exactly:<br>
+                        <code style="background:#f5f5f5;padding:2px 8px;border-radius:3px;font-size:0.9em;">https://mywolflife.github.io</code>
+                    </li>
+                    <li>Click <strong>Save</strong>, then try connecting again</li>
+                </ol>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('gcalOriginErrorModal'); openModal('gcalHelpModal');">Full Setup Guide</button>
+                <button class="btn btn-primary" onclick="closeModal('gcalOriginErrorModal')">Got It</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== Google Calendar Setup Help Modal ===== -->
     <div class="modal-overlay" id="gcalHelpModal">
         <div class="modal modal-wide">
@@ -11146,7 +11170,7 @@ export default {
     <script src="js/calendar.js?v=355"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="js/gcal.js?v=6"></script>
+    <script src="js/gcal.js?v=7"></script>
     <script src="js/settings.js?v=656"></script>
     <script src="js/devnotes.js?v=560"></script>
     <script src="js/house.js?v=537"></script>
