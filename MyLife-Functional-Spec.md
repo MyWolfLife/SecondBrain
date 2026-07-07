@@ -2643,7 +2643,9 @@ var PHOTO_CONTAINERS = { /* ... all entity types ... */ };
 
 **Activity list**: Compact rows with date + description + Edit button. Edit modal shows full details (read-only) plus Save as Action and Delete.
 
-**Saved Actions**: Reusable templates. Created from an existing activity ("Save as Action" button) or from the Saved Actions management page (`#actions`). Used across any entity type.
+**Saved Actions**: Reusable templates. Created from an existing activity ("Save as Action" button), from the Saved Actions management page (`#actions`), or on the fly from the "+ New" button next to the "Link Saved Action" field in the Calendar Event modal. Used across any entity type.
+
+**"+ New" from the Calendar Event modal**: Opens the exact same full `savedActionModal` used everywhere else (name, description, chemical picker, notes) on top of the still-open Calendar Event modal, rather than a stripped-down inline form — so creating an action on the fly has full parity with the Actions page (multi-chemical selection included). Implemented as a stacked-modal pattern: `#savedActionModal` sits at `z-index: 1050` (above the default 1000, below the chemical picker's 1100) so it layers correctly over the calendar modal while still letting the chemical picker layer over *it* in turn. On save, `openAddSavedActionModalFromCalendar()`/`_savedActionModalContext` route the new action back into `calEventSavedActionSelect` (auto-selected, which also pre-fills the event's title/description exactly as picking any other existing action would) instead of refreshing the Actions page list. The calendar event's already-entered fields (title, date, etc.) are preserved throughout since the calendar modal is never closed.
 
 **Used by**: All entity types (yard zones/plants/weeds, house things, vehicles, people, etc.)
 

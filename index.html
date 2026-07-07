@@ -5490,7 +5490,10 @@ service firebase.storage {
             </div>
             <!-- Linked saved action (optional) -->
             <div class="form-group">
-                <label for="calEventSavedActionSelect">Link Saved Action (optional)</label>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <label for="calEventSavedActionSelect" style="margin:0;">Link Saved Action (optional)</label>
+                    <button type="button" class="btn btn-secondary btn-small" id="calEventNewActionBtn">+ New</button>
+                </div>
                 <select id="calEventSavedActionSelect">
                     <option value="">-- None --</option>
                 </select>
@@ -11348,14 +11351,14 @@ export default {
     <script src="js/projects.js?v=404"></script>
     <script src="js/chemicals.js?v=350"></script>
     <script src="js/tags.js?v=4"></script>
-    <script src="js/activities.js?v=352"></script>
+    <script src="js/activities.js?v=353"></script>
     <!-- Cropper.js — client-side image cropping library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <!-- SortableJS — drag-and-drop list reordering -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="js/photos.js?v=396"></script>
     <script src="js/weeds.js?v=351"></script>
-    <script src="js/calendar.js?v=362"></script>
+    <script src="js/calendar.js?v=363"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>

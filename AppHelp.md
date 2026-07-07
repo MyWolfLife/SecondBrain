@@ -308,12 +308,14 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Tips:**
 - You can also create a saved action directly from an activity you just logged: open the activity → tap **Save as Action**.
+- Or create one on the fly while adding a Calendar Event: tap **+ New** next to the Saved Action dropdown there — same full form, nothing lost from the event you were adding.
 - Saved actions can include multiple chemicals (useful for combination treatments).
 
 ### See Also
 - [Chemicals & Products](#help/chemicals)
 - [Plant Detail](#help/plant)
 - [Zone Detail](#help/zone)
+- [Calendar](#help/calendar)
 
 ---
 
@@ -330,6 +332,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 **Common tasks:**
 - **Add an event:** Tap **+ Add Event** — set title, description, date, and whether it recurs
 - **Tag an event:** In the Add/Edit Event form, check any tags you want under **Tags**, or type a new name in the **+ Add new tag** box at the top of the list and tap **Add** — it's created and checked immediately, no need to leave the form. Selected tags show as small pink chips on the event card.
+- **Create a Saved Action on the fly:** If the action you want isn't in the **Link Saved Action** dropdown, tap **+ New** right next to it. This opens the full Add Saved Action form (name, description, products, notes) on top of the event form — your in-progress event isn't lost. Save it and it's automatically selected back in the dropdown, pre-filling the title and description just like picking any existing action would.
 - **Complete an event:** Tap **✓ Complete** on any event card — this automatically creates an activity record for any linked zones
 - **Mark a maintenance schedule In Progress:** On a Reset Interval or Fixed Months occurrence, tap **In Progress** — set a start date (defaults to today) and optional notes. The occurrence stays open (you can still Complete it) and shows a "🔨 In Progress" badge. Tap **Edit Progress** to change the date/notes, or use **Clear Status** in that modal to revert it back to plain due/overdue.
 - **Skip a Fixed Months occurrence:** Tap **Skip** on the occurrence — you'll be asked to confirm. No activity is logged, and it does not affect the next scheduled month (e.g. skipping May doesn't touch July). Shows a "⏭ Skipped" badge; tap **Unskip** to revert.

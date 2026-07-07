@@ -2568,6 +2568,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Saved action dropdown in calendar modal — auto-fill title/description
     document.getElementById('calEventSavedActionSelect').addEventListener('change', handleCalEventSavedActionSelect);
 
+    // "+ New" button next to the saved action dropdown — create an action on the fly
+    // without losing the in-progress calendar event (opens on top, see #savedActionModal z-index)
+    document.getElementById('calEventNewActionBtn').addEventListener('click', openAddSavedActionModalFromCalendar);
+
     // Delete recurring modal — "Delete This Occurrence" button
     document.getElementById('deleteThisOccurrenceBtn').addEventListener('click', handleDeleteThisOccurrence);
 

@@ -892,6 +892,13 @@ button {
     z-index: 1100;
 }
 
+/* Saved Action modal can open on top of the Calendar Event modal ("+ New"
+   action on the fly) — sits between the default 1000 and the chemical
+   picker's 1100, so the chemical picker still layers above it correctly. */
+#savedActionModal {
+    z-index: 1050;
+}
+
 /* Crop modals must always appear on top of photo staging and other modals
    (they sit earlier in the DOM but need to overlay photoStagingModal) */
 #cropPreviewModal,

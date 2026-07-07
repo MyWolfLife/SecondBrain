@@ -32,6 +32,14 @@ var _activityBiasLng = null;
  */
 var _chemPickerContext = 'savedAction';
 
+/**
+ * Set when the saved-action modal is opened from within the Calendar Event
+ * modal's "+ New" button (rather than from the Actions page). When set,
+ * handleSavedActionModalSave() auto-selects the newly created action back
+ * in the calendar event's dropdown instead of refreshing the Actions list.
+ */
+var _savedActionModalContext = null;
+
 // ---------- Chemical Checkbox List Helpers ----------
 
 /**
@@ -935,6 +943,18 @@ async function openAddSavedActionModal() {
     nameInput.focus();
 }
 
+/**
+ * Opens the add-saved-action modal from within the Calendar Event modal's
+ * "+ New" button. Reuses the exact same full modal (name, description,
+ * chemical picker, notes) — the calendar event modal stays open underneath
+ * (see the z-index rule for #savedActionModal in styles.css) and gets the
+ * new action auto-selected once saved.
+ */
+async function openAddSavedActionModalFromCalendar() {
+    _savedActionModalContext = 'calendarEvent';
+    await openAddSavedActionModal();
+}
+
 // ---------- Edit Saved Action ----------
 
 /**
@@ -989,14 +1009,17 @@ async function handleSavedActionModalSave() {
     const mode = modal.dataset.mode;
 
     try {
+        var newActionId = null;
+
         if (mode === 'add') {
-            await userCol('savedActions').add({
+            var docRef = await userCol('savedActions').add({
                 name: name,
                 description: description,
                 notes: notes,
                 chemicalIds: chemicalIds,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            newActionId = docRef.id;
             console.log('Saved action created:', name);
 
         } else if (mode === 'edit') {
@@ -1011,6 +1034,17 @@ async function handleSavedActionModalSave() {
         }
 
         closeModal('savedActionModal');
+
+        // If this action was created from the Calendar Event modal's "+ New" button,
+        // return control there: select the new action and pre-fill title/description
+        // from it, same as picking any other action from the dropdown.
+        if (_savedActionModalContext === 'calendarEvent' && newActionId) {
+            _savedActionModalContext = null;
+            await populateSavedActionsDropdown('calEventSavedActionSelect', newActionId);
+            await handleCalEventSavedActionSelect();
+            return;
+        }
+        _savedActionModalContext = null;
 
         // Refresh the saved actions page if we're on it
         const hash = window.location.hash.slice(1) || 'home';
@@ -1246,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Saved action modal — Cancel button
     document.getElementById('savedActionModalCancelBtn').addEventListener('click', function() {
+        _savedActionModalContext = null;
         closeModal('savedActionModal');
     });
 
