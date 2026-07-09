@@ -2615,6 +2615,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Tap any note card to open and edit it.
 - Notes show a preview of the first line in the notebook view.
 - Photos attached to a note appear as thumbnails on the note card and in full below the note body when viewing the note.
+- While editing a note, add photos via **Camera**, **Gallery**, or **Paste** (pastes an image copied to your device clipboard).
 
 **Moving a note to a different notebook:**
 - Open a note and tap **Edit**.

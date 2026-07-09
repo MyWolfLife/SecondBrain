@@ -463,6 +463,7 @@ function _getPasteEntity(type) {
         item:              window.currentItem,
         lifeEvent:         window.currentLifeEvent,
         problem:           window.currentProblem,
+        note:              window.currentNote,
     };
     return entityMap[type] || null;
 }

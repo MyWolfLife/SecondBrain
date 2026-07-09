@@ -981,6 +981,8 @@ A notebook-organized note-taking system.
 
 **Tab key**: In the note body textarea, pressing Tab inserts 4 spaces instead of moving focus to the next field.
 
+**Photos**: While editing a note, Camera / Gallery / Paste buttons add photos (`targetType: 'note'`). Uses the shared [Photos](#part-11-shared-features) system (`triggerCameraUpload`, `triggerGalleryUpload`, `triggerPasteUpload`); the Paste button is wired via the shared `.paste-photo-btn` / `data-entity="note"` delegated handler in `photos.js`, mapped to `window.currentNote`.
+
 ### Life Main Page (`#life`)
 
 Landing page showing a **3-column grid** of tile shortcuts: Journal, Contacts, Health, Notes, Calendar, Projects, Checklists, **My Legacy**, and **Private** (hidden until vault is activated). The Checklists tile navigates to `#checklists/life`. The My Legacy tile navigates to `#legacy`. The Private tile (`#private`) is hidden until the user activates the Private vault in General Settings. Below the tiles, a **"Coming Up"** section (hidden when empty) shows events within the next 30 days, sorted by date. Two sources are merged:
