@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–6 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan) are live. Candidate dossiers, trade tickets, and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–7 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier) are live. Trade tickets and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2300,6 +2300,28 @@ Results are shown in a popup after the update completes. If any tickers failed a
 **Earnings chips**: Currently powered by FMP's free tier, which only covers ~70 popular tickers — most candidates won't show the chip yet. Full coverage comes with a paid FMP tier or the Finnhub integration in a later phase.
 
 **Scans are saved**: Every scan is stored (including your dismissals), which is what will let the future tracking loop grade how past scans — and your dismissal judgment — performed.
+
+---
+
+## screen:analyzer-dossier
+
+### Quick Help
+- The **dossier** is the deep-dive behind a scan candidate — everything you need to make the call on one stock
+- The **chart** shows the last 12 months with your **target** (green dashed) and **stop** (red dashed) lines, plus a triangle on the peak the stock fell from
+- The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
+- Write your **thesis** — what has to happen for the stock to rise, and whether the dip looks *emotional* (tradeable) or *structural* (avoid)
+- Set your **exit plan** (target / stop / time stop) — the dollar prices update live as you type
+- Tap **Save thesis & exits** — your notes stay with this candidate and pre-fill the trade ticket (coming in Stage 8)
+
+### Details
+
+**Evidence is live**: The dossier recomputes everything from the latest cached prices when it opens, so the badge can differ slightly from what the scan card showed (new trading days arrive). If the dip has fully recovered it says "setup no longer active."
+
+**Reading the dips table**: *hit* = reached the target % within the window; *miss* = didn't; *pending* = the window isn't over yet. "Max gain" is the best the stock did after the dip; "Worst dip" is how much further it fell first — a preview of the drawdown you'd have to sit through.
+
+**Springs**: Compressed-spring candidates show the chart with a 52-week-high line instead of the dips table — their story is about a coiled price near highs, not recovery history.
+
+**Exit discipline**: Decide the exits *before* you buy. The time stop matters as much as the price stops — if the thesis hasn't played out by then, it expired; exit even at breakeven.
 
 ---
 

@@ -1,9 +1,16 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–6 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan); Stage 7 (candidate dossier) next.**
+**Status: BUILDING — Stages 1–7 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan, dossier); Stage 8 (trade ticket) next.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 7 COMPLETE.** Candidate dossier built + verified (route `#analyzer/dossier/{scanId}/{ticker}/{detector}`, code in `js/analyzer-scan.js`):
+  - FLEX dossier via deep link: badge (−16.2% in 7d — live recompute, deeper than scan-time), 7 evidence chips, Chart.js chart (price + target/stop dashed guides + peak triangle, 4 datasets), **similar-dips table exactly matches `anaEngDipEvents` (19 rows)**, thesis + custom exits (target 12%) saved to scan doc and **persisted across full reload**; live exit-price recompute correct ($152.10 = $135.80 × 1.12).
+  - EA spring dossier: 52w-high line variant, no dip table — as designed. Read-only mode when scan doc missing.
+  - Scan card "Open dossier" button enabled (navigates with scanId context). Console clean.
+  - **Verification env note**: the preview browser profile was replaced (Browser pane) — IndexedDB cache started empty; re-seeded 4 tickers for testing. The user's own device keeps its cache. Also: viewport resize tool wouldn't apply (stuck at 669px) — mobile check done via overflow containment (table scrolls in wrapper, no body overflow) rather than exact 375px.
+  - Next: **Stage 8 — trade ticket + live tracking** (entry/thesis/exits recorded from dossier; open positions tracked against target/stop/time-stop; close-out flow vs thesis).
 
 - **2026-07-10 — Stage 6 COMPLETE.** `js/analyzer-scan.js` — live scan screen built + verified:
   - Real scan on cached data: **501 → 494 → 47 → 20 funnel in 2.1s**, regime banner green (bullish, VIX 15.9). Candidate cards match the mocked format (e.g., "FLEX −13.7% in 6d · Similar dips: 15 of 16 hit +10% ≤60d · median 9d · Base rate 74%").
@@ -369,7 +376,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Friday scan flow: regime banner, funnel stats, per-detector shortlists (per the mocked output format), scan snapshots to Firestore, dismiss-with-memory
 - ✅ Done when: a real scan produces shortlists consistent with what the backtest engine would flag for "today"
 
-**Stage 7 — Candidate dossier (price-only v1)**
+**Stage 7 — Candidate dossier (price-only v1)** ✅ COMPLETE (2026-07-10)
 - Per-candidate page: price chart with dip marked, conditional-history table, thesis prompt, exit fields (pre-filled defaults)
 - ✅ Done when: dossier opens from a scan card with all price-derived evidence populated
 

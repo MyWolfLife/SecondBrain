@@ -331,11 +331,16 @@ function _asCandidateCard(c) {
     }
     html += '</div>' +
         '<div class="ab-form-row" style="margin:8px 0 0">' +
-            '<button class="ana-sp-btn" disabled title="Coming in Stage 7">Open dossier</button>' +
+            '<button class="ana-sp-btn" onclick="_asOpenDossier(\'' + c.ticker + '\',\'' + c.detector + '\')">Open dossier</button>' +
             '<button class="ana-sp-btn" onclick="_asToggleDismiss(\'' + c.ticker + '\',\'' + c.detector + '\')">Dismiss</button>' +
         '</div>' +
     '</div>';
     return html;
+}
+
+function _asOpenDossier(ticker, detector) {
+    if (!_asLatestScan || !_asLatestScan.id) return;
+    window.location.hash = '#analyzer/dossier/' + _asLatestScan.id + '/' + encodeURIComponent(ticker) + '/' + detector;
 }
 
 // Dismiss / un-dismiss a candidate on the displayed scan (persisted to the scan doc).
@@ -352,4 +357,262 @@ async function _asToggleDismiss(ticker, detector) {
         hit.dismissed = !hit.dismissed;   // revert on failure
     }
     _asRenderScan(scan, document.getElementById('asBody'));
+}
+
+// ---------------------------------------------------------------------------
+// Candidate dossier (Stage 7) — #analyzer/dossier/{scanId}/{ticker}/{detector}
+// ---------------------------------------------------------------------------
+// The deep-dive page behind a scan card: full evidence recap, a 12-month
+// price chart with the setup marked, the stock's own similar-dips history,
+// the thesis prompt, and exit fields. Thesis + exits save onto the scan
+// doc's candidate entry (thesisDraft / exits) for the Stage 8 trade ticket.
+// Evidence is recomputed from the price cache, so deep links and reloads work.
+// ---------------------------------------------------------------------------
+
+var _adChart = null;      // live Chart.js instance (destroyed on re-entry)
+var _adCtx   = null;      // {scanId, ticker, detector, scan, candidate, close}
+
+async function loadAnalyzerDossierPage(scanId, ticker, detector) {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Scan', href: '#analyzer/scan' },
+        { label: ticker }
+    ]);
+    var page = document.getElementById('page-analyzer-dossier');
+    if (!page) return;
+    page.innerHTML = '<p class="muted-text" style="padding:16px">Building dossier…</p>';
+
+    // Price history is the backbone — without it there is no dossier
+    var rec;
+    try { rec = await anaGetPriceHistory(ticker); } catch (e) { rec = null; }
+    if (!rec || rec.dates.length < 260) {
+        page.innerHTML = '<p class="muted-text" style="padding:16px">No cached price history for ' + escapeHtml(ticker) +
+            ' — run Update price data on the Analyzer hub first.</p>';
+        return;
+    }
+
+    // Scan context (for saved thesis/exits). Missing scan → read-only mode.
+    var scan = null, candidate = null;
+    try {
+        var doc = await userCol('analyzerScans').doc(scanId).get();
+        if (doc.exists) {
+            scan = Object.assign({ id: doc.id }, doc.data());
+            candidate = (scan.candidates || []).find(function(c) {
+                return c.ticker === ticker && c.detector === detector;
+            }) || null;
+        }
+    } catch (e) { console.error('[dossier] scan load failed:', e); }
+
+    var params = (scan && scan.params) || AS_DEFAULTS;
+    var n      = rec.dates.length - 1;
+    var close  = rec.close[n];
+
+    // Recompute the full evidence set from the cache
+    var ev = {
+        close:   close,
+        rsi:     anaEngRsi(rec.close, 14, n),
+        volRatio: anaEngVolumeRatio(rec.volume, 5, 60, n),
+        realVol: anaEngRealizedVol(rec.close, 60, n),
+        sma50:   anaEngSma(rec.close, 50, n),
+        sma200:  anaEngSma(rec.close, 200, n),
+        baseRate: anaEngBaseRate(rec, { gainPct: params.gainPct, windowDays: params.windowDays }),
+        dip:     anaEngDipTrigger(rec, { dropPct: params.dipPct, dropDays: params.dipDays }),
+        spring:  anaEngSpringTrigger(rec, {}),
+        events:  anaEngDipEvents(rec, { dropPct: params.dipPct, dropDays: params.dipDays,
+                                        gainPct: params.gainPct, windowDays: params.windowDays })
+    };
+    var hi52 = -Infinity, lo52 = Infinity;
+    for (var i = Math.max(0, n - 251); i <= n; i++) {
+        if (rec.high[i] > hi52) hi52 = rec.high[i];
+        if (rec.low[i]  < lo52) lo52 = rec.low[i];
+    }
+    ev.hi52 = hi52; ev.lo52 = lo52;
+
+    _adCtx = { scanId: scanId, ticker: ticker, detector: detector, scan: scan, candidate: candidate, close: close };
+    _adRender(page, rec, ev, params);
+}
+
+function _adRender(page, rec, ev, params) {
+    var ctx  = _adCtx;
+    var name = _asName(ctx.ticker);
+    var saved = (ctx.candidate && ctx.candidate.exits) || {};
+    var exits = {
+        targetPct:    saved.targetPct    != null ? saved.targetPct    : 10,
+        stopPct:      saved.stopPct      != null ? saved.stopPct      : 7,
+        timeStopDays: saved.timeStopDays != null ? saved.timeStopDays : 60
+    };
+    var thesis = (ctx.candidate && ctx.candidate.thesisDraft) || '';
+    var isDip  = ctx.detector === 'dipA';
+
+    // Header + badge
+    var badge;
+    if (isDip && ev.dip)          badge = '−' + ev.dip.dropPct.toFixed(1) + '% in ' + ev.dip.daysSincePeak + 'd';
+    else if (!isDip && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
+    else                          badge = 'setup no longer active';
+
+    var html =
+        '<div class="page-header"><h2>' + escapeHtml(ctx.ticker) +
+            (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</h2></div>' +
+        '<div class="ab-form-row">' +
+            '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
+            '<span class="ab-dim">$' + ev.close.toFixed(2) + ' · data through ' + escapeHtml(rec.dates[rec.dates.length - 1]) + '</span>' +
+        '</div>';
+
+    // Evidence chips
+    var chips = [];
+    if (ev.baseRate) chips.push('Base rate: ' + Math.round(ev.baseRate.rate * 100) + '% of ' + params.windowDays + 'd windows hit +' + params.gainPct + '%');
+    if (ev.rsi != null)      chips.push('RSI ' + ev.rsi.toFixed(0));
+    if (ev.volRatio != null) chips.push('Volume ' + ev.volRatio.toFixed(1) + '× normal');
+    if (ev.realVol != null)  chips.push('Realized vol ' + (ev.realVol * 100).toFixed(0) + '%');
+    if (ev.sma50 != null)    chips.push((ev.close > ev.sma50 ? 'Above' : 'Below') + ' 50d avg');
+    if (ev.sma200 != null)   chips.push((ev.close > ev.sma200 ? 'Above' : 'Below') + ' 200d avg');
+    chips.push('52w range $' + ev.lo52.toFixed(2) + ' – $' + ev.hi52.toFixed(2));
+    if (ctx.candidate && ctx.candidate.earningsDate) chips.push('⚠️ Earnings ' + ctx.candidate.earningsDate);
+    html += '<div class="as-chip-row" style="margin-bottom:12px">';
+    chips.forEach(function(c) { html += '<span class="as-chip">' + escapeHtml(c) + '</span>'; });
+    html += '</div>';
+
+    // Chart
+    html += '<div class="ad-chart-wrap"><canvas id="adChart"></canvas></div>';
+
+    // Similar-dips history (dips only)
+    if (isDip) {
+        var evsDone = ev.events.filter(function(e) { return !e.pending; });
+        var hits = evsDone.filter(function(e) { return e.hit === true; }).length;
+        html += '<h3 class="ana-section-title">Similar dips — ' + escapeHtml(ctx.ticker) + '’s own history</h3>';
+        if (ev.events.length === 0) {
+            html += '<p class="muted-text">No comparable dips (≥' + params.dipPct + '% in ' + params.dipDays + 'd) in the cached 5 years — this setup is a first for this stock.</p>';
+        } else {
+            html += '<p class="muted-text">' + hits + ' of ' + evsDone.length + ' completed episodes reached +' + params.gainPct + '% within ' + params.windowDays + ' trading days.</p>' +
+                '<div class="ab-table-wrap"><table class="ab-table">' +
+                '<tr><th>Date</th><th>Drop</th><th>Outcome</th><th>Days to +' + params.gainPct + '%</th><th>Max gain</th><th>Worst dip</th><th>End of window</th></tr>';
+            ev.events.slice().reverse().forEach(function(e) {
+                var badge2 = e.pending ? '<span class="ab-badge ab-badge-neutral">pending</span>'
+                    : (e.hit ? '<span class="ab-badge ab-badge-win">hit</span>' : '<span class="ab-badge ab-badge-loss">miss</span>');
+                html += '<tr>' +
+                    '<td>' + e.date + '</td>' +
+                    '<td>−' + e.dropPct.toFixed(1) + '%</td>' +
+                    '<td>' + badge2 + '</td>' +
+                    '<td>' + (e.daysToHit != null ? e.daysToHit : '—') + '</td>' +
+                    '<td class="' + (e.maxGainPct > 0 ? 'ab-pos' : 'ab-dim') + '">' + (e.maxGainPct != null ? _abFmtPct(e.maxGainPct) : '—') + '</td>' +
+                    '<td class="ab-neg">' + (e.minRetPct != null ? _abFmtPct(e.minRetPct) : '—') + '</td>' +
+                    '<td class="' + (e.finalRetPct > 0 ? 'ab-pos' : 'ab-neg') + '">' + (e.finalRetPct != null ? _abFmtPct(e.finalRetPct) : '—') + '</td>' +
+                '</tr>';
+            });
+            html += '</table></div>';
+        }
+    }
+
+    // Thesis + exits
+    var canSave = !!(ctx.scan && ctx.candidate);
+    html += '<h3 class="ana-section-title">Your thesis</h3>' +
+        '<p class="muted-text">What has to happen for ' + escapeHtml(ctx.ticker) + ' to rise ' + params.gainPct + '%? Is this dip emotional or structural?</p>' +
+        '<textarea id="adThesis" class="ad-thesis" rows="3" placeholder="e.g. Sector-wide selloff, no company-specific news, guidance intact — expect mean reversion once headlines fade."' +
+            (canSave ? '' : ' disabled') + '>' + escapeHtml(thesis) + '</textarea>' +
+
+        '<h3 class="ana-section-title">Exit plan</h3>' +
+        '<div class="ab-form-row">' +
+            '<label>Target % <input type="number" id="adTarget" value="' + exits.targetPct + '" min="1" max="100" step="0.5" oninput="_adUpdateExitPrices()"' + (canSave ? '' : ' disabled') + '></label>' +
+            '<label>Stop % <input type="number" id="adStop" value="' + exits.stopPct + '" min="1" max="50" step="0.5" oninput="_adUpdateExitPrices()"' + (canSave ? '' : ' disabled') + '></label>' +
+            '<label>Time stop (days) <input type="number" id="adTimeStop" value="' + exits.timeStopDays + '" min="5" max="250" step="1"' + (canSave ? '' : ' disabled') + '></label>' +
+        '</div>' +
+        '<p class="ab-dim" id="adExitPrices"></p>' +
+        '<div class="ab-form-row">' +
+            (canSave
+                ? '<button class="btn-primary" onclick="_adSaveNotes()">Save thesis &amp; exits</button>' +
+                  '<span class="settings-saved-msg hidden" id="adSavedMsg">&#10003; Saved</span>'
+                : '<span class="muted-text">Read-only — this dossier’s scan snapshot is missing, so notes can’t be saved.</span>') +
+            '<a class="ana-sp-btn" href="#analyzer/scan" style="text-decoration:none">← Back to scan</a>' +
+        '</div>';
+
+    page.innerHTML = html;
+    _adUpdateExitPrices();
+    _adDrawChart(rec, ev);
+}
+
+function _adUpdateExitPrices() {
+    var el = document.getElementById('adExitPrices');
+    if (!el || !_adCtx) return;
+    var t = parseFloat((document.getElementById('adTarget') || {}).value) || 10;
+    var s = parseFloat((document.getElementById('adStop')   || {}).value) || 7;
+    var c = _adCtx.close;
+    el.textContent = 'From $' + c.toFixed(2) + ': target $' + (c * (1 + t / 100)).toFixed(2) +
+                     ' · stop $' + (c * (1 - s / 100)).toFixed(2);
+}
+
+function _adDrawChart(rec, ev) {
+    var canvas = document.getElementById('adChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (_adChart) { _adChart.destroy(); _adChart = null; }
+
+    var n     = rec.dates.length;
+    var start = Math.max(0, n - 250);
+    var labels = rec.dates.slice(start);
+    var closes = rec.close.slice(start);
+
+    var t = parseFloat((document.getElementById('adTarget') || {}).value) || 10;
+    var s = parseFloat((document.getElementById('adStop')   || {}).value) || 7;
+    var close = ev.close;
+    var flat = function(v) { return labels.map(function() { return v; }); };
+
+    // Peak marker (dips): nulls everywhere except the trailing-peak date
+    var peakData = null;
+    if (_adCtx.detector === 'dipA' && ev.dip) {
+        peakData = labels.map(function(d) { return d === ev.dip.peakDate ? ev.dip.peakClose : null; });
+    }
+
+    var datasets = [
+        { label: _adCtx.ticker, data: closes, borderColor: '#2b6cb0', backgroundColor: 'rgba(43,108,176,0.06)',
+          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.1 },
+        { label: 'Target', data: flat(close * (1 + t / 100)), borderColor: '#2e7d32', borderWidth: 1.5,
+          borderDash: [6, 4], pointRadius: 0, fill: false },
+        { label: 'Stop', data: flat(close * (1 - s / 100)), borderColor: '#c62828', borderWidth: 1.5,
+          borderDash: [6, 4], pointRadius: 0, fill: false }
+    ];
+    if (peakData) {
+        datasets.push({ label: 'Peak', data: peakData, borderColor: '#b7791f', backgroundColor: '#b7791f',
+                        pointRadius: 6, pointStyle: 'triangle', showLine: false });
+    }
+    if (_adCtx.detector === 'springD') {
+        datasets.push({ label: '52w high', data: flat(ev.hi52), borderColor: '#b7791f', borderWidth: 1.5,
+                        borderDash: [2, 3], pointRadius: 0, fill: false });
+    }
+
+    _adChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: true, labels: { boxWidth: 18, font: { size: 10 } } } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+                y: { ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+// Persist thesis + exits onto the scan doc's candidate entry
+async function _adSaveNotes() {
+    var ctx = _adCtx;
+    if (!ctx || !ctx.scan || !ctx.candidate) return;
+    ctx.candidate.thesisDraft = (document.getElementById('adThesis') || {}).value || '';
+    ctx.candidate.exits = {
+        targetPct:    parseFloat((document.getElementById('adTarget')   || {}).value) || 10,
+        stopPct:      parseFloat((document.getElementById('adStop')     || {}).value) || 7,
+        timeStopDays: parseInt((document.getElementById('adTimeStop')   || {}).value, 10) || 60
+    };
+    try {
+        await userCol('analyzerScans').doc(ctx.scan.id).update({ candidates: ctx.scan.candidates });
+        var msg = document.getElementById('adSavedMsg');
+        if (msg) {
+            msg.classList.remove('hidden');
+            setTimeout(function() { msg.classList.add('hidden'); }, 2500);
+        }
+    } catch (e) {
+        console.error('[dossier] save failed:', e);
+        alert('Could not save: ' + e.message);
+    }
 }

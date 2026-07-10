@@ -2042,7 +2042,7 @@ A per-budget list of non-monthly expenses (annual, quarterly, etc.). Each item h
 
 Short-term trade candidate finder under Life → Financial. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision. Plan document: `StockAnalyzerPlan.md` (full design, methodology, and staged implementation plan).
 
-**Build status**: Stage 1 of 9 complete (scaffolding & navigation). Later stages add: universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossiers, trade tickets, tracking loop.
+**Build status**: Stages 1–7 of 9 complete (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier). Remaining: trade tickets (Stage 8), tracking loop (Stage 9).
 
 ### Navigation & Routes
 Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), between Stock Rollup and Snapshots.
@@ -2053,6 +2053,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
+| `#analyzer/dossier/{scanId}/{ticker}/{detector}` | Candidate dossier — chart, dip history, thesis, exit plan | ✅ Built (Stage 7) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
@@ -2112,6 +2113,18 @@ The "Friday morning" view: runs the detectors across the effective universe as o
 - **Open dossier** button is present but disabled until Stage 7.
 - **Firestore**: `analyzerScans` — one doc per scan: `{createdAt, date, params, regime{}, funnel{}, durationMs, candidates[{ticker, detector, trigger stats, baseRate, cond*, earningsDate, dismissed}]}`. In Settings backup.
 - **Verified**: funnel 501→494→47→20 on real data; every shortlisted dip confirmed by a direct engine sweep; dismiss persisted across reload; no mobile overflow.
+
+### Candidate dossier (`#analyzer/dossier/{scanId}/{ticker}/{detector}`, in `js/analyzer-scan.js`)
+The deep-dive page behind a scan card's **Open dossier** button. All evidence is **recomputed from the price cache on load**, so deep links and reloads work; the scan doc supplies only the saved thesis/exits and earnings chip.
+
+- **Header**: ticker + company name, trigger badge (live values — may differ from scan-time as new candles arrive; shows "setup no longer active" if the trigger has lapsed), current price, data-through date.
+- **Evidence chips**: base rate, RSI 14, 5d/60d volume ratio, 60d realized vol, above/below 50d + 200d averages, 52-week range, earnings chip when known.
+- **Price chart** (Chart.js, already CDN-loaded): last 250 trading days of closes with dashed **Target** (green) and **Stop** (red) guide lines computed from the exit fields, plus a triangle marker on the dip's trailing peak (dips) or a dashed 52-week-high line (springs). Instance destroyed/recreated on re-entry.
+- **Similar-dips table** (dips only): every historical episode from `anaEngDipEvents` newest-first — date, drop %, hit/miss/pending badge, days to target, max gain, worst dip, end-of-window return. Header line gives the conditional summary ("N of M completed episodes reached +10%…").
+- **Thesis prompt**: "What has to happen for {ticker} to rise 10%? Is this dip emotional or structural?" — free-text.
+- **Exit plan**: target/stop/time-stop fields (pre-filled from saved values or 10/7/60 defaults) with live computed dollar prices from the current close.
+- **Persistence**: **Save thesis & exits** writes `thesisDraft` + `exits{}` onto the scan doc's candidate entry (consumed by the Stage 8 trade ticket). If the scan doc is missing (deleted), the dossier renders read-only with an explanatory note.
+- **Verified**: FLEX dossier via deep link — chips populated, chart rendered (4 datasets), dip table exactly matches `anaEngDipEvents` (19 rows), thesis + custom exits persisted across full reload; EA spring dossier renders the 52w-high variant without a dip table.
 
 ---
 

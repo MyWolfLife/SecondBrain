@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=765">
+    <link rel="stylesheet" href="css/styles.css?v=766">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7670,6 +7670,11 @@ service firebase.storage {
             <!-- Populated by loadAnalyzerScanPage() in analyzer.js -->
         </section>
 
+        <!-- Page: Analyzer Candidate Dossier (#analyzer/dossier/{scanId}/{ticker}/{detector}) -->
+        <section class="page hidden" id="page-analyzer-dossier">
+            <!-- Populated by loadAnalyzerDossierPage() in analyzer-scan.js -->
+        </section>
+
         <!-- Modal: Capture Snapshot -->
         <div class="modal-overlay" id="investSnapModal">
             <div class="modal">
@@ -11447,7 +11452,7 @@ export default {
     <script src="js/memories.js?v=473"></script>
     <script src="js/firebasesetup.js?v=511"></script>
     <script src="js/views.js?v=556"></script>
-    <script src="js/help.js?v=545"></script>
+    <script src="js/help.js?v=546"></script>
     <script src="js/legacy-crypto.js?v=2"></script>
     <script src="js/legacy.js?v=28"></script>
     <script src="js/credentials.js?v=585"></script>
@@ -11459,9 +11464,9 @@ export default {
     <script src="js/analyzer-engine.js?v=3"></script>
     <script src="js/analyzer.js?v=5"></script>
     <script src="js/analyzer-backtest.js?v=1"></script>
-    <script src="js/analyzer-scan.js?v=1"></script>
+    <script src="js/analyzer-scan.js?v=2"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=671"></script>
+    <script src="js/app.js?v=672"></script>
 
 </body>
 </html>

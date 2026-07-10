@@ -68,6 +68,7 @@ var HELP_SECTION_MAP = {
     'analyzer-universe'              : 'analyzer-universe',
     'analyzer-backtest'              : 'analyzer-backtest',
     'analyzer-scan'                  : 'analyzer-scan',
+    'analyzer-dossier'               : 'analyzer-dossier',   // trailing scanId/ticker/detector stripped
 
     // ── Legacy sub-routes ───────────────────────────────────────
     'legacy-burial'                  : 'legacy-burial',

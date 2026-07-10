@@ -19980,3 +19980,24 @@ a.legacy-fin-card:hover {
     color: #555;
 }
 .as-chip-warn { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
+
+/* Candidate dossier */
+.ad-chart-wrap {
+    max-width: 680px;
+    height: 280px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 6px;
+}
+.ad-thesis {
+    width: 100%;
+    max-width: 640px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: vertical;
+}
