@@ -208,6 +208,24 @@ Agreed shape of the main output screen (mockup shown in discussion; all data ill
 5. **Locked section** for detectors awaiting Phase 3 data (e.g., estimate-revision momentum: "unlocks with FMP trial") — honest UI, no pretending.
 6. **Your holdings check** (Goal 2, same screen): one line per flagged position (held duration, trend, estimate drift) + verdict chip (Review exit / Healthy).
 
+### Walk-forward backtest mode (2026-07-09) — user request, confirmed feasible
+User asked: "Start Jan 1st, run the tool every Friday, compare picks against real data over the next 2 months, walk forward week by week, and show a success/failure card at the end." **Verdict: very doable — nearly free given our architecture.**
+
+**Why it's cheap:** detectors already run on cached 5-year raw price history (one fetch/ticker). Simulating "scan as of historical Friday X" = truncate each price series at X and run the same detector math; grading = read the rest of the series (hit +10% ≤60d? stop first? days to target?). **Zero additional API calls** — one fetch powers live scanning AND multi-year backtests. 500 tickers × ~78 Fridays = local JS math, seconds-to-a-minute in browser. Shares scorecard UI with the live Friday tracking loop (backtest = tracking loop pointed at the past).
+
+**Scorecard output:** per-detector: signals fired, hit rate (+10% ≤60d), median days to target, stop-outs, expiries, mechanical-rules P&L vs SPY benchmark. Drill-down list of every historical signal (studying the misses = the learning).
+
+**Validation scope (be honest in UI):**
+- Fully testable price-only: dip trigger, Detector D, base rates, regime gate, day-1 reaction filter, exit rules as a system.
+- Approximate: quality gate (needs dated historical fundamentals — FMP has them; v1 backtest is price-only and labeled as such). Detector B partial (historical surprises free; historical guidance language unavailable).
+- Not testable by design: the user's judgment layer. Backtest = "buy every trigger" robot = the floor. Live tracking loop measures whether judgment beats the floor.
+
+**Biases displayed on the scorecard, not buried:**
+- Survivorship: today's S&P 500 membership is the winners' list → flatters results; keep backtests to 1–3 years.
+- Overfitting: use backtest to sanity-check threshold choices (12% vs 15% dip), never to optimize to the decimal — tuning until history looks perfect memorizes the past.
+
+**Phasing:** price-only backtest slots into **Phase 1** (needs nothing beyond Phase 1 data). Fundamentals-aware backtest upgrades in Phase 3 with FMP historical statements.
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
