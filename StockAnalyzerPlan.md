@@ -293,5 +293,53 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - **Phase 1**: shared foundation + Backtest Lab v1 (price-only) + live scan screen (in that order).
 - **Phase 3 upgrade**: fundamentals-aware backtest (FMP dated historical statements gate the quality filter as-of each simulated Friday); Detector C joins both the live scan and the backtest.
 
+### Implementation plan — Phase 1 stages
+*Each stage is independently shippable: user-testable in the preview server, committed + pushed with spec/AppHelp/cache-bump per project conventions. Adjust later stages based on what earlier stages teach us.*
+
+**Stage 1 — Scaffolding & navigation**
+- 🎯 "Stock Analyzer" card on the Financial hub (`#investments`)
+- New routes: `#analyzer` (hub page), `#analyzer/universe`, `#analyzer/backtest`, `#analyzer/scan` (placeholders where needed)
+- New file: `js/analyzer.js` (page routing/rendering); page sections in `index.html`; styles
+- ✅ Done when: navigation to all analyzer pages works on desktop + 375px mobile
+
+**Stage 2 — Universe manager**
+- Static S&P 500 constituent list shipped in repo (`data/sp500.json`: ticker, name, sector) with a "list as of" date
+- Firestore doc for user modifications: watchlist additions, exclusions
+- Universe page UI: counts by source (S&P / holdings / watchlist), add/remove watchlist tickers, pull-in of current holdings tickers from Investments (reuse Stock Rollup aggregation)
+- ✅ Done when: universe list renders with accurate counts and watchlist add/remove persists
+
+**Stage 3 — Data layer + price cache**
+- `js/analyzer-data.js`: 5y daily OHLCV per ticker via existing Yahoo/proxy pipeline; SPY + ^VIX included
+- IndexedDB cache (db `bishopAnalyzer`, store `prices`): full fetch, incremental top-up, staleness tracking, resumable progress
+- Hub UI: "Update price data" job with progress bar and per-ticker failure report
+- ✅ Done when: a full-universe fetch completes, survives reload, and a re-run only tops up
+
+**Stage 4 — Detector engine** (`js/analyzer-engine.js`, pure functions — no fetch/DOM/Firestore)
+- Indicators: SMA/EMA, RSI, realized volatility, volume-vs-average
+- Base-rate calculator (unconditional + conditional/event-matched), regime evaluator, Detector A dip trigger, Detector D
+- ✅ Done when: engine functions produce verifiable numbers against a known ticker's history (spot-checked by hand)
+
+**Stage 5 — Backtest Lab** *(the Phase 1 centerpiece)*
+- Setup form → walk-forward runner (per the simulation rules above) → scorecard + signal drill-down → saved runs in `analyzerBacktests` → run comparison
+- Add analyzer collections to `js/settings.js` backup logic (backup-collections checklist)
+- ✅ Done when: a Jan-1-to-today backtest runs end-to-end and the scorecard matches hand-checked samples
+
+**Stage 6 — Live scan screen**
+- Friday scan flow: regime banner, funnel stats, per-detector shortlists (per the mocked output format), scan snapshots to Firestore, dismiss-with-memory
+- ✅ Done when: a real scan produces shortlists consistent with what the backtest engine would flag for "today"
+
+**Stage 7 — Candidate dossier (price-only v1)**
+- Per-candidate page: price chart with dip marked, conditional-history table, thesis prompt, exit fields (pre-filled defaults)
+- ✅ Done when: dossier opens from a scan card with all price-derived evidence populated
+
+**Stage 8 — Trade ticket + live tracking**
+- Entry/thesis/exits recorded; open positions tracked against target/stop/time-stop; close-out flow with outcome vs. thesis
+- ✅ Done when: a ticket created from a dossier tracks correctly against daily prices
+
+**Stage 9 — Tracking loop / scoreboard**
+- 30/60-day auto-grading of past scan snapshots vs SPY; closed-trade history; the "learning journal with receipts"
+- ✅ Done when: a past snapshot grades correctly once its window completes
+- **Phase 1 complete.** Phase 2 (Finnhub: quality gates, insider signal, Detector B, catalyst map) and Phase 3 (FMP: divergence, Detector C, screener) follow as separate efforts.
+
 ### Remaining plan sections
-*(To be written as each component is formally designed: universe manager, strategy profiles, live scanner, candidate dossier, trade ticket, tracking loop, holdings check.)*
+*(To be written as each component is formally designed: strategy profiles UI, holdings check (Goal 2), Phase 2/3 details.)*
