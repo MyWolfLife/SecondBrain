@@ -236,10 +236,12 @@ User asked: "Start Jan 1st, run the tool every Friday, compare picks against rea
 ## Open Questions
 *(Remaining after discussion — earlier questions about scope, output, and metric definition were resolved; see Design principles, Converged tool shape, and the mechanism-detector methodology above.)*
 
-- Initial universe composition: which ~100–200 tickers seed it? (S&P 500 subset by sector? User-picked?)
-- Default detector thresholds (dip %, window days, base-rate cutoff) — start with the discussed values (12–15% dip / 3 weeks / 25–30% base rate) and tune via Backtest Lab?
-- FMP tier verification: which analyst endpoints are on Starter vs. Premium (blocks Phase 3 scoping).
-- Nav placement details: card icon/label on the Financial hub.
+- FMP tier verification: which analyst endpoints are on Starter vs. Premium (blocks Phase 3 scoping only).
+
+### Resolved (2026-07-09, user decisions at greenlight)
+- **Universe seed: full S&P 500** — static constituent list shipped in the repo (refresh occasionally), plus current holdings and a user-managed watchlist. First cache fetch ~7 min one time, then incremental.
+- **Hub card: 🎯 "Stock Analyzer"** on the Financial hub (`#investments`).
+- **Default thresholds**: start with discussed values (12–15% dip / ~3 weeks / 25–30% base-rate cutoff; exits +10% / −7% / 60d) — tuned via Backtest Lab, not asked up front.
 
 ## Plan
 
