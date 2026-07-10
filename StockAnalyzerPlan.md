@@ -365,8 +365,24 @@ FMP integrates *behind* the swappable data layer as preferred provider; free sta
 **Phase A — free-tier validation (no cost):**
 1. ✅ User: create FMP account (free), copy API key. (Done 2026-07-10.)
 2. ✅ Claude: "FMP API Key" field added to Settings — **Stock Analyzer (FMP)** accordion card (password input + Show + Save + **Test**). Stored as `fmpApiKey` on `userCol('settings').doc('investments')` (per-user, backed up, never in repo). Test button calls `/stable/profile?symbol=AAPL` (fallback legacy `/api/v3/profile/AAPL`) directly from the browser — validates key AND CORS in one click, reports which API generation answered. (Done 2026-07-10.)
-3. Claude: browser-side validation pass (proves CORS) per endpoint; record results here: 5y daily history · batch/bulk EOD quote · stock screener · analyst estimates · earnings calendar · insider trades.
-4. **Decision gate (user)**: exact Starter-vs-Premium endpoint map presented; user picks tier or walks away. (Analyst estimates tier placement is the open question that decides value.)
+3. ✅ Claude: browser-side validation pass done 2026-07-10 (~20 calls of 250 daily budget). **All calls direct from browser — CORS confirmed across every endpoint tested.** Results:
+
+   | Endpoint (stable API) | Free tier | Notes |
+   |---|---|---|
+   | `profile?symbol=` | ✅ 200 | symbol, price, marketCap, beta… |
+   | `historical-price-eod/full?symbol=&from=&to=` | ✅ 200 | **Full 5y daily OHLCV, 1,260 candles in one call** |
+   | `analyst-estimates?symbol=&period=annual` | ✅ 200 | revenue/ebitda/netIncome/**eps avg-high-low** + **numAnalystsEps** — divergence metric data! |
+   | `analyst-estimates` `period=quarter` | ❌ 402 | Quarterly granularity is a premium query param |
+   | `price-target-consensus?symbol=` | ✅ 200 | targetHigh/Low/Consensus/Median |
+   | `earnings-calendar?from=&to=` | ✅ 200 | incl. **epsActual vs epsEstimated** → earnings surprises + Detector B data |
+   | `grades?symbol=` | ✅ 200 | 775 upgrade/downgrade records for TGT — revision-activity proxy for Detector C |
+   | `ratios?symbol=`, `income-statement?symbol=` | ✅ 200 | Quality-gate fundamentals |
+   | `batch-quote?symbols=` | ❌ 402 | Locked — fast daily top-ups need paid |
+   | `company-screener` | ❌ 402 | Locked — market-wide discovery needs paid |
+   | `insider-trading/search` | ❌ 402 | Locked — Finnhub free tier covers this instead |
+
+   **Free-tier daily cap: 250 calls** → cannot be the primary price source for a 507-ticker universe; perfect for *shortlist enrichment* (finalists only).
+4. **Decision gate (user)**: FMP site 403-blocks automated doc fetches, so Starter-vs-Premium placement of the locked endpoints (batch-quote, screener) must be read off the pricing table in the user's logged-in dashboard before paying. **Recommendation: defer the purchase.** The free tier already unlocks the highest-value data (estimates, targets, surprises, grades) for finalist enrichment; Yahoo remains the proven price source (~18 min Fridays). Buy Starter later for speed (batch quotes, 300 calls/min backfill) + screener, after confirming both are in Starter.
 
 **Phase B — subscribe (user, 5 min):** upgrade in FMP dashboard; same key. Monthly first, annual (~30% off) once proven.
 
