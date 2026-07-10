@@ -1529,9 +1529,9 @@ Stored in `userCol('investmentGroups')`. Fields: `name`, `personIds[]` (always i
 
 **Joint account rule**: Joint accounts only contribute to a group's totals when ALL parties of the joint account are members of that group.
 
-### Finnhub API Key + Yahoo Worker URL
-Stored in `userCol('settings').doc('investments')`: `finnhubApiKey` and `yahooWorkerUrl`.
-Both configured in Settings → General Settings → Investments accordion.
+### Finnhub API Key + Yahoo Worker URL + FMP API Key
+Stored in `userCol('settings').doc('investments')`: `finnhubApiKey`, `yahooWorkerUrl`, and `fmpApiKey`.
+Configured in Settings → General Settings → Investments (Finnhub) accordion; the FMP key has its own **Stock Analyzer (FMP)** accordion card (password input + Show toggle + Save + Test). The FMP **Test** button calls the profile endpoint (`/stable/profile?symbol=AAPL`, falling back to legacy `/api/v3/profile/AAPL`) directly from the browser — validating both the key and CORS, and reporting which API generation responded. The Stock Analyzer's data layer will prefer FMP when a key is present (Phase 3 integration — see `StockAnalyzerPlan.md`).
 `_investInvalidateYahooWorkerUrl()` called by settings.js after saving, same pattern as Finnhub key.
 
 The **Yahoo Worker** is a Cloudflare Worker the user deploys once. It accepts `?ticker=SYMBOL`, fetches `https://query1.finance.yahoo.com/v8/finance/chart/SYMBOL` server-side (no CORS), and returns the JSON with `Access-Control-Allow-Origin: *`. Help modal (`yahooWorkerHelpModal`) includes full setup instructions and the complete Worker code to paste.

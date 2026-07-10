@@ -161,15 +161,18 @@ async function _anaFetchWithTimeout(url, timeoutMs) {
 // Tries the Cloudflare Worker first (if configured), then the proxy chain.
 // minCandles guards against a worker that ignores range params and returns 1d.
 async function _anaFetchYahooHistory(ticker, range, minCandles) {
+    // Yahoo uses dashes for share classes (BRK-B), while the S&P list uses dots (BRK.B).
+    // The cache key stays canonical (dot form); only the URL symbol is translated.
+    var yahooSymbol = ticker.replace(/\./g, '-');
     var target = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
-                 encodeURIComponent(ticker) + '?interval=1d&range=' + range;
+                 encodeURIComponent(yahooSymbol) + '?interval=1d&range=' + range;
 
     var workerUrl = (typeof _investGetYahooWorkerUrl === 'function')
         ? await _investGetYahooWorkerUrl() : '';
     if (workerUrl) {
         try {
             var base = workerUrl.replace(/\/$/, '');
-            var resp = await _anaFetchWithTimeout(base + '?ticker=' + encodeURIComponent(ticker) +
+            var resp = await _anaFetchWithTimeout(base + '?ticker=' + encodeURIComponent(yahooSymbol) +
                                    '&range=' + range + '&interval=1d', 12000);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             var rec = _anaParseYahooChart(await resp.json());

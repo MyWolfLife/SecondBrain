@@ -1,11 +1,15 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–2 complete (scaffolding, universe manager); Stage 3 (data layer + price cache) next.**
+**Status: BUILDING — Stages 1–3 complete (scaffolding, universe manager, price data layer); Stage 4 (detector engine) next.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
 
-- **2026-07-09 — Stage 3 IN PROGRESS.** Task list:
+- **2026-07-10 — Stage 3 COMPLETE + FMP Phase A steps 1–2 done.**
+  - **Full-universe run validated at scale**: 507 tickers cached (~626k daily candles, 5y each), ~18 min via free proxies. 2 initial failures (BRK.B, BF.B) fixed — Yahoo needs dash form (`BRK-B`); cache key stays dot-canonical, URL translated.
+  - **FMP CORS confirmed**: browser reads FMP responses directly (401 test) — no proxies needed for FMP. Settings → "Stock Analyzer (FMP)" card added (key + Show/Save/Test); save persistence verified.
+  - Next: **Stage 4 — detector engine** (`js/analyzer-engine.js`, pure functions: indicators, base rates, regime, Detectors A price-parts + D). User will paste FMP key on his own account; Phase A step 3 (endpoint validation) can run any time after.
+- **2026-07-09 — Stage 3 task list (all done):**
   1. ✅ `js/analyzer-data.js` built + verified in preview (SPY/^VIX/TGT: 5y × ~1,254 candles each fetched via proxy chain, skip-when-fresh re-run = 2ms, cache survives reload). Wired into index.html (+sw precache, v450). Public API: `anaGetPriceHistory(ticker)`, `_anaUpdatePrices(tickers, {onProgress, shouldCancel})`, `_anaCacheStats()`, `ANA_MARKET_TICKERS`. → *commit checkpoint 1 DONE*
   2. ✅ Hub "📊 Price data" section: stats note, Update button, progress bar (`n/total — TICKER (status)`), Cancel, completion summary w/ failure list. Verified: cancel works, summary survives section re-render.
   3. ✅ Subset verification done (SPY/^VIX/TGT/MMM/AOS cached; skip-fresh re-run 2ms; survives reload). **Fetch timeouts added** (12s worker / 10s per proxy attempt via AbortController) after a hung proxy stalled a run — critical fix for 500-ticker jobs. Full-universe run kicked off in preview to validate at scale (in progress — see result note below when finished).
@@ -154,6 +158,8 @@ User is **not opposed to a paid API if the price is right** — softens the orig
 - **CORS**: provider must allow direct browser calls (Finnhub does; FMP reportedly does — confirm in free trial).
 
 **Agreed path:** build the data layer as a swappable-provider module; start on the free stack; **trial FMP free tier (250 calls/day) early** to validate CORS + screener + analyst endpoints; upgrade to FMP Starter when the free stack pinches (likely at discovery or estimates).
+
+**Speed note (learned during Stage 3 at-scale testing, 2026-07-10):** FMP also fixes update *speed*, not just data gaps. Free-proxy reality: ~2s/ticker → ~17 min full backfill AND ~15 min *every* daily top-up (per-ticker fetches). FMP: direct CORS calls (~300ms), ~300 calls/min (parallelizable → backfill ~2 min), and **batch/bulk EOD endpoints → the daily top-up becomes 1–2 calls, seconds instead of minutes**. When the Phase 3 trial happens, move price fetching to FMP too. Free interim: the Cloudflare Worker (already supported by `_anaFetchYahooHistory`) removes the proxies on the user's real account — verify the worker passes through `range` params for history.
 
 ### Technicals architecture + API roles (2026-07-09)
 **Decision: compute all technical indicators locally from raw OHLCV price history — never use per-indicator API endpoints.**
@@ -320,7 +326,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Universe page UI: counts by source (S&P / holdings / watchlist), add/remove watchlist tickers, pull-in of current holdings tickers from Investments (reuse Stock Rollup aggregation)
 - ✅ Done when: universe list renders with accurate counts and watchlist add/remove persists
 
-**Stage 3 — Data layer + price cache**
+**Stage 3 — Data layer + price cache** ✅ COMPLETE (2026-07-10)
 - `js/analyzer-data.js`: 5y daily OHLCV per ticker via existing Yahoo/proxy pipeline; SPY + ^VIX included
 - IndexedDB cache (db `bishopAnalyzer`, store `prices`): full fetch, incremental top-up, staleness tracking, resumable progress
 - Hub UI: "Update price data" job with progress bar and per-ticker failure report
@@ -352,6 +358,25 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - 30/60-day auto-grading of past scan snapshots vs SPY; closed-trade history; the "learning journal with receipts"
 - ✅ Done when: a past snapshot grades correctly once its window completes
 - **Phase 1 complete.** Phase 2 (Finnhub: quality gates, insider signal, Detector B, catalyst map) and Phase 3 (FMP: divergence, Detector C, screener) follow as separate efforts.
+
+### Phase 3 runbook — FMP paid-plan implementation steps (logged 2026-07-10)
+FMP integrates *behind* the swappable data layer as preferred provider; free stack stays as automatic fallback (key removed/quota hit → graceful degradation).
+
+**Phase A — free-tier validation (no cost):**
+1. ✅ User: create FMP account (free), copy API key. (Done 2026-07-10.)
+2. ✅ Claude: "FMP API Key" field added to Settings — **Stock Analyzer (FMP)** accordion card (password input + Show + Save + **Test**). Stored as `fmpApiKey` on `userCol('settings').doc('investments')` (per-user, backed up, never in repo). Test button calls `/stable/profile?symbol=AAPL` (fallback legacy `/api/v3/profile/AAPL`) directly from the browser — validates key AND CORS in one click, reports which API generation answered. (Done 2026-07-10.)
+3. Claude: browser-side validation pass (proves CORS) per endpoint; record results here: 5y daily history · batch/bulk EOD quote · stock screener · analyst estimates · earnings calendar · insider trades.
+4. **Decision gate (user)**: exact Starter-vs-Premium endpoint map presented; user picks tier or walks away. (Analyst estimates tier placement is the open question that decides value.)
+
+**Phase B — subscribe (user, 5 min):** upgrade in FMP dashboard; same key. Monthly first, annual (~30% off) once proven.
+
+**Phase C — integration (Claude, incremental commits):**
+5. `fmp` provider in analyzer-data.js: direct fetch + timeout, 5–10 concurrent (Starter ~300 calls/min). Provider order: FMP → Cloudflare Worker → proxy chain. Backfill ~17 min → ~2 min.
+6. Daily top-up via batch EOD endpoint: whole universe's latest candle in 1–2 calls (~15 min → seconds).
+7. Feature unlocks in build order: quality-gate fundamentals → earnings calendar + insider trades (consolidate from Finnhub) → analyst estimates (divergence + Detector C) → screener (market-wide discovery).
+8. Docs per step: spec, AppHelp, plan, cache bumps.
+
+**Ops:** flat-rate plan only (scraped key = burned quota, never a bill); cancellation degrades gracefully to the free stack.
 
 ### Remaining plan sections
 *(To be written as each component is formally designed: strategy profiles UI, holdings check (Goal 2), Phase 2/3 details.)*

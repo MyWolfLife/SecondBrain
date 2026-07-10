@@ -1029,6 +1029,29 @@
                 </div>
             </div>
 
+            <!-- Stock Analyzer (FMP) -->
+            <div class="settings-card accordion-card">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>Stock Analyzer (FMP)</span><span class="accordion-chevron">&#9658;</span>
+                </button>
+                <div class="accordion-body">
+                    <p class="accordion-desc">The Stock Analyzer can use <strong>Financial Modeling Prep (FMP)</strong> for faster price data and, on paid tiers, screening and analyst data. Create a free account at financialmodelingprep.com and paste your API key here.</p>
+                    <div class="form-group">
+                        <label for="fmpApiKey">FMP API Key</label>
+                        <div class="api-key-row">
+                            <input type="password" id="fmpApiKey" placeholder="Paste your FMP API key here" class="api-key-input">
+                            <button type="button" class="btn btn-secondary btn-sm" id="fmpApiKeyToggle">Show</button>
+                        </div>
+                    </div>
+                    <div class="settings-save-row">
+                        <button class="btn btn-primary" id="fmpSaveBtn">Save</button>
+                        <button class="btn btn-secondary" id="fmpTestBtn">Test</button>
+                        <span class="settings-saved-msg hidden" id="fmpSavedMsg">&#10003; Saved</span>
+                    </div>
+                    <div class="hidden settings-test-result" id="fmpTestResult"></div>
+                </div>
+            </div>
+
             <!-- Places (Foursquare) -->
             <div class="settings-card accordion-card">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
@@ -11387,7 +11410,7 @@ export default {
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>
-    <script src="js/settings.js?v=657"></script>
+    <script src="js/settings.js?v=658"></script>
     <script src="js/devnotes.js?v=560"></script>
     <script src="js/house.js?v=537"></script>
     <script src="js/floorplan.js?v=398"></script>
@@ -11432,7 +11455,7 @@ export default {
     <script src="js/investments-ai.js?v=3"></script>
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
-    <script src="js/analyzer-data.js?v=3"></script>
+    <script src="js/analyzer-data.js?v=4"></script>
     <script src="js/analyzer.js?v=3"></script>
     <script src="js/private.js?v=579"></script>
     <script src="js/app.js?v=671"></script>

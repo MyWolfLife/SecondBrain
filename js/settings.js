@@ -261,6 +261,7 @@ async function loadSettingsGeneralPage() {
 
     loadLlmSettings();
     loadFinnhubSettings();
+    loadFmpSettings();
     loadYahooWorkerSettings();
     loadFoursquareSettings();
     loadGcalSettings();
@@ -331,6 +332,90 @@ async function testFinnhubKey() {
         resultEl.style.color = '#c62828';
     }
 
+    btn.disabled    = false;
+    btn.textContent = 'Test';
+}
+
+// ---------- FMP (Financial Modeling Prep) Settings ----------
+
+async function loadFmpSettings() {
+    try {
+        var doc = await userCol('settings').doc('investments').get();
+        if (doc.exists && doc.data().fmpApiKey) {
+            document.getElementById('fmpApiKey').value = doc.data().fmpApiKey;
+        }
+    } catch (e) { console.error('loadFmpSettings failed:', e); }
+}
+
+async function saveFmpKey() {
+    var key     = (document.getElementById('fmpApiKey').value || '').trim();
+    var saveBtn = document.getElementById('fmpSaveBtn');
+    var savedMsg= document.getElementById('fmpSavedMsg');
+
+    saveBtn.disabled    = true;
+    saveBtn.textContent = 'Saving…';
+    savedMsg.classList.add('hidden');
+
+    await userCol('settings').doc('investments').set({ fmpApiKey: key }, { merge: true });
+
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save';
+    savedMsg.classList.remove('hidden');
+    setTimeout(function() { savedMsg.classList.add('hidden'); }, 2500);
+}
+
+// Tests the FMP key with a cheap profile call — also proves the browser can
+// call FMP directly (CORS), which the Stock Analyzer integration depends on.
+// Tries the current /stable/ API first, then the legacy /api/v3/ path.
+async function testFmpKey() {
+    var key      = (document.getElementById('fmpApiKey').value || '').trim();
+    var btn      = document.getElementById('fmpTestBtn');
+    var resultEl = document.getElementById('fmpTestResult');
+
+    if (!key) { alert('Please enter your FMP API key first.'); return; }
+
+    btn.disabled    = true;
+    btn.textContent = 'Testing…';
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = 'Calling FMP…';
+    resultEl.style.color = '#555';
+
+    var urls = [
+        { label: 'stable API',    url: 'https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=' + encodeURIComponent(key) },
+        { label: 'legacy v3 API', url: 'https://financialmodelingprep.com/api/v3/profile/AAPL?apikey=' + encodeURIComponent(key) }
+    ];
+
+    var lastMsg = 'no response';
+    for (var i = 0; i < urls.length; i++) {
+        try {
+            var resp = await fetch(urls[i].url);
+            var data = await resp.json();
+            if (resp.status === 401 || resp.status === 403) {
+                lastMsg = 'Invalid API key (HTTP ' + resp.status + ')';
+                continue;
+            }
+            if (data && data['Error Message']) {
+                lastMsg = data['Error Message'];
+                continue;
+            }
+            var row = Array.isArray(data) ? data[0] : data;
+            if (row && (row.companyName || row.symbol)) {
+                resultEl.textContent = '✓ Key works via ' + urls[i].label + '! ' +
+                    (row.companyName || row.symbol) +
+                    (row.price ? ' — $' + Number(row.price).toFixed(2) : '');
+                resultEl.style.color = '#2e7d32';
+                btn.disabled = false; btn.textContent = 'Test';
+                return;
+            }
+            lastMsg = 'unexpected response shape';
+        } catch (e) {
+            lastMsg = e.message;
+        }
+    }
+
+    resultEl.textContent = '✗ Test failed: ' + lastMsg +
+        '. Check the key at financialmodelingprep.com → Dashboard.';
+    resultEl.style.color = '#c62828';
     btn.disabled    = false;
     btn.textContent = 'Test';
 }
@@ -1650,6 +1735,13 @@ document.getElementById('llmProvider').addEventListener('change', updateLlmModel
 document.getElementById('finnhubSaveBtn').addEventListener('click', saveFinnhubKey);
 document.getElementById('finnhubTestBtn').addEventListener('click', testFinnhubKey);
 document.getElementById('finnhubHelpBtn').addEventListener('click', function() { openModal('finnhubHelpModal'); });
+document.getElementById('fmpSaveBtn').addEventListener('click', saveFmpKey);
+document.getElementById('fmpTestBtn').addEventListener('click', testFmpKey);
+document.getElementById('fmpApiKeyToggle').addEventListener('click', function() {
+    var input = document.getElementById('fmpApiKey');
+    if (input.type === 'password') { input.type = 'text';     this.textContent = 'Hide'; }
+    else                           { input.type = 'password'; this.textContent = 'Show'; }
+});
 document.getElementById('yahooWorkerSaveBtn').addEventListener('click', saveYahooWorkerUrl);
 document.getElementById('yahooWorkerTestBtn').addEventListener('click', testYahooWorkerUrl);
 document.getElementById('yahooWorkerHelpBtn').addEventListener('click', function() { openModal('yahooWorkerHelpModal'); });

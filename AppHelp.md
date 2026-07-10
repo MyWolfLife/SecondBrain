@@ -626,6 +626,18 @@ The **Ask AI** button on every Help screen lets you ask questions about the app 
 - If you see an error like "LLM not configured", come back to Settings and verify your key is saved correctly.
 - You can switch providers or update your key at any time.
 
+### Stock Analyzer (FMP)
+
+The Stock Analyzer can use **Financial Modeling Prep (FMP)** for faster price data — and, on paid FMP tiers, stock screening and analyst data.
+
+**How to configure:**
+1. Create an account at financialmodelingprep.com (free tier available)
+2. Copy your API key from the FMP Dashboard
+3. In Settings, open the **Stock Analyzer (FMP)** section, paste the key, tap **Save**
+4. Tap **Test** — it makes a real call to FMP from your browser and confirms the key works
+
+Without a key, the Stock Analyzer still works fully using free data sources — updates are just slower.
+
 ### Google Calendar Sync
 
 Sync your Yard and Life Calendar events to Google Calendar so you get reminders on your phone.
