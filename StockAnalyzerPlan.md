@@ -6,7 +6,7 @@
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
 
 - **2026-07-09 — Stage 3 IN PROGRESS.** Task list:
-  1. ⬜ `js/analyzer-data.js` (new): IndexedDB cache (db `bishopAnalyzer`, store `prices`, keyed by ticker) + Yahoo 5y daily OHLCV fetch via the existing proxy chain (mirror `investments.js` proxy logic incl. `yahooWorkerUrl` support and 800ms delay + first-ticker retry); incremental top-up (fetch only the gap range when cache is stale); SPY + ^VIX always included; progress callback; per-ticker failure collection. → *commit checkpoint 1*
+  1. ✅ `js/analyzer-data.js` built + verified in preview (SPY/^VIX/TGT: 5y × ~1,254 candles each fetched via proxy chain, skip-when-fresh re-run = 2ms, cache survives reload). Wired into index.html (+sw precache, v450). Public API: `anaGetPriceHistory(ticker)`, `_anaUpdatePrices(tickers, {onProgress, shouldCancel})`, `_anaCacheStats()`, `ANA_MARKET_TICKERS`. → *commit checkpoint 1 DONE*
   2. ⬜ Hub page "Price data" section in `js/analyzer.js`: cached-ticker stats, "Update price data" button w/ progress bar, failure report. → *commit checkpoint 2 with docs*
   3. ⬜ Verify in preview with a small subset (~10 tickers), confirm IndexedDB persistence across reload + incremental skip of fresh tickers.
   4. ⬜ Docs: spec Part 8f (+data layer subsection), AppHelp hub section update, sw.js precache + bump, `?v=` bumps (analyzer.js, analyzer-data.js new tag), plan stage checkbox.
