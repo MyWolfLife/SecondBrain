@@ -2,6 +2,18 @@
 
 **Status: BUILDING — Stages 1–2 complete (scaffolding, universe manager); Stage 3 (data layer + price cache) next.**
 
+## Build Log (session handoff — keep current)
+*Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-09 — Stage 3 IN PROGRESS.** Task list:
+  1. ⬜ `js/analyzer-data.js` (new): IndexedDB cache (db `bishopAnalyzer`, store `prices`, keyed by ticker) + Yahoo 5y daily OHLCV fetch via the existing proxy chain (mirror `investments.js` proxy logic incl. `yahooWorkerUrl` support and 800ms delay + first-ticker retry); incremental top-up (fetch only the gap range when cache is stale); SPY + ^VIX always included; progress callback; per-ticker failure collection. → *commit checkpoint 1*
+  2. ⬜ Hub page "Price data" section in `js/analyzer.js`: cached-ticker stats, "Update price data" button w/ progress bar, failure report. → *commit checkpoint 2 with docs*
+  3. ⬜ Verify in preview with a small subset (~10 tickers), confirm IndexedDB persistence across reload + incremental skip of fresh tickers.
+  4. ⬜ Docs: spec Part 8f (+data layer subsection), AppHelp hub section update, sw.js precache + bump, `?v=` bumps (analyzer.js, analyzer-data.js new tag), plan stage checkbox.
+  - Testing setup available: test account has mock brokerage "Test Brokerage (analyzer test)" (id y9zbiLqxuBbHA0CexO3Y under investments/self) with NVDA + GRAB holdings; watchlist=[SHOP], excluded=[TGT] in analyzerConfig/universe.
+- **2026-07-09 — Stage 2 COMPLETE** (744146a): Universe manager built + verified. `data/sp500.json` (503 constituents), universe page (stats/watchlist/holdings pull-in/S&P search+exclude), `analyzerConfig/universe` Firestore doc, backup list updated, help+spec updated.
+- **2026-07-09 — Stage 1 COMPLETE** (33e6be8): 🎯 hub card, `#analyzer` routes ×4, `js/analyzer.js` scaffolding, help `screen:analyzer`, spec Part 8f.
+
 ## Overview
 A new card under **Life → Financial** called **Stock Analyzer**. A tool to help the user decide which stocks to buy and sell, based on metrics the user determines.
 
