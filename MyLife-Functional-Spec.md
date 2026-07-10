@@ -2050,13 +2050,24 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | Route | Page | Status |
 |-------|------|--------|
 | `#analyzer` | Hub — nav cards for Backtest Lab, Scan, Universe | ✅ Built (Stage 1) |
-| `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | 🚧 Placeholder (Stage 2) |
+| `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | 🚧 Placeholder (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | 🚧 Placeholder (Stage 6) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
-**Help**: `## screen:analyzer` section in AppHelp.md covers the hub; sub-routes map to the hub section via `HELP_SECTION_MAP` until their stages land.
+**Help**: `## screen:analyzer` section in AppHelp.md covers the hub; `## screen:analyzer-universe` covers the Universe page; remaining sub-routes map to the hub section via `HELP_SECTION_MAP` until their stages land.
+
+### Universe manager (`#analyzer/universe`)
+The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist − excluded**.
+
+- **S&P 500 list**: static file `data/sp500.json` — `{asOf, source, count, companies:[{t,n,s}]}` (ticker/name/sector), built from Wikipedia's constituents table; refresh occasionally by regenerating the file. Fetched at runtime, cached in module state.
+- **Holdings pull-in**: unique tickers collected live from all investment accounts across all person namespaces (`settings/investments.enrolledPersonIds` → `investments/{ns}/accounts/{id}/holdings`), mirroring the Stock Rollup read path. Archived accounts skipped. Read-only — chips show which are already in the S&P (badge).
+- **Watchlist**: user-added tickers beyond S&P/holdings. Validated (`^[A-Z][A-Z0-9.\-]{0,9}$`), uppercased, deduped; adding a ticker that's already watched is rejected with an explanation; adding a previously-excluded ticker un-excludes it instead.
+- **Exclusions**: any ticker can be excluded from the effective universe (searchable S&P list rows have Exclude/Include buttons; holdings chips toggle too). Excluded tickers show struck-through in a dedicated section with one-tap re-include.
+- **Stats row**: Watched (effective count) · S&P 500 · Holdings · Watchlist.
+- **S&P search**: filters ticker/name/sector, shows up to 50 matches; sector column hidden on mobile.
+- **Firestore**: `analyzerConfig/universe` — `{watchlist[], excluded[], updatedAt}`. Included in backup (`js/settings.js` collection list).
 
 ---
 
@@ -3130,6 +3141,14 @@ All collections live under `/users/{uid}/`. Every module uses `userCol('collecti
 Encrypted fields (`accountNumberEnc`, `usernameEnc`, `passwordEnc`) are AES-GCM ciphertext stored as base64 strings via `legacy-crypto.js`. The same passphrase and session key are shared with the Legacy section.
 
 Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added to the same account docs by the Legacy Financial Accounts feature (not yet built).
+
+### Stock Analyzer
+
+| Collection / Path | Key Fields |
+|-------------------|------------|
+| `analyzerConfig/universe` | watchlist[], excluded[], updatedAt |
+
+Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{asOf, source, count, companies:[{t,n,s}]}`.
 
 ### Places
 

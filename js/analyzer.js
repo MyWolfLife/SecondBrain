@@ -95,11 +95,262 @@ function _analyzerRenderPlaceholder(pageId, title, icon, desc, stageNote) {
         '</div>';
 }
 
-function loadAnalyzerUniversePage() {
+// ---------------------------------------------------------------------------
+// Universe manager (Stage 2)
+// ---------------------------------------------------------------------------
+// The universe = S&P 500 constituents (static data/sp500.json, refreshed
+// occasionally) ∪ tickers from investment holdings ∪ user watchlist,
+// minus any user-excluded tickers.
+// Firestore: userCol('analyzerConfig').doc('universe') = {watchlist[], excluded[]}
+// ---------------------------------------------------------------------------
+
+var _anaSp500       = null;   // parsed data/sp500.json — {asOf, count, companies:[{t,n,s}]}
+var _anaUniverseCfg = null;   // {watchlist:[], excluded:[]}
+var _anaHoldTickers = null;   // unique tickers found in investment holdings
+var _anaSpFilter    = '';     // S&P search box value
+
+async function _anaLoadSp500() {
+    if (_anaSp500) return _anaSp500;
+    var res = await fetch('data/sp500.json');
+    if (!res.ok) throw new Error('Could not load S&P 500 list (HTTP ' + res.status + ')');
+    _anaSp500 = await res.json();
+    return _anaSp500;
+}
+
+async function _anaLoadUniverseCfg() {
+    var doc = await userCol('analyzerConfig').doc('universe').get();
+    _anaUniverseCfg = doc.exists ? doc.data() : {};
+    if (!Array.isArray(_anaUniverseCfg.watchlist)) _anaUniverseCfg.watchlist = [];
+    if (!Array.isArray(_anaUniverseCfg.excluded))  _anaUniverseCfg.excluded  = [];
+    return _anaUniverseCfg;
+}
+
+async function _anaSaveUniverseCfg() {
+    await userCol('analyzerConfig').doc('universe').set({
+        watchlist: _anaUniverseCfg.watchlist,
+        excluded:  _anaUniverseCfg.excluded,
+        updatedAt: new Date().toISOString()
+    }, { merge: true });
+}
+
+// Collects the unique set of tickers across all investment holdings.
+// Mirrors the read path used by Stock Rollup in investments.js
+// (settings/investments.enrolledPersonIds → investments/{ns}/accounts/{id}/holdings).
+async function _anaLoadHoldingTickers() {
+    var tickers = {};
+    try {
+        var settingsDoc = await userCol('settings').doc('investments').get();
+        var allNs = ['self'];
+        if (settingsDoc.exists) {
+            allNs = allNs.concat((settingsDoc.data().enrolledPersonIds || []).filter(Boolean));
+        }
+        for (var i = 0; i < allNs.length; i++) {
+            var acctSnap = await userCol('investments').doc(allNs[i]).collection('accounts').get();
+            var accts = [];
+            acctSnap.forEach(function(d) { if (!d.data().archived) accts.push(d.id); });
+            for (var j = 0; j < accts.length; j++) {
+                var holdSnap = await userCol('investments').doc(allNs[i])
+                    .collection('accounts').doc(accts[j]).collection('holdings').get();
+                holdSnap.forEach(function(h) {
+                    var t = (h.data().ticker || '').trim().toUpperCase();
+                    if (t) tickers[t] = true;
+                });
+            }
+        }
+    } catch (e) {
+        console.error('[analyzer] holdings ticker load failed:', e);
+    }
+    _anaHoldTickers = Object.keys(tickers).sort();
+    return _anaHoldTickers;
+}
+
+async function loadAnalyzerUniversePage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Universe' }]);
-    _analyzerRenderPlaceholder('page-analyzer-universe', 'Universe', '🌐',
-        'Manage the ticker list the analyzer watches: the S&P 500 constituents, tickers pulled in from your holdings, and any watchlist additions.',
-        'Stage 2');
+
+    var page = document.getElementById('page-analyzer-universe');
+    if (!page) return;
+    page.innerHTML = '<p class="muted-text" style="padding:16px">Loading universe…</p>';
+
+    try {
+        await Promise.all([_anaLoadSp500(), _anaLoadUniverseCfg(), _anaLoadHoldingTickers()]);
+    } catch (e) {
+        page.innerHTML = '<p class="muted-text" style="padding:16px">Could not load universe: ' + escapeHtml(e.message) + '</p>';
+        return;
+    }
+    _anaSpFilter = '';
+    _anaRenderUniverse();
+}
+
+// Effective universe = (S&P ∪ holdings ∪ watchlist) − excluded
+function _anaEffectiveUniverse() {
+    var set = {};
+    _anaSp500.companies.forEach(function(c) { set[c.t] = true; });
+    (_anaHoldTickers || []).forEach(function(t) { set[t] = true; });
+    _anaUniverseCfg.watchlist.forEach(function(t) { set[t] = true; });
+    _anaUniverseCfg.excluded.forEach(function(t) { delete set[t]; });
+    return Object.keys(set);
+}
+
+function _anaSpName(ticker) {
+    var hit = _anaSp500.companies.find(function(c) { return c.t === ticker; });
+    return hit ? hit.n : null;
+}
+
+function _anaRenderUniverse() {
+    var page = document.getElementById('page-analyzer-universe');
+    if (!page) return;
+
+    var cfg      = _anaUniverseCfg;
+    var spSet    = {};
+    _anaSp500.companies.forEach(function(c) { spSet[c.t] = true; });
+    var holdExtra = (_anaHoldTickers || []).filter(function(t) { return !spSet[t]; });
+    var effective = _anaEffectiveUniverse();
+
+    var html =
+        '<div class="page-header"><h2>🌐 Universe</h2></div>' +
+        '<p class="muted-text" style="max-width:560px">The tickers the analyzer watches. ' +
+            'S&amp;P 500 constituents and your holdings are included automatically; add anything else to the watchlist.</p>' +
+
+        '<div class="ana-stat-row">' +
+            '<div class="ana-stat"><div class="ana-stat-num">' + effective.length + '</div><div class="ana-stat-label">Watched</div></div>' +
+            '<div class="ana-stat"><div class="ana-stat-num">' + _anaSp500.count + '</div><div class="ana-stat-label">S&amp;P 500</div></div>' +
+            '<div class="ana-stat"><div class="ana-stat-num">' + (_anaHoldTickers || []).length + '</div><div class="ana-stat-label">Holdings</div></div>' +
+            '<div class="ana-stat"><div class="ana-stat-num">' + cfg.watchlist.length + '</div><div class="ana-stat-label">Watchlist</div></div>' +
+        '</div>';
+
+    // ── Watchlist ──
+    html += '<h3 class="ana-section-title">⭐ Watchlist</h3>' +
+        '<div class="ana-add-row">' +
+            '<input type="text" id="anaWatchlistInput" placeholder="Ticker (e.g. TGT)" maxlength="10" ' +
+                'onkeydown="if(event.key===\'Enter\'){_anaAddWatchlist();}">' +
+            '<button class="btn-primary" onclick="_anaAddWatchlist()">+ Add</button>' +
+        '</div>';
+    if (cfg.watchlist.length === 0) {
+        html += '<p class="muted-text">No watchlist tickers yet. Add any ticker you want watched beyond the S&amp;P 500 and your holdings.</p>';
+    } else {
+        html += '<div class="ana-chip-wrap">';
+        cfg.watchlist.forEach(function(t) {
+            var name = _anaSpName(t);
+            html += '<span class="ana-chip">' + escapeHtml(t) +
+                (name ? '<span class="ana-chip-note">' + escapeHtml(name) + '</span>' : '') +
+                '<button class="ana-chip-x" title="Remove from watchlist" onclick="_anaRemoveWatchlist(\'' + t + '\')">✕</button></span>';
+        });
+        html += '</div>';
+    }
+
+    // ── Holdings ──
+    html += '<h3 class="ana-section-title">💼 From your holdings</h3>';
+    if ((_anaHoldTickers || []).length === 0) {
+        html += '<p class="muted-text">No tickers found in your investment accounts.</p>';
+    } else {
+        html += '<p class="muted-text">Auto-included from your investment accounts' +
+            (holdExtra.length ? ' (' + holdExtra.length + ' not already in the S&amp;P 500)' : '') + ':</p>' +
+            '<div class="ana-chip-wrap">';
+        _anaHoldTickers.forEach(function(t) {
+            var excluded = cfg.excluded.indexOf(t) !== -1;
+            html += '<span class="ana-chip' + (excluded ? ' ana-chip--off' : '') + '">' + escapeHtml(t) +
+                (spSet[t] ? '<span class="ana-chip-note">S&amp;P</span>' : '') +
+                '<button class="ana-chip-x" title="' + (excluded ? 'Include' : 'Exclude') + '" ' +
+                    'onclick="_anaToggleExclude(\'' + t + '\')">' + (excluded ? '↩' : '✕') + '</button></span>';
+        });
+        html += '</div>';
+    }
+
+    // ── S&P 500 ──
+    html += '<h3 class="ana-section-title">🏛️ S&amp;P 500</h3>' +
+        '<p class="muted-text">' + _anaSp500.count + ' companies · list as of ' + escapeHtml(_anaSp500.asOf) +
+            ' · search to view or exclude individual companies:</p>' +
+        '<div class="ana-add-row">' +
+            '<input type="text" id="anaSpSearch" placeholder="Search ticker, company, or sector…" ' +
+                'value="' + escapeHtml(_anaSpFilter) + '" oninput="_anaSpSearchChanged(this.value)">' +
+        '</div>' +
+        '<div id="anaSpResults">' + _anaSpResultsHtml() + '</div>';
+
+    // ── Excluded ──
+    var excludedList = cfg.excluded.slice().sort();
+    if (excludedList.length > 0) {
+        html += '<h3 class="ana-section-title">🚫 Excluded (' + excludedList.length + ')</h3>' +
+            '<div class="ana-chip-wrap">';
+        excludedList.forEach(function(t) {
+            var name = _anaSpName(t);
+            html += '<span class="ana-chip ana-chip--off">' + escapeHtml(t) +
+                (name ? '<span class="ana-chip-note">' + escapeHtml(name) + '</span>' : '') +
+                '<button class="ana-chip-x" title="Include again" onclick="_anaToggleExclude(\'' + t + '\')">↩</button></span>';
+        });
+        html += '</div>';
+    }
+
+    page.innerHTML = html;
+}
+
+function _anaSpResultsHtml() {
+    var q = _anaSpFilter.trim().toLowerCase();
+    if (!q) return '';
+    var matches = _anaSp500.companies.filter(function(c) {
+        return c.t.toLowerCase().indexOf(q) !== -1 ||
+               c.n.toLowerCase().indexOf(q) !== -1 ||
+               c.s.toLowerCase().indexOf(q) !== -1;
+    });
+    var shown = matches.slice(0, 50);
+    var html = '<div class="ana-sp-list">';
+    shown.forEach(function(c) {
+        var excluded = _anaUniverseCfg.excluded.indexOf(c.t) !== -1;
+        html += '<div class="ana-sp-row' + (excluded ? ' ana-sp-row--off' : '') + '">' +
+            '<span class="ana-sp-ticker">' + escapeHtml(c.t) + '</span>' +
+            '<span class="ana-sp-name">' + escapeHtml(c.n) + '</span>' +
+            '<span class="ana-sp-sector">' + escapeHtml(c.s) + '</span>' +
+            '<button class="ana-sp-btn" onclick="_anaToggleExclude(\'' + c.t + '\')">' +
+                (excluded ? 'Include' : 'Exclude') + '</button>' +
+        '</div>';
+    });
+    html += '</div>';
+    if (matches.length > 50) {
+        html += '<p class="muted-text">Showing 50 of ' + matches.length + ' matches — refine the search.</p>';
+    }
+    if (matches.length === 0) {
+        html += '<p class="muted-text">No matches.</p>';
+    }
+    return html;
+}
+
+function _anaSpSearchChanged(value) {
+    _anaSpFilter = value;
+    var el = document.getElementById('anaSpResults');
+    if (el) el.innerHTML = _anaSpResultsHtml();
+}
+
+async function _anaAddWatchlist() {
+    var input = document.getElementById('anaWatchlistInput');
+    if (!input) return;
+    var t = input.value.trim().toUpperCase();
+    if (!t) return;
+    if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(t)) { alert('That does not look like a valid ticker symbol.'); return; }
+    if (_anaUniverseCfg.watchlist.indexOf(t) !== -1) { alert(t + ' is already on the watchlist.'); return; }
+    var inSp = !!_anaSpName(t);
+    var inHold = (_anaHoldTickers || []).indexOf(t) !== -1;
+    if ((inSp || inHold) && _anaUniverseCfg.excluded.indexOf(t) === -1) {
+        alert(t + ' is already watched (' + (inSp ? 'S&P 500' : 'holdings') + ').');
+        return;
+    }
+    // If it was excluded, adding to the watchlist un-excludes it
+    _anaUniverseCfg.excluded = _anaUniverseCfg.excluded.filter(function(x) { return x !== t; });
+    if (!inSp && !inHold) _anaUniverseCfg.watchlist.push(t);
+    await _anaSaveUniverseCfg();
+    _anaRenderUniverse();
+}
+
+async function _anaRemoveWatchlist(t) {
+    _anaUniverseCfg.watchlist = _anaUniverseCfg.watchlist.filter(function(x) { return x !== t; });
+    await _anaSaveUniverseCfg();
+    _anaRenderUniverse();
+}
+
+async function _anaToggleExclude(t) {
+    var idx = _anaUniverseCfg.excluded.indexOf(t);
+    if (idx === -1) _anaUniverseCfg.excluded.push(t);
+    else _anaUniverseCfg.excluded.splice(idx, 1);
+    await _anaSaveUniverseCfg();
+    _anaRenderUniverse();
 }
 
 function loadAnalyzerBacktestPage() {

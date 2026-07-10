@@ -65,7 +65,7 @@ var HELP_SECTION_MAP = {
     'budget-nonmonthly'              : 'budget-nonmonthly',     // trailing id stripped
 
     // ── Stock Analyzer sub-routes (placeholders share the hub section until built) ──
-    'analyzer-universe'              : 'analyzer',
+    'analyzer-universe'              : 'analyzer-universe',
     'analyzer-backtest'              : 'analyzer',
     'analyzer-scan'                  : 'analyzer',
 

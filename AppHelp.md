@@ -2214,7 +2214,28 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stage 1 (navigation scaffolding) is live. Universe management, price data caching, the detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–2 (navigation + Universe manager) are live. Price data caching, the detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
+
+---
+
+## screen:analyzer-universe
+
+### Quick Help
+- The **Universe** is the list of tickers the analyzer watches — the **S&P 500**, tickers from **your investment holdings**, and your **watchlist**, minus anything you exclude
+- The stat cards show the effective **Watched** count and the size of each source
+- **Watchlist**: type a ticker and tap **+ Add** to watch something beyond the S&P 500 and your holdings; tap ✕ on a chip to remove it
+- **Holdings** are pulled in automatically from your investment accounts — an **S&P** badge means the ticker was already covered
+- **S&P 500 section**: search by ticker, company, or sector, then tap **Exclude** to drop a company from scans; excluded tickers appear at the bottom with a ↩ button to re-include them
+
+### Details
+
+**Effective universe**: (S&P 500 ∪ holdings ∪ watchlist) − excluded. This is the set every scan and backtest runs against.
+
+**S&P 500 list**: A snapshot stored with the app (the "list as of" date is shown). Index membership changes a few times a year; the list gets refreshed occasionally with an app update.
+
+**Adding an already-watched ticker**: If a ticker is already in the S&P 500 or your holdings, the watchlist rejects it with an explanation — no duplicates. Adding a ticker you previously excluded simply un-excludes it.
+
+**Excluding**: Works on any ticker (S&P search rows or holdings chips). Use it for companies you'd never trade regardless of setup. Struck-through chips in the Excluded section restore with one tap.
 
 ---
 

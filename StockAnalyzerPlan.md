@@ -1,6 +1,6 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stage 1 (scaffolding & navigation) complete; Stage 2 (universe manager) next.**
+**Status: BUILDING — Stages 1–2 complete (scaffolding, universe manager); Stage 3 (data layer + price cache) next.**
 
 ## Overview
 A new card under **Life → Financial** called **Stock Analyzer**. A tool to help the user decide which stocks to buy and sell, based on metrics the user determines.
@@ -302,7 +302,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - New file: `js/analyzer.js` (page routing/rendering); page sections in `index.html`; styles
 - ✅ Done when: navigation to all analyzer pages works on desktop + 375px mobile
 
-**Stage 2 — Universe manager**
+**Stage 2 — Universe manager** ✅ COMPLETE (2026-07-09)
 - Static S&P 500 constituent list shipped in repo (`data/sp500.json`: ticker, name, sector) with a "list as of" date
 - Firestore doc for user modifications: watchlist additions, exclusions
 - Universe page UI: counts by source (S&P / holdings / watchlist), add/remove watchlist tickers, pull-in of current holdings tickers from Investments (reuse Stock Rollup aggregation)

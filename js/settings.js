@@ -770,6 +770,9 @@ var BACKUP_DATA_COLLECTIONS = [
     // Investments (person-scoped — subcollections handled via PERSON_SCOPED_COLLECTIONS)
     'investments', 'investmentGroups', 'investmentConfig', 'investmentSnapshots', 'ssBenefits',
 
+    // Stock Analyzer
+    'analyzerConfig',
+
     // Legacy Financial (person-scoped — subcollections handled via PERSON_SCOPED_COLLECTIONS)
     'legacyFinancial',
 
