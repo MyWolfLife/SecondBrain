@@ -1,9 +1,17 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–4 complete (scaffolding, universe, price data layer, detector engine); Stage 5 (Backtest Lab) next.**
+**Status: BUILDING — Stages 1–5 complete (scaffolding, universe, price data, engine, Backtest Lab); Stage 6 (live scanner) next.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 5 COMPLETE.** `js/analyzer-backtest.js` — Backtest Lab fully built + verified:
+  - Full run Jan-1→Jul-10 2026: 504 tickers × 28 Fridays → **1,040 signals in ~25s** in-browser. Detector A: 940 signals, 44.5% hit, median 7d, avg +0.70%/trade vs SPY +1.24% (robot underperformed the index this period — honest floor). Detector D: 100 signals, 43.3% hit, +1.35% vs SPY +0.96%.
+  - **Hand-verified correctness**: APP signal (Jan-2 Friday, −15.7% dip) — entry Mon Jan-5 open $617.70, target hit day 6 — matches independent replay of the exit rules exactly.
+  - Threshold comparison ran (dip 12% vs 15%): 15% → 568 signals, 45.3% hit, +0.77% — compare table renders side-by-side.
+  - Save/View/Compare/Delete verified against Firestore (`analyzerBacktests`, signals capped 500 w/ truncated flag, in backup list). Mobile: no page overflow; signals table scrolls in its own wrapper. No console errors.
+  - Note for later stages: stop-outs can re-trigger the following Friday (churn is visible in the robot results by design — judgment layer + kill list are the intended filters).
+  - Next: **Stage 6 — live scan screen** (regime banner, funnel stats, per-detector shortlists per the mocked output format, scan snapshots, dismiss-with-memory).
 
 - **2026-07-10 — Stage 4 COMPLETE.** `js/analyzer-engine.js` — all pure functions, verified against real cached data:
   - Indicators (SMA/EMA/RSI/realized-vol/volume-ratio): SMA hand-checked vs independent computation — exact match.
@@ -345,7 +353,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Base-rate calculator (unconditional + conditional/event-matched), regime evaluator, Detector A dip trigger, Detector D
 - ✅ Done when: engine functions produce verifiable numbers against a known ticker's history (spot-checked by hand)
 
-**Stage 5 — Backtest Lab** *(the Phase 1 centerpiece)*
+**Stage 5 — Backtest Lab** ✅ COMPLETE (2026-07-10) *(the Phase 1 centerpiece)*
 - Setup form → walk-forward runner (per the simulation rules above) → scorecard + signal drill-down → saved runs in `analyzerBacktests` → run comparison
 - Add analyzer collections to `js/settings.js` backup logic (backup-collections checklist)
 - ✅ Done when: a Jan-1-to-today backtest runs end-to-end and the scorecard matches hand-checked samples

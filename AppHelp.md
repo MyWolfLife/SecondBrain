@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–4 (navigation, Universe manager, price data cache, detector engine) are live. The engine is internal math with no screen of its own — the Backtest Lab and live scanner that use it arrive in the next stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–5 (navigation, Universe manager, price data cache, detector engine, Backtest Lab) are live. The live scanner, candidate dossiers, trade tickets, and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2251,6 +2251,30 @@ Results are shown in a popup after the update completes. If any tickers failed a
 **Adding an already-watched ticker**: If a ticker is already in the S&P 500 or your holdings, the watchlist rejects it with an explanation — no duplicates. Adding a ticker you previously excluded simply un-excludes it.
 
 **Excluding**: Works on any ticker (S&P search rows or holdings chips). Use it for companies you'd never trade regardless of setup. Struck-through chips in the Excluded section restore with one tap.
+
+---
+
+## screen:analyzer-backtest
+
+### Quick Help
+- The **Backtest Lab** answers "would the detectors have worked?" — it re-runs them every **Friday** of your chosen period against real price history and grades every signal
+- Set the period, your **exit rules** (target % / stop % / time stop), and detector thresholds, then tap **▶ Run backtest**
+- Each signal is entered at the **next trading day's open** and graded: 🎯 target hit · 🛑 stopped out · ⏰ expired at the time stop · pending (window not finished yet)
+- The scorecard shows per-detector **hit rate**, median days to target, average win/loss, and average return **vs SPY** over the same dates
+- Completed runs are **saved automatically** — view them later, or check two and tap **Compare selected** to test different thresholds side by side
+- Requires cached price data — run **Update price data** on the Analyzer hub first
+
+### Details
+
+**What it simulates**: A no-judgment robot that takes every signal. That's deliberately your *floor* — the tool's whole premise is that your judgment filters signals and beats the robot. The backtest tells you whether the raw detectors have any edge worth filtering.
+
+**Exit rules**: Gap-aware fills — if a stock opens below your stop you get the open (not your stop price), and if it opens above your target you get the open. When both stop and target are touched the same day, the stop counts (pessimistic). Time-stop exits use that day's close.
+
+**One position per ticker per detector**: While a simulated position is open, repeat signals for the same ticker are ignored — no pyramiding.
+
+**Honest-limits banner**: Backtests use *today's* S&P 500 membership (survivorship bias — today's list is the winners' list) and cannot test your judgment layer. Use results to sanity-check thresholds (is 12% better than 15%?), never to optimize to the decimal — tuning until history looks perfect just memorizes the past.
+
+**Saved runs**: The last 25 runs are kept. Delete any run; compare exactly two. Comparing runs with different dip thresholds or exit rules is the intended workflow for tuning your strategy profiles.
 
 ---
 

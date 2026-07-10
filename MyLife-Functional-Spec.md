@@ -2051,7 +2051,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 |-------|------|--------|
 | `#analyzer` | Hub — nav cards for Backtest Lab, Scan, Universe | ✅ Built (Stage 1) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
-| `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | 🚧 Placeholder (Stage 5) |
+| `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | 🚧 Placeholder (Stage 6) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
@@ -2087,6 +2087,17 @@ Pure functions only — no fetch/DOM/Firestore/IndexedDB; price records passed a
 - **Detectors**: `anaEngDipTrigger` (Detector A price part — current fresh dip + RSI) and `anaEngSpringTrigger` (Detector D — 60d realized vol in bottom decile of own history AND within 5% of 52-week high).
 - **Regime**: `anaEngRegime(spyRec, vixRec, asOfDate)` → label (`bullish`, `bullish-volatile`, `pullback`, `recovering`, `bearish`, `panic`) from SPY vs SMA50/200 + VIX level.
 - **Verified against real data**: SMA matches independent computation; TGT conditional base rate finds 11 distinct dip episodes over 5y (Omicron, 2022 earnings crash, May-2023 controversy, Oct-2023 bottom, Aug-2024 flash selloff, Nov-2024 earnings, 2025 tariff scare) → 5/11 hit +10% ≤60d, median 24 days.
+
+### Backtest Lab (`#analyzer/backtest`, `js/analyzer-backtest.js`)
+Walk-forward simulation: runs the detector engine every **Friday** of a chosen period against the cached price history, enters each signal at the **next trading day's open**, grades against the exit rules, and compares to SPY.
+
+- **Setup form**: start/end dates (default Jan 1 → today), exits (target % / stop % / time-stop days; default +10/−7/60), Detector A (dip % + window days; default 12/15) and Detector D toggles. Kicked-off job with progress bar (per Friday) + Cancel; UI yields once per simulated Friday.
+- **Simulation rules** (anti-look-ahead): signals use data through Friday's close only; entry = next trading day's open; **gap-aware exits** — open ≤ stop fills at the open, open ≥ target fills at the open, otherwise intraday stop is checked before target (both-in-one-day = stop, pessimistic); time-stop exits at that day's close; outcome buckets Target/Stop/Expiry/**Pending** (window past data end — shown, not graded). One open position per ticker+detector (repeat signals ignored while open). Stale/delisted series skipped (last candle >10 days before the simulated Friday).
+- **Benchmark**: SPY open→close over each signal's exact entry/exit dates.
+- **Scorecard**: params header · **permanent bias banner** (survivorship + robot-floor wording) · per-detector cards (signals, pending, hit rate, 🎯/🛑/⏰ counts, median days-to-target, avg win/loss, avg per trade vs SPY) · signals drill-down table (first 200; horizontal scroll wrapper on mobile).
+- **Saved runs**: auto-saved to `analyzerBacktests` after each completed (non-cancelled) run; list shows last 25 with params summary + hit rate; **View** re-renders any saved scorecard; **Compare selected (2)** renders a side-by-side metric table; **Delete** with confirm. `signals[]` capped at 500/doc (`signalsTruncated` flag). Collection included in Settings backup.
+- **No auto-tuning by design** — comparison is the supported workflow for threshold experiments.
+- **Verified**: hand-replayed a signal (APP, Jan-2 2026 Friday: −15.7% dip → Mon Jan-5 open $617.70 → target day 6) — engine output matches independent replay exactly. Jan→Jul 2026 run: 504 tickers × 28 Fridays → 1,040 signals in ~25s in-browser.
 
 ---
 
@@ -3166,6 +3177,7 @@ Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added 
 | Collection / Path | Key Fields |
 |-------------------|------------|
 | `analyzerConfig/universe` | watchlist[], excluded[], updatedAt |
+| `analyzerBacktests` | createdAt, params{startDate,endDate,cadence,exits{},detectors{}}, universeSize, fridays, results{perDetector[]}, signals[] (capped 500), signalsTruncated |
 
 Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{asOf, source, count, companies:[{t,n,s}]}`.
 

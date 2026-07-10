@@ -461,13 +461,6 @@ async function _anaToggleExclude(t) {
     _anaRenderUniverse();
 }
 
-function loadAnalyzerBacktestPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Backtest Lab' }]);
-    _analyzerRenderPlaceholder('page-analyzer-backtest', 'Backtest Lab', '🧪',
-        'Simulate running the detectors every Friday from a past start date, grade every signal against what actually happened, and see a success/failure scorecard.',
-        'Stage 5');
-}
-
 function loadAnalyzerScanPage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scan' }]);
     _analyzerRenderPlaceholder('page-analyzer-scan', 'Scan', '📡',

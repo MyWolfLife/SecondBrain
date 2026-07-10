@@ -66,7 +66,7 @@ var HELP_SECTION_MAP = {
 
     // ── Stock Analyzer sub-routes (placeholders share the hub section until built) ──
     'analyzer-universe'              : 'analyzer-universe',
-    'analyzer-backtest'              : 'analyzer',
+    'analyzer-backtest'              : 'analyzer-backtest',
     'analyzer-scan'                  : 'analyzer',
 
     // ── Legacy sub-routes ───────────────────────────────────────
