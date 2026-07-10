@@ -174,6 +174,26 @@ User asked: given the full S&P 500 and an unrestricted API, how would *Claude* f
 
 **Signature features vs. ChatGPT's approach:** mechanism detectors over universal scorecard; estimate-vs-price divergence; day-1 reaction filter on PEAD; conditional (event-matched) base rates; kill-list tail-risk emphasis; per-mechanism shortlists preserving the why. Agreed with ChatGPT on: universe, catalysts, quality gates, weekly cadence, tracking loop.
 
+### Feasibility verdict — mechanism strategy in this app (2026-07-09)
+**Yes: ~80% buildable on the current free stack; the rest is the already-planned FMP gap.**
+
+**Pure price math (free, Yahoo pipeline, buildable today):** regime gate (SPY + ^VIX via Yahoo chart), Step-1 base-rate filter, Detector A dip trigger, Detector B day-1 reaction check, Detector D, unconditional + conditional base rates. Yahoo serves 5y daily history in one call/ticker; 500 × ~1,250 closes is trivial compute for the browser. Cache computed *stats* in Firestore (not raw history); refresh quarterly. Firestore free limits not threatened.
+
+**Finnhub free adds:** Detector A quality gate (basic financials), insider-buying confirmation, earnings dates (catalyst map), earnings surprises (Detector B beats).
+
+**Needs FMP (or manual field until then):** price-vs-estimate divergence (Detector A's sharpest metric), Detector C entirely, clean guidance-raise detection for B (interim proxy: LLM reads earnings news). All degrade gracefully to manual yes/no fields on finalists.
+
+**Three honest constraints:**
+1. **Scans run in an open browser tab** (no server/background jobs). Friday scan = tap "Run Scan," progress bar, ~5–7 min at 500 tickers × 800ms proxy delay. Shrinks to seconds if FMP screener takes Stage 1. Zero-cost escape hatch if needed later: **scheduled GitHub Action** (free on public repos) running a Node script weekly — server-side fetch (no CORS proxies) → writes results to Firestore. File as Phase-later option.
+2. **Catalyst map is earnings-complete, events-partial.** Earnings dates via API; investor days/product events/regulatory rulings have no structured free feed → hand-entered on finalists or surfaced by LLM news read. Earnings dominate 60-day catalysts anyway.
+3. **Kill-list items are finalist flags, not universe screens.** Short interest fetchable (Yahoo quoteSummary / FMP); auditor changes & CFO exits are news-shaped → LLM checks during dossier step. Funnel working as intended: expensive checks at the narrow end.
+
+**Build order:**
+- **Phase 1 (free, price math only):** universe manager, base-rate engine, regime gate, Detector A (price parts) + D, dossier w/ conditional base rates, trade ticket w/ exits, scan snapshots + tracking loop.
+- **Phase 2 (Finnhub):** quality gates, insider signal, Detector B, catalyst map.
+- **Phase 3 (FMP trial → Starter):** estimate divergence, Detector C, screener-powered market-wide discovery.
+No server, framework, or payment required before Phase 3 — vanilla JS + Firestore + existing battle-tested pipelines.
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
