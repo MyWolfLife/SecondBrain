@@ -2200,6 +2200,24 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 ---
 
+## screen:analyzer
+
+### Quick Help
+- The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
+- It assembles evidence — price drops, quality checks, historical odds, catalysts — but **never tells you what to buy or sell**; every decision is yours
+- Three sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), and **Universe** (manage which tickers are watched)
+- The feature is being built in stages — sections marked **Coming soon** are scaffolded but not yet functional
+
+### Details
+
+**What it looks for**: Named setups like a quality company knocked down by an emotional overreaction (sharp dip, fundamentals intact), or a stock drifting upward after a strong earnings beat. Each setup has its own detection rules and its own shortlist.
+
+**What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
+
+**Build status**: Stage 1 (navigation scaffolding) is live. Universe management, price data caching, the detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
+
+---
+
 ## screen:budget
 
 ### Quick Help

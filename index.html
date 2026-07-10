@@ -7623,6 +7623,30 @@ service firebase.storage {
             <!-- Populated by loadBudgetNonMonthlyPage() in budgets.js -->
         </section>
 
+        <!-- ==========================================
+             STOCK ANALYZER PAGES — #analyzer
+             ========================================== -->
+
+        <!-- Page: Stock Analyzer hub (#analyzer) -->
+        <section class="page hidden" id="page-analyzer">
+            <!-- Populated by loadAnalyzerPage() in analyzer.js -->
+        </section>
+
+        <!-- Page: Analyzer Universe (#analyzer/universe) -->
+        <section class="page hidden" id="page-analyzer-universe">
+            <!-- Populated by loadAnalyzerUniversePage() in analyzer.js -->
+        </section>
+
+        <!-- Page: Analyzer Backtest Lab (#analyzer/backtest) -->
+        <section class="page hidden" id="page-analyzer-backtest">
+            <!-- Populated by loadAnalyzerBacktestPage() in analyzer.js -->
+        </section>
+
+        <!-- Page: Analyzer Scan (#analyzer/scan) -->
+        <section class="page hidden" id="page-analyzer-scan">
+            <!-- Populated by loadAnalyzerScanPage() in analyzer.js -->
+        </section>
+
         <!-- Modal: Capture Snapshot -->
         <div class="modal-overlay" id="investSnapModal">
             <div class="modal">
@@ -11400,16 +11424,17 @@ export default {
     <script src="js/memories.js?v=473"></script>
     <script src="js/firebasesetup.js?v=511"></script>
     <script src="js/views.js?v=556"></script>
-    <script src="js/help.js?v=541"></script>
+    <script src="js/help.js?v=542"></script>
     <script src="js/legacy-crypto.js?v=2"></script>
     <script src="js/legacy.js?v=28"></script>
     <script src="js/credentials.js?v=585"></script>
-    <script src="js/investments.js?v=586"></script>
+    <script src="js/investments.js?v=587"></script>
     <script src="js/investments-ai.js?v=3"></script>
     <script src="js/investments-import.js?v=5"></script>
     <script src="js/budgets.js?v=659"></script>
+    <script src="js/analyzer.js?v=1"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=670"></script>
+    <script src="js/app.js?v=671"></script>
 
 </body>
 </html>

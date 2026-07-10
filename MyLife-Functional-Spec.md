@@ -2038,6 +2038,28 @@ A per-budget list of non-monthly expenses (annual, quarterly, etc.). Each item h
 
 ---
 
+## Part 8f: Stock Analyzer
+
+Short-term trade candidate finder under Life → Financial. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision. Plan document: `StockAnalyzerPlan.md` (full design, methodology, and staged implementation plan).
+
+**Build status**: Stage 1 of 9 complete (scaffolding & navigation). Later stages add: universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossiers, trade tickets, tracking loop.
+
+### Navigation & Routes
+Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), between Stock Rollup and Snapshots.
+
+| Route | Page | Status |
+|-------|------|--------|
+| `#analyzer` | Hub — nav cards for Backtest Lab, Scan, Universe | ✅ Built (Stage 1) |
+| `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | 🚧 Placeholder (Stage 2) |
+| `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | 🚧 Placeholder (Stage 5) |
+| `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | 🚧 Placeholder (Stage 6) |
+
+**Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
+
+**Help**: `## screen:analyzer` section in AppHelp.md covers the hub; sub-routes map to the hub section via `HELP_SECTION_MAP` until their stages land.
+
+---
+
 ## Part 9: Places & Check-In
 
 **JS file**: `js/places.js`

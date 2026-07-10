@@ -211,6 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
+    'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
     'help'
 ];
@@ -253,6 +254,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
+                     'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
@@ -906,6 +908,19 @@ function handleRoute() {
     } else if (page === 'budget') {
         showPage('budget');
         loadBudgetPage();
+    // ---------- Stock Analyzer routes ----------
+    } else if (page === 'analyzer' && id === 'universe') {
+        showPage('analyzer-universe');
+        loadAnalyzerUniversePage();
+    } else if (page === 'analyzer' && id === 'backtest') {
+        showPage('analyzer-backtest');
+        loadAnalyzerBacktestPage();
+    } else if (page === 'analyzer' && id === 'scan') {
+        showPage('analyzer-scan');
+        loadAnalyzerScanPage();
+    } else if (page === 'analyzer') {
+        showPage('analyzer');
+        loadAnalyzerPage();
     // ---------- Investments routes ----------
     } else if (page === 'investments' && id === 'ss-benefits' && parts[2] === 'new') {
         showPage('investments-ss-form');

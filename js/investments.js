@@ -439,6 +439,14 @@ function _investHubNavCards() {
             '</div>' +
             '<span class="invest-hub-arrow">›</span>' +
         '</a>' +
+        '<a class="invest-hub-card" href="#analyzer">' +
+            '<span class="invest-hub-icon">🎯</span>' +
+            '<div class="invest-hub-text">' +
+                '<div class="invest-hub-title">Stock Analyzer</div>' +
+                '<div class="invest-hub-desc">Find short-term trade setups — dips on quality, earnings drift, backtests</div>' +
+            '</div>' +
+            '<span class="invest-hub-arrow">›</span>' +
+        '</a>' +
         '<a class="invest-hub-card" href="#investments/snapshots">' +
             '<span class="invest-hub-icon">📷</span>' +
             '<div class="invest-hub-text">' +

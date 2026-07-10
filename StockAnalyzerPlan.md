@@ -1,6 +1,6 @@
 # Stock Analyzer — Plan
 
-**Status: Discussion / planning phase — no code yet.**
+**Status: BUILDING — Stage 1 (scaffolding & navigation) complete; Stage 2 (universe manager) next.**
 
 ## Overview
 A new card under **Life → Financial** called **Stock Analyzer**. A tool to help the user decide which stocks to buy and sell, based on metrics the user determines.
@@ -296,7 +296,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 ### Implementation plan — Phase 1 stages
 *Each stage is independently shippable: user-testable in the preview server, committed + pushed with spec/AppHelp/cache-bump per project conventions. Adjust later stages based on what earlier stages teach us.*
 
-**Stage 1 — Scaffolding & navigation**
+**Stage 1 — Scaffolding & navigation** ✅ COMPLETE (2026-07-09)
 - 🎯 "Stock Analyzer" card on the Financial hub (`#investments`)
 - New routes: `#analyzer` (hub page), `#analyzer/universe`, `#analyzer/backtest`, `#analyzer/scan` (placeholders where needed)
 - New file: `js/analyzer.js` (page routing/rendering); page sections in `index.html`; styles

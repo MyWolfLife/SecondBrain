@@ -64,6 +64,11 @@ var HELP_SECTION_MAP = {
     // ── Budget sub-routes ───────────────────────────────────────
     'budget-nonmonthly'              : 'budget-nonmonthly',     // trailing id stripped
 
+    // ── Stock Analyzer sub-routes (placeholders share the hub section until built) ──
+    'analyzer-universe'              : 'analyzer',
+    'analyzer-backtest'              : 'analyzer',
+    'analyzer-scan'                  : 'analyzer',
+
     // ── Legacy sub-routes ───────────────────────────────────────
     'legacy-burial'                  : 'legacy-burial',
     'legacy-service'                 : 'legacy-service',
@@ -204,6 +209,7 @@ var HELP_SCREEN_LABELS = {
     'calendar'      : 'Calendar Events',
     'activityreport': 'Activity Report',
     'gpsmap'        : 'GPS Map',
+    'analyzer'      : 'Stock Analyzer',
     'yardmap'       : 'Yard Map',
     'yard-problems' : 'Yard Problems',
     'yard-projects' : 'Yard Quick Tasks',
