@@ -113,13 +113,14 @@ ChatGPT proposed a phased pipeline: universe (300–500 tickers) → fundamental
 **Still missing from all ChatGPT responses (covered by our plan):** exit discipline, per-stock feasibility base rate, market regime check, and the user's Goal 2 (portfolio health check on existing holdings).
 
 ### Converged tool shape (draft — for discussion, not final)
-Emerging from all the above, the tool looks like six pieces:
+Emerging from all the above, the tool looks like seven pieces:
 1. **Universe manager** — curated ticker list (~100–200 to start; S&P 500 subset + watchlist + current holdings), user add/remove.
 2. **Strategy profiles** — per-setup filter thresholds + scorecard weights (Mean Reversion, Momentum, Earnings Drift), all user-editable, tweakable over time.
 3. **Scanner** — user-triggered staged scan of the universe (price screen → fundamentals → news), producing a ranked shortlist per profile; results snapshotted to Firestore.
 4. **Candidate workspace** — per-candidate evidence page: dip/setup data, base rate (+10%/60d historical frequency), catalyst calendar, quality/survivability checks, market regime, manual enrichment fields, optional LLM read, thesis prompt ("what has to happen for this to rise 10%?").
 5. **Trade ticket** — entry + thesis + three exits (target / stop / time stop) + optional probability estimate; live tracking against exits.
 6. **Scoreboard / learning loop** — auto-checks past scan snapshots at 30/60 days vs. benchmark; scores closed trades vs. thesis; evidence for manual weight adjustments.
+7. **Backtest Lab** — walk-forward historical simulation of the detectors (see formal design in the Plan section below).
 
 ### Paid API options (2026-07-09)
 User is **not opposed to a paid API if the price is right** — softens the original zero-cost constraint for this feature.
@@ -233,12 +234,62 @@ User asked: "Start Jan 1st, run the tool every Friday, compare picks against rea
 - Constraint: **zero cost** — free API tiers only, no paid data services.
 
 ## Open Questions
-*(To resolve during discussion.)*
+*(Remaining after discussion — earlier questions about scope, output, and metric definition were resolved; see Design principles, Converged tool shape, and the mechanism-detector methodology above.)*
 
-- Which stocks are in scope — current holdings, a separate watchlist, or both?
-- What metrics does the user want to track, and where does each come from (API vs. manual entry)?
-- What does the tool output — a dashboard, computed buy/sell signals, alerts?
-- How do "metrics I determine" get defined — fixed fields, or user-configurable metric definitions?
+- Initial universe composition: which ~100–200 tickers seed it? (S&P 500 subset by sector? User-picked?)
+- Default detector thresholds (dip %, window days, base-rate cutoff) — start with the discussed values (12–15% dip / 3 weeks / 25–30% base rate) and tune via Backtest Lab?
+- FMP tier verification: which analyst endpoints are on Starter vs. Premium (blocks Phase 3 scoping).
+- Nav placement details: card icon/label on the Financial hub.
 
 ## Plan
-*(To be written once discussion settles.)*
+
+### Formally designed: Backtest Lab (walk-forward simulation)
+*Designed 2026-07-09. The first formally-specced component because it validates everything else. Status: designed, not built.*
+
+#### Purpose
+Answer "do the detectors have an edge?" with historical evidence before real money follows them. Simulate running the tool every Friday from a chosen start date, grade every signal against what actually happened over the following 60 days, and present a success/failure scorecard.
+
+#### Shared foundation (built first — used by both Backtest Lab and the live scanner)
+1. **Data layer** (`js/analyzer-data.js`): swappable-provider module. Phase 1 providers: Yahoo v8/chart (5y daily OHLCV per ticker, existing CORS-proxy pipeline) + SPY/^VIX for regime/benchmark.
+2. **Price cache — IndexedDB, not Firestore.** Raw OHLCV for the universe is ~25MB (500 tickers × ~1,250 days) — fine in IndexedDB, hostile in Firestore (doc reads/writes, 1MB limits). Firestore stores only small computed artifacts. Consequence: cache is per-device; a new device re-fetches (~5–7 min once, then incremental daily top-ups).
+3. **Detector engine** (`js/analyzer-engine.js`): pure functions — `(priceSeries, config, asOfIndex) → trigger|null` — no fetching, no DOM, no Firestore. **One engine, two clocks**: the live scanner calls it with `asOfIndex = today`; the backtest calls it for every historical Friday. Identical math by construction, so backtest results genuinely describe the live tool.
+
+#### Build-order note (decision)
+Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale: the backtest is a forcing function — it proves the engine's detector math against history and shakes out bugs before the Friday scan is trusted. Day one of using the tool = point it at January and see how it would have done.
+
+#### Simulation rules (concrete, to avoid look-ahead bias)
+- **Signal generation**: each simulated Friday, run detectors on data up to and including that Friday's close only.
+- **Entry price**: next trading day's **open** (never the signal-day close — you couldn't have bought it).
+- **Exit evaluation** per subsequent day, conservative ordering: (1) stop hit (day's low ≤ stop) → exit at stop; (2) target hit (day's high ≥ target) → exit at target; (3) both in one day → count as **stop** (pessimistic); (4) day 60 reached → exit at close (time stop).
+- **Dedup**: a ticker re-triggering the same detector while its simulated position is open is ignored.
+- **Outcome buckets**: Target hit · Stop hit · Time expiry (net +/−) · Pending (window extends past today — shown, not graded).
+- **Benchmark**: same-dated hypothetical SPY entries with the same holding periods.
+
+#### Backtest run flow (UI)
+- Route: `#analyzer/backtest` (under the Stock Analyzer card).
+- **Setup form**: start date (default Jan 1 of current year) · end date (default today) · cadence (weekly Friday; fixed for v1) · detectors to include with their threshold configs (pulled from strategy profiles, editable per-run) · exit rules (target % / stop % / time-stop days; default +10% / −7% / 60d) · universe (default: full universe).
+- **Run**: kicked-off job with progress bar — phase 1 fetch missing/stale histories into IndexedDB, phase 2 simulate Fridays, phase 3 grade signals. Re-runs with warm cache skip phase 1 (seconds).
+- **Results**: scorecard page (below). Run is saved; past runs listable and comparable.
+
+#### Scorecard (results screen)
+1. **Params header**: period, cadence, exits, detector configs, universe size — every run is fully described so two runs are comparable.
+2. **Bias banner (permanent, not dismissible)**: "Backtests use today's index membership (survivorship bias) and grade a no-judgment robot (your floor, not your ceiling). Sanity-check thresholds; don't optimize to the decimal."
+3. **Per-detector result cards**: signals fired · target-hit rate ("26 of 41 → 63%") · stop-outs · expiries · pending · median days-to-target · average win / average loss · expectancy per trade · mechanical P&L vs SPY benchmark.
+4. **Signal drill-down table** (per detector): Friday date, ticker, trigger stats (dip %, base rate at the time), entry, outcome, exit date, days held, max drawdown during hold. The misses are the curriculum — this table is where the learning happens.
+5. **Compare runs**: side-by-side of two saved runs (e.g., 12% vs 15% dip threshold) — same layout, deltas highlighted.
+
+#### Firestore
+- New collection **`analyzerBacktests`**: `{ createdAt, params: {startDate, endDate, cadence, detectors[{id, config}], exits{targetPct, stopPct, timeStopDays}, universeSize}, results: {perDetector[{detectorId, signals, targetHits, stopOuts, expiries, pending, medianDays, avgWin, avgLoss, expectancy, pnlPct, spyPnlPct}]}, signals[] }` — `signals[]` is the drill-down list (~dozens of small records per run; well under the 1MB doc limit; cap at 500 signals per doc as a guard).
+- **Backup**: add `analyzerBacktests` (and all future analyzer collections) to `js/settings.js` backup logic per the backup-collections checklist.
+- Guardrail: no auto-tuning of thresholds from results — comparison UI only; the user changes configs by hand.
+
+#### Validation scope shipped in v1 (labeled in UI)
+- **Tested**: dip trigger (Detector A price parts), Detector D, base-rate filter, regime gate, day-1 reaction filter, exit rules as a system.
+- **Not in v1**: quality gates (needs dated historical fundamentals — Phase 3 / FMP upgrade), Detector B guidance component, Detector C, judgment layer (by design — the live tracking loop measures that).
+
+#### Phasing
+- **Phase 1**: shared foundation + Backtest Lab v1 (price-only) + live scan screen (in that order).
+- **Phase 3 upgrade**: fundamentals-aware backtest (FMP dated historical statements gate the quality filter as-of each simulated Friday); Detector C joins both the live scan and the backtest.
+
+### Remaining plan sections
+*(To be written as each component is formally designed: universe manager, strategy profiles, live scanner, candidate dossier, trade ticket, tracking loop, holdings check.)*
