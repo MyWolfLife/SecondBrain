@@ -121,6 +121,27 @@ Emerging from all the above, the tool looks like six pieces:
 5. **Trade ticket** — entry + thesis + three exits (target / stop / time stop) + optional probability estimate; live tracking against exits.
 6. **Scoreboard / learning loop** — auto-checks past scan snapshots at 30/60 days vs. benchmark; scores closed trades vs. thesis; evidence for manual weight adjustments.
 
+### Paid API options (2026-07-09)
+User is **not opposed to a paid API if the price is right** — softens the original zero-cost constraint for this feature.
+
+**What paying buys, in impact order:**
+1. **Screener endpoint** (FMP) — send criteria, get matching stocks back. Outsources Stage 1 entirely; converts "curated universe" into true market-wide discovery. Biggest architectural upgrade available.
+2. **Analyst estimates / revisions / price targets** — strongest paywalled factor; moves from manual shortlist entry to fetched data.
+3. **Reliability** — retires the CORS-proxy fallback chain; batch quotes; benefits the whole Investments section.
+4. **Rate-limit headroom** — universe can grow to full S&P 500+.
+
+**Price bands (verify current pricing before committing — checked 2026-07):**
+- ~$10/mo — **Tiingo**: clean EOD + fundamentals, no screener/thin analyst data. Reliability only.
+- ~$15–25/mo — **FMP Starter** (~$15–22/mo w/ annual discount) — *best fit*: fundamentals, ratios, earnings calendar, insider trades, screener endpoint, some analyst data, one provider. Also EODHD Basic €19.99 (global coverage — less relevant for us). **Verify which analyst endpoints are Starter vs Premium.**
+- ~$50–100/mo — FMP Premium (~$99), Finnhub premium: full estimate revisions, transcripts. Later, if tool proves out.
+- $199/mo — Polygon Advanced: real-time streaming; day-trader infrastructure, wrong fit.
+
+**Design considerations:**
+- **API key exposure**: public GitHub Pages repo → key must live in Firestore, runtime-loaded (same pattern as existing Finnhub/OpenAI keys). Insist on **flat-rate plans, never usage-billed** — worst case of a scraped key is burned quota, not a surprise bill.
+- **CORS**: provider must allow direct browser calls (Finnhub does; FMP reportedly does — confirm in free trial).
+
+**Agreed path:** build the data layer as a swappable-provider module; start on the free stack; **trial FMP free tier (250 calls/day) early** to validate CORS + screener + analyst endpoints; upgrade to FMP Starter when the free stack pinches (likely at discovery or estimates).
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
