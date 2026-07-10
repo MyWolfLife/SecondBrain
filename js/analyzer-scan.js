@@ -525,6 +525,17 @@ function _adRender(page, rec, ev, params) {
             '<a class="ana-sp-btn" href="#analyzer/scan" style="text-decoration:none">← Back to scan</a>' +
         '</div>';
 
+    // Trade ticket (Stage 8) — turn the dossier into a tracked position
+    if (canSave) {
+        html += '<h3 class="ana-section-title">🎫 Trade ticket</h3>' +
+            '<p class="muted-text">Bought it for real? Record the trade — it will be tracked against your exits on the Trades page.</p>' +
+            '<div class="ab-form-row">' +
+                '<label>Entry price $ <input type="number" id="adEntryPrice" value="' + ev.close.toFixed(2) + '" step="0.01" min="0" style="width:100px"></label>' +
+                '<label>Shares <input type="number" id="adShares" placeholder="optional" step="1" min="0" style="width:90px"></label>' +
+                '<button class="btn-primary" onclick="_adCreateTicket()">Create trade ticket</button>' +
+            '</div>';
+    }
+
     page.innerHTML = html;
     _adUpdateExitPrices();
     _adDrawChart(rec, ev);
@@ -592,6 +603,35 @@ function _adDrawChart(rec, ev) {
             }
         }
     });
+}
+
+// Create a trade ticket from the dossier (saves thesis/exits first so the
+// ticket and the scan candidate agree, then hands off to analyzer-trades.js)
+async function _adCreateTicket() {
+    var ctx = _adCtx;
+    if (!ctx || !ctx.scan || !ctx.candidate) return;
+    var entryPrice = parseFloat((document.getElementById('adEntryPrice') || {}).value);
+    if (!entryPrice || entryPrice <= 0) { alert('Enter a valid entry price.'); return; }
+    var sharesRaw = (document.getElementById('adShares') || {}).value;
+    var shares = sharesRaw ? parseFloat(sharesRaw) : null;
+
+    await _adSaveNotes();
+    try {
+        await atCreateTrade({
+            ticker:     ctx.ticker,
+            detector:   ctx.detector,
+            scanId:     ctx.scan.id,
+            scanDate:   ctx.scan.date || null,
+            thesis:     ctx.candidate.thesisDraft || '',
+            entryDate:  new Date().toISOString().slice(0, 10),
+            entryPrice: entryPrice,
+            shares:     shares,
+            exits:      ctx.candidate.exits || { targetPct: 10, stopPct: 7, timeStopDays: 60 }
+        });
+        window.location.hash = '#analyzer/trades';
+    } catch (e) {
+        alert(e.message);
+    }
 }
 
 // Persist thesis + exits onto the scan doc's candidate entry

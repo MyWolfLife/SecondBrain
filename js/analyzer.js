@@ -63,6 +63,14 @@ function loadAnalyzerPage() {
                 '</div>' +
                 '<span class="invest-hub-arrow">›</span>' +
             '</a>' +
+            '<a class="invest-hub-card" href="#analyzer/trades">' +
+                '<span class="invest-hub-icon">🎫</span>' +
+                '<div class="invest-hub-text">' +
+                    '<div class="invest-hub-title">Trades</div>' +
+                    '<div class="invest-hub-desc">Open positions tracked against your exits, plus your closed-trade record</div>' +
+                '</div>' +
+                '<span class="invest-hub-arrow">›</span>' +
+            '</a>' +
             '<a class="invest-hub-card" href="#analyzer/universe">' +
                 '<span class="invest-hub-icon">🌐</span>' +
                 '<div class="invest-hub-text">' +

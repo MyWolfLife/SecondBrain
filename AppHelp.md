@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–7 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier) are live. Trade tickets and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–8 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets) are live. Only the tracking loop (Stage 9) remains. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2322,6 +2322,30 @@ Results are shown in a popup after the update completes. If any tickers failed a
 **Springs**: Compressed-spring candidates show the chart with a 52-week-high line instead of the dips table — their story is about a coiled price near highs, not recovery history.
 
 **Exit discipline**: Decide the exits *before* you buy. The time stop matters as much as the price stops — if the thesis hasn't played out by then, it expired; exit even at breakeven.
+
+**Trade ticket**: When you actually buy, record it in the **🎫 Trade ticket** section at the bottom — entry price (pre-filled with the latest close; change it to your real fill) and optionally shares. The position then appears on the Trades page, tracked against your exits.
+
+---
+
+## screen:analyzer-trades
+
+### Quick Help
+- **Trades** tracks positions you actually took — each open position shows live P&L against the latest cached prices, plus your 🎯 target price, 🛑 stop price, and ⏰ time-stop progress ("day X of N")
+- A colored banner appears when action is due: **Target reached** (green), **Stop breached** (red), or **Time stop expired** (amber)
+- Tap **Close trade** when you sell — the close price and reason are pre-suggested; record whether your **thesis was right, wrong, or mixed**
+- Closed trades show your track record: win rate, average return per trade, return vs SPY over the same dates, and how often your thesis held up
+- Keep price data current (Analyzer hub → Update price data) — tracking is only as fresh as the cache
+- Only one open trade per stock per setup — close the old one before re-entering
+
+### Details
+
+**What tracking means**: The app compares your entry against the latest cached daily close. It never trades for you and never auto-closes — banners are prompts for *your* decision.
+
+**Why record the thesis verdict**: Over time, "thesis right 7 of 10" tells you whether your judgment is adding value beyond the raw detectors — that's the entire feedback loop this tool was built for.
+
+**The SPY column**: Every closed trade shows what SPY did over the same dates. A +8% trade while SPY did +9% wasn't really a win — this column keeps you honest.
+
+**Time stop**: Counted in trading days (market days, not calendar days), matched to how the Backtest Lab counts.
 
 ---
 

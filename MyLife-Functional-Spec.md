@@ -2042,7 +2042,7 @@ A per-budget list of non-monthly expenses (annual, quarterly, etc.). Each item h
 
 Short-term trade candidate finder under Life → Financial. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision. Plan document: `StockAnalyzerPlan.md` (full design, methodology, and staged implementation plan).
 
-**Build status**: Stages 1–7 of 9 complete (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier). Remaining: trade tickets (Stage 8), tracking loop (Stage 9).
+**Build status**: Stages 1–8 of 9 complete (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier, trade tickets). Remaining: tracking loop (Stage 9).
 
 ### Navigation & Routes
 Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), between Stock Rollup and Snapshots.
@@ -2054,6 +2054,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
 | `#analyzer/dossier/{scanId}/{ticker}/{detector}` | Candidate dossier — chart, dip history, thesis, exit plan | ✅ Built (Stage 7) |
+| `#analyzer/trades` | Trades — open positions tracked against exits + closed-trade record | ✅ Built (Stage 8) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
@@ -2125,6 +2126,16 @@ The deep-dive page behind a scan card's **Open dossier** button. All evidence is
 - **Exit plan**: target/stop/time-stop fields (pre-filled from saved values or 10/7/60 defaults) with live computed dollar prices from the current close.
 - **Persistence**: **Save thesis & exits** writes `thesisDraft` + `exits{}` onto the scan doc's candidate entry (consumed by the Stage 8 trade ticket). If the scan doc is missing (deleted), the dossier renders read-only with an explanatory note.
 - **Verified**: FLEX dossier via deep link — chips populated, chart rendered (4 datasets), dip table exactly matches `anaEngDipEvents` (19 rows), thesis + custom exits persisted across full reload; EA spring dossier renders the 52w-high variant without a dip table.
+
+### Trade tickets + live tracking (`#analyzer/trades`, `js/analyzer-trades.js`)
+A trade ticket turns a dossier into a tracked position. Created from the dossier's **🎫 Trade ticket** section (entry price pre-filled from the latest cached close, optional shares); creation first saves the dossier's thesis/exits to the scan candidate so ticket and scan agree, then writes the trade doc and navigates to the Trades page. **One open ticket per ticker+detector** — duplicates are rejected with an explanation.
+
+- **Open positions**: card per trade — live P&L % (vs latest cached close, with data-through date), dollar P&L when shares entered, chips for 🎯 target price / 🛑 stop price / ⏰ "day X of N" (trading days held, from the ticker's own candle count), thesis line. State banners when action is due: 🎯 target reached (green) · 🛑 stop breached (red) · ⏰ time stop expired (amber).
+- **Close flow** (inline per card): close price pre-filled from the latest close, reason dropdown auto-suggested from the live state (target/stop/time/manual), **thesis verdict** (right/wrong/mixed) — the judgment feedback loop — and optional notes. Computes `retPct` and an SPY close-to-close benchmark over the held dates.
+- **Closed trades**: summary line (N of M profitable · avg per trade · thesis right X of Y) + table (entry/exit dates+prices, calendar days, ret %, SPY %, reason badge, verdict icon, notes; thesis on hover).
+- **Firestore**: `analyzerTrades` — `{createdAt, ticker, detector, scanId, scanDate, thesis, entryDate, entryPrice, shares?, exits{}, targetPrice, stopPrice, status, closeDate, closePrice, closeReason, retPct, spyRetPct, thesisVerdict, closeNotes}`. In Settings backup.
+- **Hub**: 🎫 Trades card added to the Analyzer hub.
+- **Verified**: FLEX ticket created from dossier (target $149.38 = entry × 1.10 exact); duplicate rejected; aged EA position showed +13.6%, "target reached" banner, day 47 of 60; close flow auto-suggested reason "target", stored ret +13.64% and SPY +4.76% — both matched independent recomputation; summary + persistence across reload confirmed.
 
 ---
 
@@ -3205,7 +3216,8 @@ Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added 
 |-------------------|------------|
 | `analyzerConfig/universe` | watchlist[], excluded[], updatedAt |
 | `analyzerBacktests` | createdAt, params{startDate,endDate,cadence,exits{},detectors{}}, universeSize, fridays, results{perDetector[]}, signals[] (capped 500), signalsTruncated |
-| `analyzerScans` | createdAt, date, params, regime{}, funnel{scanned,passedBaseRate,triggered,shortlisted}, durationMs, candidates[{ticker,detector,…,dismissed}] |
+| `analyzerScans` | createdAt, date, params, regime{}, funnel{scanned,passedBaseRate,triggered,shortlisted}, durationMs, candidates[{ticker,detector,…,dismissed,thesisDraft,exits{}}] |
+| `analyzerTrades` | createdAt, ticker, detector, scanId, scanDate, thesis, entryDate, entryPrice, shares?, exits{}, targetPrice, stopPrice, status, closeDate, closePrice, closeReason, retPct, spyRetPct, thesisVerdict, closeNotes |
 
 Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{asOf, source, count, companies:[{t,n,s}]}`.
 

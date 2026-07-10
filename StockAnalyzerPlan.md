@@ -1,9 +1,16 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–7 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan, dossier); Stage 8 (trade ticket) next.**
+**Status: BUILDING — Stages 1–8 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan, dossier, trade tickets); Stage 9 (tracking loop) completes Phase 1.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 8 COMPLETE.** `js/analyzer-trades.js` — trade tickets + live tracking built + verified:
+  - Full loop verified: FLEX ticket created from the dossier (entry pre-filled $135.80, 40 shares, target $149.38 = ×1.10 exact, thesis carried over) → duplicate FLEX ticket correctly rejected → aged EA position (seeded entry 2026-05-01) showed **+13.6% P&L, "🎯 Target reached" banner, day 47 of 60** → close flow auto-suggested reason "target", stored **ret +13.64% / SPY +4.76%, both matching independent recomputation** → closed summary line ("1 of 1 profitable · thesis right 1 of 1") → all persisted across reload. Console clean, no overflow.
+  - Thesis-verdict field (right/wrong/mixed) is the judgment feedback loop; SPY benchmark column keeps wins honest.
+  - Test sandbox now holds 1 open FLEX trade + 1 closed EA trade — **useful seed data for Stage 9 testing, leave in place**.
+  - Note: styles v767 bump was unnecessary (no new CSS — reused as-/ab- classes); skipped.
+  - Next: **Stage 9 — tracking loop / scoreboard** (30/60d auto-grading of past scan snapshots vs SPY; closed-trade history integration; "learning journal with receipts"). Phase 1 completes with it.
 
 - **2026-07-10 — Stage 7 COMPLETE.** Candidate dossier built + verified (route `#analyzer/dossier/{scanId}/{ticker}/{detector}`, code in `js/analyzer-scan.js`):
   - FLEX dossier via deep link: badge (−16.2% in 7d — live recompute, deeper than scan-time), 7 evidence chips, Chart.js chart (price + target/stop dashed guides + peak triangle, 4 datasets), **similar-dips table exactly matches `anaEngDipEvents` (19 rows)**, thesis + custom exits (target 12%) saved to scan doc and **persisted across full reload**; live exit-price recompute correct ($152.10 = $135.80 × 1.12).
@@ -380,7 +387,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Per-candidate page: price chart with dip marked, conditional-history table, thesis prompt, exit fields (pre-filled defaults)
 - ✅ Done when: dossier opens from a scan card with all price-derived evidence populated
 
-**Stage 8 — Trade ticket + live tracking**
+**Stage 8 — Trade ticket + live tracking** ✅ COMPLETE (2026-07-10)
 - Entry/thesis/exits recorded; open positions tracked against target/stop/time-stop; close-out flow with outcome vs. thesis
 - ✅ Done when: a ticket created from a dossier tracks correctly against daily prices
 

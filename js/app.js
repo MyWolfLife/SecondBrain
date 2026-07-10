@@ -211,7 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier',
+    'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
     'help'
 ];
@@ -254,7 +254,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
-                     'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier',
+                     'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
@@ -921,6 +921,9 @@ function handleRoute() {
     } else if (page === 'analyzer' && id === 'scan') {
         showPage('analyzer-scan');
         loadAnalyzerScanPage();
+    } else if (page === 'analyzer' && id === 'trades') {
+        showPage('analyzer-trades');
+        loadAnalyzerTradesPage();
     } else if (page === 'analyzer') {
         showPage('analyzer');
         loadAnalyzerPage();
