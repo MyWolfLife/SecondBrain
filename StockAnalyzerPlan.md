@@ -142,6 +142,18 @@ User is **not opposed to a paid API if the price is right** — softens the orig
 
 **Agreed path:** build the data layer as a swappable-provider module; start on the free stack; **trial FMP free tier (250 calls/day) early** to validate CORS + screener + analyst endpoints; upgrade to FMP Starter when the free stack pinches (likely at discovery or estimates).
 
+### Technicals architecture + API roles (2026-07-09)
+**Decision: compute all technical indicators locally from raw OHLCV price history — never use per-indicator API endpoints.**
+- One price-history call per ticker yields *every* indicator: MACD (EMA12−EMA26 + EMA9 signal), RSI, SMAs/EMAs, volume-vs-trailing-average spikes, relative strength vs. S&P, volatility, and custom metrics no API offers (e.g., the +10%/60d rolling-window base rate).
+- Benefits: ~1 API call/ticker instead of 1 per indicator (rate limits), user-tweakable indicator parameters (e.g., MACD 8/17/9) with no API dependency, and provider-independence — the math is identical under any data source.
+- Principle: **the API's job is raw facts (prices, fundamentals, news, calendars, screener results); the tool's job is the math.**
+
+**API lineup (leading plan, not locked in):**
+- **Yahoo v8/chart (free, built)** — raw price history / OHLCV
+- **Finnhub (free, built)** — company news, earnings calendar, insider transactions
+- **FMP (paid candidate)** — screener (market-wide discovery) + analyst estimates; trial on free tier first; may run as a permanent hybrid with the free sources
+- Everything sits behind the swappable data-layer module; the rest of the tool never knows which provider answered.
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
