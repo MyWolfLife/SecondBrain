@@ -2206,6 +2206,9 @@ Results are shown in a popup after the update completes. If any tickers failed a
 - The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
 - It assembles evidence — price drops, quality checks, historical odds, catalysts — but **never tells you what to buy or sell**; every decision is yours
 - Three sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), and **Universe** (manage which tickers are watched)
+- **📊 Price data** (bottom of the hub): shows what's cached on this device and the **Update price data** button — tap it to fetch/refresh 5 years of daily history for every watched ticker
+- The first full update takes several minutes and must stay in an open tab — a progress bar shows `n / total` with a Cancel button; tickers already updated today are skipped, so re-runs are fast
+- Price history is stored **on this device** (not in the cloud) — a new phone or computer does its own first fetch
 - The feature is being built in stages — sections marked **Coming soon** are scaffolded but not yet functional
 
 ### Details
@@ -2214,7 +2217,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–2 (navigation + Universe manager) are live. Price data caching, the detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–3 (navigation, Universe manager, price data cache) are live. The detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 

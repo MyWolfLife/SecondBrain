@@ -140,6 +140,23 @@ function _anaParseYahooChart(data) {
     return rec;
 }
 
+// Index of the proxy that succeeded most recently — tried first on the next fetch.
+var _anaPreferredProxy = 0;
+
+// fetch() with a hard timeout — a hung proxy must not stall a 500-ticker job.
+async function _anaFetchWithTimeout(url, timeoutMs) {
+    var ctrl  = new AbortController();
+    var timer = setTimeout(function() { ctrl.abort(); }, timeoutMs);
+    try {
+        return await fetch(url, { signal: ctrl.signal });
+    } catch (e) {
+        if (e.name === 'AbortError') throw new Error('timeout after ' + timeoutMs + 'ms');
+        throw e;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 // Fetches {range} of daily history for one ticker.
 // Tries the Cloudflare Worker first (if configured), then the proxy chain.
 // minCandles guards against a worker that ignores range params and returns 1d.
@@ -152,8 +169,8 @@ async function _anaFetchYahooHistory(ticker, range, minCandles) {
     if (workerUrl) {
         try {
             var base = workerUrl.replace(/\/$/, '');
-            var resp = await fetch(base + '?ticker=' + encodeURIComponent(ticker) +
-                                   '&range=' + range + '&interval=1d');
+            var resp = await _anaFetchWithTimeout(base + '?ticker=' + encodeURIComponent(ticker) +
+                                   '&range=' + range + '&interval=1d', 12000);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             var rec = _anaParseYahooChart(await resp.json());
             if (rec.dates.length >= (minCandles || 1)) return rec;
@@ -168,19 +185,40 @@ async function _anaFetchYahooHistory(ticker, range, minCandles) {
         'https://corsproxy.io/?' + encodeURIComponent(target),
         'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(target)
     ];
+    // Sticky proxy: try whichever proxy succeeded last FIRST. In a 500-ticker
+    // batch, wasting two 10s timeouts per ticker on a rate-limited proxy
+    // turns a ~15 min job into hours.
+    var order = [_anaPreferredProxy];
+    for (var p = 0; p < proxies.length; p++) {
+        if (p !== _anaPreferredProxy) order.push(p);
+    }
     var lastErr = null;
-    for (var i = 0; i < proxies.length; i++) {
-        var attempts = (i === 0) ? 2 : 1;  // retry proxy 0 once (cold rate-limit recovery)
-        for (var attempt = 0; attempt < attempts; attempt++) {
-            if (attempt > 0) await new Promise(function(r) { setTimeout(r, 1200); });
-            try {
-                var resp2 = await fetch(proxies[i]);
-                if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
-                return _anaParseYahooChart(await resp2.json());
-            } catch (e) {
-                lastErr = e;
-                console.log('[analyzer] history proxy ' + i + ' attempt ' + attempt + ' failed for ' + ticker + ': ' + e.message);
-            }
+    for (var oi = 0; oi < order.length; oi++) {
+        var i = order[oi];
+        try {
+            var resp2 = await _anaFetchWithTimeout(proxies[i], 10000);
+            if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+            var parsed = _anaParseYahooChart(await resp2.json());
+            _anaPreferredProxy = i;
+            return parsed;
+        } catch (e) {
+            lastErr = e;
+            console.log('[analyzer] history proxy ' + i + ' failed for ' + ticker + ': ' + e.message);
+        }
+    }
+    // All proxies failed — one more round after a pause (cold rate-limit recovery)
+    await new Promise(function(r) { setTimeout(r, 1500); });
+    for (var oi2 = 0; oi2 < order.length; oi2++) {
+        var i2 = order[oi2];
+        try {
+            var resp3 = await _anaFetchWithTimeout(proxies[i2], 10000);
+            if (!resp3.ok) throw new Error('HTTP ' + resp3.status);
+            var parsed2 = _anaParseYahooChart(await resp3.json());
+            _anaPreferredProxy = i2;
+            return parsed2;
+        } catch (e) {
+            lastErr = e;
+            console.log('[analyzer] history proxy ' + i2 + ' retry failed for ' + ticker + ': ' + e.message);
         }
     }
     throw new Error(lastErr ? lastErr.message : 'all proxies failed');

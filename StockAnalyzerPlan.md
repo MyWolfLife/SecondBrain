@@ -7,9 +7,9 @@
 
 - **2026-07-09 — Stage 3 IN PROGRESS.** Task list:
   1. ✅ `js/analyzer-data.js` built + verified in preview (SPY/^VIX/TGT: 5y × ~1,254 candles each fetched via proxy chain, skip-when-fresh re-run = 2ms, cache survives reload). Wired into index.html (+sw precache, v450). Public API: `anaGetPriceHistory(ticker)`, `_anaUpdatePrices(tickers, {onProgress, shouldCancel})`, `_anaCacheStats()`, `ANA_MARKET_TICKERS`. → *commit checkpoint 1 DONE*
-  2. ⬜ Hub page "Price data" section in `js/analyzer.js`: cached-ticker stats, "Update price data" button w/ progress bar, failure report. → *commit checkpoint 2 with docs*
-  3. ⬜ Verify in preview with a small subset (~10 tickers), confirm IndexedDB persistence across reload + incremental skip of fresh tickers.
-  4. ⬜ Docs: spec Part 8f (+data layer subsection), AppHelp hub section update, sw.js precache + bump, `?v=` bumps (analyzer.js, analyzer-data.js new tag), plan stage checkbox.
+  2. ✅ Hub "📊 Price data" section: stats note, Update button, progress bar (`n/total — TICKER (status)`), Cancel, completion summary w/ failure list. Verified: cancel works, summary survives section re-render.
+  3. ✅ Subset verification done (SPY/^VIX/TGT/MMM/AOS cached; skip-fresh re-run 2ms; survives reload). **Fetch timeouts added** (12s worker / 10s per proxy attempt via AbortController) after a hung proxy stalled a run — critical fix for 500-ticker jobs. Full-universe run kicked off in preview to validate at scale (in progress — see result note below when finished).
+  4. ✅ Docs: spec Part 8f data-layer subsection, AppHelp hub Quick Help (price data bullets) + build status, sw precache + v450, `?v=` bumps.
   - Testing setup available: test account has mock brokerage "Test Brokerage (analyzer test)" (id y9zbiLqxuBbHA0CexO3Y under investments/self) with NVDA + GRAB holdings; watchlist=[SHOP], excluded=[TGT] in analyzerConfig/universe.
 - **2026-07-09 — Stage 2 COMPLETE** (744146a): Universe manager built + verified. `data/sp500.json` (503 constituents), universe page (stats/watchlist/holdings pull-in/S&P search+exclude), `analyzerConfig/universe` Firestore doc, backup list updated, help+spec updated.
 - **2026-07-09 — Stage 1 COMPLETE** (33e6be8): 🎯 hub card, `#analyzer` routes ×4, `js/analyzer.js` scaffolding, help `screen:analyzer`, spec Part 8f.

@@ -19810,3 +19810,27 @@ a.legacy-fin-card:hover {
     .ana-sp-sector { display: none; }
     .ana-stat { flex: 1 1 40%; }
 }
+
+/* Analyzer price-update progress */
+.ana-progress-wrap {
+    max-width: 560px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+}
+.ana-progress-bar {
+    flex: 1 1 200px;
+    height: 10px;
+    background: #e8e8e8;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.ana-progress-fill {
+    height: 100%;
+    width: 0;
+    background: #4a7c59;
+    transition: width 0.2s;
+}
+.ana-progress-text { font-size: 0.82rem; color: #666; min-width: 150px; }

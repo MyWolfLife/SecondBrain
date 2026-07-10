@@ -71,7 +71,115 @@ function loadAnalyzerPage() {
                 '</div>' +
                 '<span class="invest-hub-arrow">›</span>' +
             '</a>' +
-        '</div>';
+        '</div>' +
+        '<h3 class="ana-section-title">📊 Price data</h3>' +
+        '<div id="anaPriceSection"><p class="muted-text">Loading cache status…</p></div>';
+
+    _anaRenderPriceSection();
+}
+
+// ---------------------------------------------------------------------------
+// Price data section (Stage 3) — cache status + update job with progress bar
+// ---------------------------------------------------------------------------
+
+var _anaUpdateCancelled = false;
+var _anaUpdateRunning   = false;
+
+async function _anaRenderPriceSection() {
+    var el = document.getElementById('anaPriceSection');
+    if (!el) return;
+
+    var stats;
+    try {
+        stats = await _anaCacheStats();
+    } catch (e) {
+        el.innerHTML = '<p class="muted-text">Could not read the price cache: ' + escapeHtml(e.message) + '</p>';
+        return;
+    }
+
+    var note;
+    if (stats.count === 0) {
+        note = 'No price data cached on this device yet. The first full update fetches 5 years of daily history ' +
+               'for every watched ticker — it takes several minutes and must stay in an open tab.';
+    } else {
+        var when = stats.newestUpdate ? new Date(stats.newestUpdate).toLocaleString() : '—';
+        note = stats.count + ' tickers cached on this device (' + stats.totalCandles.toLocaleString() + ' daily candles) · ' +
+               stats.freshToday + ' updated today · last update ' + when + '.';
+    }
+
+    el.innerHTML =
+        '<p class="muted-text" style="max-width:560px">' + note + '</p>' +
+        '<div class="ana-add-row">' +
+            '<button class="btn-primary" id="anaUpdateBtn" onclick="_anaRunPriceUpdate()">📡 Update price data</button>' +
+        '</div>' +
+        '<div id="anaUpdateProgress"></div>';
+}
+
+async function _anaRunPriceUpdate() {
+    if (_anaUpdateRunning) return;
+    _anaUpdateRunning   = true;
+    _anaUpdateCancelled = false;
+
+    var btn = document.getElementById('anaUpdateBtn');
+    var box = document.getElementById('anaUpdateProgress');
+    if (btn) btn.disabled = true;
+
+    // Build the ticker list: effective universe + market tickers
+    var tickers;
+    try {
+        await Promise.all([_anaLoadSp500(), _anaLoadUniverseCfg(), _anaLoadHoldingTickers()]);
+        tickers = ANA_MARKET_TICKERS.concat(_anaEffectiveUniverse());
+    } catch (e) {
+        if (box) box.innerHTML = '<p class="muted-text">Could not build the ticker list: ' + escapeHtml(e.message) + '</p>';
+        _anaUpdateRunning = false;
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    if (box) {
+        box.innerHTML =
+            '<div class="ana-progress-wrap">' +
+                '<div class="ana-progress-bar"><div class="ana-progress-fill" id="anaProgFill"></div></div>' +
+                '<div class="ana-progress-text" id="anaProgText">Starting…</div>' +
+                '<button class="ana-sp-btn" onclick="_anaCancelUpdate()">Cancel</button>' +
+            '</div>';
+    }
+
+    var result = await _anaUpdatePrices(tickers, {
+        onProgress: function(done, total, ticker, status) {
+            var fill = document.getElementById('anaProgFill');
+            var text = document.getElementById('anaProgText');
+            if (fill) fill.style.width = Math.round(done / total * 100) + '%';
+            if (text) text.textContent = done + ' / ' + total + ' — ' + ticker + ' (' + status + ')';
+        },
+        shouldCancel: function() { return _anaUpdateCancelled; }
+    });
+
+    _anaUpdateRunning = false;
+
+    var summary = '<p>' +
+        (result.cancelled ? '⚠️ Cancelled. ' : '✓ Done. ') +
+        result.updated + ' updated · ' + result.skipped + ' already fresh' +
+        (result.failed.length ? ' · <strong>' + result.failed.length + ' failed</strong>' : '') +
+        '</p>';
+    if (result.failed.length) {
+        summary += '<ul class="muted-text" style="font-size:0.82rem">';
+        result.failed.slice(0, 20).forEach(function(f) {
+            summary += '<li>' + escapeHtml(f.ticker) + ' — ' + escapeHtml(f.error) + '</li>';
+        });
+        if (result.failed.length > 20) summary += '<li>… and ' + (result.failed.length - 20) + ' more</li>';
+        summary += '</ul>';
+    }
+
+    // Re-render the stats note first, then show the run summary beneath it
+    // (the progress box lives inside the section, so order matters here)
+    await _anaRenderPriceSection();
+    var box2 = document.getElementById('anaUpdateProgress');
+    if (box2) box2.innerHTML = summary;
+}
+
+function _anaCancelUpdate() {
+    _anaUpdateCancelled = true;
 }
 
 // ---------------------------------------------------------------------------

@@ -2069,6 +2069,16 @@ The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist − exc
 - **S&P search**: filters ticker/name/sector, shows up to 50 matches; sector column hidden on mobile.
 - **Firestore**: `analyzerConfig/universe` — `{watchlist[], excluded[], updatedAt}`. Included in backup (`js/settings.js` collection list).
 
+### Price data layer (`js/analyzer-data.js`)
+Raw daily OHLCV history per ticker, cached **in IndexedDB on the device** (db `bishopAnalyzer`, store `prices`, keyed by ticker) — deliberately NOT in Firestore (raw candles are too large). The cache is per-device; a new device re-fetches.
+
+- **Record shape**: `{ticker, updatedAt, dates[], open[], high[], low[], close[], volume[]}` — aligned ascending arrays, null-close rows (halts) skipped. ~5 years of daily candles per ticker (~1,250 rows).
+- **Source**: Yahoo v8/chart `?interval=1d&range=…` via the Cloudflare Worker if configured in Settings (with a candle-count guard in case the worker ignores range params), else the same free CORS-proxy chain as Investments (allorigins → corsproxy → codetabs; proxy 0 retried once after 1200ms; 800ms delay between network fetches). **Every fetch has a hard timeout** (12s worker / 10s per proxy attempt) so a hung proxy can't stall a batch job.
+- **Freshness/top-up**: a ticker updated today is skipped. Stale tickers fetch only the gap (`3mo` / `1y` / `5y` by gap size) and merge by date; today's intraday candle is replaced on re-fetch.
+- **Market tickers**: SPY and ^VIX (`ANA_MARKET_TICKERS`) are always included in updates — regime/benchmark data for later stages.
+- **Public API** (used by later stages): `anaGetPriceHistory(ticker)` → cached record; `_anaUpdatePrices(tickers, {onProgress, shouldCancel})` → `{updated, skipped, failed[], cancelled}`; `_anaCacheStats()`.
+- **Hub UI**: "📊 Price data" section on `#analyzer` — cache stats note (tickers, candle count, fresh-today, last update), **Update price data** button running the effective universe + market tickers as a kicked-off job with progress bar (`n / total — TICKER (status)`), Cancel button, and a completion summary incl. per-ticker failures (first 20). The tab must stay open during a run; a full first fetch takes several minutes.
+
 ---
 
 ## Part 9: Places & Check-In
