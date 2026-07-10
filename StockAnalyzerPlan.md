@@ -154,6 +154,26 @@ User is **not opposed to a paid API if the price is right** — softens the orig
 - **FMP (paid candidate)** — screener (market-wide discovery) + analyst estimates; trial on free tier first; may run as a permanent hybrid with the free sources
 - Everything sits behind the swappable data-layer module; the rest of the tool never knows which provider answered.
 
+### Claude's own methodology — mechanism detectors (2026-07-09)
+User asked: given the full S&P 500 and an unrestricted API, how would *Claude* find high-quality candidates? Answer differs structurally from ChatGPT's scoring model:
+
+**Core stance: mechanism-first, not score-first.** A +10%/60d move happens because a specific repricing mechanism is active, not because a stock is "good." Run independent detectors in parallel, each hunting one mechanism, each emitting its own small shortlist *with the reason attached*. Never merge into one grand score — a unified number erases the *why*, and the user's judgment operates on the why.
+
+**The pipeline:**
+- **Step 0 — Regime gate**: SPY vs 50/200-day MA, VIX, breadth (% of index above own 50-day). Sets which mechanisms are viable + aggressiveness. Note: fearful markets are *good* for the panic-dip detector (more/deeper dips on quality).
+- **Step 1 — Feasibility filter** (price data only): per-stock base rate = % of rolling 60d windows (5 yrs) containing a +10% gain; cut below ~25–30%. Removes utilities/staples before any fundamental is fetched.
+- **Step 2 — Detectors (parallel):**
+  - **A. Panic dip on quality** (Target archetype): down ≥12–15% from 20-day high within ~3 weeks + quality gate (profitable, debt serviceable, dividend intact). **Key metric: price-move vs. estimate-move divergence** — price −15% while consensus forward EPS −2% ⇒ the 13-pt spread IS the emotional component, quantified. Turns the user's gut call into a number. Confirmation: post-dip insider buying.
+  - **B. Post-earnings drift with reaction filter**: EPS + revenue beat + guidance raise **+ day-1 gap up that holds** (beat-but-fell = true expectations were higher ⇒ skip). Enter days 2–5, ride 30–60d.
+  - **C. Estimate-revision momentum**: forward estimates revised up over 4–8 wks by multiple analysts while price lags ("fundamentals moving faster than price"). Mirror image of A; strongest documented short-horizon factor; requires paid API.
+  - **D. Compressed spring (secondary, build last)**: 60d realized vol in bottom decile of own history, near highs, dated catalyst ahead.
+- **Step 3 — Catalyst map**: dated events inside the window per candidate (earnings, investor day, product events, Fed meetings for rate-sensitives). Mechanism + dated catalyst = strong hand; mechanism alone = drift bet.
+- **Step 4 — Kill list** (weighted heavily — one −25% surprise erases three +10% winners): hard kills = accounting red flags, auditor change, abrupt CFO exit. Judgment flags = earnings-in-window for stocks with ±10% single-day earnings history (binary event), elevated short interest (two-sided: squeeze fuel vs informed sellers — flag, never score).
+- **Step 5 — Rank within mechanism, never across**: output = separate shortlists per detector ("top dip-recoveries", "top drift candidates", "top revision plays"), each with its reason. Bonus: concurrent positions from *different* detectors = uncorrelated theses.
+- **Step 6 — Dossier per finalist** with **conditional base rates**: find every prior time *this stock* fell 12%+ in 3 weeks; measure forward 60d outcomes. E.g., "TGT dipped like this 9× in 15 yrs; 7 recovered +10% within 60d; median 34 days." Computed from price history alone; sharper than the unconditional base rate; no retail tool shows it. Plus auto-drafted thesis, volatility-sized exit suggestions.
+
+**Signature features vs. ChatGPT's approach:** mechanism detectors over universal scorecard; estimate-vs-price divergence; day-1 reaction filter on PEAD; conditional (event-matched) base rates; kill-list tail-risk emphasis; per-mechanism shortlists preserving the why. Agreed with ChatGPT on: universe, catalysts, quality gates, weekly cadence, tracking loop.
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
