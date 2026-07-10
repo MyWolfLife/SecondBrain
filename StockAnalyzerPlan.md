@@ -194,6 +194,20 @@ User asked: given the full S&P 500 and an unrestricted API, how would *Claude* f
 - **Phase 3 (FMP trial → Starter):** estimate divergence, Detector C, screener-powered market-wide discovery.
 No server, framework, or payment required before Phase 3 — vanilla JS + Firestore + existing battle-tested pipelines.
 
+### Scan results screen — output format (mocked 2026-07-09)
+Agreed shape of the main output screen (mockup shown in discussion; all data illustrative):
+1. **Header**: scan date, universe, duration, "Run scan" button.
+2. **Regime banner**: one-line market read (SPY vs 50d/200d, VIX, breadth) — colors aggressiveness before any candidate is read.
+3. **Funnel stats row**: scanned → passed base-rate filter → triggered a detector → shortlisted (e.g., 503 → 341 → 19 → 6). At-a-glance selectivity proof.
+4. **Per-detector shortlists** (separate sections, never merged): each candidate card shows —
+   - Ticker + company + trigger badge (e.g., "−18% in 12 days")
+   - One-line *reason* (what happened + quality/divergence summary)
+   - Evidence chips: conditional base rate ("7 of 9 similar dips → +10% ≤60d · median 34d"), estimate divergence, insider activity, catalyst presence
+   - Kill-list flags in amber (e.g., "Earnings in 22 days (±9% history)") — user's binary-event call
+   - Actions: **Open dossier** (drill into evidence page: chart with dip marked, conditional-history table, news + optional LLM read, thesis box, 3 exit fields) · **Dismiss** (recorded for tracking loop)
+5. **Locked section** for detectors awaiting Phase 3 data (e.g., estimate-revision momentum: "unlocks with FMP trial") — honest UI, no pretending.
+6. **Your holdings check** (Goal 2, same screen): one line per flagged position (held duration, trend, estimate drift) + verdict chip (Review exit / Healthy).
+
 ### Existing infrastructure that may be relevant
 - **Price fetching pipeline** already exists in Investments: Finnhub (primary) + Yahoo v8/chart via CORS proxies (allorigins → corsproxy → codetabs), 800ms per-ticker delay, retry logic. See `MyLife-Functional-Spec.md` (Investments section) for the full decision log of what failed (CORS, v7 batch endpoint, LLM price lookups — stale, removed).
 - **Stock Rollup** (`#investments/stocks`) already aggregates holdings by ticker across all accounts/persons — shares, weighted avg cost, gain, % of net worth, concentration badges.
