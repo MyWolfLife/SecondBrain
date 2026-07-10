@@ -1,0 +1,320 @@
+'use strict';
+
+// ---------------------------------------------------------------------------
+// Stock Analyzer — detector engine (Stage 4)
+// ---------------------------------------------------------------------------
+// PURE FUNCTIONS ONLY. No fetch, no DOM, no Firestore, no IndexedDB.
+// Every function takes a price record (from analyzer-data.js) as an argument:
+//   { ticker, dates[], open[], high[], low[], close[], volume[] }
+// with aligned ascending arrays.
+//
+// "One engine, two clocks": the live scanner calls these with asOfIndex =
+// last index; the Backtest Lab calls them for every historical Friday.
+// asOfIndex is always INCLUSIVE — data at asOfIndex is known, nothing after.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Date ↔ index
+// ---------------------------------------------------------------------------
+
+// Last index whose date is <= dateStr (YYYY-MM-DD), or -1 if none.
+function anaEngIndexForDate(rec, dateStr) {
+    var lo = 0, hi = rec.dates.length - 1, ans = -1;
+    while (lo <= hi) {
+        var mid = (lo + hi) >> 1;
+        if (rec.dates[mid] <= dateStr) { ans = mid; lo = mid + 1; }
+        else hi = mid - 1;
+    }
+    return ans;
+}
+
+// ---------------------------------------------------------------------------
+// Indicators
+// ---------------------------------------------------------------------------
+
+// Simple moving average of values[endIdx-period+1 .. endIdx]. null if not enough data.
+function anaEngSma(values, period, endIdx) {
+    if (endIdx + 1 < period) return null;
+    var sum = 0;
+    for (var i = endIdx - period + 1; i <= endIdx; i++) sum += values[i];
+    return sum / period;
+}
+
+// Exponential moving average value at endIdx (seeded with SMA of the first `period`).
+function anaEngEma(values, period, endIdx) {
+    if (endIdx + 1 < period) return null;
+    var k = 2 / (period + 1);
+    var ema = 0;
+    for (var i = 0; i < period; i++) ema += values[i];
+    ema /= period;
+    for (var j = period; j <= endIdx; j++) ema = values[j] * k + ema * (1 - k);
+    return ema;
+}
+
+// Wilder's RSI over `period` (default 14) ending at endIdx. null if not enough data.
+function anaEngRsi(closes, period, endIdx) {
+    period = period || 14;
+    if (endIdx < period) return null;
+    var avgGain = 0, avgLoss = 0;
+    for (var i = 1; i <= period; i++) {
+        var d = closes[i] - closes[i - 1];
+        if (d > 0) avgGain += d; else avgLoss -= d;
+    }
+    avgGain /= period; avgLoss /= period;
+    for (var j = period + 1; j <= endIdx; j++) {
+        var diff = closes[j] - closes[j - 1];
+        avgGain = (avgGain * (period - 1) + (diff > 0 ?  diff : 0)) / period;
+        avgLoss = (avgLoss * (period - 1) + (diff < 0 ? -diff : 0)) / period;
+    }
+    if (avgLoss === 0) return 100;
+    return 100 - 100 / (1 + avgGain / avgLoss);
+}
+
+// Annualized realized volatility of daily log returns over the last `days` ending at endIdx.
+function anaEngRealizedVol(closes, days, endIdx) {
+    if (endIdx < days) return null;
+    var rets = [];
+    for (var i = endIdx - days + 1; i <= endIdx; i++) {
+        if (closes[i - 1] > 0) rets.push(Math.log(closes[i] / closes[i - 1]));
+    }
+    if (rets.length < 2) return null;
+    var mean = rets.reduce(function(a, b) { return a + b; }, 0) / rets.length;
+    var variance = rets.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (rets.length - 1);
+    return Math.sqrt(variance) * Math.sqrt(252);
+}
+
+// Ratio of recent average volume to longer-run average volume (e.g. 5d vs 60d).
+function anaEngVolumeRatio(volume, shortDays, longDays, endIdx) {
+    var s = anaEngSma(volume, shortDays, endIdx);
+    var l = anaEngSma(volume, longDays, endIdx);
+    if (s == null || l == null || l === 0) return null;
+    return s / l;
+}
+
+// ---------------------------------------------------------------------------
+// Base rates
+// ---------------------------------------------------------------------------
+// "Target hit" matches the Backtest Lab rule: the day's HIGH reaching
+// entryClose × (1 + gainPct/100) counts — a resting limit order would fill.
+
+// Unconditional base rate: of all entry days in the lookback, what fraction saw
+// a +gainPct% move within the next windowDays trading days?
+// Returns {windows, hits, rate} or null if insufficient data.
+function anaEngBaseRate(rec, opts) {
+    var gain     = opts.gainPct / 100;
+    var w        = opts.windowDays;
+    var asOf     = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    var start    = Math.max(0, asOf - (opts.lookbackDays || 1250) + 1);
+    var lastEntry = asOf - w;                 // entry must have a complete window
+    if (lastEntry < start) return null;
+
+    var windows = 0, hits = 0;
+    for (var i = start; i <= lastEntry; i++) {
+        var target = rec.close[i] * (1 + gain);
+        windows++;
+        for (var j = i + 1; j <= i + w; j++) {
+            if (rec.high[j] >= target) { hits++; break; }
+        }
+    }
+    if (windows === 0) return null;
+    return { windows: windows, hits: hits, rate: hits / windows };
+}
+
+// Finds historical dip EVENTS: first day a drop of >= dropPct% from the highest
+// close of the trailing dropDays appears. Subsequent trigger days belong to the
+// same episode until price recovers above (peak × (1 - dropPct/2)) or windowDays pass.
+// Returns an array of event objects (chronological), each with the forward outcome:
+//   { index, date, entryClose, peakClose, dropPct,
+//     hit (bool|null), daysToHit, maxGainPct, minRetPct, finalRetPct, pending }
+function anaEngDipEvents(rec, opts) {
+    var dropFrac = opts.dropPct / 100;
+    var dropDays = opts.dropDays;
+    var gain     = opts.gainPct / 100;
+    var w        = opts.windowDays;
+    var asOf     = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+
+    var events = [];
+    var inEpisode = false;
+    var episodePeak = null;
+    var episodeStart = -1;
+
+    for (var i = dropDays; i <= asOf; i++) {
+        // Highest close over the trailing dropDays (excluding today)
+        var peak = -Infinity;
+        for (var p = i - dropDays; p < i; p++) {
+            if (rec.close[p] > peak) peak = rec.close[p];
+        }
+        var dropped = rec.close[i] <= peak * (1 - dropFrac);
+
+        if (inEpisode) {
+            // Episode ends when price recovers halfway back to the episode peak,
+            // OR when the observation window has passed — without the window exit,
+            // a stock that permanently resets lower would never trigger again.
+            if (rec.close[i] >= episodePeak * (1 - dropFrac / 2) ||
+                (i - episodeStart) >= w) {
+                inEpisode = false;
+            } else {
+                continue;
+            }
+        }
+        if (!dropped) continue;
+
+        // New event
+        inEpisode    = true;
+        episodePeak  = peak;
+        episodeStart = i;
+        var ev = {
+            index:      i,
+            date:       rec.dates[i],
+            entryClose: rec.close[i],
+            peakClose:  peak,
+            dropPct:    (peak - rec.close[i]) / peak * 100,
+            hit:        null, daysToHit: null,
+            maxGainPct: null, minRetPct: null, finalRetPct: null,
+            pending:    false
+        };
+        var end = Math.min(i + w, asOf);
+        ev.pending = (i + w > asOf);
+        var target = ev.entryClose * (1 + gain);
+        var maxHigh = -Infinity, minLow = Infinity;
+        for (var j = i + 1; j <= end; j++) {
+            if (rec.high[j] > maxHigh) maxHigh = rec.high[j];
+            if (rec.low[j]  < minLow)  minLow  = rec.low[j];
+            if (ev.hit === null && rec.high[j] >= target) {
+                ev.hit = true;
+                ev.daysToHit = j - i;
+            }
+        }
+        if (ev.hit === null) ev.hit = ev.pending ? null : false;
+        if (maxHigh > -Infinity) ev.maxGainPct = (maxHigh / ev.entryClose - 1) * 100;
+        if (minLow  <  Infinity) ev.minRetPct  = (minLow  / ev.entryClose - 1) * 100;
+        if (end > i)             ev.finalRetPct = (rec.close[end] / ev.entryClose - 1) * 100;
+        events.push(ev);
+    }
+    return events;
+}
+
+// Conditional base rate built from dip events (excludes pending events).
+// Returns {events, hits, rate, medianDaysToHit} or null if no completed events.
+function anaEngConditionalBaseRate(rec, opts) {
+    var evs = anaEngDipEvents(rec, opts).filter(function(e) { return !e.pending; });
+    if (evs.length === 0) return null;
+    var hits = evs.filter(function(e) { return e.hit === true; });
+    var days = hits.map(function(e) { return e.daysToHit; }).sort(function(a, b) { return a - b; });
+    var median = days.length ? days[Math.floor(days.length / 2)] : null;
+    return { events: evs.length, hits: hits.length, rate: hits.length / evs.length, medianDaysToHit: median };
+}
+
+// ---------------------------------------------------------------------------
+// Detectors
+// ---------------------------------------------------------------------------
+
+// Detector A (price part) — is the stock CURRENTLY in a fresh dip?
+// Triggered when close[asOf] is >= dropPct% below the highest close of the
+// trailing dropDays. Returns null when not triggered.
+function anaEngDipTrigger(rec, opts) {
+    var dropFrac = opts.dropPct / 100;
+    var dropDays = opts.dropDays;
+    var asOf     = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    if (asOf < dropDays) return null;
+
+    var peak = -Infinity, peakIdx = -1;
+    for (var p = asOf - dropDays; p < asOf; p++) {
+        if (rec.close[p] > peak) { peak = rec.close[p]; peakIdx = p; }
+    }
+    var drop = (peak - rec.close[asOf]) / peak;
+    if (drop < dropFrac) return null;
+
+    return {
+        ticker:     rec.ticker,
+        date:       rec.dates[asOf],
+        close:      rec.close[asOf],
+        peakClose:  peak,
+        peakDate:   rec.dates[peakIdx],
+        dropPct:    drop * 100,
+        daysSincePeak: asOf - peakIdx,
+        rsi14:      anaEngRsi(rec.close, 14, asOf)
+    };
+}
+
+// Detector D — compressed spring: realized volatility in the bottom decile of
+// the stock's own history AND price near its 52-week high. Returns null when
+// not triggered.
+function anaEngSpringTrigger(rec, opts) {
+    opts = opts || {};
+    var volDays   = opts.volDays || 60;
+    var nearPct   = (opts.nearHighPct != null ? opts.nearHighPct : 5) / 100;
+    var decile    = opts.decile || 0.10;
+    var asOf      = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    if (asOf < 260) return null;   // need ~1y of history minimum
+
+    var volNow = anaEngRealizedVol(rec.close, volDays, asOf);
+    if (volNow == null) return null;
+
+    // Distribution of trailing realized vol, sampled weekly over the history
+    var samples = [];
+    for (var i = volDays; i < asOf; i += 5) {
+        var v = anaEngRealizedVol(rec.close, volDays, i);
+        if (v != null) samples.push(v);
+    }
+    if (samples.length < 30) return null;
+    samples.sort(function(a, b) { return a - b; });
+    var cutoff = samples[Math.floor(samples.length * decile)];
+    if (volNow > cutoff) return null;
+
+    // Near 52-week high?
+    var hi52 = -Infinity;
+    for (var j = Math.max(0, asOf - 251); j <= asOf; j++) {
+        if (rec.high[j] > hi52) hi52 = rec.high[j];
+    }
+    if (rec.close[asOf] < hi52 * (1 - nearPct)) return null;
+
+    return {
+        ticker:      rec.ticker,
+        date:        rec.dates[asOf],
+        close:       rec.close[asOf],
+        vol:         volNow,
+        volCutoff:   cutoff,
+        high52:      hi52,
+        pctFromHigh: (1 - rec.close[asOf] / hi52) * 100
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Market regime
+// ---------------------------------------------------------------------------
+
+// Classifies the market from SPY + ^VIX records at a given as-of date.
+// Returns {label, spyClose, sma50, sma200, aboveSma50, aboveSma200, vix}.
+function anaEngRegime(spyRec, vixRec, asOfDateStr) {
+    var si = asOfDateStr ? anaEngIndexForDate(spyRec, asOfDateStr) : spyRec.dates.length - 1;
+    if (si < 0) return null;
+    var sma50  = anaEngSma(spyRec.close, 50,  si);
+    var sma200 = anaEngSma(spyRec.close, 200, si);
+    var close  = spyRec.close[si];
+
+    var vix = null;
+    if (vixRec) {
+        var vi = asOfDateStr ? anaEngIndexForDate(vixRec, asOfDateStr) : vixRec.dates.length - 1;
+        if (vi >= 0) vix = vixRec.close[vi];
+    }
+
+    var above50  = sma50  != null && close > sma50;
+    var above200 = sma200 != null && close > sma200;
+    var label;
+    if (above50 && above200)       label = (vix != null && vix >= 25) ? 'bullish-volatile' : 'bullish';
+    else if (!above50 && above200) label = 'pullback';
+    else if (above50 && !above200) label = 'recovering';
+    else                           label = (vix != null && vix >= 30) ? 'panic' : 'bearish';
+
+    return {
+        label:       label,
+        date:        spyRec.dates[si],
+        spyClose:    close,
+        sma50:       sma50,
+        sma200:      sma200,
+        aboveSma50:  above50,
+        aboveSma200: above200,
+        vix:         vix
+    };
+}

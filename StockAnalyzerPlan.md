@@ -1,9 +1,17 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–3 complete (scaffolding, universe manager, price data layer); Stage 4 (detector engine) next.**
+**Status: BUILDING — Stages 1–4 complete (scaffolding, universe, price data layer, detector engine); Stage 5 (Backtest Lab) next.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 4 COMPLETE.** `js/analyzer-engine.js` — all pure functions, verified against real cached data:
+  - Indicators (SMA/EMA/RSI/realized-vol/volume-ratio): SMA hand-checked vs independent computation — exact match.
+  - Base rates: unconditional + conditional (event-matched dip episodes). **Two bugs found & fixed during verification**: (1) episode never ended for stocks that permanently reset lower (missing window-expiry exit) — May-2023 TGT dip was invisible; (2) `episodeStart` never set → every day of a deepening dip counted as a new event (113 events instead of 11).
+  - Flagship validation: **TGT = 11 distinct dip episodes / 5y** (Omicron, 2022 earnings crash, May-2023 controversy, Oct-2023 bottom, Aug-2024 flash selloff, Nov-2024 earnings, Mar-2025 tariffs) → **5/11 hit +10% ≤60d, median 24 days**. Notably: the May-2023 controversy dip did NOT recover +10% in 60d (kept sliding all summer) — honest data.
+  - Full-universe sanity scan: **505 tickers × both detectors in 940ms** in-browser. Output plausible (semi-sector dip cluster; Detector D flagged EA pinned near-zero vol = acquisition arb).
+  - Regime evaluator: bullish (SPY > SMA50/200, VIX 15.9).
+  - Next: **Stage 5 — Backtest Lab** (setup form → walk-forward runner → scorecard → `analyzerBacktests` + backup list + run comparison).
 
 - **2026-07-10 — Stage 3 COMPLETE + FMP Phase A steps 1–2 done.**
   - **Full-universe run validated at scale**: 507 tickers cached (~626k daily candles, 5y each), ~18 min via free proxies. 2 initial failures (BRK.B, BF.B) fixed — Yahoo needs dash form (`BRK-B`); cache key stays dot-canonical, URL translated.
@@ -332,7 +340,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Hub UI: "Update price data" job with progress bar and per-ticker failure report
 - ✅ Done when: a full-universe fetch completes, survives reload, and a re-run only tops up
 
-**Stage 4 — Detector engine** (`js/analyzer-engine.js`, pure functions — no fetch/DOM/Firestore)
+**Stage 4 — Detector engine** ✅ COMPLETE (2026-07-10) (`js/analyzer-engine.js`, pure functions — no fetch/DOM/Firestore)
 - Indicators: SMA/EMA, RSI, realized volatility, volume-vs-average
 - Base-rate calculator (unconditional + conditional/event-matched), regime evaluator, Detector A dip trigger, Detector D
 - ✅ Done when: engine functions produce verifiable numbers against a known ticker's history (spot-checked by hand)

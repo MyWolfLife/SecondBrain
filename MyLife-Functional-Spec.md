@@ -2079,6 +2079,15 @@ Raw daily OHLCV history per ticker, cached **in IndexedDB on the device** (db `b
 - **Public API** (used by later stages): `anaGetPriceHistory(ticker)` → cached record; `_anaUpdatePrices(tickers, {onProgress, shouldCancel})` → `{updated, skipped, failed[], cancelled}`; `_anaCacheStats()`.
 - **Hub UI**: "📊 Price data" section on `#analyzer` — cache stats note (tickers, candle count, fresh-today, last update), **Update price data** button running the effective universe + market tickers as a kicked-off job with progress bar (`n / total — TICKER (status)`), Cancel button, and a completion summary incl. per-ticker failures (first 20). The tab must stay open during a run; a full first fetch takes several minutes.
 
+### Detector engine (`js/analyzer-engine.js`)
+Pure functions only — no fetch/DOM/Firestore/IndexedDB; price records passed as arguments. "One engine, two clocks": the live scanner calls with `asOfIndex` = latest; the Backtest Lab calls the same functions for historical Fridays. Full-universe scan of 505 tickers runs in <1s in the browser.
+
+- **Indicators**: `anaEngSma`, `anaEngEma`, `anaEngRsi` (Wilder), `anaEngRealizedVol` (annualized stdev of daily log returns), `anaEngVolumeRatio`.
+- **Base rates**: `anaEngBaseRate` — % of rolling entry days whose next `windowDays` contained a `gainPct` move (target-hit = day's HIGH ≥ entry close × (1+gain), matching the backtest fill rule). `anaEngConditionalBaseRate` / `anaEngDipEvents` — event-matched version: finds distinct historical dip episodes (≥dropPct below trailing dropDays' peak; episode ends on half-recovery toward peak OR window expiry, so stocks that reset permanently lower still produce later events) and measures forward outcomes (hit, days-to-hit, max gain, max drawdown, final return).
+- **Detectors**: `anaEngDipTrigger` (Detector A price part — current fresh dip + RSI) and `anaEngSpringTrigger` (Detector D — 60d realized vol in bottom decile of own history AND within 5% of 52-week high).
+- **Regime**: `anaEngRegime(spyRec, vixRec, asOfDate)` → label (`bullish`, `bullish-volatile`, `pullback`, `recovering`, `bearish`, `panic`) from SPY vs SMA50/200 + VIX level.
+- **Verified against real data**: SMA matches independent computation; TGT conditional base rate finds 11 distinct dip episodes over 5y (Omicron, 2022 earnings crash, May-2023 controversy, Oct-2023 bottom, Aug-2024 flash selloff, Nov-2024 earnings, 2025 tariff scare) → 5/11 hit +10% ≤60d, median 24 days.
+
 ---
 
 ## Part 9: Places & Check-In

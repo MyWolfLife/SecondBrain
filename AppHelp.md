@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–3 (navigation, Universe manager, price data cache) are live. The detector engine, the Backtest Lab, and the live scanner arrive in later stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–4 (navigation, Universe manager, price data cache, detector engine) are live. The engine is internal math with no screen of its own — the Backtest Lab and live scanner that use it arrive in the next stages. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
