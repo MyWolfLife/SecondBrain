@@ -1,9 +1,16 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–5 complete (scaffolding, universe, price data, engine, Backtest Lab); Stage 6 (live scanner) next.**
+**Status: BUILDING — Stages 1–6 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan); Stage 7 (candidate dossier) next.**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 6 COMPLETE.** `js/analyzer-scan.js` — live scan screen built + verified:
+  - Real scan on cached data: **501 → 494 → 47 → 20 funnel in 2.1s**, regime banner green (bullish, VIX 15.9). Candidate cards match the mocked format (e.g., "FLEX −13.7% in 6d · Similar dips: 15 of 16 hit +10% ≤60d · median 9d · Base rate 74%").
+  - **Every shortlisted dip confirmed by a direct engine sweep** (subset of 44 raw triggers after base-rate filter + top-15 cap). Dismiss persisted across full reload (FLEX), undo row works. No mobile overflow, no console errors.
+  - **FMP earnings enrichment finding**: mechanism works (1 calendar call/scan when key present), but **free tier returns only ~72 popular symbols** — most candidates get no chip. Per-symbol earnings endpoint also 402s on free. Full coverage needs FMP Starter or Finnhub (Phase 2). Documented in help.
+  - Note: base-rate cutoff 25% barely filters on the 2021-26 lookback (494/501 pass — a volatile 5y makes +10%/60d common). Tune via Backtest Lab later; consider 35–40%.
+  - Next: **Stage 7 — candidate dossier** (price chart w/ dip marked, conditional-history table, thesis prompt, exit fields; enables the Open dossier button).
 
 - **2026-07-10 — Stage 5 COMPLETE.** `js/analyzer-backtest.js` — Backtest Lab fully built + verified:
   - Full run Jan-1→Jul-10 2026: 504 tickers × 28 Fridays → **1,040 signals in ~25s** in-browser. Detector A: 940 signals, 44.5% hit, median 7d, avg +0.70%/trade vs SPY +1.24% (robot underperformed the index this period — honest floor). Detector D: 100 signals, 43.3% hit, +1.35% vs SPY +0.96%.
@@ -358,7 +365,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Add analyzer collections to `js/settings.js` backup logic (backup-collections checklist)
 - ✅ Done when: a Jan-1-to-today backtest runs end-to-end and the scorecard matches hand-checked samples
 
-**Stage 6 — Live scan screen**
+**Stage 6 — Live scan screen** ✅ COMPLETE (2026-07-10)
 - Friday scan flow: regime banner, funnel stats, per-detector shortlists (per the mocked output format), scan snapshots to Firestore, dismiss-with-memory
 - ✅ Done when: a real scan produces shortlists consistent with what the backtest engine would flag for "today"
 

@@ -461,9 +461,3 @@ async function _anaToggleExclude(t) {
     _anaRenderUniverse();
 }
 
-function loadAnalyzerScanPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scan' }]);
-    _analyzerRenderPlaceholder('page-analyzer-scan', 'Scan', '📡',
-        'Run the detectors across the universe: market regime, funnel stats, and per-detector candidate shortlists with the evidence attached.',
-        'Stage 6');
-}

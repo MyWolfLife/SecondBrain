@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–5 (navigation, Universe manager, price data cache, detector engine, Backtest Lab) are live. The live scanner, candidate dossiers, trade tickets, and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Stages 1–6 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan) are live. Candidate dossiers, trade tickets, and the tracking loop arrive in the remaining stages. See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2275,6 +2275,31 @@ Results are shown in a popup after the update completes. If any tickers failed a
 **Honest-limits banner**: Backtests use *today's* S&P 500 membership (survivorship bias — today's list is the winners' list) and cannot test your judgment layer. Use results to sanity-check thresholds (is 12% better than 15%?), never to optimize to the decimal — tuning until history looks perfect just memorizes the past.
 
 **Saved runs**: The last 25 runs are kept. Delete any run; compare exactly two. Comparing runs with different dip thresholds or exit rules is the intended workflow for tuning your strategy profiles.
+
+---
+
+## screen:analyzer-scan
+
+### Quick Help
+- The **Scan** page is the "Friday morning" view — tap **▶ Run scan** to hunt the whole universe for active setups (takes a couple of seconds; uses cached price data)
+- The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
+- The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
+- Each candidate card shows *why* it triggered, plus evidence chips — most importantly **"Similar dips: N of M hit +10% ≤60d"**, that stock's own history with dips like this one
+- An amber **⚠️ Earnings** chip warns when a report falls inside your 60-day window — a binary event that's your call to accept or avoid
+- **Dismiss** hides a candidate you've rejected (undo via the ↩ buttons); the page always reopens showing your latest scan
+- Make sure prices are current first — the note beside the button shows when data was last updated
+
+### Details
+
+**What the scan is NOT**: a buy list. It's the evidence-assembly step — the tool finds situations and shows the numbers; whether any candidate is an *emotional* dip worth buying versus a *structural* decline to avoid is your judgment call.
+
+**Feasibility filter**: Stocks whose own 5-year history shows fewer than 25% of 60-day windows reaching +10% are cut before detection — they were never going to deliver the move.
+
+**Ranking**: Dip candidates sort by their conditional base rate (how often *this stock's* similar dips recovered), then by dip depth. Spring candidates sort by closeness to their 52-week high. Shortlists cap at 15 per detector.
+
+**Earnings chips**: Currently powered by FMP's free tier, which only covers ~70 popular tickers — most candidates won't show the chip yet. Full coverage comes with a paid FMP tier or the Finnhub integration in a later phase.
+
+**Scans are saved**: Every scan is stored (including your dismissals), which is what will let the future tracking loop grade how past scans — and your dismissal judgment — performed.
 
 ---
 

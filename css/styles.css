@@ -19930,3 +19930,53 @@ a.legacy-fin-card:hover {
     flex-wrap: wrap;
 }
 .ab-run-main { flex: 1; min-width: 220px; }
+
+/* Live scan screen */
+.as-regime {
+    max-width: 600px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 10px 0;
+}
+.as-regime-good { background: #e4f3e6; border: 1px solid #9ecca5; color: #256a2e; }
+.as-regime-warn { background: #fff8e6; border: 1px solid #e6c15a; color: #6b5416; }
+.as-regime-bad  { background: #fde7e7; border: 1px solid #e09a9a; color: #a32222; }
+
+.as-card {
+    max-width: 640px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+}
+.as-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.as-card-ticker { font-weight: 700; font-size: 1rem; }
+.as-card-name   { font-weight: 400; font-size: 0.82rem; color: #888; }
+.as-badge {
+    background: #fde7e7;
+    color: #a32222;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+.as-card-reason { font-size: 0.85rem; color: #444; margin: 6px 0; }
+.as-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.as-chip {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-size: 0.76rem;
+    color: #555;
+}
+.as-chip-warn { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }

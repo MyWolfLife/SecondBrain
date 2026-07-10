@@ -2052,7 +2052,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer` | Hub — nav cards for Backtest Lab, Scan, Universe | ✅ Built (Stage 1) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
-| `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | 🚧 Placeholder (Stage 6) |
+| `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
@@ -2098,6 +2098,20 @@ Walk-forward simulation: runs the detector engine every **Friday** of a chosen p
 - **Saved runs**: auto-saved to `analyzerBacktests` after each completed (non-cancelled) run; list shows last 25 with params summary + hit rate; **View** re-renders any saved scorecard; **Compare selected (2)** renders a side-by-side metric table; **Delete** with confirm. `signals[]` capped at 500/doc (`signalsTruncated` flag). Collection included in Settings backup.
 - **No auto-tuning by design** — comparison is the supported workflow for threshold experiments.
 - **Verified**: hand-replayed a signal (APP, Jan-2 2026 Friday: −15.7% dip → Mon Jan-5 open $617.70 → target day 6) — engine output matches independent replay exactly. Jan→Jul 2026 run: 504 tickers × 28 Fridays → 1,040 signals in ~25s in-browser.
+
+### Live scan (`#analyzer/scan`, `js/analyzer-scan.js`)
+The "Friday morning" view: runs the detectors across the effective universe as of the latest cached data (~2s in-browser) and renders the funnel + per-detector shortlists. Each scan is snapshotted to Firestore for the future tracking loop.
+
+- **Flow**: page shows the most recent scan on entry (or an empty-state hint); **▶ Run scan** computes a new one. A cache-status note beside the button shows ticker count + prices-last-updated.
+- **Pipeline per ticker**: unconditional base rate (+10%/60d over 5y) with a **feasibility cutoff of 25%** → Detector A dip trigger (12%/15d) and Detector D spring trigger → for triggered dips: conditional (event-matched) base rate, RSI, 5d/60d volume ratio. Defaults mirror the Backtest Lab; profile configuration UI is a later stage.
+- **Regime banner**: colored by `anaEngRegime` label — green (bullish), amber (bullish-volatile / pullback / recovering), red (bearish / panic) — with a plain-English reading and VIX.
+- **Funnel stat cards**: Scanned → Passed base rate → Triggered → Shortlisted.
+- **Shortlists**: ranked within detector (dips: conditional hit rate, then dip depth; springs: closeness to 52-wk high), capped at 15 per detector. Candidate cards show ticker + company name, trigger badge, reason sentence (drop %, peak date, RSI, volume), evidence chips (conditional base rate "N of M hit +10% ≤60d · median Xd", unconditional base rate), and an amber **Earnings {date}** chip when known.
+- **Earnings enrichment**: one FMP earnings-calendar call per scan (only when `fmpApiKey` is set; degrades silently without it). **Free-tier caveat**: FMP free returns only ~72 popular symbols in the calendar, so most candidates show no chip until a paid tier (or Finnhub, Phase 2) provides full coverage.
+- **Dismiss-with-memory**: Dismiss hides a candidate and persists `dismissed: true` on the scan doc (revert via ↩ buttons in the "Dismissed:" row). Dismissals survive reloads and are visible to the future tracking loop.
+- **Open dossier** button is present but disabled until Stage 7.
+- **Firestore**: `analyzerScans` — one doc per scan: `{createdAt, date, params, regime{}, funnel{}, durationMs, candidates[{ticker, detector, trigger stats, baseRate, cond*, earningsDate, dismissed}]}`. In Settings backup.
+- **Verified**: funnel 501→494→47→20 on real data; every shortlisted dip confirmed by a direct engine sweep; dismiss persisted across reload; no mobile overflow.
 
 ---
 
@@ -3178,6 +3192,7 @@ Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added 
 |-------------------|------------|
 | `analyzerConfig/universe` | watchlist[], excluded[], updatedAt |
 | `analyzerBacktests` | createdAt, params{startDate,endDate,cadence,exits{},detectors{}}, universeSize, fridays, results{perDetector[]}, signals[] (capped 500), signalsTruncated |
+| `analyzerScans` | createdAt, date, params, regime{}, funnel{scanned,passedBaseRate,triggered,shortlisted}, durationMs, candidates[{ticker,detector,…,dismissed}] |
 
 Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{asOf, source, count, companies:[{t,n,s}]}`.
 
