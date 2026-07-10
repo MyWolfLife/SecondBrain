@@ -33,6 +33,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `InvestmentPlan.md` | Life → Financial | Investment tracker — retirement account tracking mirroring user's spreadsheet |
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |
 | `BudgetPlan.md` | Life → Financial | Budgets feature — new card under Financial tab, monthly/category budget tracking |
+| `StockAnalyzerPlan.md` | Life → Financial | Stock Analyzer — short-term trade candidate finder (setups, scorecards, scan/track loop) — in discussion |
 | `DeathPlan.md` | Life → My Legacy | Legacy/estate planning section — what happens when user dies, final wishes, contacts |
 | `LifeCalendar.md` | Life → Calendar | Life-section calendar for personal events (separate from Yard calendar) |
 
