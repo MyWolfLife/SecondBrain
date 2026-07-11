@@ -280,6 +280,70 @@ function anaEngSpringTrigger(rec, opts) {
     };
 }
 
+// Detector B — post-earnings drift: a company that BEAT estimates and gapped
+// up on the reaction day, still inside the early drift window. Earnings data is
+// passed IN (this engine never fetches). Returns null when not triggered.
+//
+//   earnings: { date:'YYYY-MM-DD', hour:'bmo'|'amc'|other,
+//               epsActual, epsEstimate, revenueActual, revenueEstimate }
+//             — the symbol's MOST RECENT past report (the caller finds it).
+//   opts:     { asOfIndex?, maxAgeDays=10, minDay1Pct=2, minSurprisePct=2 }
+function anaEngDriftTrigger(rec, earnings, opts) {
+    opts = opts || {};
+    var asOf        = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    var maxAgeDays  = (opts.maxAgeDays   != null) ? opts.maxAgeDays   : 10;
+    var minDay1Pct  = (opts.minDay1Pct   != null) ? opts.minDay1Pct   : 2;
+    var minSurprise = (opts.minSurprisePct != null) ? opts.minSurprisePct : 2;
+    if (!earnings || !earnings.date) return null;
+
+    // (a) EPS beat by at least minSurprisePct
+    var ea = earnings.epsActual, ee = earnings.epsEstimate;
+    if (ea == null || ee == null || ee === 0) return null;
+    if (ea <= ee) return null;
+    var surprisePct = (ea - ee) / Math.abs(ee) * 100;
+    if (surprisePct < minSurprise) return null;
+
+    // (b) Reaction day index
+    var atOrBefore = anaEngIndexForDate(rec, earnings.date);
+    if (atOrBefore < 0) return null;
+    var reactionIdx;
+    if (earnings.hour === 'bmo') {
+        // Reaction is the report day itself — that day must be a trading day
+        if (rec.dates[atOrBefore] !== earnings.date) return null;
+        reactionIdx = atOrBefore;
+    } else {
+        // amc / unknown — reaction is the next trading day after the report
+        reactionIdx = (rec.dates[atOrBefore] === earnings.date) ? atOrBefore + 1 : atOrBefore + 1;
+    }
+    if (reactionIdx < 1 || reactionIdx > asOf) return null;
+
+    // (c) The reaction gapped/moved up and held above its open
+    var day1RetPct = (rec.close[reactionIdx] / rec.close[reactionIdx - 1] - 1) * 100;
+    if (day1RetPct < minDay1Pct) return null;
+    if (rec.close[reactionIdx] < rec.open[reactionIdx]) return null;
+
+    // (d) Still inside the drift entry window
+    var daysSinceReaction = asOf - reactionIdx;
+    if (daysSinceReaction < 1 || daysSinceReaction > maxAgeDays) return null;
+
+    var revenueBeat = null;
+    if (earnings.revenueActual != null && earnings.revenueEstimate != null) {
+        revenueBeat = earnings.revenueActual > earnings.revenueEstimate;
+    }
+
+    return {
+        ticker:            rec.ticker,
+        reportDate:        earnings.date,
+        reactionIdx:       reactionIdx,
+        reactionDate:      rec.dates[reactionIdx],
+        epsSurprisePct:    surprisePct,
+        revenueBeat:       revenueBeat,
+        day1RetPct:        day1RetPct,
+        daysSinceReaction: daysSinceReaction,
+        close:             rec.close[asOf]
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Market regime
 // ---------------------------------------------------------------------------

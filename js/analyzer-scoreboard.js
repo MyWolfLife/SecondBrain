@@ -16,6 +16,10 @@
 var ASB_HORIZONS = [30, 60];   // trading-day checkpoints
 var ASB_MAX_SCANS = 25;
 
+// Short detector label for the per-scan table (detector-agnostic).
+var ASB_DET_SHORT = { dipA: 'Dip', springD: 'Spring', driftB: 'Drift' };
+function _asbDetShort(det) { return ASB_DET_SHORT[det] || det; }
+
 async function loadAnalyzerScoreboardPage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scoreboard' }]);
     var page = document.getElementById('page-analyzer-scoreboard');
@@ -174,7 +178,7 @@ function _asbRender(page, graded, trades) {
         g.rows.forEach(function(r) {
             html += '<tr>' +
                 '<td><strong>' + escapeHtml(r.ticker) + '</strong></td>' +
-                '<td>' + (r.detector === 'dipA' ? 'Dip' : 'Spring') + '</td>' +
+                '<td>' + _asbDetShort(r.detector) + '</td>' +
                 '<td>' + (r.dismissed ? '<span class="ab-badge ab-badge-neutral">dismissed</span>' : '<span class="ab-badge ab-badge-win">kept</span>') + '</td>' +
                 '<td>' + (r.entryPrice != null ? '$' + r.entryPrice.toFixed(2) : '—') + '</td>' +
                 '<td class="' + (r.ret30 > 0 ? 'ab-pos' : (r.ret30 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret30) + '</td>' +

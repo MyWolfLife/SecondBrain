@@ -2335,6 +2335,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 **Saved runs**: The last 25 runs are kept. Delete any run; compare exactly two. Comparing runs with different dip thresholds or exit rules is the intended workflow for tuning your strategy profiles.
 
+**Detector B (post-earnings drift) is greyed out here**: Backtesting drift needs the historical *report dates* for every stock across the whole period, and Finnhub's free tier only serves a rolling ~1-month-back-to-forward earnings window — fully-past quarters come back empty, and its surprise records give quarter-end dates rather than the day a company actually reported. So the drift backtest waits for the paid data tier (Phase 3). Detector B still runs live on the **Scan** page, where only recent reports are needed.
+
 ---
 
 ## screen:analyzer-scan
@@ -2344,6 +2346,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - The **Scan** page is the "Friday morning" view — tap **▶ Run scan** to hunt the whole universe for active setups (takes a couple of seconds; uses cached price data)
 - The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
+- The scan hunts three kinds of setup: **📉 Panic dip** (a quality stock that fell hard and fast), **🌀 Compressed spring** (a stock coiled quietly near its highs), and **🚀 Post-earnings drift** (a company that beat earnings and jumped — winners like that tend to keep drifting up for weeks)
 - Each candidate card shows *why* it triggered, plus evidence chips — most importantly **"Similar dips: N of M hit +10% ≤60d"**, that stock's own history with dips like this one
 - **Quality chips** on dip candidates tell you if the company can survive the dip: green **✅ Profitable** or amber **⚠️ Unprofitable**, its **Debt/eq** (amber when heavy, over 2.0), and its **Div** yield when it pays one
 - A green **👤 Insider buys** chip means company insiders bought shares on the open market since the dip started — them catching their own knife is a strong vote of confidence
@@ -2363,6 +2366,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 **Earnings chips**: Currently powered by FMP's free tier, which only covers ~70 popular tickers — most candidates won't show the chip yet. Full coverage comes with a paid FMP tier or the Finnhub integration in a later phase.
 
 **Quality & insider chips**: After the shortlist is built, each dip candidate is checked against Finnhub for fundamentals (profitability, debt, dividend) and recent insider open-market buying. This is *survivability* evidence — a solid, profitable company that dipped on emotion is the archetype worth buying; an unprofitable, debt-laden one that keeps falling is the "falling knife" to be wary of. The flag is only a prompt to look closer — nothing is auto-excluded, and the decision stays yours.
+
+**Post-earnings drift (Detector B)**: The scan pulls the last few weeks of earnings reports and flags companies that *beat* estimates and *gapped up* on the news — and are still early in the "drift" window. The pattern: a stock that jumps on a genuine earnings beat often keeps climbing for weeks as the market catches up, rather than snapping straight back. The card badge shows the beat size and the day-one gain; the reason line tells you which day of the drift window it's on. Unlike a dip, this is a *momentum* setup — you're betting the good news keeps working, not that a selloff reverses.
 
 **Scans are saved**: Every scan is stored (including your dismissals), which is what will let the future tracking loop grade how past scans — and your dismissal judgment — performed.
 
@@ -2387,6 +2392,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 **Reading the dips table**: *hit* = reached the target % within the window; *miss* = didn't; *pending* = the window isn't over yet. "Max gain" is the best the stock did after the dip; "Worst dip" is how much further it fell first — a preview of the drawdown you'd have to sit through.
 
 **Springs**: Compressed-spring candidates show the chart with a 52-week-high line instead of the dips table — their story is about a coiled price near highs, not recovery history.
+
+**Post-earnings drift**: Drift candidates show a **📊 Report** line (the earnings beat, day-one move, and which day of the drift window it's on) and mark the earnings-reaction day on the chart with a green diamond — there's no dips table, because the setup is about momentum after good news, not recovery from a selloff.
 
 **Exit discipline**: Decide the exits *before* you buy. The time stop matters as much as the price stops — if the thesis hasn't played out by then, it expired; exit even at breakeven.
 

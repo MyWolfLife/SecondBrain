@@ -60,6 +60,11 @@ function loadAnalyzerBacktestPage() {
                 '<label class="ab-check"><input type="checkbox" id="abDetD" checked> Detector D — compressed spring</label>' +
             '</div>' +
             '<div class="ab-form-row">' +
+                '<label class="ab-check ab-check-disabled"><input type="checkbox" id="abDetB" disabled> Detector B — post-earnings drift</label>' +
+                '<span class="as-chip as-chip-warn">⚠️ Backtest unavailable on the free tier — Phase 3 unlock</span>' +
+            '</div>' +
+            '<p class="ab-dim" style="margin:0 0 8px">Finnhub’s free earnings calendar only covers a rolling ~1-month-back-to-forward window (fully-past quarters return nothing), and surprise records give quarter-end dates, not report dates. Historical report dates across a backtest span therefore aren’t available until the paid FMP tier (Phase 3). Detector B still runs live on the Scan page.</p>' +
+            '<div class="ab-form-row">' +
                 '<button class="btn-primary" id="abRunBtn" onclick="_abStartRun()">▶ Run backtest</button>' +
             '</div>' +
         '</div>' +
@@ -338,7 +343,7 @@ function _abDaysBefore(dateStr, n) {
 // Scorecard rendering
 // ---------------------------------------------------------------------------
 
-var AB_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring' };
+var AB_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring', driftB: '🚀 Post-earnings drift' };
 
 function _abFmtPct(v, digits) {
     if (v == null) return '—';
@@ -385,7 +390,7 @@ function _abRenderScorecard(run, container, opts) {
             html += '<tr>' +
                 '<td>' + s.friday + '</td>' +
                 '<td><strong>' + escapeHtml(s.ticker) + '</strong></td>' +
-                '<td>' + (s.detector === 'dipA' ? 'Dip' : 'Spring') + '</td>' +
+                '<td>' + ({ dipA: 'Dip', springD: 'Spring', driftB: 'Drift' }[s.detector] || s.detector) + '</td>' +
                 '<td class="ab-dim">' + escapeHtml(s.info || '') + '</td>' +
                 '<td>$' + (s.entry != null ? s.entry.toFixed(2) : '—') + '</td>' +
                 '<td><span class="ab-badge ' + badge + '">' + s.outcome + '</span></td>' +

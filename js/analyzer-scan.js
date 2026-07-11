@@ -18,13 +18,16 @@ var AS_DEFAULTS = {
     gainPct: 10, windowDays: 60,
     dipPct: 12, dipDays: 15,
     baseRateCutoff: 0.25,
-    maxPerDetector: 15
+    maxPerDetector: 15,
+    // Detector B (post-earnings drift)
+    driftMaxAgeDays: 10, driftMinDay1Pct: 2, driftMinSurprisePct: 2,
+    driftCalendarDays: 21   // trailing window to look back for recent reports
 };
 
 var _asRunning   = false;
 var _asLatestScan = null;   // {id, ...doc} of the scan being displayed
 
-var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring' };
+var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring', driftB: '🚀 Post-earnings drift' };
 
 // ---------------------------------------------------------------------------
 // Page
@@ -123,6 +126,18 @@ async function _asComputeScan(onNote) {
     var funnel = { scanned: 0, passedBaseRate: 0, triggered: 0, shortlisted: 0 };
     var candidates = [];
 
+    // Detector B needs recent reports: one trailing earnings-calendar call up
+    // front (all symbols in one request). Degrades to {} without a Finnhub key.
+    var driftCal = {};
+    if (onNote) onNote('Loading recent earnings…');
+    try {
+        var calFrom = new Date(Date.now() - cfg.driftCalendarDays * 86400000).toISOString().slice(0, 10);
+        var calTo   = new Date().toISOString().slice(0, 10);
+        driftCal = await anaFinnhubEarningsCalendar(calFrom, calTo);
+    } catch (e0) {
+        console.log('[scan] drift earnings calendar skipped: ' + e0.message);
+    }
+
     for (var i = 0; i < tickers.length; i++) {
         var t = tickers[i];
         var rec = await anaGetPriceHistory(t);
@@ -169,6 +184,33 @@ async function _asComputeScan(onNote) {
                 dismissed: false
             });
         }
+
+        // Detector B — post-earnings drift (only if a recent report exists)
+        var er = driftCal[t];
+        if (er) {
+            var drift = anaEngDriftTrigger(rec, er, {
+                maxAgeDays: cfg.driftMaxAgeDays,
+                minDay1Pct: cfg.driftMinDay1Pct,
+                minSurprisePct: cfg.driftMinSurprisePct
+            });
+            if (drift) {
+                funnel.triggered++;
+                candidates.push({
+                    ticker: t, detector: 'driftB',
+                    close: drift.close,
+                    reportDate: drift.reportDate,
+                    reactionDate: drift.reactionDate,
+                    epsSurprisePct: drift.epsSurprisePct,
+                    revenueBeat: drift.revenueBeat,
+                    day1RetPct: drift.day1RetPct,
+                    daysSinceReaction: drift.daysSinceReaction,
+                    epsActual: er.epsActual, epsEstimate: er.epsEstimate,
+                    baseRate: br.rate,
+                    earningsDate: null,
+                    dismissed: false
+                });
+            }
+        }
     }
 
     // Rank within detector, cap shortlists
@@ -181,7 +223,12 @@ async function _asComputeScan(onNote) {
     var springs = candidates.filter(function(c) { return c.detector === 'springD'; });
     springs.sort(function(a, b) { return a.pctFromHigh - b.pctFromHigh; });
 
-    var shortlist = dips.slice(0, cfg.maxPerDetector).concat(springs.slice(0, cfg.maxPerDetector));
+    var drifts = candidates.filter(function(c) { return c.detector === 'driftB'; });
+    drifts.sort(function(a, b) { return b.epsSurprisePct - a.epsSurprisePct; });
+
+    var shortlist = dips.slice(0, cfg.maxPerDetector)
+        .concat(springs.slice(0, cfg.maxPerDetector))
+        .concat(drifts.slice(0, cfg.maxPerDetector));
     funnel.shortlisted = shortlist.length;
 
     // Optional FMP enrichment: one earnings-calendar call flags catalysts in the window
@@ -294,7 +341,7 @@ function _asRenderScan(scan, container) {
             '<div class="ana-stat"><div class="ana-stat-num">' + (f.shortlisted || 0) + '</div><div class="ana-stat-label">Shortlisted</div></div>' +
         '</div>';
 
-    ['dipA', 'springD'].forEach(function(det) {
+    ['dipA', 'springD', 'driftB'].forEach(function(det) {
         var all = (scan.candidates || []).filter(function(c) { return c.detector === det; });
         var live = all.filter(function(c) { return !c.dismissed; });
         var dismissed = all.length - live.length;
@@ -363,6 +410,11 @@ function _asCandidateCard(c) {
         } else {
             chips.push('No similar past dips in 5y — first of its kind');
         }
+    } else if (c.detector === 'driftB') {
+        badge  = 'beat +' + c.epsSurprisePct.toFixed(1) + '% · day1 +' + c.day1RetPct.toFixed(1) + '%';
+        reason = 'Beat estimates by ' + c.epsSurprisePct.toFixed(1) + '% on ' + escapeHtml(c.reportDate || '') +
+                 '; day-one gain of ' + c.day1RetPct.toFixed(1) + '% held. Day ' + c.daysSinceReaction + ' of the drift window.';
+        if (c.revenueBeat === true) chips.push('Revenue beat too');
     } else {
         badge  = 'vol ' + (c.vol != null ? c.vol.toFixed(2) : '—') + ' · ' + c.pctFromHigh.toFixed(1) + '% off high';
         reason = 'Volatility compressed to the bottom decile of its own history, sitting ' + c.pctFromHigh.toFixed(1) + '% from its 52-week high.';
@@ -488,6 +540,34 @@ async function loadAnalyzerDossierPage(scanId, ticker, detector) {
     }
     ev.hi52 = hi52; ev.lo52 = lo52;
 
+    // Detector B evidence — use the stamped candidate when present, else
+    // reconstruct live from a trailing earnings calendar (deep-link case).
+    if (detector === 'driftB') {
+        if (candidate && candidate.reportDate) {
+            ev.drift = {
+                reportDate: candidate.reportDate, reactionDate: candidate.reactionDate,
+                epsSurprisePct: candidate.epsSurprisePct, day1RetPct: candidate.day1RetPct,
+                daysSinceReaction: candidate.daysSinceReaction, revenueBeat: candidate.revenueBeat,
+                epsActual: candidate.epsActual, epsEstimate: candidate.epsEstimate
+            };
+        } else {
+            try {
+                var from120 = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+                var cal = await anaFinnhubEarningsCalendar(from120, new Date().toISOString().slice(0, 10));
+                var er  = cal[ticker];
+                if (er) {
+                    var dtr = anaEngDriftTrigger(rec, er, { maxAgeDays: 120 });
+                    if (dtr) ev.drift = {
+                        reportDate: dtr.reportDate, reactionDate: dtr.reactionDate,
+                        epsSurprisePct: dtr.epsSurprisePct, day1RetPct: dtr.day1RetPct,
+                        daysSinceReaction: dtr.daysSinceReaction, revenueBeat: dtr.revenueBeat,
+                        epsActual: er.epsActual, epsEstimate: er.epsEstimate
+                    };
+                }
+            } catch (e) { /* leave ev.drift undefined — badge falls back */ }
+        }
+    }
+
     _adCtx = { scanId: scanId, ticker: ticker, detector: detector, scan: scan, candidate: candidate, close: close };
     _adRender(page, rec, ev, params);
 }
@@ -502,12 +582,14 @@ function _adRender(page, rec, ev, params) {
         timeStopDays: saved.timeStopDays != null ? saved.timeStopDays : 60
     };
     var thesis = (ctx.candidate && ctx.candidate.thesisDraft) || '';
-    var isDip  = ctx.detector === 'dipA';
+    var isDip   = ctx.detector === 'dipA';
+    var isDrift = ctx.detector === 'driftB';
 
     // Header + badge
     var badge;
-    if (isDip && ev.dip)          badge = '−' + ev.dip.dropPct.toFixed(1) + '% in ' + ev.dip.daysSincePeak + 'd';
-    else if (!isDip && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
+    if (isDrift && ev.drift)      badge = 'beat +' + ev.drift.epsSurprisePct.toFixed(1) + '% · day1 +' + ev.drift.day1RetPct.toFixed(1) + '%';
+    else if (isDip && ev.dip)     badge = '−' + ev.dip.dropPct.toFixed(1) + '% in ' + ev.dip.daysSincePeak + 'd';
+    else if (!isDip && !isDrift && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
     else                          badge = 'setup no longer active';
 
     var html =
@@ -537,6 +619,16 @@ function _adRender(page, rec, ev, params) {
         if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
     });
     html += '</div>';
+
+    // Report line (Detector B) — the earnings beat behind the drift
+    if (isDrift && ev.drift) {
+        var d = ev.drift;
+        var rev = d.revenueBeat === true ? ' · revenue beat' : (d.revenueBeat === false ? ' · revenue missed' : '');
+        html += '<p class="muted-text">📊 Report ' + escapeHtml(d.reportDate || '') + ': EPS ' +
+            (d.epsActual != null ? d.epsActual : '—') + ' vs ' + (d.epsEstimate != null ? d.epsEstimate : '—') + ' est' +
+            ' (beat +' + d.epsSurprisePct.toFixed(1) + '%)' + rev +
+            ' · day-one +' + d.day1RetPct.toFixed(1) + '% · day ' + d.daysSinceReaction + ' of the drift window.</p>';
+    }
 
     // Quality section (Stage 2.2) — filled async by _adRenderQuality after render
     html += '<h3 class="ana-section-title">🏥 Quality</h3>' +
@@ -711,6 +803,14 @@ function _adDrawChart(rec, ev) {
         peakData = labels.map(function(d) { return d === ev.dip.peakDate ? ev.dip.peakClose : null; });
     }
 
+    // Reaction marker (drift): the post-earnings gap-up day
+    var reactData = null;
+    if (_adCtx.detector === 'driftB' && ev.drift && ev.drift.reactionDate) {
+        var rIdx = anaEngIndexForDate(rec, ev.drift.reactionDate);
+        var rClose = (rIdx >= 0) ? rec.close[rIdx] : null;
+        reactData = labels.map(function(d) { return d === ev.drift.reactionDate ? rClose : null; });
+    }
+
     var datasets = [
         { label: _adCtx.ticker, data: closes, borderColor: '#2b6cb0', backgroundColor: 'rgba(43,108,176,0.06)',
           borderWidth: 2, pointRadius: 0, fill: true, tension: 0.1 },
@@ -722,6 +822,10 @@ function _adDrawChart(rec, ev) {
     if (peakData) {
         datasets.push({ label: 'Peak', data: peakData, borderColor: '#b7791f', backgroundColor: '#b7791f',
                         pointRadius: 6, pointStyle: 'triangle', showLine: false });
+    }
+    if (reactData) {
+        datasets.push({ label: 'Earnings reaction', data: reactData, borderColor: '#2e7d32', backgroundColor: '#2e7d32',
+                        pointRadius: 6, pointStyle: 'rectRot', showLine: false });
     }
     if (_adCtx.detector === 'springD') {
         datasets.push({ label: '52w high', data: flat(ev.hi52), borderColor: '#b7791f', borderWidth: 1.5,
