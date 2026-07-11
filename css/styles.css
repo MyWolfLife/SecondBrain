@@ -19980,6 +19980,18 @@ a.legacy-fin-card:hover {
     color: #555;
 }
 .as-chip-warn { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
+.as-chip-good { background: #eaf7ec; border-color: #86c98f; color: #245c2e; }
+
+/* Candidate dossier — quality metric grid (Stage 2.2) */
+.ad-quality-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    font-size: 0.85rem;
+    max-width: 340px;
+}
+.ad-quality-k { color: #666; }
+.ad-quality-v { color: #222; font-weight: 500; }
 
 /* Candidate dossier */
 .ad-chart-wrap {

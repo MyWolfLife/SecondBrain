@@ -197,6 +197,28 @@ async function _asComputeScan(onNote) {
         console.log('[scan] earnings enrichment skipped: ' + e.message);
     }
 
+    // Quality + insider enrichment (Stage 2.2, Finnhub) — DIP candidates only.
+    // Sequential (the choke-point paces itself at 1.1s), so at most ~15 pairs.
+    // Each candidate is wrapped so one bad ticker can't kill the whole scan;
+    // the fields ride along on the scan doc as point-in-time evidence.
+    var dipShortlist = shortlist.filter(function(c) { return c.detector === 'dipA'; });
+    for (var q = 0; q < dipShortlist.length; q++) {
+        var dc = dipShortlist[q];
+        if (onNote) onNote('Enriching ' + (q + 1) + ' / ' + dipShortlist.length + ' — ' + dc.ticker + '…');
+        try {
+            dc.quality = await anaFinnhubMetrics(dc.ticker);
+        } catch (e2) {
+            dc.quality = { error: e2.message };
+        }
+        try {
+            // Buys since the dip's peak = insiders catching their own knife.
+            var since = dc.peakDate || new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+            dc.insiders = await anaFinnhubInsiders(dc.ticker, since);
+        } catch (e3) {
+            dc.insiders = { error: e3.message };
+        }
+    }
+
     return {
         createdAt: new Date().toISOString(),
         date: new Date().toISOString().slice(0, 10),
@@ -296,6 +318,36 @@ function _asRenderScan(scan, container) {
     container.innerHTML = html;
 }
 
+// Build the quality/insider/falling-knife chips for a candidate (Stage 2.2).
+// Returns [{text, cls, lead}] — `lead` chips render at the FRONT of the row.
+// Empty when the candidate has no enrichment data (old scans / fetch errors)
+// so cards stay backward-compatible and render cleanly without chips.
+function _asQualityChips(c) {
+    var out = [];
+    var q = c.quality;
+    if (q && !q.error) {
+        var unprofitable = (q.profitable === false);
+        var d2e = q.debtToEquity;
+        // Falling-knife flag: unprofitable AND heavily indebted. FLAG, never remove.
+        if (unprofitable && d2e != null && d2e > 2) {
+            out.push({ text: '⚠️ Falling knife?', cls: 'as-chip-warn', lead: true });
+        }
+        if (q.profitable === true)  out.push({ text: '✅ Profitable',   cls: 'as-chip-good' });
+        if (q.profitable === false) out.push({ text: '⚠️ Unprofitable', cls: 'as-chip-warn' });
+        if (d2e != null) {
+            out.push({ text: 'Debt/eq ' + d2e.toFixed(1), cls: (d2e > 2 ? 'as-chip-warn' : 'as-chip') });
+        }
+        if (q.dividendYieldPct != null && q.dividendYieldPct > 0) {
+            out.push({ text: 'Div ' + q.dividendYieldPct.toFixed(1) + '%', cls: 'as-chip' });
+        }
+    }
+    var ins = c.insiders;
+    if (ins && !ins.error && ins.purchases && ins.purchases.length > 0) {
+        out.push({ text: '👤 Insider buys: ' + ins.purchases.length, cls: 'as-chip-good' });
+    }
+    return out;
+}
+
 function _asCandidateCard(c) {
     var name = _asName(c.ticker);
     var badge, reason, chips = [];
@@ -325,10 +377,18 @@ function _asCandidateCard(c) {
         '</div>' +
         '<p class="as-card-reason">' + reason + '</p>' +
         '<div class="as-chip-row">';
+    // Falling-knife flag leads the row (amber) when quality data warrants it.
+    _asQualityChips(c).forEach(function(qc) {
+        if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+    });
     chips.forEach(function(ch) { html += '<span class="as-chip">' + escapeHtml(ch) + '</span>'; });
     if (c.earningsDate) {
         html += '<span class="as-chip as-chip-warn">⚠️ Earnings ' + escapeHtml(c.earningsDate) + '</span>';
     }
+    // Quality + insider evidence chips (non-lead) after the base-rate chip.
+    _asQualityChips(c).forEach(function(qc) {
+        if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+    });
     html += '</div>' +
         '<div class="ab-form-row" style="margin:8px 0 0">' +
             '<button class="ana-sp-btn" onclick="_asOpenDossier(\'' + c.ticker + '\',\'' + c.detector + '\')">Open dossier</button>' +
@@ -469,8 +529,18 @@ function _adRender(page, rec, ev, params) {
     chips.push('52w range $' + ev.lo52.toFixed(2) + ' – $' + ev.hi52.toFixed(2));
     if (ctx.candidate && ctx.candidate.earningsDate) chips.push('⚠️ Earnings ' + ctx.candidate.earningsDate);
     html += '<div class="as-chip-row" style="margin-bottom:12px">';
+    _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
+        if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+    });
     chips.forEach(function(c) { html += '<span class="as-chip">' + escapeHtml(c) + '</span>'; });
+    _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
+        if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+    });
     html += '</div>';
+
+    // Quality section (Stage 2.2) — filled async by _adRenderQuality after render
+    html += '<h3 class="ana-section-title">🏥 Quality</h3>' +
+        '<div id="adQuality"><p class="muted-text">Loading quality data…</p></div>';
 
     // Chart
     html += '<div class="ad-chart-wrap"><canvas id="adChart"></canvas></div>';
@@ -539,6 +609,75 @@ function _adRender(page, rec, ev, params) {
     page.innerHTML = html;
     _adUpdateExitPrices();
     _adDrawChart(rec, ev);
+    _adRenderQuality();
+}
+
+// Fill the dossier's Quality section (Stage 2.2). Uses the point-in-time
+// quality/insiders stamped on the scan candidate when present; otherwise
+// (deep-link with no scan, or an old scan) fetches live from Finnhub.
+async function _adRenderQuality() {
+    var host = document.getElementById('adQuality');
+    if (!host || !_adCtx) return;
+    var cand = _adCtx.candidate || {};
+    var quality  = (cand.quality  && !cand.quality.error)  ? cand.quality  : null;
+    var insiders = (cand.insiders && !cand.insiders.error) ? cand.insiders : null;
+
+    if (!quality) {
+        try { quality = await anaFinnhubMetrics(_adCtx.ticker); }
+        catch (e) { quality = null; }
+    }
+    if (!insiders) {
+        try {
+            var since = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+            insiders = await anaFinnhubInsiders(_adCtx.ticker, since);
+        } catch (e2) { insiders = null; }
+    }
+    // The element can be replaced by a re-render while we await — bail if gone.
+    host = document.getElementById('adQuality');
+    if (!host) return;
+
+    if (!quality && !insiders) {
+        host.innerHTML = '<p class="muted-text">Quality data unavailable.</p>';
+        return;
+    }
+
+    var rows = [];
+    if (quality) {
+        var fmtPct = function(v) { return v == null ? '—' : v.toFixed(1) + '%'; };
+        var fmtNum = function(v) { return v == null ? '—' : v.toFixed(2); };
+        rows.push(['Profitable',      quality.profitable == null ? '—' : (quality.profitable ? 'Yes' : 'No')]);
+        rows.push(['Net margin',      fmtPct(quality.netMarginPct)]);
+        rows.push(['Debt / equity',   fmtNum(quality.debtToEquity)]);
+        rows.push(['Current ratio',   fmtNum(quality.currentRatio)]);
+        rows.push(['Dividend yield',  fmtPct(quality.dividendYieldPct)]);
+        rows.push(['Return on equity', fmtPct(quality.roePct)]);
+    }
+    var html = '';
+    if (rows.length) {
+        html += '<div class="ad-quality-grid">';
+        rows.forEach(function(r) {
+            html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + '</div>' +
+                    '<div class="ad-quality-v">' + escapeHtml(r[1]) + '</div>';
+        });
+        html += '</div>';
+    }
+    if (insiders) {
+        var buys = insiders.purchases || [];
+        html += '<p class="muted-text" style="margin-top:10px">Insider open-market purchases (last few months): ' +
+                (buys.length ? buys.length : 'none') + '</p>';
+        if (buys.length) {
+            html += '<div class="ab-table-wrap"><table class="ab-table">' +
+                    '<tr><th>Date</th><th>Insider</th><th>Shares</th><th>Price</th></tr>';
+            buys.forEach(function(b) {
+                html += '<tr><td>' + escapeHtml(b.date || '') + '</td>' +
+                        '<td>' + escapeHtml(b.name || '') + '</td>' +
+                        '<td>' + (b.shares != null ? b.shares.toLocaleString() : '—') + '</td>' +
+                        '<td>' + (b.price != null ? '$' + b.price.toFixed(2) : '—') + '</td></tr>';
+            });
+            html += '</table></div>';
+        }
+    }
+    host.innerHTML = html || '<p class="muted-text">Quality data unavailable.</p>';
 }
 
 function _adUpdateExitPrices() {

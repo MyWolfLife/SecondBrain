@@ -2345,6 +2345,9 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
 - Each candidate card shows *why* it triggered, plus evidence chips — most importantly **"Similar dips: N of M hit +10% ≤60d"**, that stock's own history with dips like this one
+- **Quality chips** on dip candidates tell you if the company can survive the dip: green **✅ Profitable** or amber **⚠️ Unprofitable**, its **Debt/eq** (amber when heavy, over 2.0), and its **Div** yield when it pays one
+- A green **👤 Insider buys** chip means company insiders bought shares on the open market since the dip started — them catching their own knife is a strong vote of confidence
+- An amber **⚠️ Falling knife?** flag leads the card when a stock is *both* unprofitable and heavily indebted — a warning, not an automatic reject; the tool never removes anything for you
 - An amber **⚠️ Earnings** chip warns when a report falls inside your 60-day window — a binary event that's your call to accept or avoid
 - **Dismiss** hides a candidate you've rejected (undo via the ↩ buttons); the page always reopens showing your latest scan
 - Make sure prices are current first — the note beside the button shows when data was last updated
@@ -2359,6 +2362,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 **Earnings chips**: Currently powered by FMP's free tier, which only covers ~70 popular tickers — most candidates won't show the chip yet. Full coverage comes with a paid FMP tier or the Finnhub integration in a later phase.
 
+**Quality & insider chips**: After the shortlist is built, each dip candidate is checked against Finnhub for fundamentals (profitability, debt, dividend) and recent insider open-market buying. This is *survivability* evidence — a solid, profitable company that dipped on emotion is the archetype worth buying; an unprofitable, debt-laden one that keeps falling is the "falling knife" to be wary of. The flag is only a prompt to look closer — nothing is auto-excluded, and the decision stays yours.
+
 **Scans are saved**: Every scan is stored (including your dismissals), which is what will let the future tracking loop grade how past scans — and your dismissal judgment — performed.
 
 ---
@@ -2370,6 +2375,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - The **dossier** is the deep-dive behind a scan candidate — everything you need to make the call on one stock
 - The **chart** shows the last 12 months with your **target** (green dashed) and **stop** (red dashed) lines, plus a triangle on the peak the stock fell from
 - The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
+- The **🏥 Quality** section lays out the fundamentals (profitability, net margin, debt/equity, current ratio, dividend, ROE) and any recent insider open-market purchases — the survivability read behind the card's chips
 - Write your **thesis** — what has to happen for the stock to rise, and whether the dip looks *emotional* (tradeable) or *structural* (avoid)
 - Set your **exit plan** (target / stop / time stop) — the dollar prices update live as you type
 - Tap **Save thesis & exits** — your notes stay with this candidate and pre-fill the trade ticket (coming in Stage 8)
