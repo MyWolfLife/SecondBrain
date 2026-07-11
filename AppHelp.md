@@ -2218,13 +2218,21 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 ### What this thing is (one sentence)
 
-It's a **metal detector for stocks** — it sweeps the beach (about 505 big companies) looking for two kinds of buried treasure, digs up the evidence for each beep, and then **you** decide whether to dig. It never decides for you, and it never gives financial advice.
+It's a **metal detector for stocks** — it sweeps the beach (about 505 big companies) looking for three kinds of buried treasure, digs up the evidence for each beep, and then **you** decide whether to dig. It never decides for you, and it never gives financial advice.
+
+### The three kinds of treasure it beeps for
+
+1. **📉 Panic dip** — *a good toy dropped in the mud.* A solid company whose price fell hard and fast, usually because people got scared, not because the company broke. You're betting it gets picked up and cleaned off.
+2. **🌀 Compressed spring** — *a spring squeezed quiet.* A stock sitting calm near its highest price in a year, coiled up. Sometimes calm like that pops upward.
+3. **🚀 Post-earnings drift** — *the kid on a winning streak.* Every few months a company shows its report card ("earnings"). When one **beats** what everyone expected and jumps on the news, it often keeps drifting up for weeks, like a winning streak that isn't done yet.
+
+You don't have to memorize these — each card tells you which kind it is and what it means. Just know the detector is now listening for all three.
 
 ### One-time setup (do this once, ~20 minutes)
 
 1. Open **Life → Financial → 🎯 Stock Analyzer**
 2. Tap **📡 Update price data** and go get a snack — the app downloads 5 years of price history for every stock it watches (~18 minutes). It saves it all **on this device**, so you only wait like this once. A new phone or computer does its own first download.
-3. Done forever. (An FMP key in Settings adds a few extra info chips; nothing breaks without it.)
+3. Done forever. Two optional add-ons in **Settings** make the cards smarter, and nothing breaks without them: a free **Finnhub key** turns on the company-health chips, the earnings warnings, and the news list; an **AI key** turns on the 🤖 AI read button. Skip either and the rest of the tool still works fine.
 
 ### The weekly routine (Friday morning, ~5 minutes)
 
@@ -2235,10 +2243,17 @@ It's a **metal detector for stocks** — it sweeps the beach (about 505 big comp
 - **The funnel numbers** ("501 → 494 → 47 → 20") just mean: "I looked at everything and only 20 things are worth showing you."
 - **The candidate cards** — the beeps from the metal detector.
 
-**Step 3 — Read a card.** Every card answers three questions:
-- **What happened?** — "FLEX: down 13.7% in 6 days." Something knocked it down.
+**Step 3 — Read a card.** Every card answers a few questions with little colored **chips**:
+
+- **What happened?** — "FLEX: down 13.7% in 6 days." Something knocked it down. (A 🚀 drift card instead says "beat +10% · day1 +7%" — it aced its report card and jumped.)
 - **What are the odds?** — "**Similar dips: 15 of 16 hit +10% within 60 days · median 9d.**" This is the magic chip: the last 16 times *this exact stock* fell like this, it bounced back 10% fifteen times, usually in about 9 days. That's this stock's own report card for this exact situation.
-- **Any danger?** — an amber **⚠️ Earnings** chip means the company reports results soon, which can make the stock jump OR crash overnight. Your call whether to accept that.
+- **Is the company strong or wobbly?** — new helper chips tell you if it can survive the dip:
+  - **✅ Profitable** (green) = it makes money. **⚠️ Unprofitable** (yellow) = it loses money.
+  - **Debt/eq** = how much it owes. Low is calmer; a yellow one means it owes a lot.
+  - **Div** = it pays you a little just for holding it.
+  - **👤 Insider buys** = the people who *run* the company just bought its stock with their own money. That's a chef eating their own cooking — usually a good sign.
+  - **⚠️ Falling knife?** (yellow, jumps to the front) = it loses money **and** owes a ton. Careful — this one might keep falling. *Don't try to catch a falling knife.* The tool never throws it out for you; it just waves the flag.
+- **Any danger from the calendar?** — an amber **⚠️ Earnings Aug 25 (±18% history)** chip means the company shows its report card on Aug 25, and on its biggest days this stock usually swings about 18% — up **or** down — overnight. So a lot is riding on that one day. Your call whether to hold through it, take profits before, or wait until after.
 
 Not interested? Tap **Dismiss**. Secret: the app remembers your dismissals and later grades whether they were smart (see Scoreboard below).
 
@@ -2246,10 +2261,13 @@ Not interested? Tap **Dismiss**. Secret: the app remembers your dismissals and l
 
 Tap **Open dossier** and do your homework on that one stock:
 
-1. **The chart** — the last year, with a green dashed line (where you'd sell happy) and a red dashed line (where you'd sell sad).
+1. **The chart** — the last year, with a green dashed line (where you'd sell happy) and a red dashed line (where you'd sell sad). On a 🚀 drift card, a green diamond marks the day it jumped on its report card.
 2. **The Similar Dips table** — every past dip like this one: which recovered, which didn't, and how far each kept falling *first* (the "Worst dip" column — you'd have to sit through that part without panicking).
-3. **Write your thesis** in the box — one or two sentences: *"Why did this fall, and why do I think it comes back?"* This is the most important habit in the whole system. **If you can't write the sentence, don't buy the stock.**
-4. **Set your three exits BEFORE buying**: sell-happy price (+10%), sell-sad price (−7%), and the deadline (60 days — if it hasn't worked by then, the idea expired; get out even at break-even).
+3. **🏥 Quality** — the stock's checkup, all in one place: does it make money, how much does it owe, does it pay a dividend, and did any insiders buy lately. This is where you sanity-check that the company is strong enough to bounce, not a knife still falling.
+4. **📰 Recent news** — the last two weeks of headlines, newest first, each one a link you can open. This is the *story*: **why** did it drop? Real trouble, or just people getting jumpy?
+5. **🤖 AI read** (only appears if you set up an AI helper in Settings) — tap it and a robot reads those same headlines and metrics and gives you a one-look opinion: does this dip look **EMOTIONAL** (people just got scared — often a buying chance) or **STRUCTURAL** (something's actually broken — stay away)? *That is the exact question behind your 2023 Target trade.* The robot **never** says buy or sell — it just drafts a first opinion for you to argue with. Every answer ends with a reminder that the decision is yours.
+6. **Write your thesis** in the box — one or two sentences: *"Why did this fall, and why do I think it comes back?"* This is the most important habit in the whole system. **If you can't write the sentence, don't buy the stock.**
+7. **Set your three exits BEFORE buying**: sell-happy price (+10%), sell-sad price (−7%), and the deadline (60 days — if it hasn't worked by then, the idea expired; get out even at break-even).
 
 ### If you actually buy it
 
