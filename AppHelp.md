@@ -2351,7 +2351,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - **Quality chips** on dip candidates tell you if the company can survive the dip: green **✅ Profitable** or amber **⚠️ Unprofitable**, its **Debt/eq** (amber when heavy, over 2.0), and its **Div** yield when it pays one
 - A green **👤 Insider buys** chip means company insiders bought shares on the open market since the dip started — them catching their own knife is a strong vote of confidence
 - An amber **⚠️ Falling knife?** flag leads the card when a stock is *both* unprofitable and heavily indebted — a warning, not an automatic reject; the tool never removes anything for you
-- An amber **⚠️ Earnings** chip warns when a report falls inside your 60-day window — a binary event that's your call to accept or avoid
+- An amber **⚠️ Earnings {date} (±X% history)** chip warns when a report falls inside your 60-day window — the ±X% is how much that stock *typically* jumps or drops on its biggest days, so you can size the binary-event risk; whether to accept or avoid it is your call
 - **Dismiss** hides a candidate you've rejected (undo via the ↩ buttons); the page always reopens showing your latest scan
 - Make sure prices are current first — the note beside the button shows when data was last updated
 
@@ -2363,7 +2363,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 **Ranking**: Dip candidates sort by their conditional base rate (how often *this stock's* similar dips recovered), then by dip depth. Spring candidates sort by closeness to their 52-week high. Shortlists cap at 15 per detector.
 
-**Earnings chips**: Currently powered by FMP's free tier, which only covers ~70 popular tickers — most candidates won't show the chip yet. Full coverage comes with a paid FMP tier or the Finnhub integration in a later phase.
+**Earnings chips**: Powered by Finnhub, which covers the whole US market — so nearly any candidate with a report inside your window shows the chip (a big jump from the old FMP free tier's ~70 symbols). The chip pairs the report date with **±X% history** — the average size of that stock's five biggest single-day moves, a rough gauge of how violently it tends to react to news. A mega-cap might read ±4%; a volatile name ±15%. It doesn't predict direction — it just tells you how much is riding on that one day, so you can decide whether to hold through it, take profits before, or wait until after. If Finnhub is unavailable, the app quietly falls back to FMP's sparse free coverage.
 
 **Quality & insider chips**: After the shortlist is built, each dip candidate is checked against Finnhub for fundamentals (profitability, debt, dividend) and recent insider open-market buying. This is *survivability* evidence — a solid, profitable company that dipped on emotion is the archetype worth buying; an unprofitable, debt-laden one that keeps falling is the "falling knife" to be wary of. The flag is only a prompt to look closer — nothing is auto-excluded, and the decision stays yours.
 
@@ -2388,6 +2388,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 ### Details
 
 **Evidence is live**: The dossier recomputes everything from the latest cached prices when it opens, so the badge can differ slightly from what the scan card showed (new trading days arrive). If the dip has fully recovered it says "setup no longer active."
+
+**Earnings chip**: If a report falls inside your window, the chip carries through here too — **⚠️ Earnings {date} (±X% history)** — with the same meaning as on the scan card: the ±X% is that stock's typical big-day move, sizing the binary-event risk you'd be holding through.
 
 **Reading the dips table**: *hit* = reached the target % within the window; *miss* = didn't; *pending* = the window isn't over yet. "Max gain" is the best the stock did after the dip; "Worst dip" is how much further it fell first — a preview of the drawdown you'd have to sit through.
 

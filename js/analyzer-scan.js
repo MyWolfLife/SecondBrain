@@ -231,17 +231,32 @@ async function _asComputeScan(onNote) {
         .concat(drifts.slice(0, cfg.maxPerDetector));
     funnel.shortlisted = shortlist.length;
 
-    // Optional FMP enrichment: one earnings-calendar call flags catalysts in the window
+    // Catalyst map (Stage 2.4): Finnhub earnings calendar is PRIMARY (all
+    // symbols in one call); FMP is a silent fallback only if Finnhub throws
+    // (no key / rate limit). For every candidate with an upcoming report in the
+    // window, also stamp the stock's typical earnings-day move for sizing.
     if (onNote) onNote('Checking earnings calendar…');
+    var earnings = null;
     try {
-        var earnings = await _asFetchEarningsMap(cfg.windowDays);
-        if (earnings) {
-            shortlist.forEach(function(c) {
-                if (earnings[c.ticker]) c.earningsDate = earnings[c.ticker];
-            });
-        }
+        var eFrom = new Date().toISOString().slice(0, 10);
+        var eTo   = new Date(Date.now() + cfg.windowDays * 86400000).toISOString().slice(0, 10);
+        var cal   = await anaFinnhubEarningsCalendar(eFrom, eTo);
+        earnings = {};
+        Object.keys(cal).forEach(function(sym) { earnings[sym] = cal[sym].date; });
     } catch (e) {
-        console.log('[scan] earnings enrichment skipped: ' + e.message);
+        console.log('[scan] Finnhub earnings calendar unavailable, trying FMP: ' + e.message);
+        try { earnings = await _asFetchEarningsMap(cfg.windowDays); }
+        catch (e2) { console.log('[scan] FMP earnings fallback skipped: ' + e2.message); }
+    }
+    if (earnings) {
+        for (var s = 0; s < shortlist.length; s++) {
+            var sc = shortlist[s];
+            if (earnings[sc.ticker]) {
+                sc.earningsDate = earnings[sc.ticker];
+                var srec = await anaGetPriceHistory(sc.ticker);
+                if (srec) sc.eventMovePct = anaEngTypicalEventMovePct(srec);
+            }
+        }
     }
 
     // Quality + insider enrichment (Stage 2.2, Finnhub) — DIP candidates only.
@@ -395,6 +410,15 @@ function _asQualityChips(c) {
     return out;
 }
 
+// Earnings-catalyst chip text (Stage 2.4): the report date plus the stock's
+// own typical event move when known. null when no report is in the window.
+function _asEarningsChipText(c) {
+    if (!c || !c.earningsDate) return null;
+    var t = '⚠️ Earnings ' + c.earningsDate;
+    if (c.eventMovePct != null) t += ' (±' + c.eventMovePct + '% history)';
+    return t;
+}
+
 function _asCandidateCard(c) {
     var name = _asName(c.ticker);
     var badge, reason, chips = [];
@@ -434,8 +458,9 @@ function _asCandidateCard(c) {
         if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
     });
     chips.forEach(function(ch) { html += '<span class="as-chip">' + escapeHtml(ch) + '</span>'; });
-    if (c.earningsDate) {
-        html += '<span class="as-chip as-chip-warn">⚠️ Earnings ' + escapeHtml(c.earningsDate) + '</span>';
+    var earnChip = _asEarningsChipText(c);
+    if (earnChip) {
+        html += '<span class="as-chip as-chip-warn">' + escapeHtml(earnChip) + '</span>';
     }
     // Quality + insider evidence chips (non-lead) after the base-rate chip.
     _asQualityChips(c).forEach(function(qc) {
@@ -609,7 +634,8 @@ function _adRender(page, rec, ev, params) {
     if (ev.sma50 != null)    chips.push((ev.close > ev.sma50 ? 'Above' : 'Below') + ' 50d avg');
     if (ev.sma200 != null)   chips.push((ev.close > ev.sma200 ? 'Above' : 'Below') + ' 200d avg');
     chips.push('52w range $' + ev.lo52.toFixed(2) + ' – $' + ev.hi52.toFixed(2));
-    if (ctx.candidate && ctx.candidate.earningsDate) chips.push('⚠️ Earnings ' + ctx.candidate.earningsDate);
+    var adEarnChip = _asEarningsChipText(ctx.candidate);
+    if (adEarnChip) chips.push(adEarnChip);
     html += '<div class="as-chip-row" style="margin-bottom:12px">';
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
         if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';

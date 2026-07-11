@@ -344,6 +344,23 @@ function anaEngDriftTrigger(rec, earnings, opts) {
     };
 }
 
+// Typical single-day event move (Phase 2, Stage 2.4): the mean of the 5 largest
+// absolute daily % moves across the cached history — a rough proxy for how hard
+// this stock tends to react to a binary event (earnings). Rounded percent, or
+// null when there isn't enough history. Pure candle math, no API.
+function anaEngTypicalEventMovePct(rec) {
+    if (!rec || !rec.close || rec.close.length < 20) return null;
+    var moves = [];
+    for (var i = 1; i < rec.close.length; i++) {
+        if (rec.close[i - 1] > 0) moves.push(Math.abs(rec.close[i] / rec.close[i - 1] - 1) * 100);
+    }
+    if (moves.length < 5) return null;
+    moves.sort(function(a, b) { return b - a; });
+    var top = moves.slice(0, 5);
+    var avg = top.reduce(function(s, v) { return s + v; }, 0) / top.length;
+    return Math.round(avg);
+}
+
 // ---------------------------------------------------------------------------
 // Market regime
 // ---------------------------------------------------------------------------
