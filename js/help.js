@@ -71,6 +71,7 @@ var HELP_SECTION_MAP = {
     'analyzer-dossier'               : 'analyzer-dossier',   // trailing scanId/ticker/detector stripped
     'analyzer-trades'                : 'analyzer-trades',
     'analyzer-scoreboard'            : 'analyzer-scoreboard',
+    'analyzer-training'              : 'analyzer-training',
 
     // ── Legacy sub-routes ───────────────────────────────────────
     'legacy-burial'                  : 'legacy-burial',
@@ -178,7 +179,9 @@ var HELP_TOPIC_MAP = [
             { label: 'Journal',         key: 'journal'      },
             { label: 'Contacts',        key: 'contacts'     },
             { label: 'Notes',           key: 'notes'        },
-            { label: 'Life Calendar',   key: 'lifecalendar' }
+            { label: 'Life Calendar',   key: 'lifecalendar' },
+            { label: '🎯 Stock Analyzer',            key: 'analyzer'          },
+            { label: '📚 Stock Analyzer — Training', key: 'analyzer-training' }
         ]
     },
     {
@@ -213,6 +216,7 @@ var HELP_SCREEN_LABELS = {
     'activityreport': 'Activity Report',
     'gpsmap'        : 'GPS Map',
     'analyzer'      : 'Stock Analyzer',
+    'analyzer-training' : 'Stock Analyzer Training',
     'yardmap'       : 'Yard Map',
     'yard-problems' : 'Yard Problems',
     'yard-projects' : 'Yard Quick Tasks',
@@ -306,7 +310,10 @@ async function _helpFetch() {
  */
 function _helpParseSection(fullText, key) {
     var escaped = key.replace(/[-]/g, '\\-');
-    var re = new RegExp('##\\s+(?:screen|concept):' + escaped + '\\b([\\s\\S]*?)(?=\\n##\\s|$)', 'i');
+    // (?=\s|$) — the key must be the ENTIRE section name. The old \b treated a
+    // hyphen as a boundary, so looking up "analyzer" could match the
+    // "screen:analyzer-training" heading if it appeared earlier in the file.
+    var re = new RegExp('##\\s+(?:screen|concept):' + escaped + '(?=\\s|$)([\\s\\S]*?)(?=\\n##\\s|$)', 'i');
     var m  = fullText.match(re);
     return m ? m[1].trim() : null;
 }

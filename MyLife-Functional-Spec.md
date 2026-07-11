@@ -2059,7 +2059,9 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
-**Help**: `## screen:analyzer` section in AppHelp.md covers the hub; `## screen:analyzer-universe` covers the Universe page; remaining sub-routes map to the hub section via `HELP_SECTION_MAP` until their stages land.
+**Help**: every analyzer screen has its own `## screen:analyzer*` section in AppHelp.md, plus a **📚 Training guide** (`## screen:analyzer-training`, reachable at `#help/analyzer-training`) — a plain-language walkthrough of the whole system (setup, weekly routine, reading cards, dossier, tickets, scoreboard, golden rules). Every analyzer help section's first Quick Help bullet links to it, and it's listed in the Help Topics menu under Life ("🎯 Stock Analyzer" and "📚 Stock Analyzer — Training").
+
+**Help parser fix (2026-07-11)**: `_helpParseSection` previously used `\b` after the section key, which treated a hyphen as a boundary — looking up `analyzer` could match `screen:analyzer-training` if it appeared earlier in the file. Now uses `(?=\s|$)` so the key must be the entire section name.
 
 ### Universe manager (`#analyzer/universe`)
 The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist − excluded**.

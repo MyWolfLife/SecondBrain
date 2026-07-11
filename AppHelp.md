@@ -2212,9 +2212,66 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 ---
 
+## screen:analyzer-training
+
+**🎯 Stock Analyzer — Training Guide.** The full walkthrough, in plain words. Come back here any time via ? → this page.
+
+### What this thing is (one sentence)
+
+It's a **metal detector for stocks** — it sweeps the beach (about 505 big companies) looking for two kinds of buried treasure, digs up the evidence for each beep, and then **you** decide whether to dig. It never decides for you, and it never gives financial advice.
+
+### One-time setup (do this once, ~20 minutes)
+
+1. Open **Life → Financial → 🎯 Stock Analyzer**
+2. Tap **📡 Update price data** and go get a snack — the app downloads 5 years of price history for every stock it watches (~18 minutes). It saves it all **on this device**, so you only wait like this once. A new phone or computer does its own first download.
+3. Done forever. (An FMP key in Settings adds a few extra info chips; nothing breaks without it.)
+
+### The weekly routine (Friday morning, ~5 minutes)
+
+**Step 1 — Freshen the prices.** Hub → **Update price data**. It skips anything already fresh, so this is quick.
+
+**Step 2 — Tap Scan → ▶ Run scan.** Two seconds later you get three things:
+- **The weather report** (the colored banner): green = good weather for stocks going up, amber = mixed, red = storms, be careful. Check the weather before you care about anything else.
+- **The funnel numbers** ("501 → 494 → 47 → 20") just mean: "I looked at everything and only 20 things are worth showing you."
+- **The candidate cards** — the beeps from the metal detector.
+
+**Step 3 — Read a card.** Every card answers three questions:
+- **What happened?** — "FLEX: down 13.7% in 6 days." Something knocked it down.
+- **What are the odds?** — "**Similar dips: 15 of 16 hit +10% within 60 days · median 9d.**" This is the magic chip: the last 16 times *this exact stock* fell like this, it bounced back 10% fifteen times, usually in about 9 days. That's this stock's own report card for this exact situation.
+- **Any danger?** — an amber **⚠️ Earnings** chip means the company reports results soon, which can make the stock jump OR crash overnight. Your call whether to accept that.
+
+Not interested? Tap **Dismiss**. Secret: the app remembers your dismissals and later grades whether they were smart (see Scoreboard below).
+
+### When a card interests you: the Dossier
+
+Tap **Open dossier** and do your homework on that one stock:
+
+1. **The chart** — the last year, with a green dashed line (where you'd sell happy) and a red dashed line (where you'd sell sad).
+2. **The Similar Dips table** — every past dip like this one: which recovered, which didn't, and how far each kept falling *first* (the "Worst dip" column — you'd have to sit through that part without panicking).
+3. **Write your thesis** in the box — one or two sentences: *"Why did this fall, and why do I think it comes back?"* This is the most important habit in the whole system. **If you can't write the sentence, don't buy the stock.**
+4. **Set your three exits BEFORE buying**: sell-happy price (+10%), sell-sad price (−7%), and the deadline (60 days — if it hasn't worked by then, the idea expired; get out even at break-even).
+
+### If you actually buy it
+
+Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real price you paid and how many shares. The **Trades page** then babysits the position: it shows your profit/loss every time you look, and pops a colored banner when it's decision time — 🎯 "Target reached", 🛑 "Stop breached", ⏰ "Time's up". When you sell, tap **Close trade** and answer one honest question: *was your thesis right, wrong, or mixed?*
+
+### The two "teacher" pages
+
+- **🏁 Scoreboard** — automatically grades every past scan after 30 and 60 trading days: did the candidates actually go up? Did the ones you *dismissed* do worse than the ones you kept? If your dismissals keep outperforming your keeps, the Scoreboard will tell you — gently. This is the tool teaching **you** over time.
+- **🧪 Backtest Lab** — the time machine: "What if I'd run this every Friday since January and bought every single beep?" It shows the honest answer — and the first real run was humbling: the no-judgment robot *lost to just holding SPY*. That's the point. The robot is the floor. **Your judgment is supposed to be the difference**, and the Scoreboard measures whether it is.
+
+### The three golden rules
+
+1. **The tool beeps; you dig.** It never says "buy" — it says "here's the evidence."
+2. **Exits get decided before you buy, never after.** Greed and fear are terrible at math.
+3. **Feed it Fridays.** Every scan you run and every trade you close makes the Scoreboard smarter about *you*. The system gets more valuable the longer you use it.
+
+---
+
 ## screen:analyzer
 
 ### Quick Help
+- 📚 **New here?** [Open the Training guide](#help/analyzer-training) — the whole system explained step by step
 - The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
 - It assembles evidence — price drops, quality checks, historical odds, catalysts — but **never tells you what to buy or sell**; every decision is yours
 - Five sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), **Trades** (positions you took, tracked against your exits), **Scoreboard** (past scans graded against what actually happened), and **Universe** (manage which tickers are watched)
@@ -2236,6 +2293,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-universe
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Universe** is the list of tickers the analyzer watches — the **S&P 500**, tickers from **your investment holdings**, and your **watchlist**, minus anything you exclude
 - The stat cards show the effective **Watched** count and the size of each source
 - **Watchlist**: type a ticker and tap **+ Add** to watch something beyond the S&P 500 and your holdings; tap ✕ on a chip to remove it
@@ -2257,6 +2315,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-backtest
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Backtest Lab** answers "would the detectors have worked?" — it re-runs them every **Friday** of your chosen period against real price history and grades every signal
 - Set the period, your **exit rules** (target % / stop % / time stop), and detector thresholds, then tap **▶ Run backtest**
 - Each signal is entered at the **next trading day's open** and graded: 🎯 target hit · 🛑 stopped out · ⏰ expired at the time stop · pending (window not finished yet)
@@ -2281,6 +2340,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-scan
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Scan** page is the "Friday morning" view — tap **▶ Run scan** to hunt the whole universe for active setups (takes a couple of seconds; uses cached price data)
 - The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
@@ -2306,6 +2366,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-dossier
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **dossier** is the deep-dive behind a scan candidate — everything you need to make the call on one stock
 - The **chart** shows the last 12 months with your **target** (green dashed) and **stop** (red dashed) lines, plus a triangle on the peak the stock fell from
 - The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
@@ -2330,6 +2391,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-trades
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - **Trades** tracks positions you actually took — each open position shows live P&L against the latest cached prices, plus your 🎯 target price, 🛑 stop price, and ⏰ time-stop progress ("day X of N")
 - A colored banner appears when action is due: **Target reached** (green), **Stop breached** (red), or **Time stop expired** (amber)
 - Tap **Close trade** when you sell — the close price and reason are pre-suggested; record whether your **thesis was right, wrong, or mixed**
@@ -2352,6 +2414,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ## screen:analyzer-scoreboard
 
 ### Quick Help
+- 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Scoreboard** grades every saved scan against what actually happened — each candidate's return at **30 and 60 trading days**, whether it hit +10%, and what SPY did over the same dates
 - Scans younger than 60 trading days show **pending** — grades fill in automatically as time passes (keep price data updated)
 - **Kept vs Dismissed** is the point: it measures whether the candidates you dismissed really were worse than the ones you kept — the verdict line tells you if your judgment is adding value
