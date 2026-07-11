@@ -19994,6 +19994,20 @@ a.legacy-fin-card:hover {
 .ad-quality-k { color: #666; }
 .ad-quality-v { color: #222; font-weight: 500; }
 
+/* Candidate dossier — recent news + AI read (Stage 2.5) */
+.ad-news-list { margin: 0; padding-left: 18px; }
+.ad-news-list li { margin-bottom: 6px; font-size: 0.88rem; line-height: 1.4; }
+.ad-ai-box {
+    border: 1px solid #c9d4e3;
+    background: #f6f9fc;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+.ad-ai-disclaimer { margin: 10px 0 0; font-size: 0.76rem; color: #888; font-style: italic; }
+
 /* Candidate dossier */
 .ad-chart-wrap {
     max-width: 680px;

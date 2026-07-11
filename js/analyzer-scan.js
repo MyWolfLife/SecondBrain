@@ -691,6 +691,10 @@ function _adRender(page, rec, ev, params) {
         }
     }
 
+    // Recent news + optional AI read (Stage 2.5) — filled async by _adRenderNews
+    html += '<h3 class="ana-section-title">📰 Recent news</h3>' +
+        '<div id="adNews"><p class="muted-text">Loading news…</p></div>';
+
     // Thesis + exits
     var canSave = !!(ctx.scan && ctx.candidate);
     html += '<h3 class="ana-section-title">Your thesis</h3>' +
@@ -728,6 +732,7 @@ function _adRender(page, rec, ev, params) {
     _adUpdateExitPrices();
     _adDrawChart(rec, ev);
     _adRenderQuality();
+    _adRenderNews(rec, ev);
 }
 
 // Fill the dossier's Quality section (Stage 2.2). Uses the point-in-time
@@ -796,6 +801,125 @@ async function _adRenderQuality() {
         }
     }
     host.innerHTML = html || '<p class="muted-text">Quality data unavailable.</p>';
+    _adCtx._quality = quality;   // stash for the AI read prompt
+}
+
+// ── Recent news + AI read (Stage 2.5) ────────────────────────────────────────
+
+// System prompts — kept verbatim as constants. The tool NEVER gives buy/sell/
+// hold advice; the AI only classifies the move as emotional vs structural
+// (dips) or premise-supported vs contradicted (non-dip setups).
+var AD_AI_SYSTEM_DIP = "You are an analyst's assistant inside a personal stock-research tool. You NEVER give buy/sell/hold recommendations or price predictions. Your only job: assess whether a stock's recent decline looks EMOTIONAL (sentiment-driven, fundamentals intact) or STRUCTURAL (fundamentals actually impaired), based strictly on the provided headlines and metrics. Output format: line 1 = 'Read: EMOTIONAL', 'Read: STRUCTURAL', or 'Read: MIXED/UNCLEAR'; then 2–4 short bullets citing specific provided evidence; then one line starting 'Watch for:' with what would change the read. Under 150 words. If the headlines don't explain the move, say so plainly.";
+var AD_AI_SYSTEM_GENERIC = "You are an analyst's assistant inside a personal stock-research tool. You NEVER give buy/sell/hold recommendations or price predictions. Your only job: assess whether the setup's premise is supported or contradicted by the provided headlines and metrics. Output format: line 1 = 'Read: SUPPORTED', 'Read: CONTRADICTED', or 'Read: MIXED/UNCLEAR'; then 2–4 short bullets citing specific provided evidence; then one line starting 'Watch for:' with what would change the read. Under 150 words. If the headlines don't explain the setup, say so plainly.";
+
+// One-line description of the setup for the AI prompt, per detector.
+function _adAiDescription(ev) {
+    var ctx = _adCtx;
+    if (ctx.detector === 'dipA' && ev.dip)
+        return 'down ' + ev.dip.dropPct.toFixed(1) + '% in ' + ev.dip.daysSincePeak + ' days from its ' + ev.dip.peakDate + ' peak';
+    if (ctx.detector === 'driftB' && ev.drift)
+        return 'up after beating earnings estimates by ' + ev.drift.epsSurprisePct.toFixed(1) + '% on ' + ev.drift.reportDate + ' (day ' + ev.drift.daysSinceReaction + ' of the post-earnings drift)';
+    if (ctx.detector === 'springD' && ev.spring)
+        return 'trading ' + ev.spring.pctFromHigh.toFixed(1) + '% below its 52-week high with volatility compressed to the bottom of its own range';
+    return 'showing the ' + ctx.detector + ' setup';
+}
+
+// Fetch + render the news list; add the AI-read button only when an LLM is
+// configured. News is ephemeral — never persisted to Firestore.
+async function _adRenderNews(rec, ev) {
+    var host = document.getElementById('adNews');
+    if (!host || !_adCtx) return;
+    _adCtx._ev = ev;   // stash for the AI read
+
+    var items = [];
+    try {
+        var from = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+        var to   = new Date().toISOString().slice(0, 10);
+        items = await anaFinnhubNews(_adCtx.ticker, from, to);
+    } catch (e) { items = null; }
+    _adCtx._newsItems = items || [];
+
+    host = document.getElementById('adNews');
+    if (!host) return;
+
+    var html = '';
+    if (!items) {
+        html += '<p class="muted-text">News unavailable.</p>';
+    } else if (items.length === 0) {
+        html += '<p class="muted-text">No headlines in the last two weeks.</p>';
+    } else {
+        html += '<ul class="ad-news-list">';
+        items.slice(0, 10).forEach(function(it) {
+            var head = escapeHtml(it.headline);
+            var link = it.url ? '<a href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">' + head + '</a>' : head;
+            html += '<li><span class="ab-dim">' + escapeHtml(it.date || '') +
+                    (it.source ? ' · ' + escapeHtml(it.source) : '') + '</span> ' + link + '</li>';
+        });
+        html += '</ul>';
+    }
+
+    // AI read button — only when an LLM is configured (same doc help.js checks)
+    var llmOk = false;
+    try {
+        var doc = await userCol('settings').doc('llm').get();
+        llmOk = doc.exists && !!doc.data().apiKey;
+    } catch (e) { llmOk = false; }
+
+    host = document.getElementById('adNews');
+    if (!host) return;
+    if (llmOk) {
+        html += '<div class="ab-form-row" style="margin-top:10px">' +
+            '<button class="ana-sp-btn" id="adAiReadBtn" onclick="_adAiRead()">🤖 AI read: emotional vs structural</button>' +
+            '</div><div id="adAiReadOut"></div>';
+    }
+    host.innerHTML = html;
+}
+
+// Build the prompt from ON-SCREEN evidence only and call the shared LLM helper.
+async function _adAiRead() {
+    var btn = document.getElementById('adAiReadBtn');
+    var out = document.getElementById('adAiReadOut');
+    if (!out || !_adCtx) return;
+    var ctx = _adCtx, ev = ctx._ev || {};
+
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Thinking…'; }
+    out.innerHTML = '<p class="muted-text">Reading the evidence…</p>';
+
+    try {
+        var cfgDoc = await userCol('settings').doc('llm').get();
+        var cfg = cfgDoc.exists ? cfgDoc.data() : null;
+        if (!cfg || !cfg.provider || !cfg.apiKey) throw new Error('No LLM configured');
+        var llm = LLM_PROVIDERS[cfg.provider];
+        if (!llm) throw new Error('Unknown LLM provider');
+
+        var q = ctx._quality || (ctx.candidate && ctx.candidate.quality) || {};
+        var metrics = [];
+        if (q.netMarginPct != null)     metrics.push(q.netMarginPct.toFixed(1) + '% net margin');
+        if (q.debtToEquity != null)     metrics.push('debt/equity ' + q.debtToEquity.toFixed(2));
+        if (q.dividendYieldPct != null && q.dividendYieldPct > 0) metrics.push('dividend ' + q.dividendYieldPct.toFixed(1) + '%');
+        if (ev.rsi != null)             metrics.push('RSI ' + ev.rsi.toFixed(0));
+
+        var headlines = (ctx._newsItems || []).slice(0, 10).map(function(it) {
+            return it.date + ' — ' + (it.source || '?') + ' — ' + it.headline;
+        }).join('\n');
+
+        var name = _asName(ctx.ticker) || ctx.ticker;
+        var user = ctx.ticker + ' (' + name + ') — ' + _adAiDescription(ev) + '. ' +
+            'Key metrics: ' + (metrics.length ? metrics.join(', ') : 'not available') + '. ' +
+            'Recent headlines (newest first):\n' + (headlines || '(none provided)');
+
+        var system = (ctx.detector === 'dipA') ? AD_AI_SYSTEM_DIP : AD_AI_SYSTEM_GENERIC;
+        var content = system + '\n\n' + user;   // helper sends a single user message
+        var model = cfg.model || llm.model;
+        var resp = await chatCallOpenAICompat(llm, cfg.apiKey, content, model);
+
+        out.innerHTML = '<div class="ad-ai-box">' + escapeHtml(resp).replace(/\n/g, '<br>') +
+            '<p class="ad-ai-disclaimer">AI draft — not financial advice. The tool assembles evidence; the decision is yours.</p></div>';
+    } catch (e) {
+        out.innerHTML = '<p class="as-chip as-chip-warn" style="display:inline-block">AI read failed: ' + escapeHtml(e.message) + '</p>';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 AI read: emotional vs structural'; }
+    }
 }
 
 function _adUpdateExitPrices() {

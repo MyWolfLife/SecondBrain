@@ -2286,7 +2286,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: All 9 stages of Phase 1 are live — navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets, and the Scoreboard. Future phases add news/fundamentals enrichment (Finnhub) and analyst-estimate data + market-wide screening (paid FMP). See `StockAnalyzerPlan.md` for the full design.
+**Build status**: Phase 1 (all 9 stages) and Phase 2 (all 5 stages) are live. Phase 1 built the core — navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets, and the Scoreboard. Phase 2 added the Finnhub enrichment — quality + insider chips with a falling-knife flag on dips, a third detector (post-earnings drift), whole-market earnings chips with a ±typical-move risk gauge, and a dossier news feed with an optional AI emotional-vs-structural read. The future Phase 3 adds analyst-estimate divergence and market-wide screening (paid FMP). See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2396,6 +2396,10 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 **Springs**: Compressed-spring candidates show the chart with a 52-week-high line instead of the dips table — their story is about a coiled price near highs, not recovery history.
 
 **Post-earnings drift**: Drift candidates show a **📊 Report** line (the earnings beat, day-one move, and which day of the drift window it's on) and mark the earnings-reaction day on the chart with a green diamond — there's no dips table, because the setup is about momentum after good news, not recovery from a selloff.
+
+**📰 Recent news**: The last two weeks of headlines for the stock, newest first, each linking out to the source. This is the raw material for the single most important question behind a dip trade: is the drop *emotional* or *structural*?
+
+**🤖 AI read** (only shows if you've set up an LLM in Settings): One tap sends the on-screen evidence — the headlines plus the quality metrics — to your AI and gets back a quick classification. For a dip it answers **EMOTIONAL vs STRUCTURAL** (is this a sentiment-driven wobble on an intact business, or real damage?); for a spring or drift setup it answers whether the headlines **support or contradict** the setup's premise. It's the same judgment call you made on Target in 2023 — a solid company knocked down by mood, not by broken fundamentals — just with a research assistant drafting a first opinion. **It never tells you to buy, sell, or hold, and never predicts a price** — that guardrail is built into the prompt. The AI text is a *draft aid*; your own thesis box stays the real decision, and every answer carries the reminder that the decision is yours.
 
 **Exit discipline**: Decide the exits *before* you buy. The time stop matters as much as the price stops — if the thesis hasn't played out by then, it expired; exit even at breakeven.
 
