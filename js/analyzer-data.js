@@ -340,3 +340,158 @@ async function _anaCacheStats() {
         totalCandles: meta.reduce(function(s, m) { return s + m.candles; }, 0)
     };
 }
+
+// ---------------------------------------------------------------------------
+// Finnhub fetchers (Phase 2)
+// ---------------------------------------------------------------------------
+// Fundamentals / insider / earnings / news enrichment from Finnhub's free tier.
+// - Base: https://finnhub.io/api/v1/  with &token=KEY (key from Settings,
+//   read via _investGetFinnhubKey() in investments.js — per-user, never hardcoded).
+// - CORS allows direct browser calls; NO proxy chain needed (unlike Yahoo).
+// - Free-tier limit is 60 calls/minute, so EVERY Finnhub request in the app
+//   flows through the single choke-point _anaFinnhubGet, which enforces
+//   1,100ms spacing and one 5-second retry on HTTP 429.
+// - Symbols: Finnhub uses dots for share classes (BRK.B) — same as our
+//   canonical tickers. Do NOT apply the Yahoo dot→dash translation here.
+// ---------------------------------------------------------------------------
+
+var _anaFinnhubLastCall = 0;   // ms timestamp of the last Finnhub request
+
+// The one choke-point for ALL Finnhub calls: key lookup, rate-limit spacing,
+// timeout, and 429 retry all live here so callers stay simple.
+async function _anaFinnhubGet(path, params) {
+    var key = await _investGetFinnhubKey();
+    if (!key) throw new Error('No Finnhub API key — add it in Settings');
+
+    // Enforce >=1100ms between requests (free tier: 60 calls/min)
+    var wait = 1100 - (Date.now() - _anaFinnhubLastCall);
+    if (wait > 0) await new Promise(function(r) { setTimeout(r, wait); });
+
+    var qs = Object.keys(params || {}).map(function(k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    var url = 'https://finnhub.io/api/v1/' + path + '?' + (qs ? qs + '&' : '') +
+              'token=' + encodeURIComponent(key);
+
+    var resp = await _anaFetchWithTimeout(url, 10000);
+    _anaFinnhubLastCall = Date.now();
+
+    // Rate limited: wait 5s and retry once, then give up
+    if (resp.status === 429) {
+        await new Promise(function(r) { setTimeout(r, 5000); });
+        resp = await _anaFetchWithTimeout(url, 10000);
+        _anaFinnhubLastCall = Date.now();
+        if (resp.status === 429) throw new Error('Finnhub rate limit');
+    }
+    if (!resp.ok) throw new Error('Finnhub HTTP ' + resp.status);
+    return resp.json();
+}
+
+// First non-null/undefined value among candidate key spellings, else null.
+// Finnhub metric key names vary by listing, so callers pass a preference list.
+function _anaPick(obj, keys) {
+    for (var i = 0; i < keys.length; i++) {
+        var v = obj[keys[i]];
+        if (v !== null && v !== undefined) return v;
+    }
+    return null;
+}
+
+// Basic financials → normalized quality metrics for candidate chips + dossier.
+// `raw` keeps the full metric map for the dossier's detail view.
+async function anaFinnhubMetrics(ticker) {
+    var data = await _anaFinnhubGet('stock/metric', { symbol: ticker, metric: 'all' });
+    var m = (data && data.metric) || {};
+    var netMargin = _anaPick(m, ['netProfitMarginTTM', 'netMarginTTM', 'netProfitMarginAnnual']);
+    return {
+        profitable:       (netMargin === null) ? null : (netMargin > 0),
+        netMarginPct:     netMargin,
+        debtToEquity:     _anaPick(m, ['totalDebt/totalEquityQuarterly', 'totalDebt/totalEquityAnnual',
+                                       'totalDebtToEquityQuarterly', 'totalDebtToEquityAnnual']),
+        currentRatio:     _anaPick(m, ['currentRatioQuarterly', 'currentRatioAnnual']),
+        dividendYieldPct: _anaPick(m, ['dividendYieldIndicatedAnnual', 'currentDividendYieldTTM',
+                                       'dividendYieldTTM']),
+        roePct:           _anaPick(m, ['roeTTM', 'roeRfy', 'roeAnnual']),
+        raw:              m
+    };
+}
+
+// Insider transactions since fromDate → buy/sell tallies + the open-market
+// purchases list (transactionCode 'P' — the strongest "insiders buying" signal).
+async function anaFinnhubInsiders(ticker, fromDate) {
+    var data = await _anaFinnhubGet('stock/insider-transactions', {
+        symbol: ticker, from: fromDate, to: _anaTodayStr()
+    });
+    var rows = (data && data.data) || [];
+    var out = { buys: 0, sells: 0, buyShares: 0, netShares: 0, purchases: [] };
+    rows.forEach(function(r) {
+        var change = r.change || 0;
+        if (change > 0) { out.buys++;  out.buyShares += change; }
+        if (change < 0) { out.sells++; }
+        out.netShares += change;
+        if (r.transactionCode === 'P') {
+            out.purchases.push({
+                date:   r.transactionDate || r.filingDate || '',
+                name:   r.name || '',
+                shares: change,
+                price:  r.transactionPrice || null
+            });
+        }
+    });
+    // Newest first, keep the top 5 for display
+    out.purchases.sort(function(a, b) { return a.date < b.date ? 1 : -1; });
+    out.purchases = out.purchases.slice(0, 5);
+    return out;
+}
+
+// Earnings calendar for a date range → map { SYMBOL: {date, hour, epsEstimate,
+// epsActual, revenueEstimate, revenueActual} } keeping the EARLIEST date per
+// symbol. ONE call covers ALL symbols in the range (Finnhub's big advantage
+// over FMP's ~72-symbol free calendar). Symbols keyed exactly as returned.
+async function anaFinnhubEarningsCalendar(fromDate, toDate) {
+    var data = await _anaFinnhubGet('calendar/earnings', { from: fromDate, to: toDate });
+    var rows = (data && data.earningsCalendar) || [];
+    var map = {};
+    rows.forEach(function(r) {
+        if (!r.symbol || !r.date) return;
+        if (map[r.symbol] && map[r.symbol].date <= r.date) return; // keep earliest
+        map[r.symbol] = {
+            date:            r.date,
+            hour:            r.hour || '',
+            epsEstimate:     (r.epsEstimate     !== undefined) ? r.epsEstimate     : null,
+            epsActual:       (r.epsActual       !== undefined) ? r.epsActual       : null,
+            revenueEstimate: (r.revenueEstimate !== undefined) ? r.revenueEstimate : null,
+            revenueActual:   (r.revenueActual   !== undefined) ? r.revenueActual   : null
+        };
+    });
+    return map;
+}
+
+// Past earnings surprises (actual vs estimate) — free tier returns ~4 quarters,
+// newest first. Returns [] when the API has nothing for the symbol.
+async function anaFinnhubSurprises(ticker) {
+    var data = await _anaFinnhubGet('stock/earnings', { symbol: ticker });
+    return Array.isArray(data) ? data : [];
+}
+
+// Company news for a date range → newest-first, capped at 15 items.
+// `datetime` arrives as unix seconds; converted to 'YYYY-MM-DD' for display.
+async function anaFinnhubNews(ticker, fromDate, toDate) {
+    var data = await _anaFinnhubGet('company-news', {
+        symbol: ticker, from: fromDate, to: toDate
+    });
+    var rows = Array.isArray(data) ? data : [];
+    var items = [];
+    rows.forEach(function(r) {
+        if (!r.headline) return;
+        items.push({
+            date:     r.datetime ? new Date(r.datetime * 1000).toISOString().slice(0, 10) : '',
+            headline: r.headline,
+            source:   r.source  || '',
+            summary:  r.summary || '',
+            url:      r.url     || ''
+        });
+    });
+    items.sort(function(a, b) { return a.date < b.date ? 1 : -1; });
+    return items.slice(0, 15);
+}
