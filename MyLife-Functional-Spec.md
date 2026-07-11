@@ -2042,7 +2042,7 @@ A per-budget list of non-monthly expenses (annual, quarterly, etc.). Each item h
 
 Short-term trade candidate finder under Life → Financial. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision. Plan document: `StockAnalyzerPlan.md` (full design, methodology, and staged implementation plan).
 
-**Build status**: Stages 1–8 of 9 complete (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier, trade tickets). Remaining: tracking loop (Stage 9).
+**Build status**: ✅ **Phase 1 COMPLETE — all 9 stages built** (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier, trade tickets, scoreboard/tracking loop). Phase 2 (Finnhub: quality gates, insider signal, Detector B, catalyst map) and Phase 3 (FMP paid: estimate divergence, Detector C, screener) are future efforts — see `StockAnalyzerPlan.md`.
 
 ### Navigation & Routes
 Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), between Stock Rollup and Snapshots.
@@ -2055,6 +2055,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
 | `#analyzer/dossier/{scanId}/{ticker}/{detector}` | Candidate dossier — chart, dip history, thesis, exit plan | ✅ Built (Stage 7) |
 | `#analyzer/trades` | Trades — open positions tracked against exits + closed-trade record | ✅ Built (Stage 8) |
+| `#analyzer/scoreboard` | Scoreboard — past scans auto-graded at 30/60 trading days vs SPY, kept vs dismissed | ✅ Built (Stage 9) |
 
 **Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
 
@@ -2136,6 +2137,17 @@ A trade ticket turns a dossier into a tracked position. Created from the dossier
 - **Firestore**: `analyzerTrades` — `{createdAt, ticker, detector, scanId, scanDate, thesis, entryDate, entryPrice, shares?, exits{}, targetPrice, stopPrice, status, closeDate, closePrice, closeReason, retPct, spyRetPct, thesisVerdict, closeNotes}`. In Settings backup.
 - **Hub**: 🎫 Trades card added to the Analyzer hub.
 - **Verified**: FLEX ticket created from dossier (target $149.38 = entry × 1.10 exact); duplicate rejected; aged EA position showed +13.6%, "target reached" banner, day 47 of 60; close flow auto-suggested reason "target", stored ret +13.64% and SPY +4.76% — both matched independent recomputation; summary + persistence across reload confirmed.
+
+### Scoreboard / tracking loop (`#analyzer/scoreboard`, `js/analyzer-scoreboard.js`)
+The "learning journal with receipts": every saved scan's candidates graded against what actually happened afterward. **Grades are computed on page load from the price cache — never stored** — so they refresh automatically as windows complete, and stay consistent with the Backtest Lab's entry rule (next trading day's open after the scan date).
+
+- **Per candidate**: return at **+30 and +60 trading days** (close vs entry open), target-hit within 60d (day's HIGH ≥ entry × (1 + gainPct), the backtest fill rule), SPY benchmark over the identical span. `pending` until 60 trading days of data exist — shown as "pending — day X of 60" per scan.
+- **Judgment segmentation**: kept vs **dismissed** candidates aggregated separately, with a verdict line — "✅ What you kept outperformed what you dismissed by N points" (or the ⚠️ inverse). This is the measurement of whether the user's dismissal judgment beats the raw detectors.
+- **Overall stat cards**: graded count, +10% hit rate, kept avg 60d, dismissed avg 60d, SPY avg 60d.
+- **Real-trades recap**: closed-trade summary from `analyzerTrades` (count, profitable, avg vs SPY, thesis-right tally) with a link to the Trades page.
+- **Honest-limits footer**: grades assume a no-judgment robot entering every candidate at the next open.
+- **No new Firestore collections** — reads `analyzerScans` + `analyzerTrades` (both already backed up).
+- **Verified**: synthetic 2026-04-01 scan graded exactly against hand-computed candles (FLEX kept: entry $65.86 → +109.3%/+146.1%, hit; EA dismissed: −1.2%/+1.0%, miss; SPY +13.9%); judgment line rendered; today's scan correctly all-pending ("day 0 of 60"); grades recompute cleanly after reload.
 
 ---
 

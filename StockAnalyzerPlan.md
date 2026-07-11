@@ -1,9 +1,15 @@
 # Stock Analyzer — Plan
 
-**Status: BUILDING — Stages 1–8 complete (scaffolding, universe, price data, engine, Backtest Lab, live scan, dossier, trade tickets); Stage 9 (tracking loop) completes Phase 1.**
+**Status: ✅ PHASE 1 COMPLETE (all 9 stages, 2026-07-10). Future: Phase 2 (Finnhub enrichment) and Phase 3 (FMP paid — runbook below).**
 
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
+
+- **2026-07-10 — Stage 9 COMPLETE. 🏆 PHASE 1 COMPLETE — all 9 stages built and verified.** `js/analyzer-scoreboard.js`:
+  - Grading verified exactly against hand-computed candles (synthetic 2026-04-01 scan): FLEX kept → entry $65.86 next-day open, **+109.3% @30d / +146.1% @60d, hit** (FLEX genuinely ran $66→$160+ this spring — why it's now a dip candidate); EA dismissed → −1.2%/+1.0%, miss; SPY +13.9%. Judgment verdict line rendered ("kept outperformed dismissed by 145.1 points"). Today's real scan correctly all-pending ("day 0 of 60"). Synthetic scan deleted after verification.
+  - Grades computed on load, never stored — refresh as windows complete; entry/fill rules identical to Backtest Lab. Kept-vs-dismissed segmentation = the judgment score. Closed-trades recap card links to Trades.
+  - Test sandbox state for future sessions: 1 open FLEX trade + 1 closed EA trade; 1 real scan (2026-07-10, 20 candidates, FLEX dismissed during Stage 6 testing); price cache in current browser profile has only SPY/^VIX/FLEX/EA (full 507 was in an older profile).
+  - **Phase 2 next (future)**: Finnhub — quality gates, insider signal, Detector B, catalyst map (needs user's Finnhub key in test account). **Phase 3 (future)**: FMP Starter — estimate divergence, Detector C, screener, fast batch price updates (runbook in this doc; free-tier key already validated).
 
 - **2026-07-10 — Stage 8 COMPLETE.** `js/analyzer-trades.js` — trade tickets + live tracking built + verified:
   - Full loop verified: FLEX ticket created from the dossier (entry pre-filled $135.80, 40 shares, target $149.38 = ×1.10 exact, thesis carried over) → duplicate FLEX ticket correctly rejected → aged EA position (seeded entry 2026-05-01) showed **+13.6% P&L, "🎯 Target reached" banner, day 47 of 60** → close flow auto-suggested reason "target", stored **ret +13.64% / SPY +4.76%, both matching independent recomputation** → closed summary line ("1 of 1 profitable · thesis right 1 of 1") → all persisted across reload. Console clean, no overflow.
@@ -391,7 +397,7 @@ Within Phase 1, **Backtest Lab is built BEFORE the live scan screen**. Rationale
 - Entry/thesis/exits recorded; open positions tracked against target/stop/time-stop; close-out flow with outcome vs. thesis
 - ✅ Done when: a ticket created from a dossier tracks correctly against daily prices
 
-**Stage 9 — Tracking loop / scoreboard**
+**Stage 9 — Tracking loop / scoreboard** ✅ COMPLETE (2026-07-10)
 - 30/60-day auto-grading of past scan snapshots vs SPY; closed-trade history; the "learning journal with receipts"
 - ✅ Done when: a past snapshot grades correctly once its window completes
 - **Phase 1 complete.** Phase 2 (Finnhub: quality gates, insider signal, Detector B, catalyst map) and Phase 3 (FMP: divergence, Detector C, screener) follow as separate efforts.

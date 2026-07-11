@@ -71,6 +71,14 @@ function loadAnalyzerPage() {
                 '</div>' +
                 '<span class="invest-hub-arrow">›</span>' +
             '</a>' +
+            '<a class="invest-hub-card" href="#analyzer/scoreboard">' +
+                '<span class="invest-hub-icon">🏁</span>' +
+                '<div class="invest-hub-text">' +
+                    '<div class="invest-hub-title">Scoreboard</div>' +
+                    '<div class="invest-hub-desc">Past scans graded against what actually happened — and how your judgment did</div>' +
+                '</div>' +
+                '<span class="invest-hub-arrow">›</span>' +
+            '</a>' +
             '<a class="invest-hub-card" href="#analyzer/universe">' +
                 '<span class="invest-hub-icon">🌐</span>' +
                 '<div class="invest-hub-text">' +

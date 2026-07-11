@@ -2217,7 +2217,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 ### Quick Help
 - The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
 - It assembles evidence — price drops, quality checks, historical odds, catalysts — but **never tells you what to buy or sell**; every decision is yours
-- Three sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), and **Universe** (manage which tickers are watched)
+- Five sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), **Trades** (positions you took, tracked against your exits), **Scoreboard** (past scans graded against what actually happened), and **Universe** (manage which tickers are watched)
 - **📊 Price data** (bottom of the hub): shows what's cached on this device and the **Update price data** button — tap it to fetch/refresh 5 years of daily history for every watched ticker
 - The first full update takes several minutes and must stay in an open tab — a progress bar shows `n / total` with a Cancel button; tickers already updated today are skipped, so re-runs are fast
 - Price history is stored **on this device** (not in the cloud) — a new phone or computer does its own first fetch
@@ -2229,7 +2229,7 @@ Results are shown in a popup after the update completes. If any tickers failed a
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
-**Build status**: Stages 1–8 (navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets) are live. Only the tracking loop (Stage 9) remains. See `StockAnalyzerPlan.md` for the full design.
+**Build status**: All 9 stages of Phase 1 are live — navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets, and the Scoreboard. Future phases add news/fundamentals enrichment (Finnhub) and analyst-estimate data + market-wide screening (paid FMP). See `StockAnalyzerPlan.md` for the full design.
 
 ---
 
@@ -2346,6 +2346,25 @@ Results are shown in a popup after the update completes. If any tickers failed a
 **The SPY column**: Every closed trade shows what SPY did over the same dates. A +8% trade while SPY did +9% wasn't really a win — this column keeps you honest.
 
 **Time stop**: Counted in trading days (market days, not calendar days), matched to how the Backtest Lab counts.
+
+---
+
+## screen:analyzer-scoreboard
+
+### Quick Help
+- The **Scoreboard** grades every saved scan against what actually happened — each candidate's return at **30 and 60 trading days**, whether it hit +10%, and what SPY did over the same dates
+- Scans younger than 60 trading days show **pending** — grades fill in automatically as time passes (keep price data updated)
+- **Kept vs Dismissed** is the point: it measures whether the candidates you dismissed really were worse than the ones you kept — the verdict line tells you if your judgment is adding value
+- The **Your real trades** card summarizes your closed positions (win rate, avg return vs SPY, thesis-right tally) with a link to the Trades page
+- Nothing here is stored or editable — it's a fresh, honest recomputation every time you open the page
+
+### Details
+
+**How grading works**: Same rules as the Backtest Lab — entry at the next trading day's open after the scan, target-hit if the day's high touches +10% within 60 trading days, SPY measured close-to-close over the identical span.
+
+**What it measures vs the Trades page**: The Scoreboard grades a no-judgment robot taking *every* scan candidate — the detectors' floor. The Trades page records what *you* actually did. Comparing the two over time is the whole feedback loop: are the detectors finding real edges, and is your filtering improving on them?
+
+**Why dismissals matter**: Dismissing a candidate is a prediction ("this one won't work"). The Scoreboard checks those predictions. If dismissed candidates keep outperforming kept ones, your dismissal reasons deserve a rethink — that's a finding worth more than any single trade.
 
 ---
 
