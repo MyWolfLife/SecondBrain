@@ -5,6 +5,7 @@
 ## Build Log (session handoff — keep current)
 *Update this section as work proceeds so any session can resume mid-stage. Newest first.*
 
+- **2026-07-11 — PHASE 3 DEVELOPMENT PLAN WRITTEN (handoff-grade).** See "PHASE 3 DEVELOPMENT PLAN": FMP-specific orientation deltas (key/auth, 402 text-body semantics, endpoint tier table to revalidate, Starter limits), six stages — 3.0 post-subscription tier map w/ decision gates, 3.1 FMP price provider (parallel backfill + daily batch-quote fast path + provider-chain fallback), 3.2 estimates layer **incl. the key design solve: FMP has no consensus history, so the app snapshots universe estimates weekly into new collection `analyzerEstimates`, which powers the divergence chip**, 3.3 Detector C (revision momentum off our snapshots; arms itself over weeks; no backtest), 3.4 Discover mode (screener expands the universe to ≤2,000 liquid names; detectors stay local), 3.5 consolidation/guardrails/exit criteria. **No Phase 3 code written — planning only.** Prerequisite for 3.1+: user subscribes to FMP Starter (runbook Phase B).
 - **2026-07-11 — PHASE 2 DEVELOPMENT PLAN WRITTEN (handoff-grade).** See "PHASE 2 DEVELOPMENT PLAN" section: full Orientation for an implementing model with no prior context (file map, function inventory, Finnhub endpoint specs with response shapes, testing protocol, per-commit conventions) + five explicit stages (2.1 data layer → 2.2 quality/insider → 2.3 Detector B → 2.4 catalyst map → 2.5 news/AI read) with function-level specs, verbatim LLM prompts, verification checklists, and exit criteria. **No Phase 2 code written yet — planning only per user instruction.** First implementation step: ask the user for his Finnhub API key (Stage 2.1 prerequisite).
 
 - **2026-07-10 — Stage 9 COMPLETE. 🏆 PHASE 1 COMPLETE — all 9 stages built and verified.** `js/analyzer-scoreboard.js`:
@@ -657,5 +658,163 @@ Version bumps: scan JS, sw +1.
 5. Every stage committed+pushed with spec/AppHelp/bumps per section G, Build Log current, no console errors, old scan docs still render (backward compatibility).
 6. Zero new Firestore collections; zero secrets in the repo; Finnhub calls all flow through the single rate-limited choke-point.
 
+## PHASE 3 DEVELOPMENT PLAN — FMP Paid Integration (handoff-grade)
+*Written 2026-07-11. Same handoff standard as Phase 2: written for an implementing model with ZERO prior context. **Read the Phase 2 plan's "Orientation" section first — everything there (file map, existing functions, testing protocol, per-commit conventions in section G) applies verbatim and is not repeated here.** This section adds only what is FMP-specific. Execute stages in order.*
+
+**Scope assumption (explicit):** Phase 3 = the six stages below ONLY. Strategy-profiles UI and the holdings health check (Goal 2) remain out of scope. Phase 2 does NOT need to be complete first — Phase 3 depends only on Phase 1 — but if Phase 2 shipped, keep its Finnhub paths as fallbacks exactly as noted per stage.
+
+**What Phase 3 buys (the "why" for the implementer):** (1) **Speed** — FMP allows direct browser calls at ~300 req/min on the Starter plan, replacing the free CORS-proxy chain that makes a full price refresh take ~18 minutes; batch quotes make the DAILY refresh a few calls. (2) **Analyst estimates** — unlocks the plan's sharpest metric: *price fell 15% but consensus forward EPS fell only 2% ⇒ the 13-point gap is the emotional component of the dip, quantified* — plus a new detector (estimate-revision momentum, Detector C). (3) **The screener** — expands discovery beyond the fixed ~505-ticker universe to the whole listed market.
+
+---
+
+### Orientation deltas (FMP-specific facts — verified 2026-07-10 unless marked VERIFY)
+
+**A. Key + auth.** Key lives at `userCol('settings').doc('investments').fmpApiKey` (Settings → "Stock Analyzer (FMP)" card, with a working Test button). Auth = `&apikey=KEY` query param. Base URL `https://financialmodelingprep.com/stable/` (current API generation; legacy `/api/v3/` exists as fallback — the Settings Test button demonstrates the dual-path pattern). **CORS: confirmed** — direct browser fetches work, NO proxies, ever. The key is per-user; the TEST ACCOUNT has its own copy (ask the user if it's missing). NEVER hardcode or commit a key.
+
+**B. Error semantics.** Endpoints not in the current plan return **HTTP 402** with a PLAIN-TEXT body ("Restricted Endpoint…" / "Premium Query Parameter…") — `resp.json()` THROWS on these. Always read `resp.text()` first, then try JSON.parse (see `testFmpKey()` in settings.js for the established pattern). Some errors also come as 200 + `{"Error Message": "..."}`.
+
+**C. Endpoint status table (free-tier validation, 2026-07-10 — REVALIDATE in Stage 3.0 after subscribing):**
+| Endpoint | Free | Expected on Starter (VERIFY 3.0) | Response shape notes |
+|---|---|---|---|
+| `historical-price-eod/full?symbol=&from=&to=` | ✅ (popular symbols; 250 calls/day cap) | ✅ all symbols, no daily cap | array[{symbol,date,open,high,low,close,volume,change}] DESCENDING date order — SORT ASCENDING before use |
+| `batch-quote?symbols=A,B,C` | ❌ 402 | expected ✅ | VERIFY shape 3.0; expect array of quote objects w/ open/dayHigh/dayLow/price/volume |
+| `company-screener?…` | ❌ 402 | expected ✅ | params incl. marketCapMoreThan, volumeMoreThan, betaMoreThan, sector, exchange, isActivelyTrading, limit |
+| `analyst-estimates?symbol=&period=annual&limit=` | ✅ | ✅ | array[{symbol,date,revenueAvg/High/Low,ebitdaAvg…,epsAvg,epsHigh,epsLow,numAnalystsRevenue,numAnalystsEps}] — `date` = fiscal period END, entries = fiscal YEARS. CURRENT consensus only — NO history of past consensus values (this is why Stage 3.2 builds our own snapshots) |
+| `analyst-estimates` `period=quarter` | ❌ 402 | possibly still Premium — VERIFY | |
+| `price-target-consensus?symbol=` | ✅ | ✅ | [{symbol,targetHigh,targetLow,targetConsensus,targetMedian}] |
+| `grades?symbol=&limit=` | ✅ | ✅ | array[{symbol,date,gradingCompany,previousGrade,newGrade,action}] — DATED (action ∈ upgrade/downgrade/maintain/init) → usable as revision-activity history |
+| `earnings-calendar?from=&to=` | ✅ but ~72 popular symbols only | expected full coverage — VERIFY count | [{symbol,date,epsActual,epsEstimated,revenueActual,revenueEstimated,lastUpdated}] — FMP symbols use DASHES for classes (BRK-B): normalize with `.replace(/-/g,'.')` (pattern exists in `_asFetchEarningsMap`) |
+| `insider-trading/search?symbol=` | ❌ 402 | VERIFY tier | if Starter: may consolidate Phase 2's Finnhub insider source; if not, keep Finnhub |
+| `ratios?symbol=`, `income-statement?symbol=` | ✅ (popular symbols) | ✅ all symbols | quality-gate alternates to Finnhub metrics |
+
+**D. Plan limits that shape the code (Starter, from FMP pricing — RECONFIRM in 3.0):** ~300 API calls/min (parallelize but throttle), 20GB bandwidth per trailing 30 days (a full 5y backfill of ~505 tickers ≈ 150–400MB — fine; an EXPANDED 1,500-ticker universe backfill ≈ 0.5–1.2GB — fine but don't loop it daily), 5 years of history depth (matches our design), flat rate (a leaked key burns quota, never money — still rotate if leaked).
+
+**E. New module:** create `js/analyzer-fmp.js` for ALL Phase 3 FMP fetchers (script tag before analyzer-data.js users… concretely: add `<script src="js/analyzer-fmp.js?v=1">` immediately BEFORE the `analyzer-data.js` tag in index.html; add to sw.js STATIC_ASSETS; functions are global like every module here). Do NOT put FMP fetchers in analyzer-data.js (it's already large); analyzer-data.js will CALL into this module for the provider chain.
+
+---
+
+### Stage 3.0 — Post-subscription validation & tier map
+
+**Prerequisite (user):** user upgrades the FMP account to Starter in the FMP dashboard (same API key). If the user has NOT subscribed yet, run what works on free and mark the rest BLOCKED — do not guess.
+
+**Goal:** Replace every "VERIFY" in the Orientation-delta table with a confirmed ✅/❌ + response-shape note, editing THIS DOC in place. This stage is documentation + tiny throwaway code only.
+
+**Implementation:** From the preview console (logged into the test account), call each endpoint in the table once via small ad-hoc fetches (~15–25 calls total; use the `resp.text()`-first parsing pattern). For `batch-quote`, additionally establish: max symbols per call (test 10, 100, 250 — record where it errors or truncates) and the exact field names for open/high/low/price/volume/timestamp. For `company-screener`, run `marketCapMoreThan=2000000000&volumeMoreThan=1000000&exchange=NYSE,NASDAQ&isActivelyTrading=true&limit=3000` and record the count + fields returned. For `earnings-calendar`, record the symbol count for a 60-day range (expect thousands on Starter vs ~72 on free).
+
+**Decision gates (STOP and report to the user if hit):** if `batch-quote` OR `company-screener` are still 402 on Starter, the value case changes materially — present the finding and let the user decide (keep Starter / upgrade / cancel) before building Stages 3.1/3.4.
+
+**Docs:** update the table above in place; Build Log entry with raw findings. No spec/AppHelp changes (nothing user-visible). Commit `docs(analyzer): Stage 3.0 — FMP Starter tier map`, notify, push.
+
+---
+
+### Stage 3.1 — FMP as preferred price provider (backfill speed + daily batch top-up)
+
+**Goal:** With an FMP key present, price updates use FMP directly (fast, parallel); without one, the existing Yahoo/proxy path runs untouched. The hub's "Update price data" job gets a fast path: same-day refreshes use batch quotes (seconds); gap-fills and backfills use parallel history calls (~2–4 min for the full universe).
+
+**Implementation spec:**
+1. `js/analyzer-fmp.js`:
+```
+async function anaFmpGetKey()                      // reads fmpApiKey via userCol settings doc, module-cached; '' if unset
+async function _anaFmpGet(pathAndQuery)            // choke-point: appends apikey, _anaFetchWithTimeout(url, 12000),
+                                                   // resp.text()-first parsing, 429 → wait 3000ms retry once, 402 → throw
+                                                   // Error('FMP plan does not include: ' + path)
+async function anaFmpHistory(ticker, fromDate, toDate) // → SAME record-fragment shape as _anaParseYahooChart returns:
+   // {dates[],open[],high[],low[],close[],volume[]} ASCENDING. FMP symbols: convert canonical dots → dashes for the
+   // URL (BRK.B → BRK-B) — mirror of the Yahoo translation, keep cache keys dot-canonical.
+async function anaFmpBatchQuotes(tickers)          // chunks per the 3.0 finding (default 100/call), returns map
+   // {TICKER(dot-canonical): {date:'YYYY-MM-DD' (exchange date from quote timestamp), open, high, low, price, volume}}
+```
+2. `js/analyzer-data.js` — provider chain inside `_anaUpdateTicker`/`_anaFetchYahooHistory` call path: introduce `_anaFetchHistory(ticker, range)` that tries **FMP (if key) → Cloudflare Worker (if configured) → proxy chain**, falling through on ANY error (log which provider served each ticker at debug level). Convert the existing `range` strings ('3mo'/'1y'/'5y') to from/to dates for FMP.
+3. **Parallel backfill:** in `_anaUpdatePrices`, when the FMP key exists, replace the sequential 800ms loop with a worker-pool of **5 concurrent** `_anaUpdateTicker` calls and ~250ms stagger between task starts (≈ 220–280 req/min worst case — under the 300/min limit; on ANY 429 halve the pool to 2 for the rest of the run). Keep the sequential path byte-identical when no key (do not regress the free path — it is verified working).
+4. **Daily fast path:** at the start of `_anaUpdatePrices`, if FMP key exists: `quotes = await anaFmpBatchQuotes(allTickers)`; for each ticker whose cache `lastDate` == yesterday's trading day and quote date == today: merge/replace today's candle directly (reuse `_anaMergeCandles` with a 1-row fragment) and count as updated WITHOUT a history call. Tickers with bigger gaps fall through to the normal per-ticker path. Progress text should show the split ('batch-updated 480 · fetching gaps 25…').
+5. Hub "📊 Price data" note: when a key is present append 'FMP fast path active'.
+Version bumps: analyzer-fmp.js v1 (new + sw precache), analyzer-data.js, analyzer.js if hub text changed, sw +1.
+
+**Verification:** (a) with the test-account key: update 10 stale tickers — confirm FMP served them (network tab / debug log), data ASCENDING, spot-check one ticker's last close equals Yahoo's for the same date (±$0.01). (b) batch path: force by re-running after a full update the next trading day OR simulate by deleting today's candle from 3 cached records, then confirm those 3 update via batch with zero history calls. (c) **fallback: blank the key in the test account, run an update, confirm the proxy path still works, restore key.** (d) full-universe timed run if the cache is populated: record the minutes in the Build Log (expect ~2–4). (e) standard checks (console/overflow/reload).
+
+**Docs:** spec Part 8f data-layer section (provider chain, batch path, concurrency + 429 backoff), AppHelp hub section (price updates much faster with an FMP key; nothing required without one). Build Log. Commit, notify, push.
+
+---
+
+### Stage 3.2 — Estimates layer + our own estimate history (the divergence foundation)
+
+**Goal:** (1) Scan/dossier show analyst evidence per candidate: consensus EPS (current + next FY), price-target consensus vs price, recent grade actions. (2) The app starts recording **weekly estimate snapshots** for the whole universe — because FMP only serves CURRENT consensus, divergence ("estimates moved X% while price moved Y%") requires history we must accumulate ourselves. (3) Once ≥2 snapshots span a dip, dip candidates show the **divergence chip** — the flagship metric.
+
+**Implementation spec:**
+1. **New Firestore collection `analyzerEstimates`** — ONE DOC PER WEEK (not per ticker; stay far from doc-count bloat): `{ id: 'YYYY-WW' or the snapshot date, createdAt, date:'YYYY-MM-DD', count, data: { TICKER: {epsCurrY, epsNextY, numAnalysts, targetConsensus} } }`. ~505 tickers × ~40 bytes ≈ 25KB/doc — safe under the 1MB limit even at 4× universe. **ADD 'analyzerEstimates' to the settings.js backup list AND spec Part 15 data model (per-commit convention G.5).**
+2. `js/analyzer-fmp.js`:
+```
+async function anaFmpEstimates(ticker)      // annual estimates (limit=3) → {epsCurrY, epsNextY, numAnalysts, raw[]}
+                                            // where epsCurrY = the fiscal year whose period-end date is the NEXT one
+                                            // >= today, epsNextY = the following row. Document this selection rule in-code.
+async function anaFmpPriceTarget(ticker)    // → {targetConsensus, targetMedian, targetHigh, targetLow} or null
+async function anaFmpGrades(ticker, sinceDate) // → {upgrades, downgrades, maintains, latest:[{date,company,action,to}] (5)}
+```
+3. **Snapshot job:** `anaFmpSnapshotEstimates(tickers, onProgress)` in analyzer-fmp.js — pool-of-5 loop over the universe calling `anaFmpEstimates` (505 calls ≈ 2 min on Starter), writes the week's doc (overwrite same-week doc on re-run). Trigger: a "📸 Snapshot estimates" button in the hub's Price data section AND automatically at the end of every scan IF the current week has no snapshot yet (fire-and-forget with progress note; failure is non-fatal to the scan). Free-tier guard: if 402/429 storms occur (free key), abort gracefully with a note.
+4. **Divergence computation** (pure function in analyzer-engine.js — snapshots passed in):
+```
+function anaEngDivergence(rec, snapA, snapB, ticker, peakDate, asOfIndex)
+  // snapA = latest snapshot ON/BEFORE peakDate; snapB = latest snapshot overall. Requires both & epsCurrY non-null & same
+  // fiscal-year reference (if snapA.epsCurrY refers to a different FY than snapB's — fiscal rollover — return null).
+  // priceChangePct = close[asOf]/close[peakIdx] − 1; estChangePct = (B.eps − A.eps)/|A.eps|.
+  // → {priceChangePct, estChangePct, divergencePts: (estChangePct − priceChangePct)·100, analysts} or null.
+```
+   Scan integration: for dip candidates, load the two relevant snapshot docs (at most 2 reads per scan — find snapA by querying analyzerEstimates where date <= peakDate ordered desc limit 1), compute, stamp `c.divergence`. Chip (this is the FLAGSHIP — put it FIRST among evidence chips, green-tinted when strongly positive): `Est. −1.8% vs price −15.2% → +13.4 pts emotional` (wording exactly: `Est {est}% vs price {price}% → {pts} pts`). When snapshots don't cover the dip yet: chip `Divergence: needs {n} more weekly snapshots` (dim) — HONESTY REQUIRED, never fake it.
+5. **Scan/dossier estimate chips** (all candidates, not just dips): `Target ${targetConsensus} ({±x}% vs price)`; `▲{upgrades}/▼{downgrades} last 60d` from grades. Dossier gets a fuller "🧮 Analyst view" section (estimates table, target range, latest 5 grade actions). Stamp fetched values onto candidates (point-in-time, like Phase 2 quality data). Enrichment is shortlist-only (~30 tickers × 3 calls with pool-of-5 ≈ 40s; show progress).
+Version bumps: analyzer-fmp.js, analyzer-engine.js, analyzer-scan.js, analyzer.js (hub button), settings.js (backup list), sw +1.
+
+**Verification:** snapshot run completes and the week-doc exists with ~universe-count entries; run twice in one week → same doc overwritten, not duplicated. Estimates chips render on a fresh scan; a ticker with no analyst coverage renders without chips (not broken). Divergence: seed a SECOND synthetic snapshot doc dated before a current candidate's peakDate with hand-set epsCurrY values, re-scan, hand-verify the divergence arithmetic on the chip, then delete the synthetic doc. Old scans still render. Standard checks.
+
+**Docs:** spec (scan/dossier chips, snapshot job, `analyzerEstimates` model + backup), AppHelp scan+dossier (explain divergence in plain words: "analysts barely moved their numbers while the price crashed — that gap is the emotional part of the dip") + hub (snapshot button). Build Log. Commit, notify, push.
+
+---
+
+### Stage 3.3 — Detector C: estimate-revision momentum
+
+**Goal:** Third mechanism live: stocks whose forward estimates are being revised UP over recent weeks while the price hasn't kept pace ("fundamentals moving faster than price"). Runs off OUR snapshot history + grades — no premium endpoints.
+
+**Implementation spec:**
+1. **Engine** (pure; snapshot series passed in): `anaEngRevisionTrigger(rec, snapshots, ticker, opts)` — snapshots = array of {date, eps} for this ticker ascending (caller extracts from the week-docs; require ≥3 spanning ≥ 28 days). Rules: estChangePct over the window ≥ `minEstPct` (default +3%) AND priceChangePct over the same span < estChangePct (price lagging) AND analysts ≥ 3. Returns {estChangePct, priceChangePct, gapPts, weeksCovered, close} or null. Grades corroboration (not required): stamp upgrades/downgrades from 3.2's fetch.
+2. **Scan**: new detector id `revC`, label `📈 Revision momentum` (add to ALL detector label maps — grep `AS_DET_LABELS`, `AB_DET_LABELS`, and the scoreboard's detector name ternary which currently only handles dipA/springD — UPDATE IT to a shared label map; that ternary is in `_asbRender` and `_abRenderScorecard`'s table code paths). Needs the snapshot docs loaded once per scan (N week-docs, N ≤ 12: query last 12). Ranking: gapPts desc, cap 15. Card: badge `est +{e}% vs price +{p}%`, reason sentence, chips incl. divergence-style gap + analyst count + grades.
+3. **Dossier**: revC variant — chart plus an estimates-over-time mini-table (date, epsCurrY per snapshot). No dips table.
+4. **Backtest: NOT SUPPORTED** for revC (no historical consensus before our snapshots began). State this in the Backtest Lab UI (disabled checkbox with title 'needs accumulated estimate history') and in docs. Scoreboard grades revC candidates automatically once scans contain them (verify only).
+5. **Data reality note for the implementer:** until the app has ≥4 weekly snapshots, Detector C will produce ZERO candidates — that is CORRECT behavior, not a bug. Build it, verify with synthetic snapshot docs (seed 4 week-docs with hand-crafted rising eps for one ticker and flat price expectations → trigger must fire; delete after), and tell the user the detector "arms itself" over the coming weeks.
+Version bumps: engine, scan JS, backtest JS (disabled checkbox), sw +1.
+
+**Verification:** synthetic-snapshot trigger test (above) with hand-checked arithmetic; zero-candidates-on-real-data accepted and explained; scoreboard renders a scan containing a synthetic revC candidate; label maps show 'Revision momentum' everywhere (scan, dossier, scoreboard, backtest disabled row). Standard checks.
+
+**Docs:** spec (Detector C, snapshot dependency, backtest limitation), AppHelp scan ('the mirror image of the dip detector: analysts raising numbers faster than the price is rising') + build-status. Build Log. Commit, notify, push.
+
+---
+
+### Stage 3.4 — Screener: market-wide discovery ("Discover" universe expansion)
+
+**Goal:** Break the fixed-universe limit. The FMP screener CANNOT express "down 12% in 15 days" (it filters fundamentals/size/volume only) — so the design is: **screener defines an EXPANDED liquid universe (~1,000–2,000 names); our own cached-price detectors run across it locally**, same as ever. This preserves the architecture (APIs = raw facts, our math = detection).
+
+**Implementation spec:**
+1. Universe page gains a **"Discover mode"** card (off by default): settings stored on `analyzerConfig/universe`: `{discoverEnabled: bool, discoverMinMarketCap (default 2e9), discoverMinVolume (default 1e6)}` + an explanatory note (bigger universe = longer first backfill, ~0.5–1GB bandwidth).
+2. `anaFmpScreener(minCap, minVol)` in analyzer-fmp.js → `company-screener?marketCapMoreThan=&volumeMoreThan=&exchange=NYSE,NASDAQ,AMEX&isActivelyTrading=true&limit=5000` → array of {symbol, companyName, sector, marketCap}; normalize dashes→dots; **cap at 2,000 by descending marketCap** (hard guard against IndexedDB/bandwidth blowups; state the cap in the UI).
+3. `_anaEffectiveUniverse()` in analyzer.js: when discoverEnabled, union the screener list (fetched fresh at most weekly — cache the list+timestamp on the config doc, `discoverList: [...], discoverFetchedAt`) with the base universe, minus exclusions. Everything downstream (price update job, scan, backtest) already iterates the effective universe — verify, don't rewrite.
+4. Price-cache implications: first update after enabling fetches the new names (Stage 3.1's parallel path makes this ~5–8 min for +1,000 tickers). `_anaCacheStats` and the hub note should surface the larger count. IndexedDB size ~2,000 × ~250KB ≈ 500MB — within Chromium origin quotas but CHECK `navigator.storage.estimate()` during verification and record the numbers in the Build Log.
+5. Company names for non-S&P tickers: `_asName()` currently reads only sp500.json — extend to also check the cached discover list (name lookups on scan cards/dossier).
+Version bumps: analyzer-fmp.js, analyzer.js, sw +1.
+
+**Verification:** enable Discover with defaults on the test account → screener returns (record count), effective universe grows accordingly, price update fetches a sample of new tickers, a scan includes non-S&P candidates with proper names, `navigator.storage.estimate()` recorded, disable Discover → universe returns to base and scans still work. Standard checks.
+
+**Docs:** spec (Discover mode, caps, storage), AppHelp universe section (what Discover does, cost in time/storage, the 2,000 cap). Build Log. Commit, notify, push.
+
+---
+
+### Stage 3.5 — Consolidation, guardrails, Phase 3 close-out
+
+**Goal:** Tie off loose ends so the tool runs indefinitely on Starter without babysitting.
+
+**Implementation spec:**
+1. **Earnings coverage**: per the 3.0 tier map, if FMP's earnings-calendar is full-coverage on Starter, make it primary for catalyst chips with Finnhub fallback (or keep Finnhub primary if Phase 2 shipped it and coverage is equal — pick ONE order, document it). If FMP insider-trading unlocked at Starter, add as fallback to Finnhub insiders (do not remove Finnhub).
+2. **Quota guardrails**: module-level counter of FMP calls per session; if a single scan/update would exceed ~250 calls on a FREE key (no subscription), warn and truncate enrichment rather than fail mid-way. On 402 anywhere, the UI message must name the feature and say 'not included in the current FMP plan' (never a raw error).
+3. **Key health surface**: hub Price data section shows which providers are active (FMP ✓ / Worker ✓ / proxies) based on config presence — one line, no calls.
+4. **Docs sweep**: spec Part 8f build-status → 'Phases 1–3 complete'; AppHelp `## screen:analyzer` build-status bullet; AllPlans.md row; this doc's status line + Build Log 'PHASE 3 COMPLETE'; FutureEnhancements.md — confirm nothing Phase-3-related is parked there (nothing was as of 2026-07-11).
+5. **Exit criteria (all true):** daily price refresh ≤ ~60s on Starter with batch quotes; full backfill ≤ ~5 min (base universe); divergence chip live on dip candidates once snapshots cover the dip; weekly estimate snapshots writing automatically; Detector C armed (fires on synthetic data, awaits real history); Discover mode functional with caps; free-key/no-key degradation verified end-to-end (blank both keys → Phase 1 behavior intact); all conventions (spec/AppHelp/bumps/backup/notify-push) satisfied every stage.
+
 ### Remaining plan sections
-*(To be written as each component is formally designed: strategy profiles UI (threshold configuration), holdings check (Goal 2), Phase 3 build details beyond the runbook.)*
+*(To be written as each component is formally designed: strategy profiles UI (threshold configuration), holdings check (Goal 2).)*
