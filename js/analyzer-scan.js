@@ -102,6 +102,10 @@ async function _asRunScan() {
 
         if (prog) prog.innerHTML = '';
         _asRenderScan(_asLatestScan, document.getElementById('asBody'));
+
+        // Record this week's estimate snapshot once (feeds the divergence
+        // metric over time). Fire-and-forget — never blocks or fails the scan.
+        _asMaybeSnapshotEstimates();
     } catch (e) {
         console.error('[scan] failed:', e);
         if (prog) prog.innerHTML = '<p class="muted-text">✗ Scan failed: ' + escapeHtml(e.message) + '</p>';
@@ -109,6 +113,26 @@ async function _asRunScan() {
 
     _asRunning = false;
     if (btn) { btn.disabled = false; btn.textContent = '▶ Run scan'; }
+}
+
+// Once per week, snapshot the whole universe's analyst EPS consensus so the
+// divergence metric has history to compare against. Only runs with an FMP key
+// and only if this week has no snapshot yet. Progress shows below the scan.
+async function _asMaybeSnapshotEstimates() {
+    try {
+        if (typeof anaFmpGetKey !== 'function') return;
+        if (!(await anaFmpGetKey())) return;
+        if (await anaEstCurrentWeekHasSnapshot()) return;
+        await Promise.all([_anaLoadSp500(), _anaLoadUniverseCfg(), _anaLoadHoldingTickers()]);
+        var tickers = _anaEffectiveUniverse();
+        var prog = document.getElementById('asProgress');
+        var res = await anaFmpSnapshotEstimates(tickers, function(done, total) {
+            if (prog) prog.innerHTML = '<p class="muted-text">📸 Recording estimate snapshot for divergence tracking… ' + done + ' / ' + total + '</p>';
+        });
+        if (prog) prog.innerHTML = '<p class="muted-text">📸 Estimate snapshot saved (' + res.count + ' tickers).</p>';
+    } catch (e) {
+        console.log('[scan] estimate snapshot skipped: ' + e.message);
+    }
 }
 
 async function _asComputeScan(onNote) {
@@ -281,6 +305,35 @@ async function _asComputeScan(onNote) {
         }
     }
 
+    // Analyst evidence + divergence (Stage 3.2, FMP) — only when a key exists.
+    var fmpKey = '';
+    try { fmpKey = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e4) {}
+    if (fmpKey) {
+        var snapB = await anaEstGetLatestSnapshot();          // latest snapshot overall
+        var snapCount = await anaEstCountSnapshots();
+        var since60 = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+        for (var a = 0; a < shortlist.length; a++) {
+            var ac = shortlist[a];
+            if (onNote) onNote('Analyst view ' + (a + 1) + ' / ' + shortlist.length + ' — ' + ac.ticker + '…');
+            try { ac.estimates   = await anaFmpEstimates(ac.ticker); }   catch (e5) { ac.estimates = null; }
+            try { ac.priceTarget = await anaFmpPriceTarget(ac.ticker); } catch (e6) { ac.priceTarget = null; }
+            try { ac.grades      = await anaFmpGrades(ac.ticker, since60); } catch (e7) { ac.grades = null; }
+
+            // Divergence (flagship) — dip candidates with snapshot coverage
+            if (ac.detector === 'dipA') {
+                var arec  = await anaGetPriceHistory(ac.ticker);
+                var snapA = ac.peakDate ? await anaEstGetSnapshotOnOrBefore(ac.peakDate) : null;
+                var div   = (arec && snapA && snapB)
+                    ? anaEngDivergence(arec, snapA, snapB, ac.ticker, ac.peakDate, arec.dates.length - 1)
+                    : null;
+                if (div) ac.divergence = div;
+                else ac.divergenceNote = (snapCount < 2)
+                    ? 'needs ' + (2 - snapCount) + ' more weekly snapshot' + (2 - snapCount === 1 ? '' : 's')
+                    : 'not covered by snapshots yet';
+            }
+        }
+    }
+
     return {
         createdAt: new Date().toISOString(),
         date: new Date().toISOString().slice(0, 10),
@@ -419,6 +472,35 @@ function _asEarningsChipText(c) {
     return t;
 }
 
+function _asPct(v)    { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+function _asPtsStr(v) { return (v >= 0 ? '+' : '') + v.toFixed(1); }
+
+// Analyst / divergence chips (Stage 3.2). Returns { lead:[], rest:[] } —
+// the divergence chip is the FLAGSHIP and leads the whole row. Empty when a
+// candidate has no FMP enrichment (old scans, no key) so cards stay compatible.
+function _asAnalystChips(c) {
+    var lead = [], rest = [];
+    if (c.divergence) {
+        var d = c.divergence;
+        var strong = d.divergencePts >= 5;   // estimates held up much better than price
+        lead.push({
+            text: 'Est ' + _asPct(d.estChangePct) + ' vs price ' + _asPct(d.priceChangePct) +
+                  ' → ' + _asPtsStr(d.divergencePts) + ' pts' + (strong ? ' emotional' : ''),
+            cls: strong ? 'as-chip-good' : 'as-chip'
+        });
+    } else if (c.divergenceNote) {
+        rest.push({ text: 'Divergence: ' + c.divergenceNote, cls: 'as-chip' });
+    }
+    if (c.priceTarget && c.priceTarget.targetConsensus != null && c.close) {
+        var pct = (c.priceTarget.targetConsensus / c.close - 1) * 100;
+        rest.push({ text: 'Target $' + c.priceTarget.targetConsensus + ' (' + _asPct(pct) + ' vs price)', cls: 'as-chip' });
+    }
+    if (c.grades && (c.grades.upgrades || c.grades.downgrades)) {
+        rest.push({ text: '▲' + c.grades.upgrades + '/▼' + c.grades.downgrades + ' last 60d', cls: 'as-chip' });
+    }
+    return { lead: lead, rest: rest };
+}
+
 function _asCandidateCard(c) {
     var name = _asName(c.ticker);
     var badge, reason, chips = [];
@@ -453,6 +535,9 @@ function _asCandidateCard(c) {
         '</div>' +
         '<p class="as-card-reason">' + reason + '</p>' +
         '<div class="as-chip-row">';
+    var analyst = _asAnalystChips(c);
+    // Divergence (flagship) leads the whole row, ahead of everything else.
+    analyst.lead.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
     // Falling-knife flag leads the row (amber) when quality data warrants it.
     _asQualityChips(c).forEach(function(qc) {
         if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
@@ -466,6 +551,8 @@ function _asCandidateCard(c) {
     _asQualityChips(c).forEach(function(qc) {
         if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
     });
+    // Analyst evidence (target, grades, divergence-note) after quality.
+    analyst.rest.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
     html += '</div>' +
         '<div class="ab-form-row" style="margin:8px 0 0">' +
             '<button class="ana-sp-btn" onclick="_asOpenDossier(\'' + c.ticker + '\',\'' + c.detector + '\')">Open dossier</button>' +
@@ -636,7 +723,9 @@ function _adRender(page, rec, ev, params) {
     chips.push('52w range $' + ev.lo52.toFixed(2) + ' – $' + ev.hi52.toFixed(2));
     var adEarnChip = _asEarningsChipText(ctx.candidate);
     if (adEarnChip) chips.push(adEarnChip);
+    var adAnalyst = _asAnalystChips(ctx.candidate || {});
     html += '<div class="as-chip-row" style="margin-bottom:12px">';
+    adAnalyst.lead.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
         if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
     });
@@ -644,6 +733,7 @@ function _adRender(page, rec, ev, params) {
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
         if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
     });
+    adAnalyst.rest.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
     html += '</div>';
 
     // Report line (Detector B) — the earnings beat behind the drift
@@ -659,6 +749,10 @@ function _adRender(page, rec, ev, params) {
     // Quality section (Stage 2.2) — filled async by _adRenderQuality after render
     html += '<h3 class="ana-section-title">🏥 Quality</h3>' +
         '<div id="adQuality"><p class="muted-text">Loading quality data…</p></div>';
+
+    // Analyst view (Stage 3.2) — filled async by _adRenderAnalyst after render
+    html += '<h3 class="ana-section-title">🧮 Analyst view</h3>' +
+        '<div id="adAnalyst"><p class="muted-text">Loading analyst data…</p></div>';
 
     // Chart
     html += '<div class="ad-chart-wrap"><canvas id="adChart"></canvas></div>';
@@ -732,7 +826,63 @@ function _adRender(page, rec, ev, params) {
     _adUpdateExitPrices();
     _adDrawChart(rec, ev);
     _adRenderQuality();
+    _adRenderAnalyst();
     _adRenderNews(rec, ev);
+}
+
+// Fill the dossier's Analyst view (Stage 3.2): consensus EPS (current + next
+// FY), price-target range vs price, and recent grade actions. Uses the values
+// stamped on the scan candidate when present; otherwise (deep link / old scan)
+// fetches live from FMP when a key exists.
+async function _adRenderAnalyst() {
+    var host = document.getElementById('adAnalyst');
+    if (!host || !_adCtx) return;
+    var cand = _adCtx.candidate || {};
+    var est = cand.estimates, tgt = cand.priceTarget, grd = cand.grades;
+
+    if (!est && !tgt && !grd) {
+        var key = '';
+        try { key = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e) {}
+        if (key) {
+            try { est = await anaFmpEstimates(_adCtx.ticker); } catch (e) {}
+            try { tgt = await anaFmpPriceTarget(_adCtx.ticker); } catch (e) {}
+            try {
+                var since60 = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+                grd = await anaFmpGrades(_adCtx.ticker, since60);
+            } catch (e) {}
+        }
+    }
+    host = document.getElementById('adAnalyst');
+    if (!host) return;
+    if (!est && !tgt && !grd) { host.innerHTML = '<p class="muted-text">Analyst data unavailable.</p>'; return; }
+
+    var html = '';
+    // Consensus EPS + target grid
+    var rows = [];
+    if (est) {
+        if (est.epsCurrY != null) rows.push(['Consensus EPS (this FY)', est.epsCurrY.toFixed(2) + (est.numAnalysts ? ' · ' + est.numAnalysts + ' analysts' : '')]);
+        if (est.epsNextY != null) rows.push(['Consensus EPS (next FY)', est.epsNextY.toFixed(2)]);
+    }
+    if (tgt && tgt.targetConsensus != null) {
+        var pct = _adCtx.close ? ' (' + _asPct((tgt.targetConsensus / _adCtx.close - 1) * 100) + ' vs price)' : '';
+        rows.push(['Price target (consensus)', '$' + tgt.targetConsensus + pct]);
+        if (tgt.targetLow != null && tgt.targetHigh != null) rows.push(['Target range', '$' + tgt.targetLow + ' – $' + tgt.targetHigh]);
+    }
+    if (rows.length) {
+        html += '<div class="ad-quality-grid">';
+        rows.forEach(function(r) { html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + '</div><div class="ad-quality-v">' + escapeHtml(r[1]) + '</div>'; });
+        html += '</div>';
+    }
+    // Recent grade actions
+    if (grd && grd.latest && grd.latest.length) {
+        html += '<p class="muted-text" style="margin-top:10px">Analyst actions (last 60d): ▲' + (grd.upgrades || 0) + ' up · ▼' + (grd.downgrades || 0) + ' down · ' + (grd.maintains || 0) + ' maintained</p>' +
+                '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Date</th><th>Firm</th><th>Action</th><th>Rating</th></tr>';
+        grd.latest.forEach(function(g) {
+            html += '<tr><td>' + escapeHtml(g.date || '') + '</td><td>' + escapeHtml(g.company || '') + '</td><td>' + escapeHtml(g.action || '') + '</td><td>' + escapeHtml(g.to || '') + '</td></tr>';
+        });
+        html += '</table></div>';
+    }
+    host.innerHTML = html || '<p class="muted-text">Analyst data unavailable.</p>';
 }
 
 // Fill the dossier's Quality section (Stage 2.2). Uses the point-in-time

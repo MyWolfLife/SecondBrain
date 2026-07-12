@@ -83,3 +83,149 @@ async function anaFmpHistory(ticker, fromDate, toDate) {
     if (rec.dates.length === 0) throw new Error('FMP history no usable candles for ' + ticker);
     return rec;
 }
+
+// ---------------------------------------------------------------------------
+// Analyst evidence (Phase 3, Stage 3.2)
+// ---------------------------------------------------------------------------
+
+// Annual consensus estimates → {epsCurrY, epsNextY, numAnalysts, fyLabel, raw}.
+// FMP returns fiscal YEARS (date = fiscal-year END), newest first. Selection
+// rule: epsCurrY = the fiscal year whose end date is the NEXT one >= today
+// (the current forward FY); epsNextY = the following year. `fyLabel` = that
+// current FY's end date, so the divergence engine can catch fiscal rollovers.
+async function anaFmpEstimates(ticker) {
+    var sym  = ticker.replace(/\./g, '-');
+    var data = await _anaFmpGet('analyst-estimates?symbol=' + encodeURIComponent(sym) + '&period=annual&limit=6');
+    if (!Array.isArray(data) || !data.length) return null;
+    var rows = data.slice().sort(function(a, b) { return a.date < b.date ? -1 : 1; });  // ascending
+    var today = _anaTodayStr();
+    var curIdx = -1;
+    for (var i = 0; i < rows.length; i++) { if (rows[i].date >= today) { curIdx = i; break; } }
+    if (curIdx < 0) return null;   // no forward estimate available
+    var cur = rows[curIdx], nxt = rows[curIdx + 1] || null;
+    return {
+        epsCurrY:    (cur.epsAvg != null) ? cur.epsAvg : null,
+        epsNextY:    (nxt && nxt.epsAvg != null) ? nxt.epsAvg : null,
+        numAnalysts: (cur.numAnalystsEps != null) ? cur.numAnalystsEps : null,
+        fyLabel:     cur.date,
+        raw:         rows
+    };
+}
+
+// Price-target consensus → {targetConsensus, targetMedian, targetHigh, targetLow} or null.
+async function anaFmpPriceTarget(ticker) {
+    var sym  = ticker.replace(/\./g, '-');
+    var data = await _anaFmpGet('price-target-consensus?symbol=' + encodeURIComponent(sym));
+    var t = Array.isArray(data) ? data[0] : data;
+    if (!t) return null;
+    return {
+        targetConsensus: (t.targetConsensus != null) ? t.targetConsensus : null,
+        targetMedian:    (t.targetMedian    != null) ? t.targetMedian    : null,
+        targetHigh:      (t.targetHigh      != null) ? t.targetHigh      : null,
+        targetLow:       (t.targetLow       != null) ? t.targetLow       : null
+    };
+}
+
+// Analyst grade actions since a date → {upgrades, downgrades, maintains,
+// latest:[{date,company,action,to}] (5 newest)}. FMP returns newest-first and
+// ignores `limit`, so we filter/slice client-side (Stage 3.0 finding).
+async function anaFmpGrades(ticker, sinceDate) {
+    var sym  = ticker.replace(/\./g, '-');
+    var data = await _anaFmpGet('grades?symbol=' + encodeURIComponent(sym));
+    if (!Array.isArray(data)) return { upgrades: 0, downgrades: 0, maintains: 0, latest: [] };
+    var out = { upgrades: 0, downgrades: 0, maintains: 0, latest: [] };
+    data.forEach(function(g) {
+        if (sinceDate && (!g.date || g.date < sinceDate)) return;
+        if      (g.action === 'upgrade')   out.upgrades++;
+        else if (g.action === 'downgrade') out.downgrades++;
+        else                               out.maintains++;
+    });
+    out.latest = data.slice(0, 5).map(function(g) {
+        return { date: g.date, company: g.gradingCompany, action: g.action, to: g.newGrade };
+    });
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// Weekly estimate snapshots (Stage 3.2) — collection `analyzerEstimates`
+// ---------------------------------------------------------------------------
+// FMP serves only CURRENT consensus, so divergence (estimates-vs-price over
+// time) needs history we accumulate ourselves. ONE Firestore doc per week
+// (id = that week's Monday date) holding the whole universe's current EPS
+// consensus: { weekId, date, createdAt, count, data: { TICKER: {epsCurrY,
+// epsNextY, numAnalysts, fyLabel} } }.
+
+// Monday-of-week date string — the per-week doc id (any day in the week maps
+// to the same id, so a re-run overwrites rather than duplicates).
+function _anaEstWeekId(dateStr) {
+    var d   = dateStr ? new Date(dateStr + 'T00:00:00Z') : new Date();
+    var day = d.getUTCDay();                       // 0=Sun … 6=Sat
+    var diff = (day === 0) ? -6 : (1 - day);       // shift back to Monday
+    var mon = new Date(d);
+    mon.setUTCDate(d.getUTCDate() + diff);
+    return mon.toISOString().slice(0, 10);
+}
+
+async function anaEstCurrentWeekHasSnapshot() {
+    try { return (await userCol('analyzerEstimates').doc(_anaEstWeekId()).get()).exists; }
+    catch (e) { return false; }
+}
+async function anaEstCountSnapshots() {
+    try { return (await userCol('analyzerEstimates').get()).size; }
+    catch (e) { return 0; }
+}
+async function anaEstGetLatestSnapshot() {
+    try {
+        var snap = await userCol('analyzerEstimates').orderBy('date', 'desc').limit(1).get();
+        var out = null; snap.forEach(function(d) { out = d.data(); });
+        return out;
+    } catch (e) { return null; }
+}
+async function anaEstGetSnapshotOnOrBefore(dateStr) {
+    try {
+        var snap = await userCol('analyzerEstimates').where('date', '<=', dateStr).orderBy('date', 'desc').limit(1).get();
+        var out = null; snap.forEach(function(d) { out = d.data(); });
+        return out;
+    } catch (e) { return null; }
+}
+
+// Snapshot the whole universe's current EPS consensus into this week's doc.
+// Pool of 5, throttled; overwrites the same-week doc on re-run. Throws if a
+// free/limited key means nothing came back (so we never write an empty doc).
+async function anaFmpSnapshotEstimates(tickers, onProgress) {
+    var key = await anaFmpGetKey();
+    if (!key) throw new Error('No FMP API key');
+    var weekId = _anaEstWeekId();
+    var data = {}, count = 0, failures = 0;
+    var total = tickers.length, next = 0, done = 0;
+    var paceMs = 250, paceChain = Promise.resolve();
+    function pace() { var p = paceChain.then(function() { return new Promise(function(r) { setTimeout(r, paceMs); }); }); paceChain = p; return p; }
+
+    async function worker() {
+        while (next < total) {
+            var t = tickers[next++];
+            await pace();
+            try {
+                var e = await anaFmpEstimates(t);
+                if (e && e.epsCurrY != null) {
+                    data[t] = { epsCurrY: e.epsCurrY, epsNextY: e.epsNextY, numAnalysts: e.numAnalysts, fyLabel: e.fyLabel };
+                    count++;
+                }
+            } catch (err) {
+                failures++;
+                if (/plan does not include|429|rate/i.test(err.message)) paceMs = 800;  // free-tier storm guard
+            }
+            done++;
+            if (onProgress) onProgress(done, total, t);
+        }
+    }
+    var ws = []; for (var w = 0; w < 5; w++) ws.push(worker());
+    await Promise.all(ws);
+
+    if (count === 0) throw new Error('No estimates fetched — check the FMP plan/key');
+    await userCol('analyzerEstimates').doc(weekId).set({
+        weekId: weekId, date: _anaTodayStr(), createdAt: new Date().toISOString(),
+        count: count, data: data
+    });
+    return { weekId: weekId, count: count, failures: failures };
+}

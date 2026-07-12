@@ -132,8 +132,29 @@ async function _anaRenderPriceSection() {
         '<p class="muted-text" style="max-width:560px">' + note + '</p>' +
         '<div class="ana-add-row">' +
             '<button class="btn-primary" id="anaUpdateBtn" onclick="_anaRunPriceUpdate()">📡 Update price data</button>' +
+            (fmpKey ? '<button class="ana-sp-btn" id="anaSnapBtn" onclick="_anaRunEstimateSnapshot()">📸 Snapshot estimates</button>' : '') +
         '</div>' +
         '<div id="anaUpdateProgress"></div>';
+}
+
+// Manually record a weekly estimate snapshot (also runs automatically once a
+// week after a scan). Needs an FMP key. Feeds the Stage 3.2 divergence metric.
+async function _anaRunEstimateSnapshot() {
+    if (_anaUpdateRunning) return;
+    var btn = document.getElementById('anaSnapBtn');
+    var box = document.getElementById('anaUpdateProgress');
+    if (btn) btn.disabled = true;
+    try {
+        await Promise.all([_anaLoadSp500(), _anaLoadUniverseCfg(), _anaLoadHoldingTickers()]);
+        var tickers = _anaEffectiveUniverse();
+        var res = await anaFmpSnapshotEstimates(tickers, function(done, total) {
+            if (box) box.innerHTML = '<p class="muted-text">📸 Snapshotting analyst estimates… ' + done + ' / ' + total + '</p>';
+        });
+        if (box) box.innerHTML = '<p class="muted-text">✓ Estimate snapshot saved for week ' + escapeHtml(res.weekId) + ' (' + res.count + ' tickers' + (res.failures ? ', ' + res.failures + ' skipped' : '') + ').</p>';
+    } catch (e) {
+        if (box) box.innerHTML = '<p class="muted-text">✗ Snapshot failed: ' + escapeHtml(e.message) + '</p>';
+    }
+    if (btn) btn.disabled = false;
 }
 
 async function _anaRunPriceUpdate() {

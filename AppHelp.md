@@ -2296,6 +2296,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - **📊 Price data** (bottom of the hub): shows what's cached on this device and the **Update price data** button — tap it to fetch/refresh 5 years of daily history for every watched ticker
 - The first full update takes several minutes and must stay in an open tab — a progress bar shows `n / total` with a Cancel button; tickers already updated today are skipped, so re-runs are fast
 - **With an FMP key** (Settings → Stock Analyzer): updates run in parallel straight from FMP and finish in ~2–4 minutes instead of ~18 — the note shows "⚡ FMP fast path active". Without a key, nothing changes; the free Yahoo path still works exactly as before
+- **📸 Snapshot estimates** (appears with an FMP key): records this week's analyst earnings estimates for the whole universe, which is what powers the divergence chip over time. It also runs automatically once a week after a scan, so you rarely need to press it — but it's here if you want to force one
 - Price history is stored **on this device** (not in the cloud) — a new phone or computer does its own first fetch
 - The feature is being built in stages — sections marked **Coming soon** are scaffolded but not yet functional
 
@@ -2367,6 +2368,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
 - The scan hunts three kinds of setup: **📉 Panic dip** (a quality stock that fell hard and fast), **🌀 Compressed spring** (a stock coiled quietly near its highs), and **🚀 Post-earnings drift** (a company that beat earnings and jumped — winners like that tend to keep drifting up for weeks)
 - Each candidate card shows *why* it triggered, plus evidence chips — most importantly **"Similar dips: N of M hit +10% ≤60d"**, that stock's own history with dips like this one
+- **The divergence chip** (with an FMP key, dip candidates) is the sharpest signal and leads the card: **"Est −2% vs price −16% → +14 pts emotional"** means analysts barely trimmed their earnings estimates while the price fell hard — that gap is the *emotional* part of the dip, quantified. A big positive gap (green) is the classic "solid company, panicked price" setup; it needs a few weeks of collected snapshots before it can appear (until then it honestly says "needs N more weekly snapshots")
+- **Target** and **▲up/▼down** chips show the analyst price-target consensus versus the current price, and how many upgrades/downgrades landed in the last 60 days
 - **Quality chips** on dip candidates tell you if the company can survive the dip: green **✅ Profitable** or amber **⚠️ Unprofitable**, its **Debt/eq** (amber when heavy, over 2.0), and its **Div** yield when it pays one
 - A green **👤 Insider buys** chip means company insiders bought shares on the open market since the dip started — them catching their own knife is a strong vote of confidence
 - An amber **⚠️ Falling knife?** flag leads the card when a stock is *both* unprofitable and heavily indebted — a warning, not an automatic reject; the tool never removes anything for you
@@ -2386,6 +2389,8 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 **Quality & insider chips**: After the shortlist is built, each dip candidate is checked against Finnhub for fundamentals (profitability, debt, dividend) and recent insider open-market buying. This is *survivability* evidence — a solid, profitable company that dipped on emotion is the archetype worth buying; an unprofitable, debt-laden one that keeps falling is the "falling knife" to be wary of. The flag is only a prompt to look closer — nothing is auto-excluded, and the decision stays yours.
 
+**Price-vs-estimate divergence (the flagship metric)**: This is the numeric version of your Target-trade instinct. When a price crashes, the question is always "did the *business* actually get worse, or did people just panic?" Wall Street analysts publish an expected earnings number for each company; if the price falls 16% but that earnings estimate only slips 2%, the 14-point gap is the part of the drop that isn't backed by changed fundamentals — the emotional part. The tool can't get this from a single lookup, because data providers only sell *today's* estimate, not last month's. So the app quietly records a snapshot of every company's estimate once a week (the "📸 Snapshot estimates" step, also automatic after a scan), and once it has two snapshots straddling a dip it can measure the gap. Until then it tells you honestly how many more weekly snapshots it needs — it never invents the number.
+
 **Post-earnings drift (Detector B)**: The scan pulls the last few weeks of earnings reports and flags companies that *beat* estimates and *gapped up* on the news — and are still early in the "drift" window. The pattern: a stock that jumps on a genuine earnings beat often keeps climbing for weeks as the market catches up, rather than snapping straight back. The card badge shows the beat size and the day-one gain; the reason line tells you which day of the drift window it's on. Unlike a dip, this is a *momentum* setup — you're betting the good news keeps working, not that a selloff reverses.
 
 **Scans are saved**: Every scan is stored (including your dismissals), which is what will let the future tracking loop grade how past scans — and your dismissal judgment — performed.
@@ -2400,6 +2405,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - The **chart** shows the last 12 months with your **target** (green dashed) and **stop** (red dashed) lines, plus a triangle on the peak the stock fell from
 - The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
 - The **🏥 Quality** section lays out the fundamentals (profitability, net margin, debt/equity, current ratio, dividend, ROE) and any recent insider open-market purchases — the survivability read behind the card's chips
+- The **🧮 Analyst view** section (with an FMP key) shows Wall Street's consensus earnings estimate (this year and next), the price-target range versus today's price, and the latest analyst upgrades/downgrades — the raw material behind the divergence chip
 - Write your **thesis** — what has to happen for the stock to rise, and whether the dip looks *emotional* (tradeable) or *structural* (avoid)
 - Set your **exit plan** (target / stop / time stop) — the dollar prices update live as you type
 - Tap **Save thesis & exits** — your notes stay with this candidate and pre-fill the trade ticket (coming in Stage 8)
