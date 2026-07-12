@@ -362,6 +362,93 @@ function anaEngTypicalEventMovePct(rec) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3 groundwork — estimate-based mechanisms (PURE; snapshots passed in)
+// ---------------------------------------------------------------------------
+// These take PARSED weekly estimate snapshots (never raw API), so they are
+// immune to whatever shape the FMP endpoints turn out to have. NOT yet wired
+// into the scan UI — that happens in Stages 3.2/3.3 once an FMP Starter key
+// is live and the estimate-snapshot pipeline exists.
+//
+// Snapshot entry shape (the contract 3.2's fetcher must produce, per ticker):
+//   { epsCurrY, epsNextY, numAnalysts, targetConsensus, fyLabel }
+//   fyLabel = the fiscal-year-end date string (e.g. '2026-12-31') identifying
+//   which fiscal year epsCurrY refers to; used to catch fiscal rollovers.
+
+// Price-vs-estimate divergence (Stage 3.2 flagship math). Given two week-doc
+// snapshots (snapA on/before the dip peak, snapB latest) and the ticker's
+// candles, quantify how far the PRICE moved vs how far analyst EPS moved. A
+// big gap = the emotional part of the dip.
+//   snapA/snapB shape: { date, data: { TICKER: <entry above> } }
+// Returns { priceChangePct, estChangePct, divergencePts, analysts } or null.
+function anaEngDivergence(rec, snapA, snapB, ticker, peakDate, asOfIndex) {
+    if (!rec || !snapA || !snapB || !snapA.data || !snapB.data) return null;
+    var a = snapA.data[ticker], b = snapB.data[ticker];
+    if (!a || !b) return null;
+    if (a.epsCurrY == null || b.epsCurrY == null || a.epsCurrY === 0) return null;
+    // Fiscal rollover guard: if both carry an FY label and they differ, the
+    // two EPS numbers aren't comparable — bail rather than report a fake gap.
+    if (a.fyLabel && b.fyLabel && a.fyLabel !== b.fyLabel) return null;
+
+    var asOf    = (asOfIndex != null) ? asOfIndex : rec.dates.length - 1;
+    var peakIdx = anaEngIndexForDate(rec, peakDate);
+    if (peakIdx < 0 || rec.close[peakIdx] === 0) return null;
+
+    var priceChangePct = (rec.close[asOf] / rec.close[peakIdx] - 1) * 100;
+    var estChangePct   = (b.epsCurrY - a.epsCurrY) / Math.abs(a.epsCurrY) * 100;
+    return {
+        priceChangePct: priceChangePct,
+        estChangePct:   estChangePct,
+        divergencePts:  estChangePct - priceChangePct,   // + = estimates held up better than price fell
+        analysts:       (b.numAnalysts != null ? b.numAnalysts : a.numAnalysts) || null
+    };
+}
+
+// Detector C core (Stage 3.3): estimate-revision momentum — forward EPS being
+// revised UP over recent weeks while the price hasn't kept pace. Runs purely
+// off our own accumulated snapshot series (no premium endpoint).
+//   snapshots: ascending array of { date:'YYYY-MM-DD', eps, analysts? } for
+//   this ticker (caller extracts from the week-docs).
+//   opts: { asOfIndex?, minEstPct=3, minSpanDays=28, minAnalysts=3 }
+// Returns { estChangePct, priceChangePct, gapPts, weeksCovered, close } or null.
+function anaEngRevisionTrigger(rec, snapshots, ticker, opts) {
+    opts = opts || {};
+    var minEstPct     = (opts.minEstPct     != null) ? opts.minEstPct     : 3;
+    var minSpanDays   = (opts.minSpanDays   != null) ? opts.minSpanDays   : 28;
+    var minAnalysts   = (opts.minAnalysts   != null) ? opts.minAnalysts   : 3;
+    if (!rec || !Array.isArray(snapshots) || snapshots.length < 3) return null;
+
+    var first = snapshots[0], last = snapshots[snapshots.length - 1];
+    if (first.eps == null || last.eps == null || first.eps === 0) return null;
+
+    // Window must span enough calendar time to be a trend, not noise
+    var spanDays = (new Date(last.date) - new Date(first.date)) / 86400000;
+    if (spanDays < minSpanDays) return null;
+
+    // Enough analyst coverage (use the latest known count)
+    var analysts = (last.analysts != null) ? last.analysts : first.analysts;
+    if (analysts == null || analysts < minAnalysts) return null;
+
+    var estChangePct = (last.eps - first.eps) / Math.abs(first.eps) * 100;
+    if (estChangePct < minEstPct) return null;   // estimates must be rising meaningfully
+
+    var asOf     = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    var startIdx = anaEngIndexForDate(rec, first.date);
+    if (startIdx < 0 || rec.close[startIdx] === 0) return null;
+    var priceChangePct = (rec.close[asOf] / rec.close[startIdx] - 1) * 100;
+
+    // Price must be LAGGING the estimate move — the whole point of the setup
+    if (priceChangePct >= estChangePct) return null;
+
+    return {
+        estChangePct:   estChangePct,
+        priceChangePct: priceChangePct,
+        gapPts:         estChangePct - priceChangePct,
+        weeksCovered:   snapshots.length,
+        close:          rec.close[asOf]
+    };
+}
+
+// ---------------------------------------------------------------------------
 // Market regime
 // ---------------------------------------------------------------------------
 
