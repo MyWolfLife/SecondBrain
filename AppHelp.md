@@ -2288,6 +2288,14 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 ## screen:analyzer
 
+### What this is for
+
+The Stock Analyzer is a **weekly evidence-gathering machine for short-term stock trades**. Every Friday you press two buttons and, a few minutes later, it hands you a short list of stocks that just got knocked down (or are quietly coiling, or just beat earnings), each one carrying a stack of evidence: this stock's own history of recovering from drops like this, whether the company is financially healthy, whether insiders are buying, whether earnings are looming — and the headline metric, whether analysts still believe in the company even though the price fell (the "emotional vs. structural" read that was the whole point of the 2023 Target trade). It never tells you to buy anything. It assembles the case; you make the call.
+
+The goal isn't to get rich or to trade constantly — it's to **systematically find the setup you got right with Target, again and again, with the evidence laid out so you're deciding with facts instead of gut**. And it keeps score: it tracks every stock it showed you, grades what actually happened 30 and 60 days later, and specifically measures whether the ones you chose to ignore did worse than the ones you kept — so over time it's not just finding trades, it's telling you whether your own judgment is any good. That feedback loop is the real product.
+
+**What your goal is (and isn't).** Your goal is to catch the emotional overreaction on a fundamentally fine company and ride the snap-back ~10% — the Target trade, repeatable. The tool exists to surface those situations and stack the evidence so you're not guessing. Your job is the judgment: reading whether the dip is fear or damage, writing the thesis, setting the exits, and having the discipline to follow them. What it's **not**: it's not a robot that picks stocks (it's deliberately built never to), not a get-rich scheme, and not something that works if you skip the thinking. The backtest actually proved that a no-judgment robot buying every signal *lost to just holding the index* — which is the point. The robot is the floor; your judgment is supposed to be the edge, and the Scoreboard is there to honestly tell you, over months, whether it is.
+
 ### Quick Help
 - 📚 **New here?** [Open the Training guide](#help/analyzer-training) — the whole system explained step by step
 - The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
