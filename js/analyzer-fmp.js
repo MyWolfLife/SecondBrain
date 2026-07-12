@@ -84,6 +84,22 @@ async function anaFmpHistory(ticker, fromDate, toDate) {
     return rec;
 }
 
+// Market-wide screener (Phase 3, Stage 3.4) — defines an EXPANDED liquid
+// universe of real companies. Filters on size/volume/exchange only (it can't
+// express price setups — our own detectors do that locally). ETFs/funds are
+// excluded. Returns [{symbol(dot-canonical), companyName, sector, marketCap}]
+// sorted by market cap desc and HARD-CAPPED at 2,000 (IndexedDB/bandwidth guard).
+async function anaFmpScreener(minCap, minVol) {
+    var data = await _anaFmpGet('company-screener?marketCapMoreThan=' + Math.round(minCap) +
+        '&volumeMoreThan=' + Math.round(minVol) + '&exchange=NYSE,NASDAQ,AMEX&isActivelyTrading=true&limit=5000');
+    if (!Array.isArray(data)) return [];
+    var rows = data.filter(function(r) { return r.symbol && !r.isEtf && !r.isFund; }).map(function(r) {
+        return { symbol: (r.symbol || '').replace(/-/g, '.'), companyName: r.companyName || '', sector: r.sector || '', marketCap: r.marketCap || 0 };
+    });
+    rows.sort(function(a, b) { return b.marketCap - a.marketCap; });
+    return rows.slice(0, 2000);
+}
+
 // ---------------------------------------------------------------------------
 // Analyst evidence (Phase 3, Stage 3.2)
 // ---------------------------------------------------------------------------

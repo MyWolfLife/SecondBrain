@@ -272,15 +272,66 @@ async function _anaLoadUniverseCfg() {
     _anaUniverseCfg = doc.exists ? doc.data() : {};
     if (!Array.isArray(_anaUniverseCfg.watchlist)) _anaUniverseCfg.watchlist = [];
     if (!Array.isArray(_anaUniverseCfg.excluded))  _anaUniverseCfg.excluded  = [];
+    // Discover mode (Stage 3.4) defaults
+    if (typeof _anaUniverseCfg.discoverEnabled !== 'boolean') _anaUniverseCfg.discoverEnabled = false;
+    if (_anaUniverseCfg.discoverMinMarketCap == null) _anaUniverseCfg.discoverMinMarketCap = 2e9;
+    if (_anaUniverseCfg.discoverMinVolume == null)    _anaUniverseCfg.discoverMinVolume    = 1e6;
+    if (!Array.isArray(_anaUniverseCfg.discoverList)) _anaUniverseCfg.discoverList = [];
+    // Refresh the screener list at most weekly (only when enabled + FMP key)
+    try { await _anaRefreshDiscoverList(false); } catch (e) { console.log('[analyzer] discover refresh skipped: ' + e.message); }
     return _anaUniverseCfg;
 }
 
 async function _anaSaveUniverseCfg() {
+    // Small fields only — the (large) discoverList is saved by the refresh job.
     await userCol('analyzerConfig').doc('universe').set({
         watchlist: _anaUniverseCfg.watchlist,
         excluded:  _anaUniverseCfg.excluded,
+        discoverEnabled:      _anaUniverseCfg.discoverEnabled,
+        discoverMinMarketCap: _anaUniverseCfg.discoverMinMarketCap,
+        discoverMinVolume:    _anaUniverseCfg.discoverMinVolume,
         updatedAt: new Date().toISOString()
     }, { merge: true });
+}
+
+// Refresh the Discover screener list (cached weekly on the config doc). No-op
+// unless Discover is on and an FMP key exists. `force` bypasses the 7-day cache.
+async function _anaRefreshDiscoverList(force) {
+    var cfg = _anaUniverseCfg;
+    if (!cfg || !cfg.discoverEnabled) return;
+    if (typeof anaFmpGetKey !== 'function' || !(await anaFmpGetKey())) return;
+    var age = cfg.discoverFetchedAt ? (Date.now() - new Date(cfg.discoverFetchedAt).getTime()) : Infinity;
+    var stale = force || age > 7 * 86400000 || !cfg.discoverList || cfg.discoverList.length === 0;
+    if (!stale) return;
+    var rows = await anaFmpScreener(cfg.discoverMinMarketCap, cfg.discoverMinVolume);
+    cfg.discoverList      = rows.map(function(r) { return { t: r.symbol, n: r.companyName }; });
+    cfg.discoverFetchedAt = new Date().toISOString();
+    await userCol('analyzerConfig').doc('universe').set({
+        discoverList: cfg.discoverList, discoverFetchedAt: cfg.discoverFetchedAt
+    }, { merge: true });
+}
+
+async function _anaToggleDiscover(on) {
+    _anaUniverseCfg.discoverEnabled = !!on;
+    await _anaSaveUniverseCfg();
+    if (on) { try { await _anaRefreshDiscoverList(false); } catch (e) { console.log('[analyzer] discover refresh failed: ' + e.message); } }
+    _anaRenderUniverse();
+}
+
+async function _anaSaveDiscoverThresholds() {
+    var capB = parseFloat((document.getElementById('anaDiscoverCap') || {}).value);
+    var volM = parseFloat((document.getElementById('anaDiscoverVol') || {}).value);
+    if (isFinite(capB) && capB > 0) _anaUniverseCfg.discoverMinMarketCap = capB * 1e9;
+    if (isFinite(volM) && volM > 0) _anaUniverseCfg.discoverMinVolume    = volM * 1e6;
+    await _anaSaveUniverseCfg();
+    // New thresholds → force a re-fetch so the list matches
+    if (_anaUniverseCfg.discoverEnabled) { try { await _anaRefreshDiscoverList(true); } catch (e) { console.log('[analyzer] discover refresh failed: ' + e.message); } }
+    _anaRenderUniverse();
+}
+
+async function _anaRefreshDiscoverNow() {
+    try { await _anaRefreshDiscoverList(true); } catch (e) { console.log('[analyzer] discover refresh failed: ' + e.message); }
+    _anaRenderUniverse();
 }
 
 // Collects the unique set of tickers across all investment holdings.
@@ -331,12 +382,15 @@ async function loadAnalyzerUniversePage() {
     _anaRenderUniverse();
 }
 
-// Effective universe = (S&P ∪ holdings ∪ watchlist) − excluded
+// Effective universe = (S&P ∪ holdings ∪ watchlist ∪ Discover) − excluded
 function _anaEffectiveUniverse() {
     var set = {};
     _anaSp500.companies.forEach(function(c) { set[c.t] = true; });
     (_anaHoldTickers || []).forEach(function(t) { set[t] = true; });
     _anaUniverseCfg.watchlist.forEach(function(t) { set[t] = true; });
+    if (_anaUniverseCfg.discoverEnabled && Array.isArray(_anaUniverseCfg.discoverList)) {
+        _anaUniverseCfg.discoverList.forEach(function(c) { set[c.t] = true; });
+    }
     _anaUniverseCfg.excluded.forEach(function(t) { delete set[t]; });
     return Object.keys(set);
 }
@@ -367,6 +421,28 @@ function _anaRenderUniverse() {
             '<div class="ana-stat"><div class="ana-stat-num">' + (_anaHoldTickers || []).length + '</div><div class="ana-stat-label">Holdings</div></div>' +
             '<div class="ana-stat"><div class="ana-stat-num">' + cfg.watchlist.length + '</div><div class="ana-stat-label">Watchlist</div></div>' +
         '</div>';
+
+    // ── Discover mode (Stage 3.4) ──
+    var capB = (cfg.discoverMinMarketCap || 2e9) / 1e9;
+    var volM = (cfg.discoverMinVolume || 1e6) / 1e6;
+    html += '<h3 class="ana-section-title">🔭 Discover mode</h3>' +
+        '<p class="muted-text" style="max-width:560px">Off by default, the analyzer only watches the S&amp;P 500, your holdings, and your watchlist. ' +
+        'Turn Discover on to expand to the whole liquid market via a screener — the largest companies above your size and volume floor, ' +
+        '<strong>hard-capped at the 2,000 biggest</strong>. A bigger universe means a longer first price update (~5–8 min for +1,000 names) and more on-device storage. Needs an FMP key.</p>' +
+        '<div class="ana-add-row">' +
+            '<label class="ab-check"><input type="checkbox" id="anaDiscoverToggle"' + (cfg.discoverEnabled ? ' checked' : '') +
+                ' onchange="_anaToggleDiscover(this.checked)"> Enable Discover mode</label>' +
+        '</div>' +
+        '<div class="ab-form-row">' +
+            '<label>Min market cap $ <input type="number" id="anaDiscoverCap" value="' + capB + '" min="0.1" step="0.5" style="width:80px"> B</label>' +
+            '<label>Min avg volume <input type="number" id="anaDiscoverVol" value="' + volM + '" min="0.1" step="0.5" style="width:80px"> M</label>' +
+            '<button class="ana-sp-btn" onclick="_anaSaveDiscoverThresholds()">Save thresholds</button>' +
+        '</div>';
+    if (cfg.discoverEnabled) {
+        var when = cfg.discoverFetchedAt ? new Date(cfg.discoverFetchedAt).toLocaleDateString() : '—';
+        html += '<p class="muted-text">Discover list: <strong>' + (cfg.discoverList || []).length + '</strong> names · fetched ' + escapeHtml(when) +
+            ' · <button class="ana-sp-btn" onclick="_anaRefreshDiscoverNow()">🔄 Refresh list now</button></p>';
+    }
 
     // ── Watchlist ──
     html += '<h3 class="ana-section-title">⭐ Watchlist</h3>' +

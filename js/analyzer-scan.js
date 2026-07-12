@@ -433,6 +433,11 @@ function _asName(ticker) {
         var hit = _anaSp500.companies.find(function(c) { return c.t === ticker; });
         if (hit) return hit.n;
     }
+    // Discover-mode names (Stage 3.4) for non-S&P tickers
+    if (typeof _anaUniverseCfg !== 'undefined' && _anaUniverseCfg && Array.isArray(_anaUniverseCfg.discoverList)) {
+        var d = _anaUniverseCfg.discoverList.find(function(c) { return c.t === ticker; });
+        if (d) return d.n;
+    }
     return null;
 }
 

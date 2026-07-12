@@ -2322,15 +2322,18 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
-- The **Universe** is the list of tickers the analyzer watches — the **S&P 500**, tickers from **your investment holdings**, and your **watchlist**, minus anything you exclude
+- The **Universe** is the list of tickers the analyzer watches — the **S&P 500**, tickers from **your investment holdings**, your **watchlist**, and (optionally) the **Discover** list, minus anything you exclude
 - The stat cards show the effective **Watched** count and the size of each source
+- **🔭 Discover mode** (needs an FMP key) expands the universe far beyond the S&P 500 to the whole liquid market — leave it off to keep things fast, or turn it on when you want to hunt more widely
 - **Watchlist**: type a ticker and tap **+ Add** to watch something beyond the S&P 500 and your holdings; tap ✕ on a chip to remove it
 - **Holdings** are pulled in automatically from your investment accounts — an **S&P** badge means the ticker was already covered
 - **S&P 500 section**: search by ticker, company, or sector, then tap **Exclude** to drop a company from scans; excluded tickers appear at the bottom with a ↩ button to re-include them
 
 ### Details
 
-**Effective universe**: (S&P 500 ∪ holdings ∪ watchlist) − excluded. This is the set every scan and backtest runs against.
+**Effective universe**: (S&P 500 ∪ holdings ∪ watchlist ∪ Discover) − excluded. This is the set every scan and backtest runs against.
+
+**🔭 Discover mode**: By default the analyzer only watches the S&P 500, your holdings, and your watchlist — a few hundred names. Discover mode uses a market-wide screener to pull in the whole liquid market: every company above the market-cap and average-volume floors you set (defaults $2 billion and 1 million shares/day), **hard-capped at the 2,000 largest** so it can't balloon your storage. The screener only filters on size and volume — it can't find "down 12% in 15 days"; your own detectors still do all the setup-finding locally, exactly as they do for the S&P 500. Two costs to know about: the first price update after enabling it fetches all the new tickers (~5–8 minutes for a thousand extra names), and they live in your browser's local storage (roughly half a gigabyte at the full 2,000 — well within the browser's limit). The list is cached and refreshes about once a week; use **🔄 Refresh list now** to force it. Turn Discover off any time to snap back to the smaller, faster universe. Needs an FMP key in Settings.
 
 **S&P 500 list**: A snapshot stored with the app (the "list as of" date is shown). Index membership changes a few times a year; the list gets refreshed occasionally with an app update.
 

@@ -2064,7 +2064,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 **Help parser fix (2026-07-11)**: `_helpParseSection` previously used `\b` after the section key, which treated a hyphen as a boundary — looking up `analyzer` could match `screen:analyzer-training` if it appeared earlier in the file. Now uses `(?=\s|$)` so the key must be the entire section name.
 
 ### Universe manager (`#analyzer/universe`)
-The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist − excluded**.
+The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist ∪ Discover list − excluded**.
 
 - **S&P 500 list**: static file `data/sp500.json` — `{asOf, source, count, companies:[{t,n,s}]}` (ticker/name/sector), built from Wikipedia's constituents table; refresh occasionally by regenerating the file. Fetched at runtime, cached in module state.
 - **Holdings pull-in**: unique tickers collected live from all investment accounts across all person namespaces (`settings/investments.enrolledPersonIds` → `investments/{ns}/accounts/{id}/holdings`), mirroring the Stock Rollup read path. Archived accounts skipped. Read-only — chips show which are already in the S&P (badge).
@@ -2072,7 +2072,8 @@ The universe = **S&P 500 constituents ∪ holdings tickers ∪ watchlist − exc
 - **Exclusions**: any ticker can be excluded from the effective universe (searchable S&P list rows have Exclude/Include buttons; holdings chips toggle too). Excluded tickers show struck-through in a dedicated section with one-tap re-include.
 - **Stats row**: Watched (effective count) · S&P 500 · Holdings · Watchlist.
 - **S&P search**: filters ticker/name/sector, shows up to 50 matches; sector column hidden on mobile.
-- **Firestore**: `analyzerConfig/universe` — `{watchlist[], excluded[], updatedAt}`. Included in backup (`js/settings.js` collection list).
+- **🔭 Discover mode (Phase 3, Stage 3.4, FMP key)**: off by default. When on, `anaFmpScreener(minCap, minVol)` (FMP `company-screener`, ETFs/funds excluded, sorted by market cap, **hard-capped at 2,000**) defines an expanded liquid universe that unions into the effective universe. The screener list is cached on the config doc (`discoverList:[{t,n}]`, `discoverFetchedAt`) and refreshed at most **weekly** (or forced on threshold change / manual "🔄 Refresh list now"), via `_anaRefreshDiscoverList`. UI card: enable toggle, min market-cap (default $2B) + min avg-volume (default 1M) inputs, the cap warning, and the current list count/date. `_asName` resolves non-S&P company names from the discover list. Everything downstream (price update, scan, backtest) already iterates the effective universe unchanged — a bigger first price update (~5–8 min for +1,000 names) and more IndexedDB (~2,000 × ~250KB ≈ 500MB, well within the browser origin quota).
+- **Firestore**: `analyzerConfig/universe` — `{watchlist[], excluded[], updatedAt, discoverEnabled, discoverMinMarketCap, discoverMinVolume, discoverList[{t,n}], discoverFetchedAt}`. Included in backup (`js/settings.js` collection list).
 
 ### Price data layer (`js/analyzer-data.js`)
 Raw daily OHLCV history per ticker, cached **in IndexedDB on the device** (db `bishopAnalyzer`, store `prices`, keyed by ticker) — deliberately NOT in Firestore (raw candles are too large). The cache is per-device; a new device re-fetches.
@@ -3241,7 +3242,7 @@ Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added 
 
 | Collection / Path | Key Fields |
 |-------------------|------------|
-| `analyzerConfig/universe` | watchlist[], excluded[], updatedAt |
+| `analyzerConfig/universe` | watchlist[], excluded[], updatedAt, discoverEnabled, discoverMinMarketCap, discoverMinVolume, discoverList[{t,n}], discoverFetchedAt (Stage 3.4) |
 | `analyzerBacktests` | createdAt, params{startDate,endDate,cadence,exits{},detectors{}}, universeSize, fridays, results{perDetector[]}, signals[] (capped 500), signalsTruncated |
 | `analyzerScans` | createdAt, date, params, regime{}, funnel{scanned,passedBaseRate,triggered,shortlisted}, durationMs, candidates[{ticker,detector,…,dismissed,thesisDraft,exits{}}] |
 | `analyzerTrades` | createdAt, ticker, detector, scanId, scanDate, thesis, entryDate, entryPrice, shares?, exits{}, targetPrice, stopPrice, status, closeDate, closePrice, closeReason, retPct, spyRetPct, thesisVerdict, closeNotes |
