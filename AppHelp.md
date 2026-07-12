@@ -2295,6 +2295,7 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 - Five sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), **Trades** (positions you took, tracked against your exits), **Scoreboard** (past scans graded against what actually happened), and **Universe** (manage which tickers are watched)
 - **📊 Price data** (bottom of the hub): shows what's cached on this device and the **Update price data** button — tap it to fetch/refresh 5 years of daily history for every watched ticker
 - The first full update takes several minutes and must stay in an open tab — a progress bar shows `n / total` with a Cancel button; tickers already updated today are skipped, so re-runs are fast
+- **With an FMP key** (Settings → Stock Analyzer): updates run in parallel straight from FMP and finish in ~2–4 minutes instead of ~18 — the note shows "⚡ FMP fast path active". Without a key, nothing changes; the free Yahoo path still works exactly as before
 - Price history is stored **on this device** (not in the cloud) — a new phone or computer does its own first fetch
 - The feature is being built in stages — sections marked **Coming soon** are scaffolded but not yet functional
 

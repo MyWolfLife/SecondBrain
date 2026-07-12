@@ -262,6 +262,38 @@ function _anaMergeCandles(existing, fresh) {
     return existing;
 }
 
+// Converts a Yahoo-style range string to an FMP from/to date pair (with a
+// little slack so small ranges still clear the minCandles guard).
+function _anaRangeToDates(range) {
+    var to = _anaTodayStr();
+    var d  = new Date();
+    if      (range === '3mo') d.setMonth(d.getMonth() - 4);
+    else if (range === '1y')  d.setFullYear(d.getFullYear() - 1);
+    else                      d.setFullYear(d.getFullYear() - 5);
+    return { from: d.toISOString().slice(0, 10), to: to };
+}
+
+// Provider chain for one ticker's history: FMP (if a key exists) → Yahoo
+// worker/proxy chain. FMP is direct + parallel-friendly; on ANY FMP error or a
+// short response we fall through to the existing (verified) Yahoo path, so the
+// free experience is never regressed. Indices like ^VIX (no FMP coverage) fail
+// the FMP call and fall through automatically.
+async function _anaFetchHistory(ticker, range, minCandles) {
+    var key = '';
+    try { key = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e) {}
+    if (key) {
+        try {
+            var rng = _anaRangeToDates(range);
+            var rec = await anaFmpHistory(ticker, rng.from, rng.to);
+            if (rec.dates.length >= (minCandles || 1)) return rec;
+            console.log('[analyzer] FMP returned too few candles for ' + ticker + ' (' + rec.dates.length + ') — falling back to Yahoo');
+        } catch (e) {
+            console.log('[analyzer] FMP history failed for ' + ticker + ': ' + e.message + ' — falling back to Yahoo');
+        }
+    }
+    return _anaFetchYahooHistory(ticker, range, minCandles);
+}
+
 // Updates the cache for one ticker. Returns 'skipped' | 'topup' | 'full'.
 async function _anaUpdateTicker(ticker) {
     var today  = _anaTodayStr();
@@ -284,7 +316,7 @@ async function _anaUpdateTicker(ticker) {
         cached = { ticker: ticker, dates: [], open: [], high: [], low: [], close: [], volume: [] };
     }
 
-    var fresh = await _anaFetchYahooHistory(ticker, range, minCandles);
+    var fresh = await _anaFetchHistory(ticker, range, minCandles);
     _anaMergeCandles(cached, fresh);
     cached.updatedAt = new Date().toISOString();
     await _anaDbPut(cached);
@@ -294,11 +326,18 @@ async function _anaUpdateTicker(ticker) {
 // Batch update with progress + cancel support.
 // opts: { onProgress(done, total, ticker, status), shouldCancel() }
 // Returns { updated, skipped, failed: [{ticker, error}], cancelled }
+// With an FMP key, runs a throttled parallel pool (~2–4 min full universe);
+// without one, the original sequential proxy path is used UNCHANGED.
 async function _anaUpdatePrices(tickers, opts) {
     opts = opts || {};
     var result = { updated: 0, skipped: 0, failed: [], cancelled: false };
-    var needDelay = false;
 
+    var fmpKey = '';
+    try { fmpKey = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e) {}
+    if (fmpKey) return _anaUpdatePricesParallel(tickers, opts, result);
+
+    // --- Free path (unchanged): sequential with 800ms spacing between fetches ---
+    var needDelay = false;
     for (var i = 0; i < tickers.length; i++) {
         if (opts.shouldCancel && opts.shouldCancel()) { result.cancelled = true; break; }
         var t = tickers[i];
@@ -315,6 +354,50 @@ async function _anaUpdatePrices(tickers, opts) {
             if (opts.onProgress) opts.onProgress(i + 1, tickers.length, t, 'failed');
         }
     }
+    return result;
+}
+
+// FMP parallel path: a pool of 5 workers pulls from the ticker list, with a
+// GLOBAL ~250ms spacing between request starts (≈240/min — under Starter's
+// 300/min). On a 429 the spacing doubles for the rest of the run (rate cut in
+// half, the equivalent of the plan's "halve the pool"). FMP allows direct
+// concurrent calls, so 5-in-flight is safe.
+async function _anaUpdatePricesParallel(tickers, opts, result) {
+    var total    = tickers.length;
+    var next     = 0, done = 0;
+    var poolSize = 5;
+    var paceMs   = 250;
+    var paceChain = Promise.resolve();
+
+    // Serializes request STARTS to paceMs apart; fetches still run concurrently.
+    function pace() {
+        var p = paceChain.then(function() { return new Promise(function(r) { setTimeout(r, paceMs); }); });
+        paceChain = p;
+        return p;
+    }
+
+    async function worker() {
+        while (next < total) {
+            if (opts.shouldCancel && opts.shouldCancel()) { result.cancelled = true; return; }
+            var t = tickers[next++];
+            await pace();
+            if (opts.shouldCancel && opts.shouldCancel()) { result.cancelled = true; return; }
+            try {
+                var status = await _anaUpdateTicker(t);
+                if (status === 'skipped') result.skipped++;
+                else                      result.updated++;
+                if (opts.onProgress) opts.onProgress(++done, total, t, status);
+            } catch (e) {
+                result.failed.push({ ticker: t, error: e.message });
+                if (/429|rate limit/i.test(e.message)) paceMs = 500;   // back off for the rest of the run
+                if (opts.onProgress) opts.onProgress(++done, total, t, 'failed');
+            }
+        }
+    }
+
+    var workers = [];
+    for (var w = 0; w < poolSize; w++) workers.push(worker());
+    await Promise.all(workers);
     return result;
 }
 

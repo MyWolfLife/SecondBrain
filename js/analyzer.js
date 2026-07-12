@@ -123,6 +123,11 @@ async function _anaRenderPriceSection() {
                stats.freshToday + ' updated today · last update ' + when + '.';
     }
 
+    // FMP fast path indicator (Stage 3.1): direct parallel fetches when a key is set.
+    var fmpKey = '';
+    try { fmpKey = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e) {}
+    if (fmpKey) note += ' ⚡ FMP fast path active (updates run in parallel).';
+
     el.innerHTML =
         '<p class="muted-text" style="max-width:560px">' + note + '</p>' +
         '<div class="ana-add-row">' +
