@@ -21,13 +21,15 @@ var AS_DEFAULTS = {
     maxPerDetector: 15,
     // Detector B (post-earnings drift)
     driftMaxAgeDays: 10, driftMinDay1Pct: 2, driftMinSurprisePct: 2,
-    driftCalendarDays: 21   // trailing window to look back for recent reports
+    driftCalendarDays: 21,  // trailing window to look back for recent reports
+    // Detector C (estimate-revision momentum) — runs off our weekly snapshots
+    revMinEstPct: 3, revMinSpanDays: 28, revMinAnalysts: 3, revMaxWeeks: 12
 };
 
 var _asRunning   = false;
 var _asLatestScan = null;   // {id, ...doc} of the scan being displayed
 
-var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring', driftB: '🚀 Post-earnings drift' };
+var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compressed spring', driftB: '🚀 Post-earnings drift', revC: '📈 Revision momentum' };
 
 // ---------------------------------------------------------------------------
 // Page
@@ -135,6 +137,17 @@ async function _asMaybeSnapshotEstimates() {
     }
 }
 
+// Extract one ticker's ascending EPS-estimate series from the loaded weekly
+// snapshot docs → [{date, eps, analysts}] (only weeks that covered the ticker).
+function _asExtractEstSeries(snapshotDocs, ticker) {
+    var series = [];
+    snapshotDocs.forEach(function(doc) {
+        var e = doc.data && doc.data[ticker];
+        if (e && e.epsCurrY != null) series.push({ date: doc.date, eps: e.epsCurrY, analysts: e.numAnalysts });
+    });
+    return series;
+}
+
 async function _asComputeScan(onNote) {
     var cfg = AS_DEFAULTS;
 
@@ -161,6 +174,15 @@ async function _asComputeScan(onNote) {
     } catch (e0) {
         console.log('[scan] drift earnings calendar skipped: ' + e0.message);
     }
+
+    // Detector C needs our accumulated weekly estimate snapshots (last 12
+    // weeks, ascending). Empty until ≥3 snapshots exist — then it "arms itself".
+    var snapshotDocs = [];
+    try {
+        var snapQ = await userCol('analyzerEstimates').orderBy('date', 'desc').limit(cfg.revMaxWeeks).get();
+        snapQ.forEach(function(d) { snapshotDocs.push(d.data()); });
+        snapshotDocs.reverse();
+    } catch (eS) { console.log('[scan] estimate snapshots unavailable: ' + eS.message); }
 
     for (var i = 0; i < tickers.length; i++) {
         var t = tickers[i];
@@ -235,6 +257,28 @@ async function _asComputeScan(onNote) {
                 });
             }
         }
+
+        // Detector C — estimate-revision momentum (needs ≥3 weekly snapshots)
+        if (snapshotDocs.length >= 3) {
+            var series = _asExtractEstSeries(snapshotDocs, t);
+            var rev = anaEngRevisionTrigger(rec, series, t, {
+                minEstPct: cfg.revMinEstPct, minSpanDays: cfg.revMinSpanDays, minAnalysts: cfg.revMinAnalysts
+            });
+            if (rev) {
+                funnel.triggered++;
+                candidates.push({
+                    ticker: t, detector: 'revC',
+                    close: rev.close,
+                    estChangePct: rev.estChangePct,
+                    priceChangePct: rev.priceChangePct,
+                    gapPts: rev.gapPts,
+                    weeksCovered: rev.weeksCovered,
+                    baseRate: br.rate,
+                    earningsDate: null,
+                    dismissed: false
+                });
+            }
+        }
     }
 
     // Rank within detector, cap shortlists
@@ -250,9 +294,13 @@ async function _asComputeScan(onNote) {
     var drifts = candidates.filter(function(c) { return c.detector === 'driftB'; });
     drifts.sort(function(a, b) { return b.epsSurprisePct - a.epsSurprisePct; });
 
+    var revs = candidates.filter(function(c) { return c.detector === 'revC'; });
+    revs.sort(function(a, b) { return b.gapPts - a.gapPts; });
+
     var shortlist = dips.slice(0, cfg.maxPerDetector)
         .concat(springs.slice(0, cfg.maxPerDetector))
-        .concat(drifts.slice(0, cfg.maxPerDetector));
+        .concat(drifts.slice(0, cfg.maxPerDetector))
+        .concat(revs.slice(0, cfg.maxPerDetector));
     funnel.shortlisted = shortlist.length;
 
     // Catalyst map (Stage 2.4): Finnhub earnings calendar is PRIMARY (all
@@ -409,7 +457,7 @@ function _asRenderScan(scan, container) {
             '<div class="ana-stat"><div class="ana-stat-num">' + (f.shortlisted || 0) + '</div><div class="ana-stat-label">Shortlisted</div></div>' +
         '</div>';
 
-    ['dipA', 'springD', 'driftB'].forEach(function(det) {
+    ['dipA', 'springD', 'driftB', 'revC'].forEach(function(det) {
         var all = (scan.candidates || []).filter(function(c) { return c.detector === det; });
         var live = all.filter(function(c) { return !c.dismissed; });
         var dismissed = all.length - live.length;
@@ -521,6 +569,11 @@ function _asCandidateCard(c) {
         reason = 'Beat estimates by ' + c.epsSurprisePct.toFixed(1) + '% on ' + escapeHtml(c.reportDate || '') +
                  '; day-one gain of ' + c.day1RetPct.toFixed(1) + '% held. Day ' + c.daysSinceReaction + ' of the drift window.';
         if (c.revenueBeat === true) chips.push('Revenue beat too');
+    } else if (c.detector === 'revC') {
+        badge  = 'est ' + _asPct(c.estChangePct) + ' vs price ' + _asPct(c.priceChangePct);
+        reason = 'Analysts raised this year’s earnings estimate ' + _asPct(c.estChangePct) + ' over ' +
+                 c.weeksCovered + ' weeks while the price moved ' + _asPct(c.priceChangePct) + ' — fundamentals outrunning the price.';
+        chips.push('Est gap: ' + _asPtsStr(c.gapPts) + ' pts (est vs price)');
     } else {
         badge  = 'vol ' + (c.vol != null ? c.vol.toFixed(2) : '—') + ' · ' + c.pctFromHigh.toFixed(1) + '% off high';
         reason = 'Volatility compressed to the bottom decile of its own history, sitting ' + c.pctFromHigh.toFixed(1) + '% from its 52-week high.';
@@ -680,6 +733,19 @@ async function loadAnalyzerDossierPage(scanId, ticker, detector) {
         }
     }
 
+    // Detector C evidence — the ticker's EPS-estimate series from our snapshots.
+    if (detector === 'revC') {
+        try {
+            var snapQ2 = await userCol('analyzerEstimates').orderBy('date', 'desc').limit(AS_DEFAULTS.revMaxWeeks).get();
+            var docs2 = []; snapQ2.forEach(function(d) { docs2.push(d.data()); }); docs2.reverse();
+            var series = _asExtractEstSeries(docs2, ticker);
+            var rtr = anaEngRevisionTrigger(rec, series, ticker, {
+                minEstPct: AS_DEFAULTS.revMinEstPct, minSpanDays: AS_DEFAULTS.revMinSpanDays, minAnalysts: AS_DEFAULTS.revMinAnalysts
+            });
+            ev.revision = { series: series, trigger: rtr };
+        } catch (e) { /* leave ev.revision undefined */ }
+    }
+
     _adCtx = { scanId: scanId, ticker: ticker, detector: detector, scan: scan, candidate: candidate, close: close };
     _adRender(page, rec, ev, params);
 }
@@ -696,12 +762,15 @@ function _adRender(page, rec, ev, params) {
     var thesis = (ctx.candidate && ctx.candidate.thesisDraft) || '';
     var isDip   = ctx.detector === 'dipA';
     var isDrift = ctx.detector === 'driftB';
+    var isRev   = ctx.detector === 'revC';
 
     // Header + badge
     var badge;
-    if (isDrift && ev.drift)      badge = 'beat +' + ev.drift.epsSurprisePct.toFixed(1) + '% · day1 +' + ev.drift.day1RetPct.toFixed(1) + '%';
+    if (isRev && ev.revision && ev.revision.trigger)
+                                  badge = 'est ' + _asPct(ev.revision.trigger.estChangePct) + ' vs price ' + _asPct(ev.revision.trigger.priceChangePct);
+    else if (isDrift && ev.drift) badge = 'beat +' + ev.drift.epsSurprisePct.toFixed(1) + '% · day1 +' + ev.drift.day1RetPct.toFixed(1) + '%';
     else if (isDip && ev.dip)     badge = '−' + ev.dip.dropPct.toFixed(1) + '% in ' + ev.dip.daysSincePeak + 'd';
-    else if (!isDip && !isDrift && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
+    else if (!isDip && !isDrift && !isRev && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
     else                          badge = 'setup no longer active';
 
     var html =
@@ -744,6 +813,26 @@ function _adRender(page, rec, ev, params) {
             (d.epsActual != null ? d.epsActual : '—') + ' vs ' + (d.epsEstimate != null ? d.epsEstimate : '—') + ' est' +
             ' (beat +' + d.epsSurprisePct.toFixed(1) + '%)' + rev +
             ' · day-one +' + d.day1RetPct.toFixed(1) + '% · day ' + d.daysSinceReaction + ' of the drift window.</p>';
+    }
+
+    // Estimate-history table (Detector C) — how the consensus EPS moved week by week
+    if (isRev && ev.revision) {
+        var sers = ev.revision.series || [];
+        var trg  = ev.revision.trigger;
+        if (trg) {
+            html += '<p class="muted-text">📈 Consensus EPS rose ' + _asPct(trg.estChangePct) + ' over ' + trg.weeksCovered +
+                ' weekly snapshots while the price moved ' + _asPct(trg.priceChangePct) + ' — a ' + _asPtsStr(trg.gapPts) + '-point gap.</p>';
+        }
+        if (sers.length) {
+            html += '<h3 class="ana-section-title">Estimate history — ' + escapeHtml(ctx.ticker) + '</h3>' +
+                '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Snapshot</th><th>Consensus EPS</th><th>Analysts</th></tr>';
+            sers.forEach(function(s) {
+                html += '<tr><td>' + escapeHtml(s.date) + '</td><td>' + (s.eps != null ? s.eps.toFixed(2) : '—') + '</td><td>' + (s.analysts != null ? s.analysts : '—') + '</td></tr>';
+            });
+            html += '</table></div>';
+        } else {
+            html += '<p class="muted-text">No estimate snapshots recorded yet — this detector arms itself once a few weekly snapshots exist.</p>';
+        }
     }
 
     // Quality section (Stage 2.2) — filled async by _adRenderQuality after render

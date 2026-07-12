@@ -17,7 +17,7 @@ var ASB_HORIZONS = [30, 60];   // trading-day checkpoints
 var ASB_MAX_SCANS = 25;
 
 // Short detector label for the per-scan table (detector-agnostic).
-var ASB_DET_SHORT = { dipA: 'Dip', springD: 'Spring', driftB: 'Drift' };
+var ASB_DET_SHORT = { dipA: 'Dip', springD: 'Spring', driftB: 'Drift', revC: 'Revision' };
 function _asbDetShort(det) { return ASB_DET_SHORT[det] || det; }
 
 async function loadAnalyzerScoreboardPage() {
