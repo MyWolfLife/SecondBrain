@@ -151,6 +151,9 @@ function _asExtractEstSeries(snapshotDocs, ticker) {
 async function _asComputeScan(onNote) {
     var cfg = AS_DEFAULTS;
 
+    // Fresh FMP quota/plan-limit tracking for this scan (Stage 3.5).
+    if (typeof anaFmpResetCounters === 'function') anaFmpResetCounters();
+
     // Universe + records
     await Promise.all([_anaLoadSp500(), _anaLoadUniverseCfg(), _anaLoadHoldingTickers()]);
     var tickers = _anaEffectiveUniverse();
@@ -170,7 +173,7 @@ async function _asComputeScan(onNote) {
     try {
         var calFrom = new Date(Date.now() - cfg.driftCalendarDays * 86400000).toISOString().slice(0, 10);
         var calTo   = new Date().toISOString().slice(0, 10);
-        driftCal = await anaFinnhubEarningsCalendar(calFrom, calTo);
+        driftCal = await anaEarningsCalendar(calFrom, calTo);
     } catch (e0) {
         console.log('[scan] drift earnings calendar skipped: ' + e0.message);
     }
@@ -303,22 +306,20 @@ async function _asComputeScan(onNote) {
         .concat(revs.slice(0, cfg.maxPerDetector));
     funnel.shortlisted = shortlist.length;
 
-    // Catalyst map (Stage 2.4): Finnhub earnings calendar is PRIMARY (all
-    // symbols in one call); FMP is a silent fallback only if Finnhub throws
-    // (no key / rate limit). For every candidate with an upcoming report in the
-    // window, also stamp the stock's typical earnings-day move for sizing.
+    // Catalyst map (Stage 2.4/3.5): Finnhub earnings calendar is PRIMARY (all
+    // symbols in one call); the unified provider silently falls back to FMP if
+    // Finnhub throws (no key / rate limit). For every candidate with an upcoming
+    // report in the window, also stamp the stock's typical earnings-day move.
     if (onNote) onNote('Checking earnings calendar…');
     var earnings = null;
     try {
         var eFrom = new Date().toISOString().slice(0, 10);
         var eTo   = new Date(Date.now() + cfg.windowDays * 86400000).toISOString().slice(0, 10);
-        var cal   = await anaFinnhubEarningsCalendar(eFrom, eTo);
+        var cal   = await anaEarningsCalendar(eFrom, eTo);
         earnings = {};
         Object.keys(cal).forEach(function(sym) { earnings[sym] = cal[sym].date; });
     } catch (e) {
-        console.log('[scan] Finnhub earnings calendar unavailable, trying FMP: ' + e.message);
-        try { earnings = await _asFetchEarningsMap(cfg.windowDays); }
-        catch (e2) { console.log('[scan] FMP earnings fallback skipped: ' + e2.message); }
+        console.log('[scan] earnings calendar unavailable (Finnhub + FMP): ' + e.message);
     }
     if (earnings) {
         for (var s = 0; s < shortlist.length; s++) {
@@ -347,7 +348,7 @@ async function _asComputeScan(onNote) {
         try {
             // Buys since the dip's peak = insiders catching their own knife.
             var since = dc.peakDate || new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-            dc.insiders = await anaFinnhubInsiders(dc.ticker, since);
+            dc.insiders = await anaInsiders(dc.ticker, since);
         } catch (e3) {
             dc.insiders = { error: e3.message };
         }
@@ -362,6 +363,13 @@ async function _asComputeScan(onNote) {
         var since60 = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
         for (var a = 0; a < shortlist.length; a++) {
             var ac = shortlist[a];
+            // Guardrail (Stage 3.5): a limited/free key answers these with 402.
+            // After a few, stop hammering — truncate enrichment cleanly instead
+            // of failing per candidate, and label why on the remaining cards.
+            if (typeof anaFmpPlanLimited === 'function' && anaFmpPlanLimited()) {
+                ac.divergenceNote = 'analyst data not included in the current FMP plan';
+                continue;
+            }
             if (onNote) onNote('Analyst view ' + (a + 1) + ' / ' + shortlist.length + ' — ' + ac.ticker + '…');
             try { ac.estimates   = await anaFmpEstimates(ac.ticker); }   catch (e5) { ac.estimates = null; }
             try { ac.priceTarget = await anaFmpPriceTarget(ac.ticker); } catch (e6) { ac.priceTarget = null; }
@@ -390,29 +398,6 @@ async function _asComputeScan(onNote) {
         funnel: funnel,
         candidates: shortlist
     };
-}
-
-// One FMP earnings-calendar call → { TICKER: 'YYYY-MM-DD' } for the next windowDays.
-// Returns null when no FMP key is configured (feature degrades silently).
-async function _asFetchEarningsMap(windowDays) {
-    var doc = await userCol('settings').doc('investments').get();
-    var key = (doc.exists && doc.data().fmpApiKey) ? doc.data().fmpApiKey : '';
-    if (!key) return null;
-
-    var from = new Date().toISOString().slice(0, 10);
-    var to   = new Date(Date.now() + windowDays * 86400000).toISOString().slice(0, 10);
-    var url  = 'https://financialmodelingprep.com/stable/earnings-calendar?from=' + from + '&to=' + to + '&apikey=' + encodeURIComponent(key);
-    var resp = await fetch(url);
-    if (!resp.ok) throw new Error('FMP earnings calendar HTTP ' + resp.status);
-    var data = await resp.json();
-    if (!Array.isArray(data)) throw new Error('unexpected earnings calendar response');
-    var map = {};
-    data.forEach(function(row) {
-        // Keep the EARLIEST upcoming report date per symbol; FMP uses dashes for classes (BRK-B)
-        var sym = (row.symbol || '').replace(/-/g, '.');
-        if (sym && row.date && (!map[sym] || row.date < map[sym])) map[sym] = row.date;
-    });
-    return map;
 }
 
 // ---------------------------------------------------------------------------
@@ -723,7 +708,7 @@ async function loadAnalyzerDossierPage(scanId, ticker, detector) {
         } else {
             try {
                 var from120 = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
-                var cal = await anaFinnhubEarningsCalendar(from120, new Date().toISOString().slice(0, 10));
+                var cal = await anaEarningsCalendar(from120, new Date().toISOString().slice(0, 10));
                 var er  = cal[ticker];
                 if (er) {
                     var dtr = anaEngDriftTrigger(rec, er, { maxAgeDays: 120 });
@@ -996,7 +981,7 @@ async function _adRenderQuality() {
     if (!insiders) {
         try {
             var since = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
-            insiders = await anaFinnhubInsiders(_adCtx.ticker, since);
+            insiders = await anaInsiders(_adCtx.ticker, since);
         } catch (e2) { insiders = null; }
     }
     // The element can be replaced by a re-render while we await — bail if gone.

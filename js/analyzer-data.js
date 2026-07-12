@@ -578,3 +578,36 @@ async function anaFinnhubNews(ticker, fromDate, toDate) {
     items.sort(function(a, b) { return a.date < b.date ? 1 : -1; });
     return items.slice(0, 15);
 }
+
+// ---------------------------------------------------------------------------
+// Unified earnings + insider providers (Stage 3.5)
+// ---------------------------------------------------------------------------
+// One documented ordering: Finnhub PRIMARY (Phase 2, all-US coverage), FMP the
+// fallback when Finnhub throws (no key / rate limit) AND an FMP key exists. The
+// FMP fetchers return the same shapes, so callers stay provider-agnostic.
+
+// Earnings calendar map for a date range. Finnhub first, then FMP.
+async function anaEarningsCalendar(fromDate, toDate) {
+    try {
+        return await anaFinnhubEarningsCalendar(fromDate, toDate);
+    } catch (e) {
+        if (typeof anaFmpEarningsCalendar === 'function' && (await anaFmpGetKey())) {
+            console.log('[analyzer] Finnhub earnings calendar failed (' + e.message + ') — trying FMP');
+            return await anaFmpEarningsCalendar(fromDate, toDate);
+        }
+        throw e;
+    }
+}
+
+// Insider activity for one ticker since a date. Finnhub first, then FMP.
+async function anaInsiders(ticker, fromDate) {
+    try {
+        return await anaFinnhubInsiders(ticker, fromDate);
+    } catch (e) {
+        if (typeof anaFmpInsiders === 'function' && (await anaFmpGetKey())) {
+            console.log('[analyzer] Finnhub insiders failed for ' + ticker + ' (' + e.message + ') — trying FMP');
+            return await anaFmpInsiders(ticker, fromDate);
+        }
+        throw e;
+    }
+}

@@ -128,8 +128,18 @@ async function _anaRenderPriceSection() {
     try { fmpKey = (typeof anaFmpGetKey === 'function') ? await anaFmpGetKey() : ''; } catch (e) {}
     if (fmpKey) note += ' ⚡ FMP fast path active (updates run in parallel).';
 
+    // Provider health line (Stage 3.5): config presence only, no API calls.
+    var finnhubKey = '', workerUrl = '';
+    try { finnhubKey = (typeof _investGetFinnhubKey === 'function') ? (await _investGetFinnhubKey()) || '' : ''; } catch (e) {}
+    try { workerUrl  = (typeof _investGetYahooWorkerUrl === 'function') ? (await _investGetYahooWorkerUrl()) || '' : ''; } catch (e) {}
+    function _prov(on, label) { return '<span title="' + (on ? 'active' : 'not configured') + '">' + (on ? '✓' : '—') + ' ' + label + '</span>'; }
+    var health = '<p class="muted-text" style="max-width:560px;font-size:0.82rem">Providers: ' +
+        _prov(!!fmpKey, 'FMP') + ' · ' + _prov(!!finnhubKey, 'Finnhub') + ' · ' +
+        _prov(!!workerUrl, 'Yahoo worker') + ' · ' + _prov(true, 'public proxies') + '</p>';
+
     el.innerHTML =
         '<p class="muted-text" style="max-width:560px">' + note + '</p>' +
+        health +
         '<div class="ana-add-row">' +
             '<button class="btn-primary" id="anaUpdateBtn" onclick="_anaRunPriceUpdate()">📡 Update price data</button>' +
             (fmpKey ? '<button class="ana-sp-btn" id="anaSnapBtn" onclick="_anaRunEstimateSnapshot()">📸 Snapshot estimates</button>' : '') +

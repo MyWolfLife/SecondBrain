@@ -21,6 +21,19 @@ var ANA_FMP_BASE = 'https://financialmodelingprep.com/stable/';
 
 var _anaFmpKey = null;   // module cache: null = unread, '' = known-absent
 
+// --- Session quota guardrails (Stage 3.5) --------------------------------
+// We can't read the plan tier from the key, so we infer "not fully subscribed"
+// from behavior: once a few endpoints answer 402, we flag the session as
+// plan-limited and optional FMP enrichment backs off instead of hammering 402s.
+var _anaFmpCalls      = 0;      // total FMP HTTP calls made this session
+var _anaFmpPlanBlocks = 0;      // count of 402 "not in plan" responses
+var _anaFmpLimited    = false;  // true once repeated 402s prove a limited plan
+var ANA_FMP_PLAN_BLOCK_LIMIT = 3;   // this many 402s ⇒ treat the key as limited
+
+function anaFmpCallCount()   { return _anaFmpCalls; }
+function anaFmpPlanLimited() { return _anaFmpLimited; }
+function anaFmpResetCounters() { _anaFmpCalls = 0; _anaFmpPlanBlocks = 0; _anaFmpLimited = false; }
+
 // Reads the per-user FMP key from Settings (module-cached). '' when unset.
 async function anaFmpGetKey() {
     if (_anaFmpKey !== null) return _anaFmpKey;
@@ -44,14 +57,20 @@ async function _anaFmpGet(pathAndQuery) {
     var url = ANA_FMP_BASE + pathAndQuery +
               (pathAndQuery.indexOf('?') > -1 ? '&' : '?') + 'apikey=' + encodeURIComponent(key);
 
+    _anaFmpCalls++;
     var resp = await _anaFetchWithTimeout(url, 12000);
     if (resp.status === 429) {                 // rate limited — one backoff retry
         await new Promise(function(r) { setTimeout(r, 3000); });
+        _anaFmpCalls++;
         resp = await _anaFetchWithTimeout(url, 12000);
     }
     var text = await resp.text();              // text-first: 402 bodies are plain text
     if (resp.status === 402) {
-        throw new Error('FMP plan does not include: ' + pathAndQuery.split('?')[0]);
+        // A limited/free plan: after a few of these, flag the whole session so
+        // optional enrichment can back off cleanly instead of failing per call.
+        _anaFmpPlanBlocks++;
+        if (_anaFmpPlanBlocks >= ANA_FMP_PLAN_BLOCK_LIMIT) _anaFmpLimited = true;
+        throw new Error('Not included in the current FMP plan: ' + pathAndQuery.split('?')[0]);
     }
     if (!resp.ok) throw new Error('FMP HTTP ' + resp.status);
     var data;
@@ -163,6 +182,63 @@ async function anaFmpGrades(ticker, sinceDate) {
 }
 
 // ---------------------------------------------------------------------------
+// Earnings + insider fallbacks (Stage 3.5)
+// ---------------------------------------------------------------------------
+// Finnhub is PRIMARY for both (Phase 2 shipped it, all-US coverage, and the
+// earnings calendar is a single call). These FMP versions are silent FALLBACKS
+// used only when Finnhub throws — normalized to the SAME shapes the Finnhub
+// fetchers return so callers/consumers need no branching. On Starter both
+// endpoints are full-coverage (Stage 3.0 tier map).
+
+// Earnings calendar for a date range → map { SYMBOL: {date, hour, epsEstimate,
+// epsActual, revenueEstimate, revenueActual} }, matching anaFinnhubEarningsCalendar.
+// ONE call covers all symbols. FMP uses dashes for share classes (BRK-B) → dots.
+async function anaFmpEarningsCalendar(fromDate, toDate) {
+    var data = await _anaFmpGet('earnings-calendar?from=' + fromDate + '&to=' + toDate);
+    if (!Array.isArray(data)) return {};
+    var map = {};
+    data.forEach(function(r) {
+        var sym = (r.symbol || '').replace(/-/g, '.');
+        if (!sym || !r.date) return;
+        if (map[sym] && map[sym].date <= r.date) return;   // keep earliest
+        map[sym] = {
+            date:            r.date,
+            hour:            '',
+            epsEstimate:     (r.epsEstimated     != null) ? r.epsEstimated     : null,
+            epsActual:       (r.epsActual        != null) ? r.epsActual        : null,
+            revenueEstimate: (r.revenueEstimated != null) ? r.revenueEstimated : null,
+            revenueActual:   (r.revenueActual    != null) ? r.revenueActual    : null
+        };
+    });
+    return map;
+}
+
+// Insider transactions since fromDate → {buys, sells, buyShares, netShares,
+// purchases:[{date,name,shares,price}]}, matching anaFinnhubInsiders. FMP's
+// insider-trading/search is per-symbol; a buy is acquisitionOrDisposition 'A'.
+async function anaFmpInsiders(ticker, fromDate) {
+    var sym  = ticker.replace(/\./g, '-');
+    var data = await _anaFmpGet('insider-trading/search?symbol=' + encodeURIComponent(sym) + '&limit=100');
+    var rows = Array.isArray(data) ? data : [];
+    var out  = { buys: 0, sells: 0, buyShares: 0, netShares: 0, purchases: [] };
+    rows.forEach(function(r) {
+        var when = r.transactionDate || r.filingDate || '';
+        if (fromDate && when && when < fromDate) return;           // window filter (API limit is coarse)
+        var qty  = Math.abs(r.securitiesTransacted || 0);
+        var isBuy = (r.acquisitionOrDisposition === 'A');
+        if (isBuy)  { out.buys++;  out.buyShares += qty; out.netShares += qty; }
+        else        { out.sells++;                       out.netShares -= qty; }
+        // Open-market purchases (type starts with 'P-') = the strong buy signal.
+        if (isBuy && /^P-/.test(r.transactionType || '')) {
+            out.purchases.push({ date: when, name: r.reportingName || '', shares: qty, price: (r.price != null ? r.price : null) });
+        }
+    });
+    out.purchases.sort(function(a, b) { return a.date < b.date ? 1 : -1; });
+    out.purchases = out.purchases.slice(0, 5);
+    return out;
+}
+
+// ---------------------------------------------------------------------------
 // Weekly estimate snapshots (Stage 3.2) — collection `analyzerEstimates`
 // ---------------------------------------------------------------------------
 // FMP serves only CURRENT consensus, so divergence (estimates-vs-price over
@@ -229,7 +305,7 @@ async function anaFmpSnapshotEstimates(tickers, onProgress) {
                 }
             } catch (err) {
                 failures++;
-                if (/plan does not include|429|rate/i.test(err.message)) paceMs = 800;  // free-tier storm guard
+                if (/not included in the current FMP plan|429|rate/i.test(err.message)) paceMs = 800;  // free-tier storm guard
             }
             done++;
             if (onProgress) onProgress(done, total, t);
