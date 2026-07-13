@@ -909,9 +909,35 @@ function _adRender(page, rec, ev, params) {
         }
     }
 
-    // Recent news + optional AI read (Stage 2.5) — filled async by _adRenderNews
-    html += '<h3 class="ana-section-title">📰 Recent news</h3>' +
-        '<div id="adNews"><p class="muted-text">Loading news…</p></div>';
+    // Recent news + optional AI read (Stage 2.5; accordion + range chooser
+    // Stage 3.5 — a dip that happened weeks ago needs a wider look-back than
+    // a fixed 14 days, or the headline that actually explains it gets missed).
+    var newsDays  = _adDefaultNewsDays(ev);
+    var newsIsPreset = (newsDays === 14 || newsDays === 30 || newsDays === 60);
+    html += '<div class="detail-acc open" id="adNewsAcc">' +
+        '<div class="detail-acc-header" onclick="toggleDetailAcc(\'adNewsAcc\')">' +
+            '<span class="detail-acc-chevron">&#9658;</span>' +
+            '<span class="detail-acc-title">📰 Recent news</span>' +
+            '<span class="detail-acc-count" id="adNewsCount"></span>' +
+        '</div>' +
+        '<div class="detail-acc-body">' +
+            '<div class="ab-form-row" style="margin-bottom:10px">' +
+                '<label>Look back ' +
+                    '<select id="adNewsRangeSel" onchange="_adNewsRangeChange()">' +
+                        '<option value="14"' + (newsDays === 14 ? ' selected' : '') + '>2 weeks</option>' +
+                        '<option value="30"' + (newsDays === 30 ? ' selected' : '') + '>1 month</option>' +
+                        '<option value="60"' + (newsDays === 60 ? ' selected' : '') + '>2 months</option>' +
+                        '<option value="custom"' + (!newsIsPreset ? ' selected' : '') + '>Custom…</option>' +
+                    '</select>' +
+                '</label>' +
+                '<input type="number" id="adNewsCustomDays" min="1" max="730" step="1" placeholder="# of days" ' +
+                    'value="' + (!newsIsPreset ? newsDays : '') + '" style="width:90px' + (newsIsPreset ? ';display:none' : '') + '" ' +
+                    'onchange="_adNewsRangeChange()">' +
+            '</div>' +
+            (newsDays > 14 ? '<p class="muted-text" style="font-size:0.8rem;margin-top:-4px">Widened automatically — this dip started more than 2 weeks ago.</p>' : '') +
+            '<div id="adNews"><p class="muted-text">Loading news…</p></div>' +
+        '</div>' +
+    '</div>';
 
     // Thesis + exits
     var canSave = !!(ctx.scan && ctx.candidate);
@@ -951,7 +977,7 @@ function _adRender(page, rec, ev, params) {
     _adDrawChart(rec, ev);
     _adRenderQuality();
     _adRenderAnalyst();
-    _adRenderNews(rec, ev);
+    _adRenderNews(ev, newsDays);
 }
 
 // ---------------------------------------------------------------------------
@@ -1192,32 +1218,85 @@ function _adAiDescription(ev) {
     return 'showing the ' + ctx.detector + ' setup';
 }
 
+// Smart default news look-back (Stage 3.5): a plain 14-day window misses the
+// headline that actually explains an older dip. If this is a dip candidate,
+// widen the default to comfortably cover the peak date (+5 day buffer),
+// snapping to the nearest preset (14/30/60) or an exact custom day count
+// beyond that, capped at 180d. Non-dip setups (spring/drift) keep 14d.
+function _adDefaultNewsDays(ev) {
+    if (ev && ev.dip && ev.dip.daysSincePeak != null) {
+        var need = ev.dip.daysSincePeak + 5;
+        if (need <= 14) return 14;
+        if (need <= 30) return 30;
+        if (need <= 60) return 60;
+        return Math.min(need, 180);
+    }
+    return 14;
+}
+
+// Fetch cap scales with the chosen window so a wider look-back doesn't just
+// re-show the same newest 15 items — it actually surfaces older headlines.
+function _adNewsFetchCap(days) {
+    if (days <= 14) return 15;
+    if (days <= 30) return 25;
+    if (days <= 60) return 35;
+    return 50;
+}
+
+// User changed the news range selector/custom-days input — re-fetch and
+// re-render the news list at the new window (Stage 3.5).
+function _adNewsRangeChange() {
+    var sel = document.getElementById('adNewsRangeSel');
+    var custom = document.getElementById('adNewsCustomDays');
+    if (!sel || !custom || !_adCtx || !_adCtx._ev) return;
+    var days;
+    if (sel.value === 'custom') {
+        custom.style.display = '';
+        days = parseInt(custom.value, 10);
+        if (!days || days < 1) return;   // wait for a valid number before refetching
+        if (days > 730) { days = 730; custom.value = 730; }
+    } else {
+        custom.style.display = 'none';
+        days = parseInt(sel.value, 10);
+    }
+    _adRenderNews(_adCtx._ev, days);
+}
+
 // Fetch + render the news list; add the AI-read button only when an LLM is
-// configured. News is ephemeral — never persisted to Firestore.
-async function _adRenderNews(rec, ev) {
+// configured. News is ephemeral — never persisted to Firestore. `days`
+// (Stage 3.5) controls the look-back window via the accordion's range chooser.
+async function _adRenderNews(ev, days) {
     var host = document.getElementById('adNews');
     if (!host || !_adCtx) return;
-    _adCtx._ev = ev;   // stash for the AI read
+    _adCtx._ev = ev;   // stash for the AI read + range-change re-renders
+    days = days || 14;
 
+    var fetchCap = _adNewsFetchCap(days);
     var items = [];
     try {
-        var from = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+        var from = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
         var to   = new Date().toISOString().slice(0, 10);
-        items = await anaFinnhubNews(_adCtx.ticker, from, to);
+        items = await anaFinnhubNews(_adCtx.ticker, from, to, fetchCap);
     } catch (e) { items = null; }
     _adCtx._newsItems = items || [];
 
     host = document.getElementById('adNews');
     if (!host) return;
 
+    var countEl = document.getElementById('adNewsCount');
+    var rangeLabel = (days === 14) ? '2 weeks' : (days === 30) ? 'month' : (days === 60) ? '2 months' : days + ' days';
+
     var html = '';
     if (!items) {
         html += '<p class="muted-text">News unavailable.</p>';
+        if (countEl) countEl.textContent = '';
     } else if (items.length === 0) {
-        html += '<p class="muted-text">No headlines in the last two weeks.</p>';
+        html += '<p class="muted-text">No headlines in the last ' + rangeLabel + '.</p>';
+        if (countEl) countEl.textContent = '0';
     } else {
+        if (countEl) countEl.textContent = items.length;
         html += '<ul class="ad-news-list">';
-        items.slice(0, 10).forEach(function(it) {
+        items.forEach(function(it) {
             var head = escapeHtml(it.headline);
             var link = it.url ? '<a href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">' + head + '</a>' : head;
             html += '<li><span class="ab-dim">' + escapeHtml(it.date || '') +
@@ -1267,7 +1346,7 @@ async function _adAiRead() {
         if (q.dividendYieldPct != null && q.dividendYieldPct > 0) metrics.push('dividend ' + q.dividendYieldPct.toFixed(1) + '%');
         if (ev.rsi != null)             metrics.push('RSI ' + ev.rsi.toFixed(0));
 
-        var headlines = (ctx._newsItems || []).slice(0, 10).map(function(it) {
+        var headlines = (ctx._newsItems || []).slice(0, 15).map(function(it) {
             return it.date + ' — ' + (it.source || '?') + ' — ' + it.headline;
         }).join('\n');
 

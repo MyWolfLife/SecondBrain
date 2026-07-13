@@ -557,9 +557,11 @@ async function anaFinnhubSurprises(ticker) {
     return Array.isArray(data) ? data : [];
 }
 
-// Company news for a date range → newest-first, capped at 15 items.
-// `datetime` arrives as unix seconds; converted to 'YYYY-MM-DD' for display.
-async function anaFinnhubNews(ticker, fromDate, toDate) {
+// Company news for a date range → newest-first, capped at `limit` items
+// (default 15; callers with a wider look-back window pass a higher cap —
+// Stage 3.5 range-chooser). `datetime` arrives as unix seconds; converted
+// to 'YYYY-MM-DD' for display.
+async function anaFinnhubNews(ticker, fromDate, toDate, limit) {
     var data = await _anaFinnhubGet('company-news', {
         symbol: ticker, from: fromDate, to: toDate
     });
@@ -576,7 +578,7 @@ async function anaFinnhubNews(ticker, fromDate, toDate) {
         });
     });
     items.sort(function(a, b) { return a.date < b.date ? 1 : -1; });
-    return items.slice(0, 15);
+    return items.slice(0, limit || 15);
 }
 
 // ---------------------------------------------------------------------------
