@@ -2421,6 +2421,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 - The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
 - The **🏥 Quality** section lays out the fundamentals (profitability, net margin, debt/equity, current ratio, dividend, ROE) and any recent insider open-market purchases — the survivability read behind the card's chips
 - The **🧮 Analyst view** section (with an FMP key) shows Wall Street's consensus earnings estimate (this year and next), the price-target range versus today's price, and the latest analyst upgrades/downgrades — the raw material behind the divergence chip
+- Every value in **Quality** and **Analyst view** has a small **?** button beside it — tap it for a plain-language popup explaining what the number is, why it matters, and what counts as a good or bad value, with a technical "in more depth" note underneath for anyone who wants the exact source/formula
 - Write your **thesis** — what has to happen for the stock to rise, and whether the dip looks *emotional* (tradeable) or *structural* (avoid)
 - Set your **exit plan** (target / stop / time stop) — the dollar prices update live as you type
 - Tap **Save thesis & exits** — your notes stay with this candidate and pre-fill the trade ticket (coming in Stage 8)

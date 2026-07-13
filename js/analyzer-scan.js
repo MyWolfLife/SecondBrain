@@ -954,6 +954,100 @@ function _adRender(page, rec, ev, params) {
     _adRenderNews(rec, ev);
 }
 
+// ---------------------------------------------------------------------------
+// Metric glossary — "?" info popups on the dossier's 🏥 Quality and 🧮 Analyst
+// view sections (Stage 3.5 UX pass). Each entry: `simple` answers "what is
+// it" / "why does it matter" / "good vs bad values" in plain language
+// (always shown); `deep` is optional — the technical detail (source field,
+// formula, caveats) for whoever wants to dig further, shown below the simple
+// answer.
+// ---------------------------------------------------------------------------
+var AD_INFO = {
+    'quality-profitable': {
+        title: 'Profitable',
+        simple: 'Whether the company made money over the last 12 months (Yes) or lost money (No). A profitable company is generally better positioned to survive a rough patch. Unprofitable isn’t automatically bad — plenty of young or fast-growing companies run at a loss on purpose — but paired with heavy debt it’s a warning sign (see the ⚠️ Falling knife? flag).',
+        deep: 'Based on trailing-twelve-month net profit margin (net income ÷ revenue) from Finnhub. "Yes" = margin above 0%; "No" = margin at or below 0%.'
+    },
+    'quality-netmargin': {
+        title: 'Net margin',
+        simple: 'The share of revenue the company actually keeps as profit after all expenses. A 20% net margin means it keeps $0.20 of every $1 it brings in. Higher is generally better, but margins vary hugely by industry (a grocery chain might run 2–3%, a software company 20–30%+) — compare within the same kind of business rather than to one universal number.',
+        deep: 'Trailing-twelve-month net profit margin from Finnhub (`netProfitMarginTTM`, with fallback field names when unavailable).'
+    },
+    'quality-debteq': {
+        title: 'Debt / equity',
+        simple: 'How much the company has borrowed compared to what shareholders actually own. A value of 1.0 means debt equals equity; 2.0 means it owes twice what shareholders’ stake is worth. Lower is generally safer — under ~1.0 is conservative, 1.0–2.0 is common for many industries, and above 2.0 is flagged amber here as meaningfully more leveraged, which is riskier if revenue drops or rates rise.',
+        deep: 'Total debt ÷ total shareholders’ equity, most recent quarter from Finnhub (annual fallback if the quarterly figure is unavailable). Capital-intensive industries (utilities, real estate, airlines) run structurally higher debt/equity than software or services — the 2.0 amber threshold is a rough universal cutoff, not industry-adjusted.'
+    },
+    'quality-currentratio': {
+        title: 'Current ratio',
+        simple: 'Whether the company has enough cash and short-term assets to cover what it owes in the next year. A ratio of 2.0 means $2 of short-term assets for every $1 of short-term debt. Above 1.0 generally means it can cover near-term bills; below 1.0 can be a liquidity warning sign. Very high (3.0+) sometimes just means idle cash — not necessarily bad, just worth noting.',
+        deep: 'Current assets ÷ current liabilities, most recent quarter, from Finnhub.'
+    },
+    'quality-divyield': {
+        title: 'Dividend yield',
+        simple: 'The annual cash dividend as a percentage of the current share price — a 2% yield means about $2 a year for every $100 invested, just from dividends. Not part of the trade setup itself; shown as extra context. An unusually high yield (8%+) can sometimes signal the market expects a dividend cut, so it’s worth a second look.',
+        deep: 'Indicated annual dividend yield (trailing twelve months) from Finnhub.'
+    },
+    'quality-roe': {
+        title: 'Return on equity',
+        simple: 'How efficiently the company turns shareholders’ money into profit. A 15% ROE means $15 of profit for every $100 of shareholder equity. Higher is generally better — it’s a classic sign of a well-run, efficient business. Very high ROE (50%+) can sometimes be driven by heavy debt rather than genuine efficiency, so it’s worth checking debt/equity alongside it.',
+        deep: 'Net income ÷ shareholders’ equity, trailing twelve months, from Finnhub.'
+    },
+    'quality-insiders': {
+        title: 'Insider open-market purchases',
+        simple: 'Whether people who run the company (executives, board members) have bought shares with their own money recently — and if so, who, how many, and at what price. Insider buying is one of the more meaningful signals available: insiders have no obligation to buy, know the business better than anyone, and are putting their own money on the line. Buying during or right after a dip is a strong vote of confidence. No purchases doesn’t necessarily mean anything — most insiders simply don’t trade often.',
+        deep: 'Only counts open-market purchases (SEC Form 4 transaction code \'P\') — not stock granted as compensation, option exercises, or other transaction types, which aren’t a confidence signal the same way. Sourced from Finnhub’s insider-transactions feed, with an FMP fallback (Stage 3.5).'
+    },
+    'analyst-epscurr': {
+        title: 'Consensus EPS (this FY)',
+        simple: 'What Wall Street analysts, on average, expect this company to earn per share this fiscal year. Not good or bad on its own — what matters is whether it’s rising or falling over time, and whether the stock price is keeping pace. A rising estimate with a falling price is the "divergence" opportunity this tool is built to find (see the flagship chip on the scan card).',
+        deep: 'Consensus (average) analyst forecast for the current forward fiscal year, from FMP’s `analyst-estimates` endpoint (annual estimates; "current" year = the next fiscal-year-end on or after today).'
+    },
+    'analyst-epsnext': {
+        title: 'Consensus EPS (next FY)',
+        simple: 'The same consensus earnings forecast, but for the fiscal year after this one — a look further out. Useful as a sanity check: if next year’s estimate is much higher than this year’s, analysts expect meaningful growth ahead.',
+        deep: 'Same FMP source as the current-FY estimate, one fiscal year further out.'
+    },
+    'analyst-target': {
+        title: 'Price target (consensus)',
+        simple: 'The average 12-month price target from analysts who cover this stock, and how far that is from where the price sits right now. A target well above the current price suggests analysts see room to run — but treat it as one data point, not a guarantee. Targets get revised often and can lag reality, especially right after a sharp move.',
+        deep: 'Consensus (average) analyst 12-month price target from FMP’s `price-target-consensus` endpoint.'
+    },
+    'analyst-targetrange': {
+        title: 'Target range',
+        simple: 'The lowest and highest individual price targets among analysts covering the stock — a measure of how much they actually disagree. A narrow range means broad agreement on where the stock is headed; a wide range means real disagreement, whether because the future is genuinely uncertain or coverage is thin.',
+        deep: 'Low and high values from the same FMP `price-target-consensus` endpoint as the consensus target.'
+    },
+    'analyst-grades': {
+        title: 'Analyst actions (last 60d)',
+        simple: 'How many analysts raised (▲ upgrade), lowered (▼ downgrade), or kept (maintained) their rating on this stock in the last 60 days, with the most recent actions listed below. More upgrades than downgrades suggests professional sentiment is improving — a tailwind. More downgrades is a headwind, even if the price hasn’t reacted to it yet.',
+        deep: 'Sourced from FMP’s `grades` endpoint (rating-change actions from research firms), filtered to the last 60 days client-side since the API’s `limit` parameter isn’t honored (Stage 3.0 finding).'
+    }
+};
+
+// Renders a small "?" button next to a Quality/Analyst view label that opens
+// the AD_INFO popup for that metric. No-op text (empty string) if unknown.
+function _adInfoBtn(key) {
+    if (!AD_INFO[key]) return '';
+    return ' <button type="button" class="ad-info-btn" onclick="_adShowInfo(\'' + key + '\')" aria-label="What is this?">?</button>';
+}
+
+// Opens the shared #adInfoModal populated with one AD_INFO entry.
+function _adShowInfo(key) {
+    var info = AD_INFO[key];
+    if (!info) return;
+    var titleEl = document.getElementById('adInfoModalTitle');
+    var bodyEl  = document.getElementById('adInfoModalBody');
+    if (!titleEl || !bodyEl) return;
+    titleEl.textContent = info.title;
+    var html = '<p>' + escapeHtml(info.simple) + '</p>';
+    if (info.deep) {
+        html += '<div class="ad-info-modal-deep"><strong>In more depth:</strong> ' + escapeHtml(info.deep) + '</div>';
+    }
+    bodyEl.innerHTML = html;
+    openModal('adInfoModal');
+}
+
 // Fill the dossier's Analyst view (Stage 3.2): consensus EPS (current + next
 // FY), price-target range vs price, and recent grade actions. Uses the values
 // stamped on the scan candidate when present; otherwise (deep link / old scan)
@@ -984,22 +1078,22 @@ async function _adRenderAnalyst() {
     // Consensus EPS + target grid
     var rows = [];
     if (est) {
-        if (est.epsCurrY != null) rows.push(['Consensus EPS (this FY)', est.epsCurrY.toFixed(2) + (est.numAnalysts ? ' · ' + est.numAnalysts + ' analysts' : '')]);
-        if (est.epsNextY != null) rows.push(['Consensus EPS (next FY)', est.epsNextY.toFixed(2)]);
+        if (est.epsCurrY != null) rows.push(['Consensus EPS (this FY)', est.epsCurrY.toFixed(2) + (est.numAnalysts ? ' · ' + est.numAnalysts + ' analysts' : ''), 'analyst-epscurr']);
+        if (est.epsNextY != null) rows.push(['Consensus EPS (next FY)', est.epsNextY.toFixed(2), 'analyst-epsnext']);
     }
     if (tgt && tgt.targetConsensus != null) {
         var pct = _adCtx.close ? ' (' + _asPct((tgt.targetConsensus / _adCtx.close - 1) * 100) + ' vs price)' : '';
-        rows.push(['Price target (consensus)', '$' + tgt.targetConsensus + pct]);
-        if (tgt.targetLow != null && tgt.targetHigh != null) rows.push(['Target range', '$' + tgt.targetLow + ' – $' + tgt.targetHigh]);
+        rows.push(['Price target (consensus)', '$' + tgt.targetConsensus + pct, 'analyst-target']);
+        if (tgt.targetLow != null && tgt.targetHigh != null) rows.push(['Target range', '$' + tgt.targetLow + ' – $' + tgt.targetHigh, 'analyst-targetrange']);
     }
     if (rows.length) {
         html += '<div class="ad-quality-grid">';
-        rows.forEach(function(r) { html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + '</div><div class="ad-quality-v">' + escapeHtml(r[1]) + '</div>'; });
+        rows.forEach(function(r) { html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + _adInfoBtn(r[2]) + '</div><div class="ad-quality-v">' + escapeHtml(r[1]) + '</div>'; });
         html += '</div>';
     }
     // Recent grade actions
     if (grd && grd.latest && grd.latest.length) {
-        html += '<p class="muted-text" style="margin-top:10px">Analyst actions (last 60d): ▲' + (grd.upgrades || 0) + ' up · ▼' + (grd.downgrades || 0) + ' down · ' + (grd.maintains || 0) + ' maintained</p>' +
+        html += '<p class="muted-text" style="margin-top:10px">Analyst actions (last 60d)' + _adInfoBtn('analyst-grades') + ': ▲' + (grd.upgrades || 0) + ' up · ▼' + (grd.downgrades || 0) + ' down · ' + (grd.maintains || 0) + ' maintained</p>' +
                 '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Date</th><th>Firm</th><th>Action</th><th>Rating</th></tr>';
         grd.latest.forEach(function(g) {
             html += '<tr><td>' + escapeHtml(g.date || '') + '</td><td>' + escapeHtml(g.company || '') + '</td><td>' + escapeHtml(g.action || '') + '</td><td>' + escapeHtml(g.to || '') + '</td></tr>';
@@ -1042,25 +1136,25 @@ async function _adRenderQuality() {
     if (quality) {
         var fmtPct = function(v) { return v == null ? '—' : v.toFixed(1) + '%'; };
         var fmtNum = function(v) { return v == null ? '—' : v.toFixed(2); };
-        rows.push(['Profitable',      quality.profitable == null ? '—' : (quality.profitable ? 'Yes' : 'No')]);
-        rows.push(['Net margin',      fmtPct(quality.netMarginPct)]);
-        rows.push(['Debt / equity',   fmtNum(quality.debtToEquity)]);
-        rows.push(['Current ratio',   fmtNum(quality.currentRatio)]);
-        rows.push(['Dividend yield',  fmtPct(quality.dividendYieldPct)]);
-        rows.push(['Return on equity', fmtPct(quality.roePct)]);
+        rows.push(['Profitable',      quality.profitable == null ? '—' : (quality.profitable ? 'Yes' : 'No'), 'quality-profitable']);
+        rows.push(['Net margin',      fmtPct(quality.netMarginPct), 'quality-netmargin']);
+        rows.push(['Debt / equity',   fmtNum(quality.debtToEquity), 'quality-debteq']);
+        rows.push(['Current ratio',   fmtNum(quality.currentRatio), 'quality-currentratio']);
+        rows.push(['Dividend yield',  fmtPct(quality.dividendYieldPct), 'quality-divyield']);
+        rows.push(['Return on equity', fmtPct(quality.roePct), 'quality-roe']);
     }
     var html = '';
     if (rows.length) {
         html += '<div class="ad-quality-grid">';
         rows.forEach(function(r) {
-            html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + '</div>' +
+            html += '<div class="ad-quality-k">' + escapeHtml(r[0]) + _adInfoBtn(r[2]) + '</div>' +
                     '<div class="ad-quality-v">' + escapeHtml(r[1]) + '</div>';
         });
         html += '</div>';
     }
     if (insiders) {
         var buys = insiders.purchases || [];
-        html += '<p class="muted-text" style="margin-top:10px">Insider open-market purchases (last few months): ' +
+        html += '<p class="muted-text" style="margin-top:10px">Insider open-market purchases (last few months)' + _adInfoBtn('quality-insiders') + ': ' +
                 (buys.length ? buys.length : 'none') + '</p>';
         if (buys.length) {
             html += '<div class="ab-table-wrap"><table class="ab-table">' +

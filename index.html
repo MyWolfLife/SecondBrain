@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=770">
+    <link rel="stylesheet" href="css/styles.css?v=771">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7675,6 +7675,17 @@ service firebase.storage {
             <!-- Populated by loadAnalyzerDossierPage() in analyzer-scan.js -->
         </section>
 
+        <!-- Analyzer Dossier — metric info popup (Quality + Analyst view "?" buttons) -->
+        <div class="modal-overlay" id="adInfoModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="adInfoModalTitle">Metric</h3>
+                    <button class="modal-close" onclick="closeModal('adInfoModal')">&#x2715;</button>
+                </div>
+                <div class="modal-body" id="adInfoModalBody"></div>
+            </div>
+        </div>
+
         <!-- Page: Analyzer Trades (#analyzer/trades) -->
         <section class="page hidden" id="page-analyzer-trades">
             <!-- Populated by loadAnalyzerTradesPage() in analyzer-trades.js -->
@@ -11475,7 +11486,7 @@ export default {
     <script src="js/analyzer-engine.js?v=6"></script>
     <script src="js/analyzer.js?v=11"></script>
     <script src="js/analyzer-backtest.js?v=5"></script>
-    <script src="js/analyzer-scan.js?v=12"></script>
+    <script src="js/analyzer-scan.js?v=13"></script>
     <script src="js/analyzer-trades.js?v=1"></script>
     <script src="js/analyzer-scoreboard.js?v=3"></script>
     <script src="js/private.js?v=579"></script>
