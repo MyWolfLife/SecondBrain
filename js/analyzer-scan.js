@@ -513,6 +513,51 @@ function _asEarningsChipText(c) {
 function _asPct(v)    { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
 function _asPtsStr(v) { return (v >= 0 ? '+' : '') + v.toFixed(1); }
 
+// Plain-language hover tooltip for a scan-card chip, matched by its rendered
+// text (native title="" tooltip, same pattern as .loan-calc-tip elsewhere).
+// Pattern-matching (rather than tagging every push site) means ONE place
+// explains every chip type, including the shared quality/analyst chips.
+// Returns '' when no explanation is defined — chip renders with no tooltip.
+function _asChipTip(text) {
+    if (/^Est .*→.*pts/.test(text))
+        return 'Compares how much Wall Street’s earnings estimate for this company changed against how much the price changed. A big gap means the price moved much more than the actual business outlook did — a sign the move is driven by fear or hype, not fundamentals.';
+    if (text === '⚠️ Falling knife?')
+        return 'A caution flag, not a rejection: this company is both unprofitable and carries heavy debt (debt-to-equity over 2). Stocks like this can keep falling instead of bouncing back — worth a closer look before assuming this is a "buy the dip" situation.';
+    if (/^Similar dips:/.test(text))
+        return 'Looks at every time in the past 5 years this specific stock fell this hard, this fast. This is how many of those past episodes recovered by +10% within 60 days, and the typical (median) number of days it took.';
+    if (/^No similar past dips/.test(text))
+        return 'This stock has never fallen this sharply, this quickly, in its available price history — there’s no past episode to compare against, so there’s no track record either way.';
+    if (text === 'Revenue beat too')
+        return 'The company’s revenue (total sales), not just earnings-per-share, also came in above what analysts expected — a broader sign of a genuinely strong quarter.';
+    if (/^Est gap:/.test(text))
+        return 'The gap between how much analysts raised their earnings estimate and how much the stock price actually moved. A positive gap means the company’s outlook is improving faster than the price has caught up to yet.';
+    if (/^Base rate:/.test(text))
+        return 'A historical frequency, not a prediction: looking back over this stock’s own ~5 years of price history, the percentage of all rolling 60-day windows in which the price rose at least 10% at some point. It doesn’t know a dip is happening right now — it just measures how often this stock is capable of a move like that in any 2-month stretch.';
+    if (/^⚠️ Earnings/.test(text))
+        return 'This company reports earnings on this date, which falls inside your trading window. The ± number is how much this stock has historically swung on its biggest single-day moves — a rough gauge of how much risk that one day adds.';
+    if (text === '✅ Profitable' || text === '⚠️ Unprofitable')
+        return 'Whether the company’s net profit margin was positive (making money) or negative (losing money) over the trailing twelve months.';
+    if (/^Debt\/eq/.test(text))
+        return 'Debt-to-equity ratio — how much the company has borrowed compared to what shareholders own. Higher numbers (especially over 2) mean more financial risk, particularly if the business hits a rough patch.';
+    if (/^Div \d/.test(text))
+        return 'Dividend yield — the annual cash dividend as a percentage of the current share price. Not directly part of the trade setup, but useful context on the kind of company this is.';
+    if (/^👤 Insider buys:/.test(text))
+        return 'Company insiders (executives, board members) bought shares with their own money since this dip began. One of the stronger confidence signals — insiders have no obligation to buy, and know the business best.';
+    if (/^Divergence:/.test(text))
+        return 'The flagship price-vs-estimate comparison isn’t ready yet — it needs a few more weeks of the app’s own tracked analyst-estimate history before it can measure the gap for this dip.';
+    if (/^Target \$/.test(text))
+        return 'The average 12-month price target from Wall Street analysts covering this stock, and how far that is from the current price. Analyst targets can be wrong or slow to update — treat this as one more data point, not a guarantee.';
+    if (/^▲/.test(text))
+        return 'How many analysts raised (▲) or lowered (▼) their rating on this stock in the last 60 days. More upgrades than downgrades suggests improving sentiment among professional analysts.';
+    return '';
+}
+
+// Renders one scan-card chip with its tooltip attached (see _asChipTip).
+function _asChipSpan(text, cls) {
+    var tip = _asChipTip(text);
+    return '<span class="as-chip' + (cls ? ' ' + cls : '') + '"' + (tip ? ' title="' + escapeHtml(tip) + '"' : '') + '>' + escapeHtml(text) + '</span>';
+}
+
 // Analyst / divergence chips (Stage 3.2). Returns { lead:[], rest:[] } —
 // the divergence chip is the FLAGSHIP and leads the whole row. Empty when a
 // candidate has no FMP enrichment (old scans, no key) so cards stay compatible.
@@ -580,22 +625,22 @@ function _asCandidateCard(c) {
         '<div class="as-chip-row">';
     var analyst = _asAnalystChips(c);
     // Divergence (flagship) leads the whole row, ahead of everything else.
-    analyst.lead.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
+    analyst.lead.forEach(function(ac) { html += _asChipSpan(ac.text, ac.cls); });
     // Falling-knife flag leads the row (amber) when quality data warrants it.
     _asQualityChips(c).forEach(function(qc) {
-        if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+        if (qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
-    chips.forEach(function(ch) { html += '<span class="as-chip">' + escapeHtml(ch) + '</span>'; });
+    chips.forEach(function(ch) { html += _asChipSpan(ch); });
     var earnChip = _asEarningsChipText(c);
     if (earnChip) {
-        html += '<span class="as-chip as-chip-warn">' + escapeHtml(earnChip) + '</span>';
+        html += _asChipSpan(earnChip, 'as-chip-warn');
     }
     // Quality + insider evidence chips (non-lead) after the base-rate chip.
     _asQualityChips(c).forEach(function(qc) {
-        if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+        if (!qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
     // Analyst evidence (target, grades, divergence-note) after quality.
-    analyst.rest.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
+    analyst.rest.forEach(function(ac) { html += _asChipSpan(ac.text, ac.cls); });
     html += '</div>' +
         '<div class="ab-form-row" style="margin:8px 0 0">' +
             '<button class="ana-sp-btn" onclick="_asOpenDossier(\'' + c.ticker + '\',\'' + c.detector + '\')">Open dossier</button>' +
