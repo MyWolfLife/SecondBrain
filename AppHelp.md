@@ -1965,12 +1965,13 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **Total Value**: Σ(shares × last price) + cash balance + pending activity. Holdings without a fetched price contribute $0 until **📡 Update Prices** is tapped.
 
-**📡 Update Prices**: Fetches the latest price for every holding in this account. Works in two phases:
+**📡 Update Prices**: Fetches the latest price for every holding in this account. Works in three phases:
 
 1. **Finnhub** (free API): Tried first for all tickers. Works great for stocks and ETFs. Mutual funds (FXAIX, RDFTX, etc.) are not supported on the free Finnhub tier — those tickers are passed to Phase 2.
-2. **Yahoo Finance**: For any ticker Finnhub couldn't price. If a **Cloudflare Worker proxy** is configured in Settings → General Settings → Investments, it's used directly (reliable, no rate-limiting). Otherwise the app tries a chain of free public CORS proxies — these work most of the time but can be inconsistent.
+2. **FMP** (if you've set up an FMP key for the Stock Analyzer): Tried next for anything Finnhub missed. This is a direct connection with no proxy involved, so it also fixes failures caused by a firewall blocking the public proxies Phase 3 needs — and it happens to cover some mutual funds Finnhub doesn't. Coverage isn't complete (not every fund is on FMP either), so this is a bonus fallback, not a guarantee. Skipped entirely if you don't have an FMP key configured — nothing changes for you in that case.
+3. **Yahoo Finance**: For anything still unresolved. If a **Cloudflare Worker proxy** is configured in Settings → General Settings → Investments, it's used directly (reliable, no rate-limiting). Otherwise the app tries a chain of free public CORS proxies — these work most of the time but can be inconsistent.
 
-If a ticker still fails both sources, it's shown in the result popup. The most common reason for consistent failures is a **network firewall or security tool (e.g. ZScaler on a work machine)** blocking the public proxy calls. Setting up the Cloudflare Worker bypasses this, since the Worker makes the Yahoo request server-side where your firewall doesn't apply.
+If a ticker still fails all three sources, it's shown in the result popup. The most common reason for consistent failures is a **network firewall or security tool (e.g. ZScaler on a work machine)** blocking the public proxy calls. Setting up the Cloudflare Worker bypasses this completely, since the Worker makes the Yahoo request server-side where your firewall doesn't apply.
 
 **Why not just ask the AI (like ChatGPT)?** When you chat with ChatGPT on the web, it has browsing tools that fetch live data. The raw AI API used by this app is just the language model — it has a training data cutoff and no internet access. Its "prices" would be months or years out of date. That's why we use Finnhub + Yahoo instead.
 
@@ -2198,14 +2199,15 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 **Group switcher**: If more than one group exists, a dropdown appears at the top to switch between groups. Joint accounts are only included in a group's totals when ALL parties of the joint account are members of that group.
 
-**📡 Update All Prices**: Refreshes prices for every holding across all accounts in the group — including stocks, ETFs, and mutual funds. Works in two phases:
+**📡 Update All Prices**: Refreshes prices for every holding across all accounts in the group — including stocks, ETFs, and mutual funds. Works in three phases:
 
 1. **Finnhub** (first): Fast and reliable for stocks and ETFs. Mutual funds are not supported on the free tier.
-2. **Yahoo Finance** (fallback): Any ticker Finnhub couldn't price. Uses a Cloudflare Worker proxy if configured in Settings (recommended for mutual funds), otherwise falls back to free public CORS proxies.
+2. **FMP** (if configured for the Stock Analyzer): Tried next for anything Finnhub missed — a direct connection with no proxy, so it also helps on networks where a firewall blocks the public proxies Phase 3 needs, and covers some (not all) mutual funds Finnhub doesn't. Skipped with no effect if you don't have an FMP key.
+3. **Yahoo Finance** (fallback): Anything still unresolved. Uses a Cloudflare Worker proxy if configured in Settings (recommended for mutual funds), otherwise falls back to free public CORS proxies.
 
 Tickers are **deduplicated** before fetching — if FXAIX appears in four different accounts, it's only fetched once, then the updated price is written to all matching holdings.
 
-Results are shown in a popup after the update completes. If any tickers failed and no Cloudflare Worker is configured, the popup includes a tip — consistent failures are often caused by a **network firewall or security tool (e.g. ZScaler on a work machine)** blocking the public proxy calls. The Cloudflare Worker bypasses this. Requires a Finnhub API key in Settings.
+Results are shown in a popup after the update completes. If any tickers failed and no Cloudflare Worker is configured, the popup includes a tip — consistent failures are often caused by a **network firewall or security tool (e.g. ZScaler on a work machine)** blocking the public proxy calls. The Cloudflare Worker bypasses this completely. Requires a Finnhub API key in Settings.
 
 **Period Performance**: Four rows — Day, Week, Month, YTD. Each row shows the gain or loss in dollars and percentage versus the most recent snapshot of the matching type (Daily/Weekly/Monthly/Yearly). Rows show "No [type] snapshot yet" until at least one snapshot of that type has been captured on the Snapshots page. Green = gain, red = loss.
 

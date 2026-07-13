@@ -1531,7 +1531,7 @@ Stored in `userCol('investmentGroups')`. Fields: `name`, `personIds[]` (always i
 
 ### Finnhub API Key + Yahoo Worker URL + FMP API Key
 Stored in `userCol('settings').doc('investments')`: `finnhubApiKey`, `yahooWorkerUrl`, and `fmpApiKey`.
-Configured in Settings → General Settings → Investments (Finnhub) accordion; the FMP key has its own **Stock Analyzer (FMP)** accordion card (password input + Show toggle + Save + Test). The FMP **Test** button calls the profile endpoint (`/stable/profile?symbol=AAPL`, falling back to legacy `/api/v3/profile/AAPL`) directly from the browser — validating both the key and CORS, and reporting which API generation responded. The Stock Analyzer's data layer will prefer FMP when a key is present (Phase 3 integration — see `StockAnalyzerPlan.md`).
+Configured in Settings → General Settings → Investments (Finnhub) accordion; the FMP key has its own **Stock Analyzer (FMP)** accordion card (password input + Show toggle + Save + Test). The FMP **Test** button calls the profile endpoint (`/stable/profile?symbol=AAPL`, falling back to legacy `/api/v3/profile/AAPL`) directly from the browser — validating both the key and CORS, and reporting which API generation responded. The Stock Analyzer's data layer will prefer FMP when a key is present (Phase 3 integration — see `StockAnalyzerPlan.md`). **Dual-purpose (post-Phase-3)**: the same key also powers the FMP fallback tier in the price-update pipeline below (`_investFmpFallback`) — one key configured, two features benefit.
 `_investInvalidateYahooWorkerUrl()` called by settings.js after saving, same pattern as Finnhub key.
 
 The **Yahoo Worker** is a Cloudflare Worker the user deploys once. It accepts `?ticker=SYMBOL`, fetches `https://query1.finance.yahoo.com/v8/finance/chart/SYMBOL` server-side (no CORS), and returns the JSON with `Access-Control-Allow-Origin: *`. Help modal (`yahooWorkerHelpModal`) includes full setup instructions and the complete Worker code to paste.
@@ -1541,7 +1541,7 @@ Stored in `userCol('settings').doc('investments').finnhubApiKey`. Configured in 
 
 ### Price Fetching Architecture
 
-**Two-phase price fetch** — used by both "Update Prices" (account detail) and "Update All Prices" (summary page):
+**Three-phase price fetch** (FMP tier added post-Phase-3) — used by "Update Prices" (account detail), "Update All Prices" (summary page/hub), and Stock Rollup's "Update All Prices":
 
 **Phase 1 — Finnhub** (`_investFetchPriceFinnhub(ticker, apiKey)`):
 - Calls `https://finnhub.io/api/v1/quote?symbol=TICKER&token=KEY`
@@ -1550,17 +1550,25 @@ Stored in `userCol('settings').doc('investments').finnhubApiKey`. Configured in 
 - Throws only on HTTP 401 (invalid API key) — caller aborts immediately
 - **Limitation**: Finnhub free tier returns HTTP 403 for mutual funds (FXAIX, VTTHX, etc.) — treated as `null`, not an error
 
-**Phase 2 — Yahoo Finance** (`_investFetchYahooBatch(tickers)`):
-- Called for any ticker where Finnhub returned `null`
+**Phase 2 — FMP fallback** (`_investFmpFallback(tickers, priceMap)` → `_investFetchPriceFmp(ticker)`):
+- Called for any ticker Finnhub missed, **before** the Yahoo phase. Reuses the Analyzer's FMP module — same per-user key (`settings/investments.fmpApiKey`), `anaFmpHistory(ticker, from, to)` over the trailing 10 days, latest close taken as "current price" (mutual funds price once/day, so this is correct).
+- **No-op when no FMP key is configured** — every ticker passes through unchanged to Phase 3, so the free/no-key path is byte-identical to before this tier existed.
+- **Direct browser call, no CORS proxy** — this is the actual reason this tier was added: mutual-fund/stock failures that only happen on some networks (corporate firewalls/security tools like Zscaler blocking the Phase 3 public proxy domains) bypass the block entirely, since FMP is called straight, the same way the Analyzer's own price fetches are.
+- **Coverage is inconsistent for mutual funds** — verified live: FMP has FXAIX and VTTHX but not RDFTX. This is a fallback tier, not a Yahoo replacement; unresolved tickers still fall through to Phase 3.
+- Mutates `priceMap` in place for resolved tickers; returns the still-unresolved list for Phase 3.
+
+**Phase 3 — Yahoo Finance** (`_investFetchYahooBatch(tickers)`):
+- Called for any ticker still unresolved after Phases 1–2
 - Fetches per-ticker using `https://query1.finance.yahoo.com/v8/finance/chart/TICKER?interval=1d&range=1d`
 - **CORS problem**: Yahoo Finance blocks direct browser requests from GitHub Pages domains.
-- **If `yahooWorkerUrl` is configured** (Cloudflare Worker): fetches directly via `workerUrl?ticker=TICKER` — no delays, no proxy chain needed. The Worker runs server-side, so CORS is not an issue.
+- **If `yahooWorkerUrl` is configured** (Cloudflare Worker): fetches directly via `workerUrl?ticker=TICKER` — no delays, no proxy chain needed. The Worker runs server-side, so CORS is not an issue. Still the only tier that guarantees zero proxy-blocking failures regardless of network.
 - **If not configured** (fallback): routes through a chain of free public CORS proxies with retry logic:
   1. `https://api.allorigins.win/raw?url=...` — most reliable; retried once after 1200ms (handles cold rate-limit on first ticker)
   2. `https://corsproxy.io/?...` — secondary
   3. `https://api.codetabs.com/v1/proxy?quest=...` — tertiary
   - 800ms delay between per-ticker calls in the proxy path
 - Price extracted from `data.chart.result[0].meta.regularMarketPrice`
+- Tickers still unresolved after all three phases land in the failure list/modal with `'not found in Finnhub, FMP, or Yahoo'` (account/stocks pages) or `'not found'` (summary page).
 
 **Why Yahoo v8/chart instead of v7/quote?**
 The v7/quote endpoint accepts multiple symbols in one call but returns empty results for mutual funds. The v8/chart endpoint is per-ticker but returns data for both stocks and mutual funds. The per-ticker approach with delay is the only reliable path.
@@ -1613,7 +1621,7 @@ Per-ticker aggregated fields:
 
 **CSS classes**: `.ist-table-wrap`, `.ist-row` (9-col grid), `.ist-header-row`, `.ist-cell`, `.ist-cell-sym`, `.ist-cell-num`, `.ist-cell-chev`, `.ist-main-row`, `.ist-sub-row`, `.ist-detail`, `.ist-sub-label`, `.ist-val`, `.ist-gain`, `.ist-loss`, `.ist-dim`, `.ist-pct-acct`, `.ist-acct-link`.
 
-**📡 Update All Prices button**: In the page header (top right). Calls `_investUpdateStocksAllPrices()` — loads all accounts for ALL enrolled people via `_investLoadAllAccountsForStocks()` (not group-filtered), runs the two-phase Finnhub → Yahoo fetch, batch-writes results, saves `lastUpdateAllTimestamp`, re-renders the page, shows `_investShowPriceResultModal`, then updates the last-updated note (`investStocksUpdateNote`) beside the button.
+**📡 Update All Prices button**: In the page header (top right). Calls `_investUpdateStocksAllPrices()` — loads all accounts for ALL enrolled people via `_investLoadAllAccountsForStocks()` (not group-filtered), runs the three-phase Finnhub → FMP → Yahoo fetch, batch-writes results, saves `lastUpdateAllTimestamp`, re-renders the page, shows `_investShowPriceResultModal`, then updates the last-updated note (`investStocksUpdateNote`) beside the button.
 
 **Hub card**: Added as 4th card on `#investments` hub.
 
@@ -1715,7 +1723,7 @@ Dashboard page showing totals for the selected group.
 
 **Accounts section**: Per-person groups listing each account's name, tax category badge, and total value. Joint accounts appear in a separate "Joint Accounts" section.
 
-**📡 Update All Prices**: Collects all **unique** tickers across every account in the group (deduplicated — FXAIX in 4 accounts = 1 fetch), then runs the two-phase price fetch (Finnhub → Yahoo/Worker fallback). Batch-writes updated `lastPrice` + `lastPriceDate` to all matching holdings, re-renders, then shows `_investShowPriceResultModal`. If failures occur and no Worker URL is configured, the modal includes a tip linking to Settings. Requires Finnhub API key.
+**📡 Update All Prices**: Collects all **unique** tickers across every account in the group (deduplicated — FXAIX in 4 accounts = 1 fetch), then runs the three-phase price fetch (Finnhub → FMP fallback → Yahoo/Worker fallback). Batch-writes updated `lastPrice` + `lastPriceDate` to all matching holdings, re-renders, then shows `_investShowPriceResultModal`. If failures occur and no Worker URL is configured, the modal includes a tip linking to Settings. Requires Finnhub API key.
 
 **Group switcher**: Shown at top when >1 group exists; switching re-renders the page for the new group. Sets `_investGroupSwitchHandler` to re-render on change.
 

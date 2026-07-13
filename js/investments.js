@@ -1744,7 +1744,49 @@ async function _investFetchPriceFinnhub(ticker, apiKey) {
     return price;
 }
 
-// Yahoo Finance price lookup for tickers Finnhub missed.
+// FMP price lookup for one ticker Finnhub missed — a DIRECT browser call (no
+// CORS proxy), unlike the Yahoo tier below. Reuses the Analyzer's FMP module
+// (same per-user key, settings/investments.fmpApiKey) via anaFmpHistory, and
+// takes the latest close within the last 10 days (mutual funds price once a
+// day, so "latest close" IS "current price"). Throws on no key / no data —
+// callers catch it.
+async function _investFetchPriceFmp(ticker) {
+    var to   = new Date().toISOString().slice(0, 10);
+    var from = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+    var rec  = await anaFmpHistory(ticker, from, to);
+    var n    = rec.close.length - 1;
+    return (n >= 0 && rec.close[n] > 0) ? rec.close[n] : null;
+}
+
+// FMP fallback tier (between Finnhub and Yahoo) — tries every ticker Finnhub
+// missed, writing resolved prices straight into `priceMap`. Because it's a
+// direct call with no CORS proxy, it also works on networks where a firewall
+// or security tool (e.g. Zscaler on a work machine) blocks the public proxy
+// domains the Yahoo tier needs. Coverage is inconsistent for mutual funds —
+// this is a fallback, not a replacement for Yahoo. No-op (all tickers pass
+// through unchanged) when no FMP key is configured. Returns the tickers
+// still unresolved, for the Yahoo tier.
+async function _investFmpFallback(tickers, priceMap) {
+    if (!tickers.length || typeof anaFmpGetKey !== 'function') return tickers;
+    var fmpKey = await anaFmpGetKey();
+    if (!fmpKey) return tickers;
+
+    var stillNeeded = [];
+    for (var i = 0; i < tickers.length; i++) {
+        var t = tickers[i];
+        try {
+            var price = await _investFetchPriceFmp(t);
+            if (price && price > 0) { priceMap[t] = price; console.log('[prices] FMP ' + t + ' = ' + price); }
+            else                    { stillNeeded.push(t); }
+        } catch (e) {
+            console.log('[prices] FMP failed for ' + t + ': ' + e.message);
+            stillNeeded.push(t);
+        }
+    }
+    return stillNeeded;
+}
+
+// Yahoo Finance price lookup for tickers Finnhub (and FMP) missed.
 // If a Cloudflare Worker URL is configured in Settings, uses it directly (reliable, no CORS issues).
 // Otherwise falls back to a chain of free public CORS proxies with retry logic.
 // Returns { ticker: price } for tickers that resolved; missing entries = not found.
@@ -1892,13 +1934,17 @@ async function _investUpdateAccountPrices() {
         }
     }
 
-    // Phase 2: one batched Yahoo request for everything Finnhub missed
+    // Phase 2: FMP fallback (direct call — bypasses proxy-blocking firewalls;
+    // also covers some mutual funds Finnhub's free tier misses)
+    needYahoo = await _investFmpFallback(needYahoo, priceMap);
+
+    // Phase 3: one batched Yahoo request for everything still unresolved
     if (needYahoo.length > 0) {
         console.log('[prices] Yahoo batch for: ' + needYahoo.join(', '));
         var yahooMap = await _investFetchYahooBatch(needYahoo);
         needYahoo.forEach(function(t) {
             if (yahooMap[t]) { priceMap[t] = yahooMap[t]; }
-            else             { failed.push(t); failedMsg[t] = 'not found in Finnhub or Yahoo'; }
+            else             { failed.push(t); failedMsg[t] = 'not found in Finnhub, FMP, or Yahoo'; }
         });
     }
 
@@ -4252,7 +4298,11 @@ async function _investUpdateAllPrices() {
         }
     }
 
-    // Phase 2: Yahoo batch for anything Finnhub missed
+    // Phase 2: FMP fallback (direct call — bypasses proxy-blocking firewalls;
+    // also covers some mutual funds Finnhub's free tier misses)
+    needYahoo = await _investFmpFallback(needYahoo, priceMap);
+
+    // Phase 3: Yahoo batch for anything still unresolved
     if (needYahoo.length > 0) {
         console.log('[prices] Yahoo batch for: ' + needYahoo.join(', '));
         var yahooMap = await _investFetchYahooBatch(needYahoo);
@@ -4460,11 +4510,15 @@ async function _investUpdateStocksAllPrices() {
             needYahoo.push(ticker);
         }
     }
+    // FMP fallback (direct call — bypasses proxy-blocking firewalls; also
+    // covers some mutual funds Finnhub's free tier misses)
+    needYahoo = await _investFmpFallback(needYahoo, priceMap);
+
     if (needYahoo.length > 0) {
         var yahooMap = await _investFetchYahooBatch(needYahoo);
         needYahoo.forEach(function(t) {
             if (yahooMap[t]) { priceMap[t] = yahooMap[t]; }
-            else             { failedList.push(t); failed[t] = 'not found in Finnhub or Yahoo'; }
+            else             { failedList.push(t); failed[t] = 'not found in Finnhub, FMP, or Yahoo'; }
         });
     }
 
