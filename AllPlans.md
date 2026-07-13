@@ -34,6 +34,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |
 | `BudgetPlan.md` | Life → Financial | Budgets feature — new card under Financial tab, monthly/category budget tracking |
 | `StockAnalyzerPlan.md` | Life → Financial | Stock Analyzer — short-term trade candidate finder. Phases 1–3 COMPLETE (scan, backtest, dossiers, trades, scoreboard; Finnhub quality/insider/drift/news enrichment; FMP divergence, Detector C revision momentum, Discover screener, consolidation). Remaining: strategy-profile UI + holdings check (Goal 2) |
+| `StockAnalysisRankingPlan.md` | Life → Financial | Composite score + letter grade per scan candidate, so the user can rank/sort instead of reading every chip on every card. Planning only — per-detector weight tables locked, no code written yet |
 | `DeathPlan.md` | Life → My Legacy | Legacy/estate planning section — what happens when user dies, final wishes, contacts |
 | `LifeCalendar.md` | Life → Calendar | Life-section calendar for personal events (separate from Yard calendar) |
 
