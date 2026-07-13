@@ -1988,6 +1988,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - **Concentration warnings**: orange badge ≥10%, red badge ≥15% — flags over-concentration in one stock
 - Tap any row to expand and see which accounts hold that ticker and how many shares each
 - Sort by **Value** (default) or **Ticker** (A–Z) using the buttons at the top
+- Expanded rows have a **🎯 Show dossier** button above the account list — opens the Stock Analyzer's deep-dive research page for that ticker (chart, similar-dips history, quality checkup, analyst view, recent news) even though this holding didn't come from a scan
 
 ### Details
 
@@ -2000,6 +2001,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 **Expanding a row**: Tap any ticker row to see a per-account breakdown — each account that holds the ticker, with its own shares, price, cost, gain, value, and % of that account's total. Account names are clickable and navigate directly to the holdings page for that account. A breadcrumb at the top of the holdings page takes you back to **Stock Rollup**.
 
 **Prices**: Uses the last fetched price stored on each holding. Tap **📡 Update All Prices** (top right of this page, or on the main hub or Summary page) to refresh prices across all accounts before reviewing the rollup. The Stock Rollup button updates all enrolled people's accounts — not just the current group. The last-updated time (e.g. "5/5 10:15am") is shown beside the button.
+
+**🎯 Show dossier**: Opens the Stock Analyzer dossier for a ticker straight from your holdings — no need to run a scan first. Since there's no scan behind it, the dossier opens **read-only**: you can look at everything (chart, historical dip recoveries, fundamentals, analyst estimates, news, and the optional AI emotional-vs-structural read) but can't save a thesis, set exits, or create a trade ticket from this view — those require a real scan candidate. If this ticker has never been through an Analyzer price update, the dossier fetches its price history automatically the first time you open it (shows "Fetching price history…" briefly); if that fails (invalid ticker, too new to have a year of history, or not covered by your configured price providers), it says so plainly instead of leaving you stuck.
 
 **Sort by Value**: Highest-value tickers at the top — shows your largest positions first.
 
@@ -2429,6 +2432,8 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 ### Details
 
 **Evidence is live**: The dossier recomputes everything from the latest cached prices when it opens, so the badge can differ slightly from what the scan card showed (new trading days arrive). If the dip has fully recovered it says "setup no longer active."
+
+**Opened from Stock Rollup instead of a scan?** You'll land here the same way, but read-only — no scan candidate exists behind the view, so there's nothing to save a thesis or exits to, and no trade-ticket section. Everything else (chart, similar-dips history, Quality, Analyst view, news, AI read) works exactly the same. The breadcrumb and the "← Back to…" link at the bottom point back to Stock Rollup instead of Scan in this case.
 
 **Earnings chip**: If a report falls inside your window, the chip carries through here too — **⚠️ Earnings {date} (±X% history)** — with the same meaning as on the scan card: the ±X% is that stock's typical big-day move, sizing the binary-event risk you'd be holding through.
 

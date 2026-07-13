@@ -685,21 +685,35 @@ var _adChart = null;      // live Chart.js instance (destroyed on re-entry)
 var _adCtx   = null;      // {scanId, ticker, detector, scan, candidate, close}
 
 async function loadAnalyzerDossierPage(scanId, ticker, detector) {
-    _analyzerBreadcrumb([
+    // Sentinel scanId 'none' (Stage 3.5) marks a dossier opened outside a scan
+    // — e.g. the Stock Rollup "🎯 Show dossier" button on a held ticker. Same
+    // page, same evidence, but no candidate record behind it (read-only mode).
+    var fromScan = scanId && scanId !== 'none';
+    _analyzerBreadcrumb(fromScan ? [
         { label: 'Stock Analyzer', href: '#analyzer' },
         { label: 'Scan', href: '#analyzer/scan' },
+        { label: ticker }
+    ] : [
+        { label: 'Stock Rollup', href: '#investments/stocks' },
         { label: ticker }
     ]);
     var page = document.getElementById('page-analyzer-dossier');
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Building dossier…</p>';
 
-    // Price history is the backbone — without it there is no dossier
+    // Price history is the backbone — without it there is no dossier. Auto-
+    // fetch on demand (Stage 3.5) when it isn't cached yet — e.g. a Stock
+    // Rollup holding that's never been through an Analyzer price update.
     var rec;
     try { rec = await anaGetPriceHistory(ticker); } catch (e) { rec = null; }
     if (!rec || rec.dates.length < 260) {
-        page.innerHTML = '<p class="muted-text" style="padding:16px">No cached price history for ' + escapeHtml(ticker) +
-            ' — run Update price data on the Analyzer hub first.</p>';
+        page.innerHTML = '<p class="muted-text" style="padding:16px">Fetching price history for ' + escapeHtml(ticker) + '…</p>';
+        try { await _anaUpdateTicker(ticker); } catch (e) { /* fall through to the error state below */ }
+        try { rec = await anaGetPriceHistory(ticker); } catch (e) { rec = null; }
+    }
+    if (!rec || rec.dates.length < 260) {
+        page.innerHTML = '<p class="muted-text" style="padding:16px">Couldn’t fetch enough price history for ' + escapeHtml(ticker) +
+            ' (need about a year of daily candles). It may be an invalid ticker, too newly listed, or not covered by the configured price providers.</p>';
         return;
     }
 
@@ -957,8 +971,12 @@ function _adRender(page, rec, ev, params) {
             (canSave
                 ? '<button class="btn-primary" onclick="_adSaveNotes()">Save thesis &amp; exits</button>' +
                   '<span class="settings-saved-msg hidden" id="adSavedMsg">&#10003; Saved</span>'
-                : '<span class="muted-text">Read-only — this dossier’s scan snapshot is missing, so notes can’t be saved.</span>') +
-            '<a class="ana-sp-btn" href="#analyzer/scan" style="text-decoration:none">← Back to scan</a>' +
+                : '<span class="muted-text">Read-only — ' + (ctx.scanId && ctx.scanId !== 'none'
+                    ? 'this dossier’s scan snapshot is missing, so notes can’t be saved.'
+                    : 'opened from Stock Rollup rather than a scan, so there’s no candidate record to save notes to.') + '</span>') +
+            (ctx.scanId && ctx.scanId !== 'none'
+                ? '<a class="ana-sp-btn" href="#analyzer/scan" style="text-decoration:none">← Back to scan</a>'
+                : '<a class="ana-sp-btn" href="#investments/stocks" style="text-decoration:none">← Back to Stock Rollup</a>') +
         '</div>';
 
     // Trade ticket (Stage 8) — turn the dossier into a tracked position

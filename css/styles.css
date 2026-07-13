@@ -15181,6 +15181,11 @@ a.invest-hub-card:hover {
 }
 .ist-sub-row:last-child { border-bottom: none; }
 .ist-detail { border-top: 1px solid #e0e4f0; }
+.ist-dossier-row {
+    padding: 8px 10px;
+    background: #f7f8fc;
+    border-bottom: 1px solid #eeeff5;
+}
 .ist-sub-label {
     padding-left: 22px;
     color: #444;

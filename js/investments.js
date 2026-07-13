@@ -4576,9 +4576,23 @@ function _investStocksRowHtml(t, overallNW) {
             '<div class="ist-cell ist-cell-chev">' + (isExp ? '\u2304' : '\u203a') + '</div>' +
         '</div>' +
         '<div class="ist-detail' + (isExp ? '' : ' hidden') + '" id="stocksDetail-' + escapeHtml(safeId) + '">' +
+            '<div class="ist-dossier-row">' +
+                '<button class="ana-sp-btn" onclick="_investOpenDossier(\'' + escapeHtml(t.ticker) + '\');event.stopPropagation()">🎯 Show dossier</button>' +
+            '</div>' +
             subRows +
         '</div>' +
     '</div>';
+}
+
+// Opens the Stock Analyzer dossier for a held ticker (Stage 3.5). No scan
+// backs this view — sentinel scanId 'none' puts the dossier in its existing
+// read-only deep-link mode (no thesis/exit save, no trade ticket), and the
+// dossier auto-fetches price history on demand if this ticker was never
+// through an Analyzer scan/update. Defaults to the 'dipA' detector, which
+// unlocks the broadest evidence (similar-dips history, quality, analyst
+// view, news) regardless of whether a dip is presently triggering.
+function _investOpenDossier(ticker) {
+    window.location.hash = '#analyzer/dossier/none/' + encodeURIComponent(ticker) + '/dipA';
 }
 
 function _investToggleStocksRow(ticker) {
