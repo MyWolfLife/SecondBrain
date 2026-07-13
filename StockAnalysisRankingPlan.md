@@ -206,8 +206,49 @@ grades between visits.
   like the dossier's `#adInfoModal` — leaning per-card accordion since the breakdown is
   candidate-specific data, not a reusable glossary entry.
 
+## Execution Plan
+
+Phased so each stage ships something independently verifiable, richest/best-tested data
+first — matching the stage-by-stage pattern used elsewhere in this project.
+
+### Phase 1 — Core scoring engine (dipA only)
+- `_asScoreDip(c)` in `analyzer-scan.js`: per-metric subscore functions for the dipA table
+  above, renormalization over available metrics, risk deductions, grade banding, `coverage`.
+- `_asScoreCard(c)` dispatcher (detector switch; other detectors fall through to `null` until
+  their phase lands).
+- No UI change yet — verify by hand-calling `_asScoreCard()` in the console against real
+  enriched dip candidates from the sandbox and a couple of synthetic edge cases (no FMP key,
+  `condEvents < 3`, falling-knife flag, earnings-in-window).
+
+### Phase 2 — Remaining detector scorers
+- First confirm `anaEngSpringTrigger`'s `vol` field shape (raw vs. normalized) before
+  finalizing Detector D's table — may adjust that table's weights.
+- `_asScoreSpring(c)`, `_asScoreDrift(c)`, `_asScoreRevision(c)` following the same pattern.
+- Verify each against real/synthetic candidates the same way as Phase 1.
+
+### Phase 3 — Badge + sort on the scan page
+- New CSS: `.as-grade-a` … `.as-grade-f`.
+- `_asCandidateCard(c)` renders the grade badge (e.g. `B+ · 82 · 78% data`).
+- `_asRenderScan` sorts each detector's live candidates by `score.total` descending
+  (replacing today's per-detector heuristic sort), dismissed candidates still last.
+- Verify visually in preview across all four detector sections.
+
+### Phase 4 — Expandable breakdown
+- Per-card `.detail-acc` accordion (reusing the existing pattern) listing each included
+  metric's raw value → subscore → weight → contribution, plus excluded metrics and why.
+- Verify the numbers in the accordion sum to the badge's total.
+
+### Phase 5 — Docs & close-out
+- Update `MyLife-Functional-Spec.md` Part 8f (scoring/grading behavior) and `AppHelp.md`
+  `screen:analyzer-scan` (what the grade means, in plain language).
+- Version bumps (`analyzer-scan.js`, `styles.css`) + `sw.js` CACHE_NAME bump.
+- Commit + push per usual cadence.
+
+### Phase 6 (later, gated on data volume) — Calibration diagnostic
+- Not scheduled as part of this execution — revisit once the Scoreboard has 30+ graded
+  candidates. Read-only correlation report per "Future: calibration phase" above; no
+  automatic weight changes.
+
 ## Build Log
 
-*(Empty — implementation not started. First stage would be the dipA scorer, since it has
-the richest and most-tested data set, then spring/drift/revision, then presentation, per the
-usual stage-by-stage pattern used elsewhere in this project.)*
+*(Empty — implementation not started. Phase 1 is next: the dipA scorer.)*
