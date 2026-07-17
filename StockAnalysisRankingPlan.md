@@ -359,6 +359,36 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-16 — ✅ Phase 1 COMPLETE (dipA scoring engine, no UI).** `analyzer-scan.js`
+  gains `_asBand(value, bands, topScore)` (shared band-mapping helper), `_asGradeLetter`
+  (A≥80/B≥70/C≥55/D≥40/F, with the "why lower than school grades" comment), `_asScoreDip(c)`
+  (all 13 dipA metrics per the table above, presence rules incl. the null-dividend-means-
+  no-payer exception, falling-knife −15 + earnings −min(10, move/2) with the flat −5
+  null-move fallback, renormalization + coverage + per-metric contributions), and the
+  `_asScoreCard(c)` dispatcher (non-dip detectors → null until Phase 2). No UI change.
+  Bumps: analyzer-scan.js v17, sw v478. Internal-only per the phase conventions — no
+  spec/AppHelp change.
+  - **Verified (preview, test account, real scan docs):** enriched FLEX (2026-07-11 scan)
+    hand-checked EXACTLY — 10 included metrics, Σ(w·s)/Σw = 4890/74 = 66.08 → **66 / C /
+    74% coverage**; every band mapping matched the table (cond 15-of-16→94, base 74%→95,
+    RSI 45→45, vol 0.6×→40, margin 3.1%→35, D/E 0.7→80, CR 1.4→55, ROE 9.5%→45,
+    **null dividend on successful quality → scored 50, not excluded** — the exception rule
+    proven on real data since FLEX pays none, insiders 0→45 as an observation). Fixture
+    FLEX = 3110/39 = 79.74 → 80/A; JBL 79→B proves the A/B boundary. Non-dip dispatch →
+    null (springD checked). **All 8 synthetic edge cases exact:** condEvents=2 → excluded
+    "needs 3+"; falling knife → −15 (total 39/F); earnings move 18→−9, 30→capped −10,
+    null→flat −5; quality.error → 5 quality metrics excluded; insiders.error → excluded;
+    fully-enriched synthetic → 100% coverage, 82/A; nothing-scoreable → null; worst-case
+    clamps to 0/F. No console errors.
+  - **Distribution check (the Phase 1 gate): cutoffs KEPT.** 16 real dip candidates scored.
+    Well-covered data discriminates correctly (middling-quality FLEX 66/C; excellent
+    full-coverage synthetic 82/A — matches the "A reserved for outliers" intent). The
+    observed top-compression at LOW coverage (fixture candidates 69–80 at 39% coverage,
+    four grading A off just 4 metrics, cond-rate = 51% of effective weight) is the
+    renormalization design working as locked — and it's mostly a legacy-fixture artifact:
+    every real scan enriches dip candidates via Finnhub (coverage ≥74%), and an FMP key
+    takes it to 100%. The coverage number beside the grade is the disclosed mitigation;
+    revisit only if real scans ever surface low-coverage dips.
 - **2026-07-16 — Phase-structure fix (planning only, no code).** Follow-up to the review
   pass: the original Phase 5 ("Docs & close-out") deferred spec/AppHelp updates and version
   bumps to a final phase, which violates CLAUDE.md's same-commit rules. Restructured: a

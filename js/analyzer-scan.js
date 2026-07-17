@@ -584,6 +584,192 @@ function _asAnalystChips(c) {
     return { lead: lead, rest: rest };
 }
 
+// ---------------------------------------------------------------------------
+// Candidate scoring (Ranking plan Phase 1 — dipA only so far)
+// ---------------------------------------------------------------------------
+// Turns a candidate's stamped evidence into a 0–100 composite score + letter
+// grade so candidates can be RANKED instead of eyeballed chip-by-chip. The
+// weights and band mappings are subjective by design and documented (with
+// rationale) in StockAnalysisRankingPlan.md — change them there first.
+//
+// Missing data is EXCLUDED and the remaining weights renormalized, never
+// penalized — a candidate isn't punished because an FMP key isn't configured
+// or its history is short. `coverage` (the % of the full model's weight that
+// was actually available) is the honesty mechanism: a grade built on 40% of
+// the model reads differently from one built on 95%.
+
+// Returns the subscore for the first band whose (exclusive) upper bound the
+// value sits under; `bands` = [[upperBound, subscore], ...] in ascending
+// order, `topScore` = the subscore when the value clears every upper bound.
+function _asBand(value, bands, topScore) {
+    for (var i = 0; i < bands.length; i++) {
+        if (value < bands[i][0]) return bands[i][1];
+    }
+    return topScore;
+}
+
+// Grade cutoffs sit lower than school grades ON PURPOSE: the band mappings
+// top out at 95–100 but realistic values land mid-band, so a hand-computed
+// excellent candidate totals ~77 — under school-style cutoffs an A would be
+// mathematically unreachable. See the ranking plan's "Why the grade cutoffs
+// sit lower" note.
+function _asGradeLetter(total) {
+    if (total >= 80) return 'A';
+    if (total >= 70) return 'B';
+    if (total >= 55) return 'C';
+    if (total >= 40) return 'D';
+    return 'F';
+}
+
+// Scores a dipA candidate. Returns:
+//   { total, grade, coverage,
+//     breakdown:  [{label, raw, subscore, weight, contribution}],   // included metrics
+//     excluded:   [{label, why}],                                    // missing data, renormalized away
+//     deductions: [{label, points}] }                                // risk flags subtracted at the end
+// Returns null when there is nothing at all to score.
+function _asScoreDip(c) {
+    var inc = [], exc = [], ded = [];
+    var qualityOk = !!(c.quality && !c.quality.error);
+    var q = qualityOk ? c.quality : {};
+
+    // --- Setup-specific evidence (the strongest signals — see plan rationale) ---
+    // Conditional base rate needs >=3 past episodes to be signal rather than noise.
+    if (c.condEvents >= 3) {
+        inc.push({ label: 'Similar-dips hit rate', raw: c.condHits + ' of ' + c.condEvents,
+                   subscore: Math.round(c.condHits / c.condEvents * 100), weight: 20 });
+    } else {
+        exc.push({ label: 'Similar-dips hit rate',
+                   why: (c.condEvents || 0) + ' past episode' + (c.condEvents === 1 ? '' : 's') + ' — needs 3+ to be signal' });
+    }
+
+    // Banded, not direct: every candidate already passed the >=25% scan cutoff,
+    // so a raw % would drag all scores down equally without separating anyone.
+    if (c.baseRate != null) {
+        inc.push({ label: 'Base rate', raw: Math.round(c.baseRate * 100) + '%',
+                   subscore: _asBand(c.baseRate * 100, [[30, 35], [40, 50], [55, 70], [70, 85]], 95), weight: 8 });
+    } else {
+        exc.push({ label: 'Base rate', why: 'not recorded on this candidate' });
+    }
+
+    if (c.divergence && c.divergence.divergencePts != null) {
+        inc.push({ label: 'Divergence', raw: _asPtsStr(c.divergence.divergencePts) + ' pts',
+                   subscore: _asBand(c.divergence.divergencePts, [[0, 20], [5, 50], [10, 75], [20, 90]], 100), weight: 13 });
+    } else {
+        exc.push({ label: 'Divergence', why: c.divergenceNote || 'no FMP analyst data' });
+    }
+
+    if (c.rsi != null) {
+        inc.push({ label: 'RSI-14', raw: c.rsi.toFixed(0),
+                   subscore: _asBand(c.rsi, [[25, 70], [35, 85], [45, 65], [55, 45]], 30), weight: 6 });
+    } else {
+        exc.push({ label: 'RSI-14', why: 'not recorded on this candidate' });
+    }
+
+    if (c.volRatio != null) {
+        inc.push({ label: 'Volume ratio', raw: c.volRatio.toFixed(1) + '× normal',
+                   subscore: _asBand(c.volRatio, [[1, 40], [1.5, 55], [2.5, 75]], 85), weight: 5 });
+    } else {
+        exc.push({ label: 'Volume ratio', why: 'not recorded on this candidate' });
+    }
+
+    // --- Quality (balance-sheet risk filter, not an edge — see plan rationale) ---
+    if (qualityOk && q.netMarginPct != null) {
+        inc.push({ label: 'Net margin', raw: q.netMarginPct.toFixed(1) + '%',
+                   subscore: _asBand(q.netMarginPct, [[0, 10], [5, 35], [15, 60], [25, 85]], 100), weight: 9 });
+    } else {
+        exc.push({ label: 'Net margin', why: qualityOk ? 'not reported for this company' : 'no quality data' });
+    }
+
+    if (qualityOk && q.debtToEquity != null) {
+        inc.push({ label: 'Debt / equity', raw: q.debtToEquity.toFixed(1),
+                   subscore: _asBand(q.debtToEquity, [[0.3, 100], [1, 80], [2, 55], [4, 25]], 5), weight: 7 });
+    } else {
+        exc.push({ label: 'Debt / equity', why: qualityOk ? 'not reported for this company' : 'no quality data' });
+    }
+
+    if (qualityOk && q.currentRatio != null) {
+        inc.push({ label: 'Current ratio', raw: q.currentRatio.toFixed(1),
+                   subscore: _asBand(q.currentRatio, [[1, 20], [1.5, 55], [3, 90]], 70), weight: 3 });
+    } else {
+        exc.push({ label: 'Current ratio', why: qualityOk ? 'not reported for this company' : 'no quality data' });
+    }
+
+    if (qualityOk && q.roePct != null) {
+        inc.push({ label: 'Return on equity', raw: q.roePct.toFixed(1) + '%',
+                   subscore: _asBand(q.roePct, [[0, 10], [10, 45], [20, 75], [35, 95]], 70), weight: 3 });
+    } else {
+        exc.push({ label: 'Return on equity', why: qualityOk ? 'not reported for this company' : 'no quality data' });
+    }
+
+    // Null dividend on a SUCCESSFUL quality fetch means "pays no dividend"
+    // (Finnhub returns null for non-payers) — that's information, not missing
+    // data, so it scores as the 0% band instead of being excluded.
+    if (qualityOk) {
+        var dy = (q.dividendYieldPct != null) ? q.dividendYieldPct : 0;
+        inc.push({ label: 'Dividend yield', raw: dy.toFixed(1) + '%',
+                   subscore: (dy <= 0) ? 50 : _asBand(dy, [[2, 60], [4, 70]], 60), weight: 4 });
+    } else {
+        exc.push({ label: 'Dividend yield', why: 'no quality data' });
+    }
+
+    // --- Analyst view (corroborating evidence, FMP-gated) ---
+    if (c.priceTarget && c.priceTarget.targetConsensus != null && c.close) {
+        var upPct = (c.priceTarget.targetConsensus / c.close - 1) * 100;
+        inc.push({ label: 'Target upside', raw: _asPct(upPct),
+                   subscore: _asBand(upPct, [[0, 20], [10, 50], [25, 75]], 95), weight: 8 });
+    } else {
+        exc.push({ label: 'Target upside', why: 'no FMP price-target data' });
+    }
+
+    if (c.grades) {
+        var net = (c.grades.upgrades || 0) - (c.grades.downgrades || 0);
+        inc.push({ label: 'Analyst grades (net 60d)', raw: '▲' + (c.grades.upgrades || 0) + '/▼' + (c.grades.downgrades || 0),
+                   subscore: _asBand(net, [[-2, 10], [0, 35], [1, 55], [3, 75]], 95), weight: 5 });
+    } else {
+        exc.push({ label: 'Analyst grades', why: 'no FMP grades data' });
+    }
+
+    // --- Insider signal (zero purchases is a real observation, not missing data) ---
+    if (c.insiders && !c.insiders.error) {
+        var buys = (c.insiders.purchases || []).length;
+        inc.push({ label: 'Insider buys', raw: String(buys),
+                   subscore: _asBand(buys, [[1, 45], [3, 70]], 95), weight: 9 });
+    } else {
+        exc.push({ label: 'Insider buys', why: 'no insider data' });
+    }
+
+    // --- Risk deductions (flags subtract from the total, they don't reweight) ---
+    if (qualityOk && q.profitable === false && q.debtToEquity != null && q.debtToEquity > 2) {
+        ded.push({ label: 'Falling knife (unprofitable + heavy debt)', points: 15 });
+    }
+    if (c.earningsDate) {
+        // Flat −5 when the typical-move number is unknown — never assume it exists.
+        var pts = (c.eventMovePct != null) ? Math.min(10, Math.round(c.eventMovePct / 2)) : 5;
+        ded.push({ label: 'Earnings ' + c.earningsDate + ' inside the window', points: pts });
+    }
+
+    // --- Total: renormalize over included weights, subtract deductions, clamp ---
+    var wSum = 0, wsSum = 0;
+    inc.forEach(function(m) { wSum += m.weight; wsSum += m.weight * m.subscore; });
+    if (wSum === 0) return null;   // nothing scoreable at all
+    var dedSum = 0;
+    ded.forEach(function(d) { dedSum += d.points; });
+    var total = Math.round(Math.max(0, Math.min(100, wsSum / wSum - dedSum)));
+    inc.forEach(function(m) { m.contribution = Math.round(m.weight * m.subscore / wSum * 10) / 10; });
+
+    return { total: total, grade: _asGradeLetter(total), coverage: wSum,
+             breakdown: inc, excluded: exc, deductions: ded };
+}
+
+// Scores any candidate — dispatches to the detector's scorer. Returns null
+// for detectors whose scorer hasn't shipped yet (spring/drift/revision land
+// in Phase 2 of the ranking plan) so callers can skip the badge cleanly.
+function _asScoreCard(c) {
+    if (!c) return null;
+    if (c.detector === 'dipA') return _asScoreDip(c);
+    return null;
+}
+
 function _asCandidateCard(c) {
     var name = _asName(c.ticker);
     var badge, reason, chips = [];
