@@ -1,6 +1,8 @@
 # Stock Analysis Ranking Plan
 
-**Status: 📝 PLANNING ONLY — design decisions locked (2026-07-13), fresh-eyes review pass applied (2026-07-16), weights are a proposed v1, no code written yet.**
+**Status: ✅ COMPLETE (Phases 1–5, 2026-07-16→17). All four detector scorers ship a composite score + letter grade; scan cards and the dossier show a clickable grade pill with a per-metric breakdown; sections sort by grade. Weights are the reasoned v1 (not yet outcome-calibrated). Phase 6 (calibration diagnostic) remains gated on ≥30 graded Scoreboard candidates — see "Future: calibration phase."**
+
+*History: design decisions locked 2026-07-13; fresh-eyes review pass 2026-07-16; built + verified 2026-07-16→17.*
 
 ## Problem
 
@@ -359,6 +361,27 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-17 — ✅ Phase 5 COMPLETE → RANKING FEATURE COMPLETE (regression + close-out).**
+  No new code — a full regression pass over the sandbox plus the doc/index close-out.
+  - **Verified (preview, test account, scan v21 / engine v7 / css v774):**
+    (1) **Old chip-free fixture** (`vj2ZUouu64RFXXzEbnSj`, 20 candidates) rendered through
+    the real `_asRenderScan`: all 19 live cards get a clickable pill with a hidden breakdown;
+    both sections sort strictly descending (dips 80→69, springs 84→75); the dismissed FLEX
+    stays out of the cards. Low coverage (39%, grades A off 4 metrics) is the documented
+    legacy-fixture artifact, not a regression.
+    (2) **Enriched scan** (`7prPG3JmCdygRnczV5Mc`): FLEX `C·66·74%`, EA `A·84·55%` — correct.
+    (3) **No-FMP-key case** is inherently covered — scoring is pure over stamped fields and
+    never calls FMP; the FMP-gated metrics (divergence/target/grades) simply land in the
+    "Not counted" line, which the fixture demonstrates.
+    (4) **Null-score legacy candidate** (no baseRate/rsi/vol/cond ≥3): `_asScoreCard` → null,
+    card renders with **no pill and sorts last** (behind a scoreable sibling), no error.
+    (5) **Stock-Rollup dossier degradation** (`/dossier/none/FLEX/dipA`): no pill, no
+    breakdown, trigger badge intact.
+    (6) **No console errors** on any path. Sandbox undisturbed (2 scan docs, 0 estimate
+    snapshots — every synthetic render was DOM-only, never persisted).
+  - **Close-out:** doc status → COMPLETE; `AllPlans.md` line updated (Phases 1–5 complete,
+    Phase 6 gated). **Phase 6 (calibration diagnostic) intentionally NOT built** — it waits
+    for ≥30 graded Scoreboard candidates so the correlations mean something; revisit then.
 - **2026-07-17 — ✅ Phase 4 Part B COMPLETE → PHASE 4 COMPLETE (dossier grade badge +
   breakdown).** `analyzer-scan.js` `_adRender`: scores `ctx.candidate` (the stamped scan
   candidate — so the dossier grade MATCHES the scan card the user clicked through from) and,
