@@ -75,8 +75,8 @@ function loadAnalyzerPage() {
                 'Short-term setups — overreaction dips, post-earnings drift, revision momentum, coiled springs') +
             _anaStrategyCard('#analyzer/dualmomentum', '🌍', 'Dual Momentum',
                 'Monthly rotation between US stocks, international stocks, and cash — one check, one verdict') +
-            _anaStrategyCard(null, '🚀', 'Stock Momentum',
-                'Own the top 20–30 stocks by 12-month momentum, re-ranked monthly') +
+            _anaStrategyCard('#analyzer/stockmomentum', '🚀', 'Stock Momentum',
+                'Own the top 25 stocks by 12-month momentum, re-ranked monthly') +
             _anaStrategyCard(null, '💎', 'Quality-Value',
                 'Good businesses at cheap prices — annual Magic-Formula screen with AI value-trap checks') +
             _anaStrategyCard(null, '📈', 'Earnings Drift (PEAD)',

@@ -2066,6 +2066,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer` | **Strategy hub** — 6 strategy cards (Dip & Drift, Dual Momentum, 4 coming-soon) | ✅ Built (2026-07-17) |
 | `#analyzer/dipdrift` | **Dip & Drift sub-hub** — nav cards for Backtest Lab, Scan, Trades, Scoreboard, Universe + the 📊 Price data section | ✅ Built (2026-07-17) |
 | `#analyzer/dualmomentum` | **Dual Momentum** — monthly GEM rotation signal (see section below) | ✅ Built (2026-07-17) |
+| `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking from the price cache | 🔄 Build in progress (Piece A: ranked list + regime banner live; signal log/grading and full docs land with Pieces B/C — see TradingStrategiesPlan.md 7.2 checklist) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
