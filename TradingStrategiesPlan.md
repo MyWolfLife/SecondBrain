@@ -100,7 +100,7 @@ One major section per strategy, built out as we discuss. Teaching order = rankin
 | 1. Dual Momentum | ✅ Taught (section below) |
 | 2. Cross-Sectional Stock Momentum | ✅ Taught (section below) |
 | 3. Quality-Value Composite | ✅ Taught (section below) |
-| 4. PEAD + LLM Earnings Analysis | Pending |
+| 4. PEAD + LLM Earnings Analysis | ✅ Taught (section below) |
 | 5. LLM News-Sentiment Trading | Pending |
 
 ---
@@ -283,6 +283,63 @@ The screen's one blind spot is that it can't distinguish "cheap because hated" (
 - **Universe floor:** larger caps = weaker effect, easier trading; smaller = stronger effect, needs limit orders.
 - **Sector cap:** yes/no and how tight.
 - **Rebalance cadence:** annual (canonical, tax-friendly) vs. semi-annual.
+
+---
+
+### 5.4 Post-Earnings Announcement Drift (PEAD) + LLM Earnings Analysis — Deep Dive
+
+#### The mechanism: the market underreacts to earnings news — slowly, predictably
+
+When a company reports earnings that genuinely surprise, the stock jumps — and then **keeps moving in the same direction for the next 30–60 days**. That continuation is PEAD, the *oldest* documented anomaly in finance (Ball & Brown 1968 — it predates the efficient-market hypothesis it embarrasses). The definitive study (Bernard & Thomas 1989) showed the top-surprise decile keeps earning abnormal returns for weeks, with a final kick around the *next* quarter's report.
+
+**Why the drift exists:**
+1. **Limited attention.** In peak earnings season, hundreds of companies report per day. Nobody processes them all; smaller names get processed slowly or not at all. (Measurably: surprises announced on Fridays or on crowded days drift *more* — DellaVigna & Pollet. Inattention is literally visible in the data.)
+2. **Anchoring.** Investors anchor on their prior view of the company and update in steps rather than all at once.
+3. **The analyst-revision conveyor belt — the mechanical heart of the drift.** After a big beat, analysts don't re-rate the stock overnight; they raise estimates and targets *sequentially* over days and weeks. Each upgrade triggers another wave of buying from funds that key off estimates. (This is the same force the Analyzer's Detector C — revision momentum — already tracks. PEAD is catching that conveyor belt at its starting point.)
+4. **Earnings surprises autocorrelate.** A company that beats big this quarter is more likely than average to beat next quarter — one surprise is usually the first chapter of a multi-quarter story, and the market prices it as a one-off.
+
+**Where it still lives:** the headline-number version is fully arbitraged in large caps — algorithms trade the EPS beat within seconds. The surviving edge is in (a) **small/mid caps**, where institutions can't deploy meaningful size and attention is thinnest, and (b) **the nuance the headline misses** — which is the LLM's job (below).
+
+#### The rules (retail implementation)
+
+1. **Universe:** small/mid caps (~$300M–$10B), liquid enough to trade with tight spreads.
+2. **Screen during earnings season** (daily, morning after reports) for the trifecta:
+   - **Real surprise:** EPS beat >10–15% *and* revenue beat (revenue is much harder to massage than EPS) — ideally with **raised guidance**, which research says matters more than the beat itself.
+   - **The market's first vote:** stock gaps up meaningfully (e.g., >5%) on heavy volume (e.g., >2× average) **and holds the gap into the close**. The announcement-day reaction predicts drift *better than the raw surprise number* — a big beat the market shrugs at is a no; a gap that fades by the close is a no.
+3. **LLM transcript read — the modern edge:** before entering, the LLM reads the earnings call and scores **"organic beat vs. cosmetic beat"**: Was the EPS beat from real operating strength, or from one-time items, tax benefits, or buybacks shrinking the share count? Is guidance language strengthening vs. last quarter's call, or hedged? Did management answer analyst questions directly or evade? Headline numbers are priced in minutes; *this* layer mostly is not.
+4. **Entry:** within 1–3 days after the announcement. No need to chase the opening print — the drift is measured in weeks, which is exactly what makes it retail-friendly.
+5. **Exit:** time-based at 40–60 days, **before the next earnings report** (holding through the next report captures the biggest drift kick per Bernard & Thomas, but converts a drift trade into a fresh earnings gamble — Phase 6 decision). Thesis-invalidation stop: exit early if price closes below the announcement-day low (the gap failed; the drift premise is dead).
+6. **Sizing:** many small positions rather than few large ones — per-event drift is modest (~+3–6% over the window), so this is a batting-average strategy that needs volume of events and cost discipline.
+
+#### The evidence
+
+- **Pedigree:** Ball & Brown (1968); Bernard & Thomas (1989, 1990) — top-vs-bottom surprise decile spread ~4–5% per quarter in the classic era; Fama (1998) conceded PEAD as one of the robust anomalies ("above suspicion").
+- **Decay, honestly:** Chordia et al. and successors show the classic headline-SUE effect is heavily attenuated in large, liquid stocks post-2000s — the easy version is gone. It persists where arbitrage is costly (small/mid caps, high-limits-to-arbitrage names) and in richer signal definitions (announcement-day reaction, guidance revisions, call language) that the simple quant screens of the 1990s didn't use.
+- **The LLM layer's evidence:** a growing 2023+ literature shows LLM readings of earnings-call language (tone, evasiveness, guidance framing) predict post-call returns beyond the numbers. This part is young — promising, not proven at the 30-year standard of strategies 1–3. Fair characterization: PEAD is an old, decayed-but-real anomaly, and the LLM is a plausible sharpening of it, not a guarantee.
+
+#### What a trade looks like (worked feel)
+
+A $2B industrial reports Q2: EPS +22% vs. estimates, revenue +6% vs. estimates, full-year guidance raised. Stock gaps +11% on 3× volume and closes near the high. The LLM reads the call: beat driven by volume growth and margin expansion (organic), guidance language upgraded from "cautiously optimistic" to specific numbers, management answered gross-margin questions with detail (no evasion). Verdict: organic. Enter day 2 at +12% from pre-announcement. Over the next 6 weeks, five analysts raise targets stepwise; the stock drifts another +7%. Exit at day 45, before the next report. — The failure version of the same trade: EPS beat but revenue *miss*, beat driven by a tax item, gap fades from +8% to +2% by the close. The screen's filters (revenue confirm + gap-hold + LLM read) exist to leave that one alone.
+
+#### Failure modes
+
+1. **Gap-and-fade / false positives:** the initial pop reverses instead of drifting. The gap-hold filter and announcement-low stop cap the damage, but losers are routine — this strategy wins on batting average and asymmetry, not on being right every time.
+2. **Lumpy opportunity flow:** trades cluster in the four earnings seasons; capital sits idle between them (arguably a feature — it can coexist with slower strategies).
+3. **Regime dependence:** in a bear market even great earnings fade — drift is weaker and stops trigger more. The 200-day-MA regime check from 5.2 applies here too.
+4. **Taxes and costs:** all short-term gains (**IRA strongly preferred**), and per-event edges of a few percent mean slippage discipline (limit orders, liquid names) is load-bearing, not optional.
+5. **Decay risk:** of our five, this edge is the most actively hunted by quant funds. The bet is specifically that small/mid-cap inattention + transcript nuance stays under institutional capacity limits — plausible, not permanent.
+
+#### App fit (Phase 7 preview)
+
+The closest to already-built of the five: the Stock Analyzer already does drift/news/insider enrichment and Detector C revision momentum. The PEAD feature is essentially a new detector: earnings-calendar-driven scan the morning after reports → surprise + gap-hold filters → LLM transcript scoring (organic vs. cosmetic) → candidate card with entry/exit window and the announcement-day-low invalidation level → Scoreboard tracking of how the signals actually performed.
+
+#### Variations (for Phase 6 — pick and freeze)
+
+- **Surprise definition:** EPS+revenue+guidance trifecta (strict, few signals) vs. any-two (looser, more signals).
+- **Universe floor/ceiling:** tighter small/mid band = stronger anomaly, worse spreads.
+- **Hold-through-next-earnings:** yes (bigger drift capture, event risk) vs. exit-before (cleaner, canonical for us).
+- **Short side:** negative surprises drift down too — shorting is out of scope, but a *negative* PEAD signal is useful as a "don't buy this dip" warning on holdings.
+- **LLM scoring rubric:** binary organic/cosmetic vs. graded score feeding position size.
 
 ## Phase 6 — Implementation Documentation (pending)
 
