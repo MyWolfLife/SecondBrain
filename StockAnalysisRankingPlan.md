@@ -295,6 +295,14 @@ past graded candidate is already usable calibration data.
 Phased so each stage ships something independently verifiable, richest/best-tested data
 first — matching the stage-by-stage pattern used elsewhere in this project.
 
+**Per-phase commit conventions (per CLAUDE.md — not deferred to the end):** every phase is
+its own commit + notify + push. Every phase that touches JS gets its own `?v=` bump(s) in
+index.html and an sw.js CACHE_NAME bump *in that commit*. Spec and AppHelp updates land in
+the **same commit as the user-visible change they document** — that means Phase 3 (badge +
+sort appear) and Phase 4 (breakdown + dossier badge) each carry their own spec/help edits;
+Phases 1–2 are internal-only (console-verifiable functions, no visible behavior change) so
+they need bumps but no spec/help edits.
+
 ### Phase 1 — Core scoring engine (dipA only)
 - `_asScoreDip(c)` in `analyzer-scan.js`: per-metric subscore functions for the dipA table
   above, renormalization over available metrics (per the presence rules in "Scoring
@@ -323,6 +331,9 @@ first — matching the stage-by-stage pattern used elsewhere in this project.
 - `_asCandidateCard(c)` renders the grade badge (e.g. `B · 74 · 82% data`).
 - `_asRenderScan` sorts each detector's live candidates by `score.total` descending
   (replacing today's per-detector heuristic sort), dismissed candidates still last.
+- **Same commit:** spec Part 8f (scoring/grading + new sort order) and AppHelp
+  `screen:analyzer-scan` (what the grade means in plain language, incl. "compare grades
+  within a section, not across sections" and the regime framing note from Scope notes).
 - Verify visually in preview across all four detector sections.
 
 ### Phase 4 — Expandable breakdown (scan cards + dossier)
@@ -330,13 +341,16 @@ first — matching the stage-by-stage pattern used elsewhere in this project.
   metric's raw value → subscore → weight → contribution, plus excluded metrics and why.
 - Same badge + breakdown in the dossier header (`_adRender`) — the score must follow the
   user to where the actual research happens.
+- **Same commit:** spec Part 8f (breakdown + dossier badge) and AppHelp
+  `screen:analyzer-dossier` (grade on the dossier) + `screen:analyzer-scan` (the breakdown).
 - Verify the numbers in the accordion sum to the badge's total.
 
-### Phase 5 — Docs & close-out
-- Update `MyLife-Functional-Spec.md` Part 8f (scoring/grading behavior) and `AppHelp.md`
-  `screen:analyzer-scan` (what the grade means, in plain language).
-- Version bumps (`analyzer-scan.js`, `styles.css`) + `sw.js` CACHE_NAME bump.
-- Commit + push per usual cadence.
+### Phase 5 — Regression + close-out
+- Backward-compat pass: old chip-free fixture scan (`vj2ZUouu64RFXXzEbnSj`), the enriched
+  2026-07-11 scan, and a no-FMP-key run all render correct badges/coverage (or degrade
+  cleanly to no badge) with no console errors.
+- Stock-Rollup-opened dossier (`scanId='none'`) shows/degrades the badge correctly.
+- Update `AllPlans.md` status line for this doc; final Build Log entry here.
 
 ### Phase 6 (later, gated on data volume) — Calibration diagnostic
 - Not scheduled as part of this execution — revisit once the Scoreboard has 30+ graded
@@ -345,6 +359,13 @@ first — matching the stage-by-stage pattern used elsewhere in this project.
 
 ## Build Log
 
+- **2026-07-16 — Phase-structure fix (planning only, no code).** Follow-up to the review
+  pass: the original Phase 5 ("Docs & close-out") deferred spec/AppHelp updates and version
+  bumps to a final phase, which violates CLAUDE.md's same-commit rules. Restructured: a
+  per-phase commit-conventions preamble added to the Execution Plan; Phases 3 and 4 now
+  carry their own spec/AppHelp edits in the same commit as the visible change; Phase 5
+  repurposed as a regression + close-out pass (old-scan backward compat, no-FMP-key run,
+  Stock-Rollup dossier badge degradation, AllPlans status update).
 - **2026-07-16 — Fresh-eyes review pass (planning only, no code).** Cross-checked the plan
   against the actual engine/scan code and fixed what it found: (1) grade cutoffs were
   mathematically unreachable — a hand-computed excellent dip candidate scored ~77 under
