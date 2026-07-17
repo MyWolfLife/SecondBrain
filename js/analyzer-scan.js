@@ -910,6 +910,38 @@ function _asScoreCard(c) {
     return null;
 }
 
+// The expandable breakdown behind a grade pill (ranking plan Phase 4):
+// every included metric's raw value → subscore → weight → points, any risk
+// deductions, the total, and what was excluded (and why). Hidden until the
+// pill is clicked; shared by the scan cards and the dossier.
+function _asGradeBreakdownHtml(score, domId) {
+    if (!score) return '';
+    var h = '<div class="as-grade-breakdown hidden" id="' + domId + '">' +
+        '<table class="as-gb-table">' +
+        '<tr><th>Evidence</th><th>Value</th><th>Score</th><th>Weight</th><th>Points</th></tr>';
+    score.breakdown.forEach(function(m) {
+        h += '<tr><td>' + escapeHtml(m.label) + '</td><td>' + escapeHtml(m.raw) + '</td>' +
+             '<td>' + m.subscore + '</td><td>' + m.weight + '</td><td>' + m.contribution.toFixed(1) + '</td></tr>';
+    });
+    score.deductions.forEach(function(d) {
+        h += '<tr class="as-gb-ded"><td colspan="4">⚠️ ' + escapeHtml(d.label) + '</td><td>−' + d.points + '</td></tr>';
+    });
+    h += '<tr class="as-gb-total"><td colspan="4">Total — grade ' + score.grade +
+         ' (' + score.coverage + '% of the model had data)</td><td>' + score.total + '</td></tr>' +
+         '</table>';
+    if (score.excluded.length) {
+        h += '<p class="as-gb-excluded">Not counted (no data — weights renormalized over the rest): ' +
+             score.excluded.map(function(e) { return escapeHtml(e.label) + ' — ' + escapeHtml(e.why); }).join(' · ') + '</p>';
+    }
+    h += '</div>';
+    return h;
+}
+
+function _asToggleGradeBreakdown(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
+}
+
 function _asCandidateCard(c, score) {
     if (score === undefined) score = _asScoreCard(c);
     var name = _asName(c.ticker);
@@ -944,13 +976,18 @@ function _asCandidateCard(c, score) {
 
     // Grade pill (ranking plan Phase 3) — sits LEFT beside the ticker (never
     // right-aligned), colored by letter, tooltip explains in plain language.
-    var gradeHtml = '';
+    // Clicking it toggles the per-metric breakdown (Phase 4).
+    var gradeHtml = '', breakdownHtml = '';
     if (score) {
-        gradeHtml = '<span class="as-grade as-grade-' + score.grade.toLowerCase() + '" title="' +
+        var gbId = 'asgb-' + c.detector + '-' + c.ticker.replace(/[^A-Za-z0-9]/g, '_');
+        gradeHtml = '<span class="as-grade as-grade-' + score.grade.toLowerCase() + '"' +
+            ' onclick="_asToggleGradeBreakdown(\'' + gbId + '\')" title="' +
             escapeHtml('Overall grade: a weighted 0–100 rollup of the evidence on this card (' + score.total +
             '/100). "' + score.coverage + '% data" is how much of the scoring model had data available — ' +
-            'a grade built on thin data is a weaker statement. Compare grades within this section only.') + '">' +
+            'a grade built on thin data is a weaker statement. Compare grades within this section only. ' +
+            'Click for the full breakdown.') + '">' +
             score.grade + ' · ' + score.total + ' · ' + score.coverage + '% data</span>';
+        breakdownHtml = _asGradeBreakdownHtml(score, gbId);
     }
 
     var html = '<div class="as-card">' +
@@ -962,6 +999,7 @@ function _asCandidateCard(c, score) {
             '</span>' +
             '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
         '</div>' +
+        breakdownHtml +
         '<p class="as-card-reason">' + reason + '</p>' +
         '<div class="as-chip-row">';
     var analyst = _asAnalystChips(c);

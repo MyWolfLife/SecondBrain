@@ -359,6 +359,32 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-16 — 🔨 Phase 4 Part A COMPLETE (scan-card grade breakdown); Part B (dossier
+  badge + breakdown) STILL TODO.** Phase 4 split into two independently shippable parts so a
+  mid-phase stop leaves a clean resume point. **Part A (done, this commit):** clicking a
+  scan-card grade pill toggles an inline per-metric breakdown. `analyzer-scan.js`:
+  `_asGradeBreakdownHtml(score, domId)` (table: evidence → value → subscore → weight →
+  points, then −points deduction rows, a total row restating grade + coverage, and a "Not
+  counted" line listing each excluded metric + reason) and `_asToggleGradeBreakdown(id)`;
+  the pill gains an onclick + "Click for the full breakdown." tooltip suffix; card HTML
+  emits the hidden breakdown div under the card top. `styles.css`: `.as-grade` cursor
+  help→pointer; new `.as-grade-breakdown` / `.as-gb-table` / `.as-gb-ded` / `.as-gb-total` /
+  `.as-gb-excluded` (table scrolls horizontally inside the card on narrow screens). Spec
+  Part 8f Candidate-grade bullet + AppHelp `screen:analyzer-scan` (Quick Help "tap the pill"
+  bullet + Ranking-&-grades Details paragraph) updated same commit. Bumps: analyzer-scan.js
+  v20, styles.css v774, sw v481.
+  - **Verified (preview, test account):** FLEX pill (C·66·74%) click → breakdown toggles
+    hidden→shown→hidden on second click; 10 metric rows; **sum of the Points column
+    (66.1) == the total row (66)** within rounding; "Not counted" line lists Divergence /
+    Target upside / Analyst grades with their reasons; screenshot confirms clean table
+    layout; no horizontal overflow with the breakdown open; no console errors.
+  - **⏭ NEXT (resume here): Phase 4 Part B** — put the same grade pill + breakdown in the
+    dossier header (`_adRender` in analyzer-scan.js; `_adCtx.candidate` holds the scored
+    candidate — reuse `_asScoreCard` + `_asGradeBreakdownHtml`, a unique domId like
+    `asgb-dossier-{ticker}`). Degrades to no badge when the candidate isn't scoreable (e.g.
+    Stock-Rollup-opened dossier with sparse evidence). Then spec Part 8f dossier section +
+    AppHelp `screen:analyzer-dossier`, bumps, commit. After Part B: Phase 5 (regression +
+    close-out).
 - **2026-07-16 — ✅ Phase 3 COMPLETE (grade badge + score sort on the scan page).** First
   user-visible piece. `styles.css`: `.as-card-left` (keeps ticker + pill grouped LEFT, per
   the standing left-aligned-badges feedback) and `.as-grade` + `.as-grade-a`…`.as-grade-f`

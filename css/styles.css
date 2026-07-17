@@ -19998,8 +19998,28 @@ a.legacy-fin-card:hover {
     border-radius: 10px;
     border: 1px solid;
     white-space: nowrap;
-    cursor: help;
+    cursor: pointer;   /* clickable — toggles the breakdown (Phase 4) */
 }
+
+/* Grade breakdown — expands under the card top when the pill is clicked */
+.as-grade-breakdown {
+    margin: 8px 0 4px;
+    padding: 8px 10px;
+    background: #f7f8fc;
+    border: 1px solid #e3e6f0;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+.as-gb-table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.as-gb-table th {
+    text-align: left; font-weight: 600; color: #667;
+    padding: 2px 10px 4px 0; border-bottom: 1px solid #dfe3ee;
+}
+.as-gb-table td { padding: 3px 10px 3px 0; border-bottom: 1px solid #eef0f7; }
+.as-gb-table th:nth-child(n+3), .as-gb-table td:nth-child(n+3) { text-align: right; }
+.as-gb-ded td { color: #a04b12; }
+.as-gb-total td { font-weight: 700; border-bottom: none; padding-top: 6px; }
+.as-gb-excluded { margin: 8px 0 0; font-size: 0.75rem; color: #889; }
 .as-grade-a { background: #eaf7ec; border-color: #86c98f; color: #245c2e; }
 .as-grade-b { background: #f2f7e2; border-color: #b8cf7f; color: #4c6b1a; }
 .as-grade-c { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
