@@ -262,6 +262,29 @@ function _anaMergeCandles(existing, fresh) {
     return existing;
 }
 
+// Split guard: detects when the provider has RE-BASED its history since our
+// last fetch (a stock split rescales every past candle — both Yahoo and FMP
+// serve split-adjusted closes, adjusted as of fetch time). Merging fresh
+// candles into a cache on the old basis would stitch two price scales
+// together, faking a huge "dip" at the seam that Detector A, the base rates,
+// and backtests would all trust. Compares the close on the OLDEST date the
+// two records share — months back, so immutable, unlike the newest overlap
+// which can be an intraday partial from a mid-day update. A >2% relative
+// difference means re-based (the smallest real splits move prices ~14%+;
+// ordinary dividends never touch the split-adjusted close field we store).
+function _anaAdjustmentSeam(existing, fresh) {
+    var have = {};
+    for (var i = 0; i < existing.dates.length; i++) have[existing.dates[i]] = i;
+    for (var j = 0; j < fresh.dates.length; j++) {   // both ascending → first hit = oldest overlap
+        var idx = have[fresh.dates[j]];
+        if (idx === undefined) continue;
+        var a = existing.close[idx], b = fresh.close[j];
+        if (!(a > 0) || !(b > 0)) return false;
+        return Math.abs(a - b) / a > 0.02;
+    }
+    return false;   // no overlapping dates — nothing to compare
+}
+
 // Converts a Yahoo-style range string to an FMP from/to date pair (with a
 // little slack so small ranges still clear the minCandles guard).
 function _anaRangeToDates(range) {
@@ -294,7 +317,8 @@ async function _anaFetchHistory(ticker, range, minCandles) {
     return _anaFetchYahooHistory(ticker, range, minCandles);
 }
 
-// Updates the cache for one ticker. Returns 'skipped' | 'topup' | 'full'.
+// Updates the cache for one ticker. Returns 'skipped' | 'topup' | 'full' |
+// 'rebased' (split guard tripped — cache discarded and refetched at 5y).
 async function _anaUpdateTicker(ticker) {
     var today  = _anaTodayStr();
     var cached = await _anaDbGet(ticker);
@@ -317,6 +341,17 @@ async function _anaUpdateTicker(ticker) {
     }
 
     var fresh = await _anaFetchHistory(ticker, range, minCandles);
+
+    // Split guard (see _anaAdjustmentSeam): if the cached history is on a
+    // different price basis than the fresh candles, throw the cache away and
+    // refetch the full 5 years so the whole record shares one basis.
+    if (mode === 'topup' && _anaAdjustmentSeam(cached, fresh)) {
+        console.log('[analyzer] ' + ticker + ': cached history is on a different price basis (stock split?) — discarding cache, refetching 5y');
+        cached = { ticker: ticker, dates: [], open: [], high: [], low: [], close: [], volume: [] };
+        fresh  = await _anaFetchHistory(ticker, '5y', 500);
+        mode   = 'rebased';
+    }
+
     _anaMergeCandles(cached, fresh);
     cached.updatedAt = new Date().toISOString();
     await _anaDbPut(cached);

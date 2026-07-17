@@ -2320,6 +2320,8 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 
 **What it is not**: A stock-picking oracle. It cannot compute the probability a stock rises — it finds situations where the odds have historically been favorable and shows you the evidence, including the honest caveats.
 
+**Stock splits are handled automatically**: Price providers rescale a stock's entire history when it splits, which could clash with the older history already cached on your device and fake a giant one-day "drop." The updater checks for this on every refresh — if a stock's history no longer lines up with the cache (you might see **(rebased)** flash in the progress line), it quietly throws away the stale copy and re-downloads the full 5 years so everything stays on one consistent price scale. Nothing for you to do.
+
 **Build status**: Phases 1, 2, and 3 are all fully live. Phase 1 built the core — navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets, and the Scoreboard. Phase 2 added the Finnhub enrichment — quality + insider chips with a falling-knife flag on dips, post-earnings drift (Detector B), whole-market earnings chips with a ±typical-move risk gauge, and a dossier news feed with an optional AI emotional-vs-structural read. Phase 3 (paid FMP) added much faster parallel price updates, the flagship price-vs-estimate **divergence** metric, **revision momentum** (Detector C), market-wide **Discover** screening, and a final consolidation pass — one documented earnings/insider provider order (Finnhub first, FMP fallback), quota guardrails that back off cleanly on a limited FMP plan, and a provider-health line on the hub. See `StockAnalyzerPlan.md` for the full design.
 
 ---
