@@ -20,8 +20,8 @@ Investigate trading/investing strategies with **credible statistical evidence of
 | 1 | Survey the strategy landscape — what's out there, what was rejected and why | ✅ COMPLETE (this doc) |
 | 2 | Select top 3–5 candidates | ✅ COMPLETE (5 selected) |
 | 3 | One-paragraph descriptions, ranked 1–5 | ✅ COMPLETE (below) |
-| 4 | User removes 2 (any reason — preference counts) | ⏳ AWAITING USER |
-| 5 | Deep teaching of the surviving 3 (one section per strategy, built out as we discuss) | Pending |
+| 4 | User removes 2 (any reason — preference counts) | ✅ DECIDED — user kept all 5 |
+| 5 | Deep teaching of all 5 strategies (one section per strategy, built out as we discuss) | 🔄 IN PROGRESS (1 of 5 taught) |
 | 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | Pending |
 | 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | Pending |
 
@@ -85,23 +85,78 @@ An LLM reads the overnight/morning news flow for a stock universe, scores each h
 
 ---
 
-## Phase 4 — User Cut (awaiting)
+## Phase 4 — User Cut ✅ DECIDED (2026-07-17)
 
-User removes 2 of the 5 above. Reasons don't need justification — "I just don't want to do that one" is valid. Record what was cut and why here.
-
-- **Cut:** _(pending)_
-- **Cut:** _(pending)_
-- **Surviving 3:** _(pending)_
+**User kept all 5.** ("For the moment let's keep all 5. I'm intrigued.") The teach/document/build phases below cover all five strategies. A cut can still happen later if any strategy loses its appeal during teaching.
 
 ---
 
-## Phase 5 — Deep Teaching (pending)
+## Phase 5 — Deep Teaching (in progress)
 
-One major section per surviving strategy, built out as we discuss:
-- The mechanism: *why* it works and why it hasn't been arbitraged away
-- The evidence: key studies, out-of-sample record, live-money track records
-- The failure modes: when it loses, how badly, for how long
-- Worked examples with real tickers/dates
+One major section per strategy, built out as we discuss. Teaching order = ranking order. Each section covers: the mechanism (why it works and why it isn't arbitraged away), the evidence (key studies + out-of-sample record), the failure modes (when it loses, how badly, for how long), and worked examples with real dates.
+
+| Strategy | Status |
+|----------|--------|
+| 1. Dual Momentum | ✅ Taught (section below) |
+| 2. Cross-Sectional Stock Momentum | Pending |
+| 3. Quality-Value Composite | Pending |
+| 4. PEAD + LLM Earnings Analysis | Pending |
+| 5. LLM News-Sentiment Trading | Pending |
+
+---
+
+### 5.1 Dual Momentum — Deep Dive
+
+#### The mechanism: two findings stacked together
+
+**Finding 1 — Relative momentum:** assets that outperformed their peers over the past ~12 months tend to keep outperforming for the next 3–12 months. This is the same momentum anomaly as Strategy #2, applied to whole markets instead of individual stocks. Cause: investors underreact to new information at first, then herd into what's working — so trends develop slowly and persist.
+
+**Finding 2 — Absolute momentum (trend following):** when an asset's own trailing return is below the T-bill (cash) return, its forward returns are historically poor and its volatility is high. Bear markets are *processes, not events* — 2000–02 took two years to bottom, 2008 took 17 months. A signal you only check monthly is fast enough to step aside from most of the damage, because the damage unfolds over many months.
+
+**Why it isn't arbitraged away:** three reasons. (1) The edge is behavioral (underreaction + herding), and human behavior at market scale doesn't change because a paper got published. (2) Capacity is effectively unlimited — the trades are in the most liquid ETFs on earth — so nothing about others doing it degrades the signal the way a small-cap anomaly degrades. (3) The real price of admission is **tracking error**: the strategy can trail the S&P for years in a strong bull market. A fund manager gets fired for that; an individual just has to tolerate it. Career risk is the moat.
+
+#### The rules (GEM — "Global Equities Momentum", Antonacci's canonical version)
+
+Once a month, on the same day each month (e.g., the last trading day):
+
+1. Compute **trailing 12-month total return** (price change + dividends) for three things:
+   - US equities — SPY (or VOO/IVV)
+   - International equities ex-US — VEU (or ACWX)
+   - T-bills / cash — BIL (or the 12-month T-bill yield)
+2. **Absolute momentum gate:** Is the SPY 12-month return greater than the T-bill return?
+   - **No → risk-off.** Hold aggregate bonds (BND/AGG). Done.
+   - **Yes → risk-on.** Continue to step 3.
+3. **Relative momentum pick:** Hold whichever of SPY / VEU has the higher 12-month return.
+4. Hold that single position until next month's check. Trade **only when the answer changes** — historically ~1–3 switches per year, with multi-year stretches of no trades at all.
+
+That is the entire strategy. No intraday decisions, no stock picking, no discretion.
+
+#### The evidence
+
+- **Backtest (Antonacci, 1974–2013):** GEM ~17.4% CAGR vs. ~12.3% for the S&P 500, with max drawdown ~-23% vs. -51%. Treat these exact numbers as optimistic (backtests always are) — the *shape* is the durable claim: similar-or-better returns with roughly half the worst-case loss.
+- **The underlying components have deeper evidence than the packaged product:** momentum across asset classes is documented in ~200 years of data (Geczy & Samonov), across nearly every country and asset class (Asness, Moskowitz & Pedersen, "Value and Momentum Everywhere," 2013); time-series momentum in Moskowitz, Ooi & Pedersen (2012); the simple 10-month moving-average version in Faber (2007), one of the most-downloaded finance papers ever.
+- **Out-of-sample (2014–now), honestly:** GEM *lagged* the S&P during the relentless US-only bull market — the absolute-momentum gate cost money in the 2015–16 and 2018 whipsaws and badly in the 2020 COVID V-recovery, while it *helped* substantially in 2022 (stepped into bonds early in the year, avoided most of a -25% peak-to-trough year). This is exactly the pattern the mechanism predicts: it gives up ground in whipsaws and V-recoveries, and earns its keep in long grinding bears. Whether it beats buy-and-hold over the *next* 30 years depends mostly on whether that period contains extended bear markets (like 1973–74, 2000–02, 2008) or only fast crashes (like 2020).
+
+#### Failure modes — know these before starting, not during
+
+1. **Whipsaw:** market drops fast → monthly signal goes risk-off → market V-recovers → signal re-enters higher than it exited. Each whipsaw costs a few percent. 2020 was the worst case: exited after March, re-entered months later, missed a big chunk of the rebound. A fast crash + fast recovery is this strategy's kryptonite.
+2. **Bull-market lag:** in a year like 2013 or 2021 the strategy is ~fully invested and roughly matches the index minus small frictions — fine. But a whipsaw year in a bull run (2015, 2018) means finishing several points behind. Expect "the market made 20% and I made 13%" years and decide *now* that this won't shake you out.
+3. **Tax drag (taxable accounts):** switches realize gains, often short/medium-term. **This strategy strongly prefers a retirement account (IRA)** where switches are tax-free events.
+4. **Signal-date luck:** results vary a little depending on which day of the month you check. Don't optimize this; pick a day and never change it. (Optimizing it is curve-fitting.)
+5. **The real killer — abandonment:** every quantitative strategy's worst enemy. The most likely way this loses money is running it for 3 years, trailing the index, quitting in frustration, and missing the bear market it was built for.
+
+#### Worked history (what it actually did, month by month where it matters)
+
+- **2008 crisis:** SPY's 12-month return dropped below T-bills around **Jan 2008** (S&P ~-8% off its Oct 2007 peak). Signal: bonds. The S&P then fell another ~45% through March 2009. GEM sat in AGG (up slightly) the whole way down. Re-entered equities **mid-2009** after the 12-month return recovered — missed the first ~30% of the rebound (that's the toll), but avoided a -50% drawdown to capture it. Net effect: enormous.
+- **2020 COVID (the bad case):** Feb–Mar crash was so fast the end-of-Feb check was still risk-on. End-of-March check: risk-off → bonds, near the bottom. Market V-recovered; signal re-entered months later, well above its exit. Cost: roughly 10+ points vs. buy-and-hold that year. This is the honest worst case and it will happen again.
+- **2022 (the good case):** signal went risk-off in **early 2022** after January's decline tipped the 12-month return negative vs. T-bills. Sat out most of a grinding -25% year, re-entered in early 2023. Bonds also fell in 2022 (unusual), muting the win — a cash/BIL fallback did better than AGG that year, which is why the fallback asset choice is a Phase 6 decision.
+
+#### Variations (for Phase 6 discussion — pick one and freeze it)
+
+- **Lookback:** 12-month is canonical; blends (e.g., average of 3/6/12-month) reduce signal-date luck and whipsaw slightly.
+- **Trend measure:** 12-month return vs. T-bills (GEM) or price vs. 10-month moving average (Faber) — near-identical results; the 10-month SMA version is easier to eyeball on any chart site.
+- **Risk-off asset:** aggregate bonds (better most years) vs. T-bills/cash (better in rising-rate years like 2022) vs. splitting the difference with short-term Treasuries (BSV/VGSH).
+- **Skip international:** some drop the SPY/VEU comparison and just run absolute momentum on SPY (in-or-out). Simpler, and international relative momentum has been the weaker leg out-of-sample.
 
 ## Phase 6 — Implementation Documentation (pending)
 
