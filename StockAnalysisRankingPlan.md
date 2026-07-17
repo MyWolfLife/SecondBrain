@@ -359,8 +359,26 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-17 — ✅ Phase 4 Part B COMPLETE → PHASE 4 COMPLETE (dossier grade badge +
+  breakdown).** `analyzer-scan.js` `_adRender`: scores `ctx.candidate` (the stamped scan
+  candidate — so the dossier grade MATCHES the scan card the user clicked through from) and,
+  when scoreable, renders the same clickable grade pill leading the header form-row plus the
+  reused `_asGradeBreakdownHtml` under it (domId `asgb-dossier`). **Null candidate → no pill**
+  (Stock-Rollup deep links with `scanId='none'`, and setups no longer in a scan) — the
+  correct graceful degradation. No new CSS (reuses Part A's `.as-grade*`). Spec Part 8f
+  dossier Header/Grade bullet + AppHelp `screen:analyzer-dossier` (Quick Help pill bullet +
+  the "Opened from Stock Rollup" paragraph noting no pill) updated same commit. Bumps:
+  analyzer-scan.js v21, sw v482.
+  - **Verified (preview, test account):** scan-opened dossier
+    (`/dossier/7prPG3JmCdygRnczV5Mc/FLEX/dipA`) → pill **`C · 66 · 74% data` EXACTLY matches
+    the scan card's score** (same amber `as-grade-c` class); breakdown toggles
+    hidden→shown→hidden; 10 rows, Points column sums 66.1 == total 66; screenshot confirms
+    the pill leads the header row (left of the trigger badge) with the table open below.
+    **Degradation proven:** `/dossier/none/FLEX/dipA` → **no pill, no breakdown div**, trigger
+    badge still present. No horizontal overflow at 375px (breakdown fits) or desktop. No
+    console errors. **⏭ NEXT: Phase 5 (regression + close-out).**
 - **2026-07-16 — 🔨 Phase 4 Part A COMPLETE (scan-card grade breakdown); Part B (dossier
-  badge + breakdown) STILL TODO.** Phase 4 split into two independently shippable parts so a
+  badge + breakdown) DONE 2026-07-17 (see entry above).** Phase 4 split into two independently shippable parts so a
   mid-phase stop leaves a clean resume point. **Part A (done, this commit):** clicking a
   scan-card grade pill toggles an inline per-metric breakdown. `analyzer-scan.js`:
   `_asGradeBreakdownHtml(score, domId)` (table: evidence → value → subscore → weight →

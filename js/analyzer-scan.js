@@ -1201,13 +1201,31 @@ function _adRender(page, rec, ev, params) {
     else if (!isDip && !isDrift && !isRev && ev.spring) badge = 'vol ' + ev.spring.vol.toFixed(2) + ' · ' + ev.spring.pctFromHigh.toFixed(1) + '% off high';
     else                          badge = 'setup no longer active';
 
+    // Grade pill + breakdown (ranking plan Phase 4 Part B) — scores the same
+    // stamped candidate the scan card scored, so the dossier grade matches what
+    // the user clicked through from. Absent (null) for Stock-Rollup-opened
+    // dossiers and setups no longer in a scan → no pill, which is correct.
+    var adScore = _asScoreCard(ctx.candidate);
+    var adGradeHtml = '', adBreakdownHtml = '';
+    if (adScore) {
+        adGradeHtml = '<span class="as-grade as-grade-' + adScore.grade.toLowerCase() + '"' +
+            ' onclick="_asToggleGradeBreakdown(\'asgb-dossier\')" title="' +
+            escapeHtml('Overall grade: a weighted 0–100 rollup of this candidate’s evidence (' + adScore.total +
+            '/100). "' + adScore.coverage + '% data" is how much of the scoring model had data available. ' +
+            'Click for the full breakdown.') + '">' +
+            adScore.grade + ' · ' + adScore.total + ' · ' + adScore.coverage + '% data</span>';
+        adBreakdownHtml = _asGradeBreakdownHtml(adScore, 'asgb-dossier');
+    }
+
     var html =
         '<div class="page-header"><h2>' + escapeHtml(ctx.ticker) +
             (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</h2></div>' +
         '<div class="ab-form-row">' +
+            adGradeHtml +
             '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
             '<span class="ab-dim">$' + ev.close.toFixed(2) + ' · data through ' + escapeHtml(rec.dates[rec.dates.length - 1]) + '</span>' +
-        '</div>';
+        '</div>' +
+        adBreakdownHtml;
 
     // Evidence chips
     var chips = [];

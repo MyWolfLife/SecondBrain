@@ -2424,6 +2424,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **dossier** is the deep-dive behind a scan candidate — everything you need to make the call on one stock
+- The **grade pill** in the header is the same one from the scan card (`B · 74 · 82% data`) — tap it to see the full scoring breakdown; it won't appear if you opened this from Stock Rollup (there's no scored scan candidate behind that view)
 - The **chart** shows the last 12 months with your **target** (green dashed) and **stop** (red dashed) lines, plus a triangle on the peak the stock fell from
 - The **Similar dips** table is this stock's own history: every time it dipped like this before, and whether it recovered +10% within the window — the most honest odds available
 - The **🏥 Quality** section lays out the fundamentals (profitability, net margin, debt/equity, current ratio, dividend, ROE) and any recent insider open-market purchases — the survivability read behind the card's chips
@@ -2437,7 +2438,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 
 **Evidence is live**: The dossier recomputes everything from the latest cached prices when it opens, so the badge can differ slightly from what the scan card showed (new trading days arrive). If the dip has fully recovered it says "setup no longer active."
 
-**Opened from Stock Rollup instead of a scan?** You'll land here the same way, but read-only — no scan candidate exists behind the view, so there's nothing to save a thesis or exits to, and no trade-ticket section. Everything else (chart, similar-dips history, Quality, Analyst view, news, AI read) works exactly the same. The breadcrumb and the "← Back to…" link at the bottom point back to Stock Rollup instead of Scan in this case.
+**Opened from Stock Rollup instead of a scan?** You'll land here the same way, but read-only — no scan candidate exists behind the view, so there's nothing to save a thesis or exits to, no trade-ticket section, and **no grade pill** (the grade is computed from a scan candidate's evidence, which this view doesn't have). Everything else (chart, similar-dips history, Quality, Analyst view, news, AI read) works exactly the same. The breadcrumb and the "← Back to…" link at the bottom point back to Stock Rollup instead of Scan in this case.
 
 **Earnings chip**: If a report falls inside your window, the chip carries through here too — **⚠️ Earnings {date} (±X% history)** — with the same meaning as on the scan card: the ±X% is that stock's typical big-day move, sizing the binary-event risk you'd be holding through.
 
