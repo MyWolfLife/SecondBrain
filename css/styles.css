@@ -19987,6 +19987,24 @@ a.legacy-fin-card:hover {
 .as-chip-warn { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
 .as-chip-good { background: #eaf7ec; border-color: #86c98f; color: #245c2e; }
 .as-chip[title] { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* Candidate grade pill (ranking plan Phase 3) — green→red by letter */
+.as-card-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.as-grade {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 10px;
+    border: 1px solid;
+    white-space: nowrap;
+    cursor: help;
+}
+.as-grade-a { background: #eaf7ec; border-color: #86c98f; color: #245c2e; }
+.as-grade-b { background: #f2f7e2; border-color: #b8cf7f; color: #4c6b1a; }
+.as-grade-c { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
+.as-grade-d { background: #ffeede; border-color: #e8a96b; color: #8a4a12; }
+.as-grade-f { background: #fde7e7; border-color: #e08a8a; color: #a32222; }
 .ab-check-disabled { opacity: 0.55; }
 
 /* Candidate dossier — quality metric grid (Stage 2.2) */

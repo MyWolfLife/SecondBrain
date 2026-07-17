@@ -359,6 +359,26 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-16 — ✅ Phase 3 COMPLETE (grade badge + score sort on the scan page).** First
+  user-visible piece. `styles.css`: `.as-card-left` (keeps ticker + pill grouped LEFT, per
+  the standing left-aligned-badges feedback) and `.as-grade` + `.as-grade-a`…`.as-grade-f`
+  (green→red, same palette as `.as-chip-good`/`.as-chip-warn`/`.as-badge`). `analyzer-scan.js`:
+  `_asRenderScan` precomputes each live candidate's score once, sorts each detector section
+  by `score.total` descending (unscoreable → last; dismissed candidates unchanged, still
+  render last); `_asCandidateCard(c, score)` renders the pill `{grade} · {score} ·
+  {coverage}% data` beside the ticker with a plain-language hover tooltip. **Same commit:**
+  spec Part 8f (Shortlists bullet reworded — scan-time cap heuristics vs display sort — plus
+  a new full "Candidate grade" bullet) and AppHelp `screen:analyzer-scan` (Quick Help pill
+  bullet + the old "Ranking" Details paragraph rewritten as "Ranking & grades", covering
+  coverage-%, within-section-only comparison, and the regime framing caution). Bumps:
+  analyzer-scan.js v19, styles.css v773, sw v480.
+  - **Verified (preview, test account):** latest scan renders FLEX `C · 66 · 74% data`
+    (amber C pill) + EA `A · 84 · 55% data` (green A pill), correct classes/tooltips.
+    Fixture scan (20 candidates) renders dips descending 80→69 (14 live, dismissed FLEX
+    correctly excluded from cards and still in the Dismissed row) and springs 84→75; empty
+    drift/revision sections unaffected. Screenshot confirms pills sit left beside tickers,
+    trigger badges unchanged on the right. No horizontal overflow at 375px (pill 120×25px)
+    or desktop. No console errors.
 - **2026-07-16 — ✅ Phase 2 COMPLETE (remaining detector scorers + stamping fixes, no UI).**
   `analyzer-engine.js`: `anaEngRevisionTrigger` now returns `analysts` (was computed
   internally for its ≥3 gate but never returned). `analyzer-scan.js`: scan stamps

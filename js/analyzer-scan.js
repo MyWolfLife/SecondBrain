@@ -451,7 +451,14 @@ function _asRenderScan(scan, container) {
 
     ['dipA', 'springD', 'driftB', 'revC'].forEach(function(det) {
         var all = (scan.candidates || []).filter(function(c) { return c.detector === det; });
-        var live = all.filter(function(c) { return !c.dismissed; });
+        // Ranking plan Phase 3: display order is composite grade, best first.
+        // Scores are computed once per candidate here and passed into the card
+        // renderer; unscoreable candidates (no grade) sort last.
+        var live = all.filter(function(c) { return !c.dismissed; })
+            .map(function(c) { return { c: c, score: _asScoreCard(c) }; });
+        live.sort(function(a, b) {
+            return (b.score ? b.score.total : -1) - (a.score ? a.score.total : -1);
+        });
         var dismissed = all.length - live.length;
         html += '<h3 class="ana-section-title">' + AS_DET_LABELS[det] +
             ' <span class="ab-dim">· ' + live.length + ' candidate' + (live.length !== 1 ? 's' : '') +
@@ -459,7 +466,7 @@ function _asRenderScan(scan, container) {
         if (!live.length) {
             html += '<p class="muted-text">' + (all.length ? 'All candidates dismissed.' : 'No candidates this scan.') + '</p>';
         } else {
-            live.forEach(function(c) { html += _asCandidateCard(c); });
+            live.forEach(function(p) { html += _asCandidateCard(p.c, p.score); });
         }
         if (dismissed) {
             html += '<p class="ab-dim">Dismissed: ';
@@ -903,7 +910,8 @@ function _asScoreCard(c) {
     return null;
 }
 
-function _asCandidateCard(c) {
+function _asCandidateCard(c, score) {
+    if (score === undefined) score = _asScoreCard(c);
     var name = _asName(c.ticker);
     var badge, reason, chips = [];
 
@@ -934,10 +942,24 @@ function _asCandidateCard(c) {
     }
     chips.push('Base rate: ' + Math.round(c.baseRate * 100) + '% of 60d windows hit +10%');
 
+    // Grade pill (ranking plan Phase 3) — sits LEFT beside the ticker (never
+    // right-aligned), colored by letter, tooltip explains in plain language.
+    var gradeHtml = '';
+    if (score) {
+        gradeHtml = '<span class="as-grade as-grade-' + score.grade.toLowerCase() + '" title="' +
+            escapeHtml('Overall grade: a weighted 0–100 rollup of the evidence on this card (' + score.total +
+            '/100). "' + score.coverage + '% data" is how much of the scoring model had data available — ' +
+            'a grade built on thin data is a weaker statement. Compare grades within this section only.') + '">' +
+            score.grade + ' · ' + score.total + ' · ' + score.coverage + '% data</span>';
+    }
+
     var html = '<div class="as-card">' +
         '<div class="as-card-top">' +
-            '<span class="as-card-ticker">' + escapeHtml(c.ticker) +
-                (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</span>' +
+            '<span class="as-card-left">' +
+                '<span class="as-card-ticker">' + escapeHtml(c.ticker) +
+                    (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</span>' +
+                gradeHtml +
+            '</span>' +
             '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
         '</div>' +
         '<p class="as-card-reason">' + reason + '</p>' +
