@@ -168,7 +168,7 @@ scans lack it and the metric simply renormalizes away on them).
 | Metric | Weight | Subscore mapping |
 |---|---:|---|
 | Breakout proximity (% from high — smaller is stronger) | 30 | 0–2%→95 · 2–5%→80 · 5–10%→60 · >10%→35 |
-| Spring tightness (vol / volCutoff) | 15 | ≤0.6→95 · 0.6–0.8→80 · 0.8–1.0→65 (needs `volCutoff` stamped — new scans only) |
+| Spring tightness (vol / volCutoff) | 15 | <0.6→95 · 0.6–0.8→80 · ≥0.8→65 (needs `volCutoff` stamped — new scans only; band upper bounds exclusive, matching every other table) |
 | Unconditional base rate | 25 | same bands as dipA (banded, not direct) |
 | Price target upside vs current price | 15 | same bands as dipA |
 | Analyst grades, net (60d) | 15 | same bands as dipA |
@@ -359,6 +359,36 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-16 — ✅ Phase 2 COMPLETE (remaining detector scorers + stamping fixes, no UI).**
+  `analyzer-engine.js`: `anaEngRevisionTrigger` now returns `analysts` (was computed
+  internally for its ≥3 gate but never returned). `analyzer-scan.js`: scan stamps
+  `volCutoff` on springD candidates and `analysts` on revC candidates (additive — old scans
+  renormalize those metrics away); spec's candidate-shape line updated to match. New shared
+  pushers `_asPushBaseRate`/`_asPushTarget`/`_asPushGrades`/`_asPushEarnDed` +
+  `_asFinishScore` (identical bands everywhere — `_asScoreDip` refactored onto them with
+  zero behavior change), and the three new scorers `_asScoreSpring`/`_asScoreDrift`/
+  `_asScoreRevision` per the tables above; `_asScoreCard` dispatches all four detectors.
+  Tightness band wording aligned to the code's exclusive-upper-bound convention
+  (<0.6→95 · 0.6–0.8→80 · ≥0.8→65). Bumps: analyzer-engine.js v7, analyzer-scan.js v18,
+  sw v479. Internal-only — no UI/AppHelp change; spec touched only for the data-model line.
+  - **Verified (preview, test account, live Finnhub+FMP):** dip regression EXACT after the
+    refactor (enriched FLEX still 66/C/74%). Engine returns `analysts` (synthetic snapshots
+    → 10, gap +17.2). Real spring candidates hand-checked: MTB (80×30+85×25)/55 = 82.3 →
+    82/A; EA 84/A; TROW 75/B; tightness correctly excluded on old scans ("volatility cutoff
+    not recorded"). Drift scorer hand-checked on the real FLEX Stage-2.3 reaction values:
+    6625/80 = 82.8 → **83/A/80%** exact; weak variant (miss, stale) 53/D; unknown revenue
+    beat → 50 band. Revision scorer: 7050/80 = 88.1 → **88/A/80%** exact; analyst-breadth
+    fallback to `estimates.numAnalysts` (31→95) works; neither source → excluded, coverage
+    70. Shared earnings deduction fires on non-dip detectors (drift, move 11 → −6).
+    **Both stamps proven END-TO-END through the real `_asComputeScan` pipeline** (in-memory,
+    never saved; forced triggers per the Stage-2.4 monkeypatch technique, restored after):
+    EA spring candidate emerged with `volCutoff: 0.14` stamped → tightness 0.71× → 80
+    subscore, live FMP enrichment took it to 100% coverage (70/B); FLEX revC candidate
+    emerged with `analysts: 9` stamped → breadth 85 (86/A/100%) — 3 minimal snapshot docs
+    seeded for the gate and deleted after. Sandbox fully restored (2 scan docs, 0 estimate
+    snapshots, price cache re-primed with SPY/^VIX/EA/FLEX in this browser profile). No
+    console errors. Bonus real-world observation: FLEX still triggers a live dip on
+    2026-07-16 data.
 - **2026-07-16 — ✅ Phase 1 COMPLETE (dipA scoring engine, no UI).** `analyzer-scan.js`
   gains `_asBand(value, bands, topScore)` (shared band-mapping helper), `_asGradeLetter`
   (A≥80/B≥70/C≥55/D≥40/F, with the "why lower than school grades" comment), `_asScoreDip(c)`

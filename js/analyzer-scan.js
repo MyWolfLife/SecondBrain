@@ -227,7 +227,8 @@ async function _asComputeScan(onNote) {
             funnel.triggered++;
             candidates.push({
                 ticker: t, detector: 'springD',
-                close: spr.close, vol: spr.vol, pctFromHigh: spr.pctFromHigh,
+                close: spr.close, vol: spr.vol, volCutoff: spr.volCutoff,
+                pctFromHigh: spr.pctFromHigh,
                 baseRate: br.rate,
                 earningsDate: null,
                 dismissed: false
@@ -276,6 +277,7 @@ async function _asComputeScan(onNote) {
                     priceChangePct: rev.priceChangePct,
                     gapPts: rev.gapPts,
                     weeksCovered: rev.weeksCovered,
+                    analysts: rev.analysts,
                     baseRate: br.rate,
                     earningsDate: null,
                     dismissed: false
@@ -585,7 +587,7 @@ function _asAnalystChips(c) {
 }
 
 // ---------------------------------------------------------------------------
-// Candidate scoring (Ranking plan Phase 1 — dipA only so far)
+// Candidate scoring (Ranking plan Phases 1–2 — all four detectors)
 // ---------------------------------------------------------------------------
 // Turns a candidate's stamped evidence into a 0–100 composite score + letter
 // grade so candidates can be RANKED instead of eyeballed chip-by-chip. The
@@ -621,6 +623,62 @@ function _asGradeLetter(total) {
     return 'F';
 }
 
+// --- Shared metric pushers (identical bands for every detector — see plan) ---
+
+// Unconditional base rate, banded rather than raw: every candidate already
+// passed the >=25% scan cutoff, so a raw % would drag all scores down
+// equally without separating anyone.
+function _asPushBaseRate(c, inc, exc, weight) {
+    if (c.baseRate != null) {
+        inc.push({ label: 'Base rate', raw: Math.round(c.baseRate * 100) + '%',
+                   subscore: _asBand(c.baseRate * 100, [[30, 35], [40, 50], [55, 70], [70, 85]], 95), weight: weight });
+    } else {
+        exc.push({ label: 'Base rate', why: 'not recorded on this candidate' });
+    }
+}
+
+function _asPushTarget(c, inc, exc, weight) {
+    if (c.priceTarget && c.priceTarget.targetConsensus != null && c.close) {
+        var upPct = (c.priceTarget.targetConsensus / c.close - 1) * 100;
+        inc.push({ label: 'Target upside', raw: _asPct(upPct),
+                   subscore: _asBand(upPct, [[0, 20], [10, 50], [25, 75]], 95), weight: weight });
+    } else {
+        exc.push({ label: 'Target upside', why: 'no FMP price-target data' });
+    }
+}
+
+function _asPushGrades(c, inc, exc, weight) {
+    if (c.grades) {
+        var net = (c.grades.upgrades || 0) - (c.grades.downgrades || 0);
+        inc.push({ label: 'Analyst grades (net 60d)', raw: '▲' + (c.grades.upgrades || 0) + '/▼' + (c.grades.downgrades || 0),
+                   subscore: _asBand(net, [[-2, 10], [0, 35], [1, 55], [3, 75]], 95), weight: weight });
+    } else {
+        exc.push({ label: 'Analyst grades', why: 'no FMP grades data' });
+    }
+}
+
+// Earnings-inside-the-window risk deduction. Flat −5 when the typical-move
+// number is unknown — never assume it exists.
+function _asPushEarnDed(c, ded) {
+    if (!c.earningsDate) return;
+    var pts = (c.eventMovePct != null) ? Math.min(10, Math.round(c.eventMovePct / 2)) : 5;
+    ded.push({ label: 'Earnings ' + c.earningsDate + ' inside the window', points: pts });
+}
+
+// Shared close-out: renormalize over included weights, subtract deductions,
+// clamp to 0–100, grade. Returns null when nothing at all was scoreable.
+function _asFinishScore(inc, exc, ded) {
+    var wSum = 0, wsSum = 0;
+    inc.forEach(function(m) { wSum += m.weight; wsSum += m.weight * m.subscore; });
+    if (wSum === 0) return null;
+    var dedSum = 0;
+    ded.forEach(function(d) { dedSum += d.points; });
+    var total = Math.round(Math.max(0, Math.min(100, wsSum / wSum - dedSum)));
+    inc.forEach(function(m) { m.contribution = Math.round(m.weight * m.subscore / wSum * 10) / 10; });
+    return { total: total, grade: _asGradeLetter(total), coverage: wSum,
+             breakdown: inc, excluded: exc, deductions: ded };
+}
+
 // Scores a dipA candidate. Returns:
 //   { total, grade, coverage,
 //     breakdown:  [{label, raw, subscore, weight, contribution}],   // included metrics
@@ -642,14 +700,7 @@ function _asScoreDip(c) {
                    why: (c.condEvents || 0) + ' past episode' + (c.condEvents === 1 ? '' : 's') + ' — needs 3+ to be signal' });
     }
 
-    // Banded, not direct: every candidate already passed the >=25% scan cutoff,
-    // so a raw % would drag all scores down equally without separating anyone.
-    if (c.baseRate != null) {
-        inc.push({ label: 'Base rate', raw: Math.round(c.baseRate * 100) + '%',
-                   subscore: _asBand(c.baseRate * 100, [[30, 35], [40, 50], [55, 70], [70, 85]], 95), weight: 8 });
-    } else {
-        exc.push({ label: 'Base rate', why: 'not recorded on this candidate' });
-    }
+    _asPushBaseRate(c, inc, exc, 8);
 
     if (c.divergence && c.divergence.divergencePts != null) {
         inc.push({ label: 'Divergence', raw: _asPtsStr(c.divergence.divergencePts) + ' pts',
@@ -713,21 +764,8 @@ function _asScoreDip(c) {
     }
 
     // --- Analyst view (corroborating evidence, FMP-gated) ---
-    if (c.priceTarget && c.priceTarget.targetConsensus != null && c.close) {
-        var upPct = (c.priceTarget.targetConsensus / c.close - 1) * 100;
-        inc.push({ label: 'Target upside', raw: _asPct(upPct),
-                   subscore: _asBand(upPct, [[0, 20], [10, 50], [25, 75]], 95), weight: 8 });
-    } else {
-        exc.push({ label: 'Target upside', why: 'no FMP price-target data' });
-    }
-
-    if (c.grades) {
-        var net = (c.grades.upgrades || 0) - (c.grades.downgrades || 0);
-        inc.push({ label: 'Analyst grades (net 60d)', raw: '▲' + (c.grades.upgrades || 0) + '/▼' + (c.grades.downgrades || 0),
-                   subscore: _asBand(net, [[-2, 10], [0, 35], [1, 55], [3, 75]], 95), weight: 5 });
-    } else {
-        exc.push({ label: 'Analyst grades', why: 'no FMP grades data' });
-    }
+    _asPushTarget(c, inc, exc, 8);
+    _asPushGrades(c, inc, exc, 5);
 
     // --- Insider signal (zero purchases is a real observation, not missing data) ---
     if (c.insiders && !c.insiders.error) {
@@ -742,31 +780,126 @@ function _asScoreDip(c) {
     if (qualityOk && q.profitable === false && q.debtToEquity != null && q.debtToEquity > 2) {
         ded.push({ label: 'Falling knife (unprofitable + heavy debt)', points: 15 });
     }
-    if (c.earningsDate) {
-        // Flat −5 when the typical-move number is unknown — never assume it exists.
-        var pts = (c.eventMovePct != null) ? Math.min(10, Math.round(c.eventMovePct / 2)) : 5;
-        ded.push({ label: 'Earnings ' + c.earningsDate + ' inside the window', points: pts });
+    _asPushEarnDed(c, ded);
+
+    return _asFinishScore(inc, exc, ded);
+}
+
+// Scores a springD candidate (Detector D table in the plan). Thinnest data
+// set — no quality/insider/divergence enrichment exists for springs.
+function _asScoreSpring(c) {
+    var inc = [], exc = [], ded = [];
+
+    if (c.pctFromHigh != null) {
+        inc.push({ label: 'Breakout proximity', raw: c.pctFromHigh.toFixed(1) + '% off high',
+                   subscore: _asBand(c.pctFromHigh, [[2, 95], [5, 80], [10, 60]], 35), weight: 30 });
+    } else {
+        exc.push({ label: 'Breakout proximity', why: 'not recorded on this candidate' });
     }
 
-    // --- Total: renormalize over included weights, subtract deductions, clamp ---
-    var wSum = 0, wsSum = 0;
-    inc.forEach(function(m) { wSum += m.weight; wsSum += m.weight * m.subscore; });
-    if (wSum === 0) return null;   // nothing scoreable at all
-    var dedSum = 0;
-    ded.forEach(function(d) { dedSum += d.points; });
-    var total = Math.round(Math.max(0, Math.min(100, wsSum / wSum - dedSum)));
-    inc.forEach(function(m) { m.contribution = Math.round(m.weight * m.subscore / wSum * 10) / 10; });
+    // vol / volCutoff <= 1 by construction at trigger time; lower = the coil
+    // is wound tighter than the detector even required. volCutoff is stamped
+    // from Phase 2 onward — older scans lack it and this renormalizes away.
+    if (c.vol != null && c.volCutoff != null && c.volCutoff > 0) {
+        var tight = c.vol / c.volCutoff;
+        inc.push({ label: 'Spring tightness', raw: tight.toFixed(2) + '× cutoff',
+                   subscore: _asBand(tight, [[0.6, 95], [0.8, 80]], 65), weight: 15 });
+    } else {
+        exc.push({ label: 'Spring tightness', why: 'volatility cutoff not recorded (older scan)' });
+    }
 
-    return { total: total, grade: _asGradeLetter(total), coverage: wSum,
-             breakdown: inc, excluded: exc, deductions: ded };
+    _asPushBaseRate(c, inc, exc, 25);
+    _asPushTarget(c, inc, exc, 15);
+    _asPushGrades(c, inc, exc, 15);
+    _asPushEarnDed(c, ded);
+    return _asFinishScore(inc, exc, ded);
+}
+
+// Scores a driftB candidate (Detector B table in the plan).
+function _asScoreDrift(c) {
+    var inc = [], exc = [], ded = [];
+
+    if (c.epsSurprisePct != null) {
+        inc.push({ label: 'EPS surprise', raw: _asPct(c.epsSurprisePct),
+                   subscore: _asBand(c.epsSurprisePct, [[0, 15], [5, 45], [15, 70], [30, 90]], 100), weight: 25 });
+    } else {
+        exc.push({ label: 'EPS surprise', why: 'not recorded on this candidate' });
+    }
+
+    // Revenue beat: "unknown" is a defined band (50), not an exclusion — the
+    // plan's table maps true/false/unknown explicitly.
+    inc.push({ label: 'Revenue beat',
+               raw: (c.revenueBeat === true) ? 'yes' : (c.revenueBeat === false) ? 'no' : 'unknown',
+               subscore: (c.revenueBeat === true) ? 90 : (c.revenueBeat === false) ? 40 : 50, weight: 10 });
+
+    if (c.day1RetPct != null) {
+        inc.push({ label: 'Day-1 reaction', raw: _asPct(c.day1RetPct),
+                   subscore: _asBand(c.day1RetPct, [[2, 30], [5, 60], [10, 85]], 95), weight: 10 });
+    } else {
+        exc.push({ label: 'Day-1 reaction', why: 'not recorded on this candidate' });
+    }
+
+    _asPushBaseRate(c, inc, exc, 25);
+    _asPushTarget(c, inc, exc, 12);
+    _asPushGrades(c, inc, exc, 8);
+
+    // Earlier in the drift window = more of the expected run still ahead.
+    if (c.daysSinceReaction != null) {
+        inc.push({ label: 'Freshness', raw: 'day ' + c.daysSinceReaction,
+                   subscore: _asBand(c.daysSinceReaction, [[3, 95], [6, 75], [11, 50]], 25), weight: 10 });
+    } else {
+        exc.push({ label: 'Freshness', why: 'not recorded on this candidate' });
+    }
+
+    _asPushEarnDed(c, ded);
+    return _asFinishScore(inc, exc, ded);
+}
+
+// Scores a revC candidate (Detector C table in the plan).
+function _asScoreRevision(c) {
+    var inc = [], exc = [], ded = [];
+
+    if (c.gapPts != null) {
+        inc.push({ label: 'Estimate-vs-price gap', raw: _asPtsStr(c.gapPts) + ' pts',
+                   subscore: _asBand(c.gapPts, [[0, 20], [5, 50], [10, 75], [20, 90]], 100), weight: 30 });
+    } else {
+        exc.push({ label: 'Estimate-vs-price gap', why: 'not recorded on this candidate' });
+    }
+
+    if (c.weeksCovered != null) {
+        inc.push({ label: 'Trend duration', raw: c.weeksCovered + ' weeks',
+                   subscore: _asBand(c.weeksCovered, [[4, 50], [7, 75]], 95), weight: 15 });
+    } else {
+        exc.push({ label: 'Trend duration', why: 'not recorded on this candidate' });
+    }
+
+    _asPushBaseRate(c, inc, exc, 25);
+    _asPushTarget(c, inc, exc, 12);
+    _asPushGrades(c, inc, exc, 8);
+
+    // Analyst breadth: stamped by Phase-2+ scans (`analysts`); falls back to
+    // the FMP estimates enrichment (`estimates.numAnalysts`) on older scans.
+    var analysts = (c.analysts != null) ? c.analysts
+                 : (c.estimates && c.estimates.numAnalysts != null) ? c.estimates.numAnalysts : null;
+    if (analysts != null) {
+        inc.push({ label: 'Analyst breadth', raw: analysts + ' analyst' + (analysts === 1 ? '' : 's'),
+                   subscore: _asBand(analysts, [[3, 30], [8, 60], [16, 85]], 95), weight: 10 });
+    } else {
+        exc.push({ label: 'Analyst breadth', why: 'analyst count not recorded' });
+    }
+
+    _asPushEarnDed(c, ded);
+    return _asFinishScore(inc, exc, ded);
 }
 
 // Scores any candidate — dispatches to the detector's scorer. Returns null
-// for detectors whose scorer hasn't shipped yet (spring/drift/revision land
-// in Phase 2 of the ranking plan) so callers can skip the badge cleanly.
+// for unknown detectors so callers can skip the badge cleanly.
 function _asScoreCard(c) {
     if (!c) return null;
-    if (c.detector === 'dipA') return _asScoreDip(c);
+    if (c.detector === 'dipA')    return _asScoreDip(c);
+    if (c.detector === 'springD') return _asScoreSpring(c);
+    if (c.detector === 'driftB')  return _asScoreDrift(c);
+    if (c.detector === 'revC')    return _asScoreRevision(c);
     return null;
 }
 

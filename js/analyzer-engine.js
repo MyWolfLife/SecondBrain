@@ -444,6 +444,7 @@ function anaEngRevisionTrigger(rec, snapshots, ticker, opts) {
         priceChangePct: priceChangePct,
         gapPts:         estChangePct - priceChangePct,
         weeksCovered:   snapshots.length,
+        analysts:       analysts,
         close:          rec.close[asOf]
     };
 }
