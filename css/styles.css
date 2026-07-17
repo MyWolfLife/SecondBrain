@@ -20014,6 +20014,13 @@ a.legacy-fin-card:hover {
 .as-chip-good { background: #eaf7ec; border-color: #86c98f; color: #245c2e; }
 .as-chip[title] { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
 
+/* Tappable chips/badges (tap-for-detail UX pass) — pointer beats the help
+   cursor, and badges get the same dotted "there's an explanation" underline */
+.as-chip-click { cursor: pointer; }
+.as-badge.as-chip-click { text-decoration: underline dotted; text-underline-offset: 2px; }
+/* Discoverability hint under the dossier's evidence-chip row */
+.as-chip-hint { margin: 4px 0 12px; font-size: 0.72rem; color: #999; }
+
 /* Candidate grade pill (ranking plan Phase 3) — green→red by letter */
 .as-card-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .as-grade {

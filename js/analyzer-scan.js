@@ -541,49 +541,126 @@ function _asEarningsChipText(c) {
 function _asPct(v)    { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
 function _asPtsStr(v) { return (v >= 0 ? '+' : '') + v.toFixed(1); }
 
-// Plain-language hover tooltip for a scan-card chip, matched by its rendered
-// text (native title="" tooltip, same pattern as .loan-calc-tip elsewhere).
-// Pattern-matching (rather than tagging every push site) means ONE place
-// explains every chip type, including the shared quality/analyst chips.
-// Returns '' when no explanation is defined — chip renders with no tooltip.
-function _asChipTip(text) {
-    if (/^Est .*→.*pts/.test(text))
-        return 'Compares how much Wall Street’s earnings estimate for this company changed against how much the price changed. A big gap means the price moved much more than the actual business outlook did — a sign the move is driven by fear or hype, not fundamentals.';
-    if (text === '⚠️ Falling knife?')
-        return 'A caution flag, not a rejection: this company is both unprofitable and carries heavy debt (debt-to-equity over 2). Stocks like this can keep falling instead of bouncing back — worth a closer look before assuming this is a "buy the dip" situation.';
-    if (/^Similar dips:/.test(text))
-        return 'Looks at every time in the past 5 years this specific stock fell this hard, this fast. This is how many of those past episodes recovered by +10% within 60 days, and the typical (median) number of days it took.';
-    if (/^No similar past dips/.test(text))
-        return 'This stock has never fallen this sharply, this quickly, in its available price history — there’s no past episode to compare against, so there’s no track record either way.';
-    if (text === 'Revenue beat too')
-        return 'The company’s revenue (total sales), not just earnings-per-share, also came in above what analysts expected — a broader sign of a genuinely strong quarter.';
-    if (/^Est gap:/.test(text))
-        return 'The gap between how much analysts raised their earnings estimate and how much the stock price actually moved. A positive gap means the company’s outlook is improving faster than the price has caught up to yet.';
-    if (/^Base rate:/.test(text))
-        return 'A historical frequency, not a prediction: looking back over this stock’s own ~5 years of price history, the percentage of all rolling 60-day windows in which the price rose at least 10% at some point. It doesn’t know a dip is happening right now — it just measures how often this stock is capable of a move like that in any 2-month stretch.';
-    if (/^⚠️ Earnings/.test(text))
-        return 'This company reports earnings on this date, which falls inside your trading window. The ± number is how much this stock has historically swung on its biggest single-day moves — a rough gauge of how much risk that one day adds.';
-    if (text === '✅ Profitable' || text === '⚠️ Unprofitable')
-        return 'Whether the company’s net profit margin was positive (making money) or negative (losing money) over the trailing twelve months.';
-    if (/^Debt\/eq/.test(text))
-        return 'Debt-to-equity ratio — how much the company has borrowed compared to what shareholders own. Higher numbers (especially over 2) mean more financial risk, particularly if the business hits a rough patch.';
-    if (/^Div \d/.test(text))
-        return 'Dividend yield — the annual cash dividend as a percentage of the current share price. Not directly part of the trade setup, but useful context on the kind of company this is.';
-    if (/^👤 Insider buys:/.test(text))
-        return 'Company insiders (executives, board members) bought shares with their own money since this dip began. One of the stronger confidence signals — insiders have no obligation to buy, and know the business best.';
-    if (/^Divergence:/.test(text))
-        return 'The flagship price-vs-estimate comparison isn’t ready yet — it needs a few more weeks of the app’s own tracked analyst-estimate history before it can measure the gap for this dip.';
-    if (/^Target \$/.test(text))
-        return 'The average 12-month price target from Wall Street analysts covering this stock, and how far that is from the current price. Analyst targets can be wrong or slow to update — treat this as one more data point, not a guarantee.';
-    if (/^▲/.test(text))
-        return 'How many analysts raised (▲) or lowered (▼) their rating on this stock in the last 60 days. More upgrades than downgrades suggests improving sentiment among professional analysts.';
-    return '';
+// Chip & badge explanations — every evidence chip and setup badge on the scan
+// cards and the dossier is matched by its rendered text against this registry.
+// A match gives the chip a plain-language hover tooltip (`simple`) AND makes
+// it clickable: tapping opens the shared #adInfoModal popup showing `simple`
+// plus the technical detail (`deep`). Pattern-matching (rather than tagging
+// every push site) means ONE place explains every chip type, including the
+// shared quality/analyst chips. `re` is a RegExp or an exact-match string.
+var AS_CHIP_INFO = [
+    { re: /^Est .*→.*pts/, title: 'Estimate vs price divergence',
+      simple: 'Compares how much Wall Street’s earnings estimate for this company changed against how much the price changed. A big gap means the price moved much more than the actual business outlook did — a sign the move is driven by fear or hype, not fundamentals.',
+      deep: 'Built from the app’s own weekly snapshots of consensus EPS: the estimate’s percentage change versus the price’s percentage change over the same weeks, with the difference expressed in points. A gap of +5 points or more is tagged "emotional" — the price has detached meaningfully from the fundamentals. This is the flagship signal the dip detector’s grade weighs most heavily after the similar-dips history.' },
+    { re: '⚠️ Falling knife?', title: 'Falling knife?',
+      simple: 'A caution flag, not a rejection: this company is both unprofitable and carries heavy debt (debt-to-equity over 2). Stocks like this can keep falling instead of bouncing back — worth a closer look before assuming this is a "buy the dip" situation.',
+      deep: 'Flagged when trailing-twelve-month net margin is at or below zero AND debt-to-equity is above 2, per Finnhub quality data. It also deducts 15 points from the candidate’s grade — the largest single risk deduction in the scoring model.' },
+    { re: /^Similar dips:/, title: 'Similar dips',
+      simple: 'Looks at every time in the past 5 years this specific stock fell this hard, this fast. This is how many of those past episodes recovered by +10% within 60 days, and the typical (median) number of days it took.',
+      deep: 'The app scans this stock’s own ~5 years of daily candles for past drops matching the dip detector’s size-and-speed thresholds, then checks each one: did the daily HIGH reach +10% above the dip’s close within the next 60 trading days (the level where a resting limit order would fill)? This is the single heaviest-weighted metric in the dip grade, but only when there are 3+ past episodes — fewer than that is treated as no signal.' },
+    { re: /^No similar past dips/, title: 'No similar past dips',
+      simple: 'This stock has never fallen this sharply, this quickly, in its available price history — there’s no past episode to compare against, so there’s no track record either way.',
+      deep: 'The same 5-year historical scan behind the "Similar dips" chip found zero qualifying past episodes. In the grade, this metric is simply excluded and the remaining weights renormalize — it is never counted against the stock.' },
+    { re: 'Revenue beat too', title: 'Revenue beat',
+      simple: 'The company’s revenue (total sales), not just earnings-per-share, also came in above what analysts expected — a broader sign of a genuinely strong quarter.',
+      deep: 'From the same earnings report that triggered this drift candidate: actual revenue above the analyst consensus, alongside the EPS beat. EPS-only beats can be flattered by buybacks or one-off items; a matching revenue beat is harder to engineer, so it strengthens the case that the quarter was genuinely strong.' },
+    { re: /^Est gap:/, title: 'Estimate gap',
+      simple: 'The gap between how much analysts raised their earnings estimate and how much the stock price actually moved. A positive gap means the company’s outlook is improving faster than the price has caught up to yet.',
+      deep: 'The revision detector’s core number: the consensus-EPS change (in %) minus the price change (in %) across the app’s weekly estimate snapshots. It’s the same math as the divergence chip on dip cards, but here it IS the setup rather than supporting evidence.' },
+    { re: /^Base rate:/, title: 'Base rate',
+      simple: 'A historical frequency, not a prediction: looking back over this stock’s own ~5 years of price history, the percentage of all rolling 60-day windows in which the price rose at least 10% at some point. It doesn’t know a dip is happening right now — it just measures how often this stock is capable of a move like that in any 2-month stretch.',
+      deep: 'Every day across ~5 years (1,250 trading days) of this stock’s daily candles is treated as a hypothetical entry; a window counts as a hit if the daily HIGH reaches the target gain within the window length shown on the chip (a resting limit order would have filled). Scans require at least a 25% base rate before a stock can appear as a candidate at all, and higher base rates score better in the grade.' },
+    { re: /^⚠️ Earnings/, title: 'Earnings inside the window',
+      simple: 'This company reports earnings on this date, which falls inside your trading window. The ± number is how much this stock has historically swung on its biggest single-day moves — a rough gauge of how much risk that one day adds.',
+      deep: 'The report date comes from the Finnhub earnings calendar (FMP fallback). Because a scheduled all-or-nothing event inside the holding window adds risk in both directions, the grade takes a deduction scaled to the stock’s typical big move — half the ± percentage, capped at −10 points, or a flat −5 when the typical move is unknown.' },
+    { re: /^(✅ Profitable|⚠️ Unprofitable)$/, title: 'Profitability',
+      simple: 'Whether the company’s net profit margin was positive (making money) or negative (losing money) over the trailing twelve months.',
+      deep: 'Trailing-twelve-month net profit margin from Finnhub: above zero = profitable. Unprofitable isn’t automatically disqualifying — but combined with heavy debt it triggers the ⚠️ Falling knife? flag. The dossier’s 🏥 Quality section shows the underlying numbers.' },
+    { re: /^Debt\/eq/, title: 'Debt / equity',
+      simple: 'Debt-to-equity ratio — how much the company has borrowed compared to what shareholders own. Higher numbers (especially over 2) mean more financial risk, particularly if the business hits a rough patch.',
+      deep: 'Total debt ÷ total shareholders’ equity, most recent quarter, from Finnhub. Above 2.0 is flagged amber as meaningfully leveraged. Capital-intensive industries (utilities, real estate, airlines) run structurally higher debt/equity than software or services — the 2.0 cutoff is a rough universal line, not industry-adjusted.' },
+    { re: /^Div \d/, title: 'Dividend yield',
+      simple: 'Dividend yield — the annual cash dividend as a percentage of the current share price. Not directly part of the trade setup, but useful context on the kind of company this is.',
+      deep: 'Indicated annual dividend yield (trailing twelve months) from Finnhub. A 2% yield means about $2 a year per $100 invested, just from dividends. An unusually high yield (8%+) can sometimes signal the market expects a dividend cut, so it’s worth a second look.' },
+    { re: /^👤 Insider buys:/, title: 'Insider buying',
+      simple: 'Company insiders (executives, board members) bought shares with their own money since this dip began. One of the stronger confidence signals — insiders have no obligation to buy, and know the business best.',
+      deep: 'Counts only open-market purchases (SEC Form 4 transaction code "P") — not stock granted as compensation or option exercises, which aren’t a confidence signal the same way. Sourced from Finnhub with an FMP fallback. The dossier’s 🏥 Quality section lists who bought, how much, and at what price.' },
+    { re: /^Divergence:/, title: 'Divergence (not ready)',
+      simple: 'The flagship price-vs-estimate comparison isn’t ready yet — it needs a few more weeks of the app’s own tracked analyst-estimate history before it can measure the gap for this dip.',
+      deep: 'The divergence measurement needs the app’s own weekly snapshots of consensus EPS, which build up automatically as scans run. Until enough snapshots exist for this stock, the chip shows the reason instead of a number, and the grade simply excludes the metric (weights renormalize — it doesn’t count against the stock).' },
+    { re: /^Target \$/, title: 'Analyst price target',
+      simple: 'The average 12-month price target from Wall Street analysts covering this stock, and how far that is from the current price. Analyst targets can be wrong or slow to update — treat this as one more data point, not a guarantee.',
+      deep: 'Consensus (average) 12-month analyst price target from FMP, shown with its distance from the current price. Targets are revised infrequently and often lag sharp moves — right after a big dip, an unchanged target can overstate the upside analysts actually believe in.' },
+    { re: /^▲/, title: 'Analyst rating changes',
+      simple: 'How many analysts raised (▲) or lowered (▼) their rating on this stock in the last 60 days. More upgrades than downgrades suggests improving sentiment among professional analysts.',
+      deep: 'Rating-change actions (upgrades and downgrades) from research firms over the last 60 days, from FMP. The grade scores the NET count — upgrades minus downgrades — so one downgrade among three upgrades still reads as improving sentiment.' },
+    // ── Dossier-only evidence chips ──────────────────────────────────────────
+    { re: /^RSI \d/, title: 'RSI (Relative Strength Index)',
+      simple: 'A 0–100 gauge of how one-sided recent trading has been. Below ~30 traditionally means "oversold" — the stock has fallen hard and fast; above ~70 means "overbought"; around 50 is neutral. For a dip candidate, a low RSI supports the idea that the selling has been intense enough to set up a rebound.',
+      deep: '14-day RSI (Wilder’s smoothing) computed from daily closes in the app’s price cache. In the dip grade, the sweet spot is roughly 25–35 — washed out enough to matter, not so extreme that the stock may be in free fall.' },
+    { re: /^Volume [\d.]+× normal$/, title: 'Volume vs normal',
+      simple: 'How busy trading has been lately compared to this stock’s usual pace — 2.0× means recent volume is running at double its norm. Heavy volume during a dip means real conviction behind the move (often capitulation selling, which precedes bottoms); quiet volume means the move has less force behind it.',
+      deep: 'Average daily volume over the last 5 trading days ÷ average over the last 60. In the dip grade, higher ratios score better — a washout on heavy volume is more likely a true flush than a slow leak.' },
+    { re: /^Realized vol \d+%$/, title: 'Realized volatility',
+      simple: 'How much this stock actually bounces around, as an annualized percentage — ~11% is calm (typical for a broad ETF), 40%+ is a fast mover. It sets expectations: a 10% move is routine for a high-volatility name and a very big deal for a low-volatility one.',
+      deep: 'Annualized standard deviation of daily log returns over the last 60 trading days (multiplied by √252 to annualize). Shown as context on the dossier; the coiled-spring detector uses its own volatility percentile calculation rather than this number.' },
+    { re: /^(Above|Below) 50d avg$/, title: '50-day average',
+      simple: 'Whether the price is above or below its own average over the last 50 trading days — a quick medium-term trend check. Above means the recent trend is intact; below means the stock is trading under its recent norm, which is common (and expected) during a dip.',
+      deep: 'Simple moving average of the last 50 daily closes. Neither reading is good or bad by itself — a dip candidate will usually be below it (that’s what a dip is), while a drift candidate above it shows the post-earnings strength holding.' },
+    { re: /^(Above|Below) 200d avg$/, title: '200-day average',
+      simple: 'The same check against the long-term average — roughly 10 months of trading. Above the 200-day average generally means the long-term uptrend is intact and a dip is more likely a pause in a healthy stock; below it can signal something more serious than a routine pullback.',
+      deep: 'Simple moving average of the last 200 daily closes — one of the most widely watched trend lines in markets. Many investors treat a stock below its 200-day average as "in a downtrend" until it recovers, which can itself add selling pressure.' },
+    { re: /^52w range \$/, title: '52-week range',
+      simple: 'The lowest and highest prices this stock has traded at over the past year. Where today’s price sits inside that range tells you at a glance whether you’re looking at a stock near its yearly lows (deep discount — or deep trouble) or near its highs.',
+      deep: 'Intraday low and high over the last 52 weeks of daily candles in the app’s price cache — actual trading extremes, not just closing prices, so the range can be slightly wider than close-based ranges shown elsewhere.' },
+    // ── Setup badges (top-right of scan cards and the dossier header) ────────
+    { re: /^−[\d.]+% in \d+d$/, title: 'The dip',
+      simple: 'The setup that flagged this stock: how far it has fallen from its recent peak, and how quickly. This is the core of the buy-the-dip idea — a sharp drop in an otherwise sound stock that history suggests tends to bounce back.',
+      deep: 'Measured from the stock’s recent peak close to the latest close, with the day count in trading days since that peak. The dip detector requires both the size and the speed of the drop to clear its thresholds before a stock appears as a candidate at all.' },
+    { re: /^beat \+[\d.]+% · day1/, title: 'Earnings beat & drift',
+      simple: 'The setup that flagged this stock: it beat Wall Street’s earnings estimate by this much, and rose this much the day after reporting. The "drift" idea: stocks that beat and pop often keep drifting upward for weeks as the market slowly digests the good news.',
+      deep: 'Post-earnings-announcement drift (PEAD) — one of the most-documented patterns in market research. The detector requires a meaningful EPS beat and a positive day-one reaction that has held; the candidate stays active through the weeks-long drift window after the report date.' },
+    { re: /^est [+-][\d.]+% vs price/, title: 'Estimates vs price',
+      simple: 'The setup that flagged this stock: analysts have been raising their earnings estimates while the price hasn’t kept up. When the business outlook improves faster than the price, the gap tends to close upward.',
+      deep: 'Computed from the app’s own weekly snapshots of consensus EPS: the estimate’s percentage change across the covered weeks versus the stock’s price change over the same stretch. This detector only arms itself once a few weekly snapshots exist for a stock.' },
+    { re: /^vol [\d.]+ · [\d.]+% off high$/, title: 'Coiled spring',
+      simple: 'The setup that flagged this stock: its day-to-day movement has compressed to unusually quiet levels while the price sits near its 52-week high. Quiet stretches near highs often resolve in a burst of movement — the "coiled spring."',
+      deep: 'The vol number is this stock’s realized volatility, required to be in the bottom decile of its own history; the detector also requires the price to be within a set percentage of its 52-week high. Strength plus silence is the setup — the bet is on expansion, not direction alone (though proximity to highs tilts it upward).' },
+    { re: 'setup no longer active', title: 'Setup no longer active',
+      simple: 'This dossier was opened for a setup (a dip, an earnings drift, etc.) that is no longer present in the latest price data — the stock may have recovered, or the setup’s time window may have lapsed. Everything on this page reflects current data; there’s just no live triggering setup behind it anymore.',
+      deep: 'Shown when the detector, re-run against the latest cached prices, no longer fires for this ticker. Common when opening a candidate from an older scan after the price has moved on, or when a dossier is opened outside a scan (e.g. from a Stock Rollup link).' }
+];
+
+// Finds the registry entry index for a chip/badge's rendered text (−1 = none).
+function _asChipInfoIdx(text) {
+    for (var i = 0; i < AS_CHIP_INFO.length; i++) {
+        var re = AS_CHIP_INFO[i].re;
+        if (re instanceof RegExp ? re.test(text) : re === text) return i;
+    }
+    return -1;
 }
 
-// Renders one scan-card chip with its tooltip attached (see _asChipTip).
+// Opens the shared info popup for one AS_CHIP_INFO entry (chip tap target).
+function _asChipInfoOpen(i) {
+    var e = AS_CHIP_INFO[i];
+    if (e) _adOpenInfoModal(e.title, e.simple, e.deep);
+}
+
+// Renders one evidence chip. When the registry knows this chip type, it gets
+// a hover tooltip (the simple explanation) and becomes tappable → info popup.
 function _asChipSpan(text, cls) {
-    var tip = _asChipTip(text);
-    return '<span class="as-chip' + (cls ? ' ' + cls : '') + '"' + (tip ? ' title="' + escapeHtml(tip) + '"' : '') + '>' + escapeHtml(text) + '</span>';
+    var i = _asChipInfoIdx(text);
+    if (i < 0) return '<span class="as-chip' + (cls ? ' ' + cls : '') + '">' + escapeHtml(text) + '</span>';
+    return '<span class="as-chip' + (cls ? ' ' + cls : '') + ' as-chip-click" onclick="_asChipInfoOpen(' + i + ')" title="' +
+        escapeHtml(AS_CHIP_INFO[i].simple) + '">' + escapeHtml(text) + '</span>';
+}
+
+// Renders a setup badge the same way — tooltip + tap-for-popup when known.
+function _asBadgeSpan(text) {
+    var i = _asChipInfoIdx(text);
+    if (i < 0) return '<span class="as-badge">' + escapeHtml(text) + '</span>';
+    return '<span class="as-badge as-chip-click" onclick="_asChipInfoOpen(' + i + ')" title="' +
+        escapeHtml(AS_CHIP_INFO[i].simple) + '">' + escapeHtml(text) + '</span>';
 }
 
 // Analyst / divergence chips (Stage 3.2). Returns { lead:[], rest:[] } —
@@ -1016,7 +1093,7 @@ function _asCandidateCard(c, score) {
                     (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</span>' +
                 gradeHtml +
             '</span>' +
-            '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
+            _asBadgeSpan(badge) +
         '</div>' +
         breakdownHtml +
         '<p class="as-card-reason">' + reason + '</p>' +
@@ -1241,7 +1318,7 @@ function _adRender(page, rec, ev, params) {
             (name ? ' <span class="as-card-name">' + escapeHtml(name) + '</span>' : '') + '</h2></div>' +
         '<div class="ab-form-row">' +
             adGradeHtml +
-            '<span class="as-badge">' + escapeHtml(badge) + '</span>' +
+            _asBadgeSpan(badge) +
             '<span class="ab-dim">$' + ev.close.toFixed(2) + ' · data through ' + escapeHtml(rec.dates[rec.dates.length - 1]) + '</span>' +
         '</div>' +
         adBreakdownHtml;
@@ -1258,17 +1335,18 @@ function _adRender(page, rec, ev, params) {
     var adEarnChip = _asEarningsChipText(ctx.candidate);
     if (adEarnChip) chips.push(adEarnChip);
     var adAnalyst = _asAnalystChips(ctx.candidate || {});
-    html += '<div class="as-chip-row" style="margin-bottom:12px">';
-    adAnalyst.lead.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
+    html += '<div class="as-chip-row">';
+    adAnalyst.lead.forEach(function(ac) { html += _asChipSpan(ac.text, ac.cls); });
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
-        if (qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+        if (qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
-    chips.forEach(function(c) { html += '<span class="as-chip">' + escapeHtml(c) + '</span>'; });
+    chips.forEach(function(c) { html += _asChipSpan(c); });
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
-        if (!qc.lead) html += '<span class="as-chip ' + qc.cls + '">' + escapeHtml(qc.text) + '</span>';
+        if (!qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
-    adAnalyst.rest.forEach(function(ac) { html += '<span class="as-chip ' + ac.cls + '">' + escapeHtml(ac.text) + '</span>'; });
-    html += '</div>';
+    adAnalyst.rest.forEach(function(ac) { html += _asChipSpan(ac.text, ac.cls); });
+    html += '</div>' +
+        '<p class="as-chip-hint">💡 Tap any tag above for what it means.</p>';
 
     // Report line (Detector B) — the earnings beat behind the drift
     if (isDrift && ev.drift) {
@@ -1492,20 +1570,27 @@ function _adInfoBtn(key) {
     return ' <button type="button" class="ad-info-btn" onclick="_adShowInfo(\'' + key + '\')" aria-label="What is this?">?</button>';
 }
 
+// Opens the shared #adInfoModal with a title, plain-language answer, and
+// optional technical detail. Used by both the "?" metric buttons (AD_INFO)
+// and the tappable evidence chips/badges (AS_CHIP_INFO).
+function _adOpenInfoModal(title, simple, deep) {
+    var titleEl = document.getElementById('adInfoModalTitle');
+    var bodyEl  = document.getElementById('adInfoModalBody');
+    if (!titleEl || !bodyEl) return;
+    titleEl.textContent = title;
+    var html = '<p>' + escapeHtml(simple) + '</p>';
+    if (deep) {
+        html += '<div class="ad-info-modal-deep"><strong>In more depth:</strong> ' + escapeHtml(deep) + '</div>';
+    }
+    bodyEl.innerHTML = html;
+    openModal('adInfoModal');
+}
+
 // Opens the shared #adInfoModal populated with one AD_INFO entry.
 function _adShowInfo(key) {
     var info = AD_INFO[key];
     if (!info) return;
-    var titleEl = document.getElementById('adInfoModalTitle');
-    var bodyEl  = document.getElementById('adInfoModalBody');
-    if (!titleEl || !bodyEl) return;
-    titleEl.textContent = info.title;
-    var html = '<p>' + escapeHtml(info.simple) + '</p>';
-    if (info.deep) {
-        html += '<div class="ad-info-modal-deep"><strong>In more depth:</strong> ' + escapeHtml(info.deep) + '</div>';
-    }
-    bodyEl.innerHTML = html;
-    openModal('adInfoModal');
+    _adOpenInfoModal(info.title, info.simple, info.deep);
 }
 
 // Fill the dossier's Analyst view (Stage 3.2): consensus EPS (current + next
