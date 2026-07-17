@@ -20,6 +20,20 @@ var ASB_MAX_SCANS = 25;
 var ASB_DET_SHORT = { dipA: 'Dip', springD: 'Spring', driftB: 'Drift', revC: 'Revision' };
 function _asbDetShort(det) { return ASB_DET_SHORT[det] || det; }
 
+// Permanently delete a saved scan (test/junk cleanup). Removes it from scan
+// history AND from any future calibration, since both read `analyzerScans`.
+// Confirmed and irreversible; re-renders the Scoreboard on success.
+async function _asbDeleteScan(scanId, dateLabel) {
+    if (!confirm('Delete the scan from ' + dateLabel + '? It will be permanently removed from your scan history and from future calibration. This cannot be undone.')) return;
+    try {
+        await userCol('analyzerScans').doc(scanId).delete();
+    } catch (e) {
+        alert('Could not delete the scan: ' + e.message);
+        return;
+    }
+    loadAnalyzerScoreboardPage();
+}
+
 async function loadAnalyzerScoreboardPage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scoreboard' }]);
     var page = document.getElementById('page-analyzer-scoreboard');
@@ -161,7 +175,10 @@ function _asbRender(page, graded, trades) {
             '</p><div class="ab-form-row"><a class="ana-sp-btn" href="#analyzer/trades" style="text-decoration:none">Open Trades page →</a></div></div>';
     }
 
-    // Per-scan sections
+    // Per-scan sections — each is a COLLAPSED accordion (the page grows over
+    // time as scans accumulate) with a Delete button, so test/junk scans can be
+    // removed from history and from future calibration. Reuses the shared
+    // `.detail-acc` pattern + `toggleDetailAcc` (app.js).
     graded.forEach(function(g) {
         var f = g.scan.funnel || {};
         var completeCount = g.rows.filter(function(r) { return !r.pending; }).length;
@@ -169,26 +186,38 @@ function _asbRender(page, graded, trades) {
             ? 'fully graded'
             : (completeCount > 0 ? completeCount + ' of ' + g.rows.length + ' graded'
                                  : 'pending — day ' + Math.min(g.daysElapsed, 60) + ' of 60');
-        html += '<h3 class="ana-section-title">Scan ' + escapeHtml(g.scan.date || '') +
-            ' <span class="ab-dim">· ' + (f.shortlisted || g.rows.length) + ' candidates · ' + status + '</span></h3>';
-        if (!g.rows.length) { html += '<p class="muted-text">No candidates in this scan.</p>'; return; }
-
-        html += '<div class="ab-table-wrap"><table class="ab-table">' +
-            '<tr><th>Ticker</th><th>Detector</th><th>Kept?</th><th>Entry</th><th>+30d</th><th>+60d</th><th>Hit +10%?</th><th>SPY 60d</th></tr>';
-        g.rows.forEach(function(r) {
-            html += '<tr>' +
-                '<td><strong>' + escapeHtml(r.ticker) + '</strong></td>' +
-                '<td>' + _asbDetShort(r.detector) + '</td>' +
-                '<td>' + (r.dismissed ? '<span class="ab-badge ab-badge-neutral">dismissed</span>' : '<span class="ab-badge ab-badge-win">kept</span>') + '</td>' +
-                '<td>' + (r.entryPrice != null ? '$' + r.entryPrice.toFixed(2) : '—') + '</td>' +
-                '<td class="' + (r.ret30 > 0 ? 'ab-pos' : (r.ret30 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret30) + '</td>' +
-                '<td class="' + (r.ret60 > 0 ? 'ab-pos' : (r.ret60 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret60) + '</td>' +
-                '<td>' + (r.pending ? '<span class="ab-badge ab-badge-neutral">pending</span>'
-                                    : (r.hit ? '<span class="ab-badge ab-badge-win">hit</span>' : '<span class="ab-badge ab-badge-loss">miss</span>')) + '</td>' +
-                '<td class="ab-dim">' + _abFmtPct(r.spy60) + '</td>' +
-            '</tr>';
-        });
-        html += '</table></div>';
+        var accId = 'asb-scan-' + g.scan.id;
+        html += '<div class="detail-acc asb-scan-acc" id="' + accId + '">' +
+            '<div class="detail-acc-header" onclick="toggleDetailAcc(\'' + accId + '\')">' +
+                '<span class="detail-acc-chevron">&#9658;</span>' +
+                '<span class="detail-acc-title">Scan ' + escapeHtml(g.scan.date || '') + '</span>' +
+                '<span class="detail-acc-count">· ' + (f.shortlisted || g.rows.length) + ' candidates · ' + status + '</span>' +
+                '<span class="detail-acc-actions">' +
+                    '<button class="ana-sp-btn" onclick="event.stopPropagation(); _asbDeleteScan(\'' + g.scan.id + '\', \'' + escapeHtml(g.scan.date || '') + '\')">🗑 Delete</button>' +
+                '</span>' +
+            '</div>' +
+            '<div class="detail-acc-body">';
+        if (!g.rows.length) {
+            html += '<p class="muted-text">No candidates in this scan.</p>';
+        } else {
+            html += '<div class="ab-table-wrap"><table class="ab-table">' +
+                '<tr><th>Ticker</th><th>Detector</th><th>Kept?</th><th>Entry</th><th>+30d</th><th>+60d</th><th>Hit +10%?</th><th>SPY 60d</th></tr>';
+            g.rows.forEach(function(r) {
+                html += '<tr>' +
+                    '<td><strong>' + escapeHtml(r.ticker) + '</strong></td>' +
+                    '<td>' + _asbDetShort(r.detector) + '</td>' +
+                    '<td>' + (r.dismissed ? '<span class="ab-badge ab-badge-neutral">dismissed</span>' : '<span class="ab-badge ab-badge-win">kept</span>') + '</td>' +
+                    '<td>' + (r.entryPrice != null ? '$' + r.entryPrice.toFixed(2) : '—') + '</td>' +
+                    '<td class="' + (r.ret30 > 0 ? 'ab-pos' : (r.ret30 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret30) + '</td>' +
+                    '<td class="' + (r.ret60 > 0 ? 'ab-pos' : (r.ret60 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret60) + '</td>' +
+                    '<td>' + (r.pending ? '<span class="ab-badge ab-badge-neutral">pending</span>'
+                                        : (r.hit ? '<span class="ab-badge ab-badge-win">hit</span>' : '<span class="ab-badge ab-badge-loss">miss</span>')) + '</td>' +
+                    '<td class="ab-dim">' + _abFmtPct(r.spy60) + '</td>' +
+                '</tr>';
+            });
+            html += '</table></div>';
+        }
+        html += '</div></div>';
     });
 
     html += '<p class="ab-dim" style="max-width:620px">Grades assume a no-judgment robot entering every candidate at the next open — ' +

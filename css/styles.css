@@ -6180,6 +6180,14 @@ a.ar-target-link:hover {
     display: block;
 }
 
+/* Scoreboard scan accordions: the status text can be long, so let the header
+   wrap on narrow screens — otherwise the Delete button gets pushed off the
+   right edge and becomes untappable on mobile. Desktop is unaffected (it all
+   fits on one line either way). */
+.asb-scan-acc .detail-acc-header { flex-wrap: wrap; }
+.asb-scan-acc .detail-acc-count  { flex: 1 1 auto; min-width: 0; }
+.asb-scan-acc .detail-acc-actions { flex-shrink: 0; }
+
 /* Toolbar on the main journal page */
 .journal-toolbar {
     display: flex;

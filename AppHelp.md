@@ -2489,7 +2489,9 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 - Scans younger than 60 trading days show **pending** — grades fill in automatically as time passes (keep price data updated)
 - **Kept vs Dismissed** is the point: it measures whether the candidates you dismissed really were worse than the ones you kept — the verdict line tells you if your judgment is adding value
 - The **Your real trades** card summarizes your closed positions (win rate, avg return vs SPY, thesis-right tally) with a link to the Trades page
-- Nothing here is stored or editable — it's a fresh, honest recomputation every time you open the page
+- Each scan is a **collapsible section** (tap the header to expand its candidate table) and starts **collapsed** — the list stays tidy as scans pile up over the months
+- Each scan header has a **🗑 Delete** button — use it to remove a test or junk scan so it won't count toward your history or the future calibration; deleting is permanent and asks you to confirm first
+- The grades themselves aren't stored — they're recomputed fresh every time you open the page (only deleting a scan changes anything)
 
 ### Details
 
@@ -2498,6 +2500,8 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 **What it measures vs the Trades page**: The Scoreboard grades a no-judgment robot taking *every* scan candidate — the detectors' floor. The Trades page records what *you* actually did. Comparing the two over time is the whole feedback loop: are the detectors finding real edges, and is your filtering improving on them?
 
 **Why dismissals matter**: Dismissing a candidate is a prediction ("this one won't work"). The Scoreboard checks those predictions. If dismissed candidates keep outperforming kept ones, your dismissal reasons deserve a rethink — that's a finding worth more than any single trade.
+
+**Deleting a scan vs. dismissing a candidate**: These are different. *Dismissing* a candidate (on the Scan page) keeps it here and grades it — that's how the kept-vs-dismissed comparison works. *Deleting* a scan (the 🗑 button here) removes the whole scan permanently, so none of its candidates are graded or counted anywhere. Delete is for cleaning up test runs; don't delete a real scan just because you dismissed everything in it — those dismissals are exactly what the Scoreboard is measuring.
 
 ---
 
