@@ -99,7 +99,7 @@ One major section per strategy, built out as we discuss. Teaching order = rankin
 |----------|--------|
 | 1. Dual Momentum | ✅ Taught (section below) |
 | 2. Cross-Sectional Stock Momentum | ✅ Taught (section below) |
-| 3. Quality-Value Composite | Pending |
+| 3. Quality-Value Composite | ✅ Taught (section below) |
 | 4. PEAD + LLM Earnings Analysis | Pending |
 | 5. LLM News-Sentiment Trading | Pending |
 
@@ -227,6 +227,62 @@ The screen has no opinion, no story, and no taste — it holds whatever has been
 - **Quality overlay:** "frog-in-the-pan" research (Da, Gurun & Warachka 2014): *gradual* steady climbs outperform jumpy, news-spike momentum — a filter favoring smooth gainers over one-gap wonders improves results. Also a natural LLM/Analyzer angle: distinguish "up 60% on steady execution" from "up 60% on one meme spike."
 - **Weighting:** equal-weight (canonical) vs. signal-weighted.
 - **Crash guard:** market 200-day MA gate vs. volatility scaling vs. none.
+
+---
+
+### 5.3 Quality-Value Composite — Deep Dive
+
+#### The mechanism: two half-broken factors that fix each other
+
+**Value alone:** cheap stocks (low price relative to earnings/assets) beat expensive ones long-run — because markets *overextrapolate*. Glamour stocks get priced as if great growth lasts forever; struggling ones get priced as if the trouble is permanent. Reality mean-reverts toward the middle, and the cheap side of the book collects that correction. The flaw: the cheap list is salted with **value traps** — companies that are cheap because they're actually dying (the Blockbusters), whose earnings vanish before the mean-reversion arrives.
+
+**Quality alone:** highly profitable firms with stable margins and modest debt outperform (Novy-Marx 2013 — one of the most robust post-publication factors, strong enough that Fama & French added profitability to their canonical model). The flaw: everyone can see quality, so the best businesses are usually expensive, and overpaying eats the edge.
+
+**Together they patch each other's hole:** quality removes the dying companies from the cheap list; cheapness removes the overpriced ones from the quality list. What remains is *good businesses having a bad year* — hated, boring, or temporarily troubled, but demonstrably profitable. This is systematized Buffett ("wonderful companies at fair prices"), and Buffett's 60-year record is the existence proof that quality-value compounding works at the highest level.
+
+**Canonical implementation — Greenblatt's Magic Formula (2005):** rank all stocks on two numbers, add the ranks, buy the best combined scores:
+- **Earnings yield** = EBIT / Enterprise Value (like a P/E ratio, but capital-structure-neutral — debt can't hide in it)
+- **Return on capital** = EBIT / (net working capital + net fixed assets) — how much profit the business squeezes from the assets it employs
+
+**Why it persists — time arbitrage:** the payoff horizon is *years*, and almost no professional can wait that long. Value's 2010s drought lasted nearly a decade; any fund manager who held on was fired long before the 2021–22 payback. Greenblatt's own summary: *"it still works because it doesn't always work."* The strategy's droughts are the moat — and an individual with genuine conviction is one of the few market participants structurally able to cross them. The second persistence engine is boredom: the screen's picks are unloved by construction; story stocks are fun to own and these aren't.
+
+#### The rules (retail long-only implementation)
+
+1. **Universe:** US stocks above ~$100M–$1B market cap (choose and freeze). **Exclude financials and utilities** — EV/EBIT and return-on-capital are not meaningful for banks/insurers/regulated utilities; the formula's numbers lie there.
+2. **Rank twice:** every stock by earnings yield (1 = cheapest), every stock by return on capital (1 = most profitable). **Combined score = sum of ranks.** Buy the ~20–30 lowest combined scores, equal-weighted.
+3. **Hold ~1 year, then re-screen** and rotate out anything no longer ranked. Greenblatt suggests staggering entries (e.g., add ~5–7 positions per quarter) so the whole portfolio never rebalances on one arbitrary day.
+4. **Taxable-account tax trick (from Greenblatt directly):** sell losers just *before* the 1-year mark (short-term loss, more valuable against taxes) and winners just *after* it (long-term gains rate). This is the only strategy of our five where taxable implementation is genuinely reasonable — turnover is low and mostly long-term.
+5. **No overrides.** The screen will hand you a list where several names feel disgusting to buy. That feeling is the strategy working (same lesson as 5.2, opposite direction: momentum buys what feels already-missed; this buys what feels broken).
+
+#### The evidence
+
+- **Greenblatt's book claim:** ~30%/yr 1988–2004. Treat as marketing-grade; independent replications with realistic assumptions land at **mid-teens vs. ~11% for the market** over that span — still clearly index-beating.
+- **The components:** profitability/quality (Novy-Marx 2013; Asness "Quality Minus Junk" 2019) is among the most robust factors out-of-sample. Value has ~100 years of evidence (Graham & Dodd 1934 onward; Fama-French 1992) *including* a near-decade drought in the 2010s, followed by a strong 2021–22 recovery. Piotroski's F-score (2000) — quality screening *within* cheap stocks — is the same marriage from the other direction and also held up.
+- **Post-publication honesty:** Magic Formula replications post-2007 show weaker and streakier results than the book era — roughly market-matching through the growth-dominated 2010s, strong in value years. The combination is more robust than either factor alone, but this is the streakiest strategy of our five: it wins across decades, not quarters.
+- **The behavioral kicker (worth internalizing):** the best US mutual fund of 2000–2010 returned ~18%/yr while its *average investor lost money* — buying after hot streaks, selling after droughts. Dollar-weighted returns vs. strategy returns is THE risk here, more than anything in the screen.
+
+#### What the portfolio feels like
+
+Unloved-but-profitable, always. In 2022's rate panic the screen loaded up on homebuilders at ~5–6x earnings (priced for housing collapse; then up huge in 2023–24), plus perennial residents like tobacco, defense contractors, used-car retailers, HP-style mature tech. It will essentially never hold an NVDA-type glamour name — by the time a stock is exciting, its earnings yield rank is terrible. Owning this portfolio means being permanently out of step with whatever CNBC is excited about, for years at a time, while the businesses quietly earn their way out of their bad narratives.
+
+#### Failure modes
+
+1. **Multi-year droughts — the defining risk.** Value trailed growth for most of 2010–2020. Committing to this strategy means committing *through* a stretch like that. It cannot be judged on 1–3 year results; that's not patience-as-virtue, it's the actual mechanism.
+2. **Value traps that slip through.** Trailing EBIT can't see the future: retailers screened cheap-and-profitable right up until e-commerce ate them. Quality reduces but doesn't eliminate this. (See LLM angle below — this is the strategy's biggest upgrade opportunity.)
+3. **Sector concentration.** The screen loves whole hated sectors at once (all homebuilders, all energy). A cap of ~3–4 names per sector is a standard patch — decide in Phase 6.
+4. **Data quality.** EV/EBIT and return-on-capital require clean fundamental data (FMP provides this); garbage inputs silently corrupt ranks.
+
+#### The LLM angle — the value-trap filter
+
+The screen's one blind spot is that it can't distinguish "cheap because hated" (homebuilders 2022) from "cheap because dying" (Blockbuster 2008) — both look identical on trailing numbers. That distinction lives in *text*: filings, earnings calls, industry news. An LLM reading the last two calls + recent news for each screened name and writing a one-page thesis — *is this a melting ice cube or a fine business having a bad year?* — is exactly the analyst step Greenblatt says individual investors skip, automated. This is the natural app feature (Phase 7): annual screen + LLM dossier per name, user reads and decides.
+
+#### Variations (for Phase 6 — pick and freeze)
+
+- **Value metric:** EV/EBIT (canonical) vs. FCF yield (harder to fake, cash-based) vs. composite of several.
+- **Quality metric:** return on capital (canonical) vs. gross profitability (Novy-Marx, more robust academically) vs. Piotroski F-score (9-point checklist, catches deteriorating fundamentals).
+- **Universe floor:** larger caps = weaker effect, easier trading; smaller = stronger effect, needs limit orders.
+- **Sector cap:** yes/no and how tight.
+- **Rebalance cadence:** annual (canonical, tax-friendly) vs. semi-annual.
 
 ## Phase 6 — Implementation Documentation (pending)
 
