@@ -63,6 +63,11 @@ function _dmParseToMonthEnds(data) {
     return series;
 }
 
+// The signal needs the month-end 12 months before last month's close —
+// 13 months of history. Any source returning less (some proxies ignore the
+// range parameter and serve a stub) is rejected so the next source is tried.
+var DM_MIN_MONTHS = 14;   // 13 required + 1 slack
+
 // Fetches 2y of daily history for one ticker and reduces to month-ends.
 // Same worker → proxy chain as analyzer-data.js, but keeps adjclose.
 async function _dmFetchMonthEnds(ticker) {
@@ -77,7 +82,9 @@ async function _dmFetchMonthEnds(ticker) {
             var resp = await _anaFetchWithTimeout(base + '?ticker=' + encodeURIComponent(ticker) +
                                    '&range=2y&interval=1d', 12000);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            return _dmParseToMonthEnds(await resp.json());
+            var series = _dmParseToMonthEnds(await resp.json());
+            if (series.length >= DM_MIN_MONTHS) return series;
+            console.log('[dualmomentum] worker returned only ' + series.length + ' months for ' + ticker + ' — falling back to proxies');
         } catch (e) {
             console.log('[dualmomentum] worker fetch failed for ' + ticker + ': ' + e.message);
         }
@@ -93,7 +100,9 @@ async function _dmFetchMonthEnds(ticker) {
         try {
             var resp2 = await _anaFetchWithTimeout(proxies[i], 10000);
             if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
-            return _dmParseToMonthEnds(await resp2.json());
+            var series2 = _dmParseToMonthEnds(await resp2.json());
+            if (series2.length >= DM_MIN_MONTHS) return series2;
+            throw new Error('only ' + series2.length + ' months of history returned (need ' + DM_MIN_MONTHS + ')');
         } catch (e) {
             lastErr = e;
             console.log('[dualmomentum] proxy ' + i + ' failed for ' + ticker + ': ' + e.message);
@@ -109,7 +118,9 @@ async function _dmGetSeries(forceRefresh) {
         try {
             var cached = JSON.parse(localStorage.getItem(DM_CACHE_KEY) || 'null');
             if (cached && cached.fetched === today && cached.series &&
-                DM_TICKERS.every(function(t) { return Array.isArray(cached.series[t]); })) {
+                DM_TICKERS.every(function(t) {
+                    return Array.isArray(cached.series[t]) && cached.series[t].length >= DM_MIN_MONTHS;
+                })) {
                 return cached.series;
             }
         } catch (e) { /* corrupt cache — refetch */ }
