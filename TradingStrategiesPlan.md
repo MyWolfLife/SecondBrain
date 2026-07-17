@@ -459,10 +459,36 @@ Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest stra
 
 ---
 
-### 6.2–7.5 Remaining strategies — pending (built one at a time, in order)
+### 6.2 Stock Momentum — Rulebook (FROZEN 2026-07-17; build pending)
 
-Sketches from teaching sections (to be expanded into rulebooks like 6.1 when their turn comes):
-- **Stock Momentum** → monthly ranked 12-1 momentum list over a chosen universe, rank-buffer entry/exit diffs ("these 3 fell out, these 3 entered"), 200-day-MA crash guard, frog-in-the-pan LLM refinement.
+| Decision | Frozen choice | Rationale |
+|----------|--------------|-----------|
+| Universe | The Analyzer's **effective universe** (S&P 500 + holdings + watchlist − excluded) | Reuses the existing universe manager and price cache; no new data plumbing |
+| Signal | **12-1 momentum**: total return from 12 months ago to 1 month ago (skip the most recent month) | Canonical (Jegadeesh & Titman); skip-month avoids short-term reversal |
+| Dividend note | Computed from the cache's split-adjusted closes (no dividends) | Acceptable here: ranking is *relative* and dividend differences barely reorder stocks (unlike Dual Momentum's absolute BIL comparison). Note the bias exists |
+| Portfolio size | **Top 25**, equal-weighted | Middle of the canonical 20–30 range |
+| Rank buffer | Hold until a position falls **out of the top 75** (15% of ~500) | Roughly halves turnover at negligible cost |
+| Schedule | Monthly, first visit of each new month (same convention as Dual Momentum) | One shared monthly rhythm across strategies |
+| Crash guard | Show a ⚠️ **risk-off warning** when SPY closes below its **200-day MA** — informational, never blocks the list | The user decides; the tool surfaces the regime |
+| Account | IRA strongly preferred (~50–100% annual turnover, short-term gains) | Per section 5.2 |
+| "Broken" test | Lagging in V-rebounds and on rotation days is the strategy working; broken only if the ranked list persistently underperforms the universe over full cycles (the signal log will show this) | Prevents abandonment |
+
+### 7.2 Stock Momentum — Feature spec (build pending)
+
+**Screen:** `#analyzer/stockmomentum` (replaces the coming-soon card). Module `js/analyzer-stockmomentum.js`.
+1. **Ranked list**: top 25 by 12-1 momentum from the price cache (values + rank + 12-1 return + mini context: above/below own 200d). Computed on demand from IndexedDB — no new fetching; requires a reasonably fresh price cache (show the cache-age note + link to Dip & Drift's update button).
+2. **Regime banner**: SPY vs 200-day MA (⚠️ when below — "momentum's crash window; smaller or no positions is the canonical play").
+3. **Monthly diff vs last logged month**: "➕ entered top 25: X, Y · ➖ fell below rank 75 (sell rule): Z" — the actionable part.
+4. **Signal log** (Firestore `smSignals`, doc id = `YYYY-MM`): tickers + ranks + returns of the logged top 25, `changed` diff vs prior month. Grading like Dual Momentum: each month's logged list graded later (equal-weight next-month return vs SPY ✅/❌). Add `smSignals` to backup collections.
+5. **Teach panel**: 5.2 recap — why buying "already up" works, crash/rotation-day expectations, no-override rule.
+6. **Out of scope v1**: frog-in-the-pan LLM refinement (variation for later), auto-position sizing, backtest chart.
+
+**Kickoff prompt for the build session (paste into a fresh Claude Code session):**
+> Work on the trading strategies feature. Read TradingStrategiesPlan.md — build Phase 7.2 (Stock Momentum tool) exactly per the frozen rulebook 6.2 and feature spec 7.2. Model it on the existing js/analyzer-dualmomentum.js pattern (signal log, monthly convention, teach panel) but compute rankings from the existing IndexedDB price cache (analyzer-data.js) instead of fetching. Replace the coming-soon card on the #analyzer hub, add the route/page/script registrations like Dual Momentum's (app.js, index.html, help.js), add smSignals to the settings.js backup list, update the spec and AppHelp (new screen:analyzer-stockmomentum section), bump the service worker cache, verify in the preview server per CLAUDE.md, then commit/notify/push.
+
+### 6.3–7.5 Remaining strategies — pending (built one at a time, in order)
+
+Sketches from teaching sections (to be expanded into rulebooks like 6.1/6.2 when their turn comes):
 - **Quality-Value** → annual Magic-Formula screen (EV/EBIT + ROC via FMP), sector caps, LLM value-trap dossier per name ("melting ice cube or fine business having a bad year?").
 - **PEAD** → earnings-calendar scan the morning after reports: surprise trifecta + gap-hold filters → LLM organic-vs-cosmetic transcript verdict → candidate card with entry window + announcement-low invalidation.
 - **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.
