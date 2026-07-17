@@ -22,8 +22,8 @@ Investigate trading/investing strategies with **credible statistical evidence of
 | 3 | One-paragraph descriptions, ranked 1–5 | ✅ COMPLETE (below) |
 | 4 | User removes 2 (any reason — preference counts) | ✅ DECIDED — user kept all 5 |
 | 5 | Deep teaching of all 5 strategies (one section per strategy, built out as we discuss) | ✅ COMPLETE (all 5 taught) |
-| 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | Pending |
-| 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | Pending |
+| 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | 🔄 IN PROGRESS — 6.1 Dual Momentum rulebook drafted |
+| 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | 🔄 IN PROGRESS — hub restructure decided; 7.1 Dual Momentum spec drafted |
 
 ---
 
@@ -403,24 +403,65 @@ Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest stra
 - **Holding period:** intraday (hardest, competing with machines) vs. 1–3 day underreaction fade (more retail-viable).
 - **Human gate:** always require user confirmation (recommended) — this is the strategy where "the app decides, the human approves" matters most.
 
-## Phase 6 — Implementation Documentation (pending)
+## Phase 6 & 7 — Execution Plan (decided 2026-07-17)
 
-Per strategy, the full playbook:
-- Universe (which stocks/ETFs), signal definition (exact formula), schedule (when to check)
-- Entry rules, position sizing, exit rules
-- Costs, tax treatment, account type recommendation (taxable vs. retirement)
-- What "the strategy is broken" would look like vs. a normal drawdown
+### User decisions
+- **App structure:** the Stock Analyzer page becomes a **6-strategy hub**. The *current* Analyzer functionality (Scan / Backtest Lab / Scoreboard / Trades — detectors A–D) moves to its own sub-screen as strategy #1, under a new name (it never had one — proposal below). The 5 new strategies from this plan become cards 2–6 on the hub.
+- **Build order:** one strategy at a time — rules (Phase 6) → tool (Phase 7) → verify → ship — starting with Dual Momentum, then Stock Momentum, Quality-Value, PEAD, News Sentiment.
 
-## Phase 7 — App Feature Design (pending)
+### Hub restructure design
+- `#analyzer` hub page → 6 strategy cards. Existing routes (`#analyzer/scan`, `#analyzer/backtest`, `#analyzer/scoreboard`, `#analyzer/trades`, …) stay **unchanged** — only the hub pages restructure, so nothing breaks and no bookmarks die.
+- Card 1 → new sub-hub screen listing the existing Analyzer cards (Scan, Backtest Lab, Scoreboard, Trades, Discover, etc.).
+- Cards 2–6 → one screen per new strategy, built one at a time. Unbuilt strategies show a "coming soon" card so the hub reflects the full roadmap from day one.
+- **Name proposal for the existing strategy:** **"Dip & Drift"** — it buys overreaction dips (Detector A), post-earnings drift (B), revision momentum (C), and coiled springs (D); "Dip & Drift" covers its two signature plays and is memorable. Alternatives considered: "Overreaction Scanner", "Short-Term Setups". *(Awaiting user approval.)*
 
-One Analyzer-style feature per strategy. Shared principles:
-- The app **surfaces signals and evidence**; the user decides every trade
-- Reuse existing infrastructure where possible (Finnhub/FMP data, LLM analysis pipeline, Scoreboard-style tracking)
-- Each feature should track its own signal history so we can later verify the signals actually worked (the Scoreboard pattern)
+### Shared infrastructure (what every strategy reuses)
+| Layer | File | Reused by |
+|-------|------|-----------|
+| Price history cache (IndexedDB, Yahoo via proxy) | `analyzer-data.js` | All 5 (momentum math, benchmarks, grading) |
+| Pure indicator engine ("one engine, two clocks") | `analyzer-engine.js` | 1, 2 (12-mo returns, MAs); grading for all |
+| Fundamentals / earnings (FMP + Finnhub) | `analyzer-fmp.js`, scan enrichment | 3 (EV/EBIT, ROC), 4 (surprises, calendar) |
+| LLM pipeline | existing investments-ai plumbing | 3 (value-trap theses), 4 (transcript reads), 5 (news scoring) |
+| Scoreboard pattern (timestamped signals graded later) | `analyzer-scoreboard.js` | **All 5** — every strategy logs its signals and gets graded against reality |
 
-Early feature sketches (to be designed properly in Phase 7):
-- **Dual Momentum** → monthly "rotation check" card: current rankings of SPY/VEU/T-bills, what the strategy says to hold, alert when the answer changes
-- **Stock Momentum** → monthly ranked momentum list over a chosen universe with entry/exit diffs ("these 3 fell out, these 3 entered")
-- **Quality-Value** → annual screen with LLM-written one-page theses on the top-ranked names
-- **PEAD** → earnings-surprise scanner + LLM transcript read: "real beat or cosmetic beat" scoring the morning after reports
-- **News Sentiment** → morning news sweep over a watchlist with LLM good/bad scoring and signal-decay tracking
+**Core design insight:** every strategy is the same two-part machine — *a signal generator + a signal log graded against reality later*. Each new strategy screen = its own generator + a Scoreboard-style log, so we measure each strategy on live data before trusting it with real money. (Critical for #5, whose backtests can't be trusted at all.)
+
+---
+
+### 6.1 Dual Momentum — Rulebook (proposed freeze)
+
+| Decision | Frozen choice | Rationale |
+|----------|--------------|-----------|
+| Tickers | **SPY** (US), **VEU** (intl ex-US), **BIL** (T-bill benchmark) | Canonical GEM trio; all liquid, all in Yahoo |
+| Signal | **12-month total return** (adjusted close, dividends included) | Canonical; adjusted close from Yahoo handles dividends |
+| Schedule | Evaluate on the **last trading day of each month**, after close; act at the next open | Pick a day and never change it (optimizing = curve-fitting) |
+| Absolute gate | SPY 12-mo return vs. BIL 12-mo return | Canonical GEM |
+| Relative pick | Higher of SPY / VEU 12-mo return | Canonical GEM |
+| Risk-off asset | **BIL / cash-like** (not AGG/BND) | 2022 lesson: aggregate bonds crashed *with* stocks; cash never does. Gives up some return in falling-rate bears, gains robustness |
+| Position | 100% of the strategy allocation in the single signaled asset | Canonical; the user chooses how much of the portfolio runs the strategy |
+| Whipsaw buffer | **None** (canonical) | Buffers reduce whipsaw but add parameters; revisit only with live evidence |
+| Account | **IRA strongly preferred** (switches = tax-free) | ~1–3 switches/yr, medium-term gains otherwise |
+| "Broken" test | The strategy is *working as designed* when it lags in bull/whipsaw years; it is *broken* only if it fails to protect in a grinding multi-month bear | Prevents the abandonment failure mode |
+
+### 7.1 Dual Momentum — Feature spec
+
+**Screen:** `#analyzer/dualmomentum` (card 2 on the hub). Sections:
+1. **Verdict card** (top): current signal — e.g., "📈 HOLD SPY" — with the three 12-mo returns (SPY / VEU / BIL) as labeled bars, computed from the price cache. Shows signal age ("unchanged for 7 months") and **next check date** (last trading day of the month).
+2. **Signal-change banner:** when this month's verdict differs from last month's logged verdict — "Signal changed: SPY → BIL. The strategy says switch." Prominent, since this is the only moment the user ever acts.
+3. **Signal history log** (Firestore, Scoreboard pattern): one doc per monthly check — date, three returns, verdict, changed-or-not. Grades itself over time: each logged signal later shows what the signaled asset did vs. the alternatives until the next signal. This builds the live out-of-sample record that tells us whether to trust the strategy.
+4. **Monthly reminder:** calendar event integration ("Dual Momentum check") so the check actually happens — the strategy dies if the user forgets to look.
+5. **Teach panel:** collapsible "how this works / when it looks broken" recap from section 5.1, so future-user remembers why lagging a bull year is not a failure.
+
+**Firestore:** `dmSignals` collection — `{ date, retSpy, retVeu, retBil, verdict, changed, createdAt }` (add to backup collections list in settings.js per checklist).
+**Engine additions:** 12-month total-return function over adjusted closes in `analyzer-engine.js`; VEU + BIL added to the cached tickers.
+**Out of scope v1:** automatic backtest chart, buffers/alternate lookbacks, push notifications.
+
+---
+
+### 6.2–7.5 Remaining strategies — pending (built one at a time, in order)
+
+Sketches from teaching sections (to be expanded into rulebooks like 6.1 when their turn comes):
+- **Stock Momentum** → monthly ranked 12-1 momentum list over a chosen universe, rank-buffer entry/exit diffs ("these 3 fell out, these 3 entered"), 200-day-MA crash guard, frog-in-the-pan LLM refinement.
+- **Quality-Value** → annual Magic-Formula screen (EV/EBIT + ROC via FMP), sector caps, LLM value-trap dossier per name ("melting ice cube or fine business having a bad year?").
+- **PEAD** → earnings-calendar scan the morning after reports: surprise trifecta + gap-hold filters → LLM organic-vs-cosmetic transcript verdict → candidate card with entry window + announcement-low invalidation.
+- **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.
