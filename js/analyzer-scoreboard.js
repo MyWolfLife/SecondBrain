@@ -20,6 +20,11 @@ var ASB_MAX_SCANS = 25;
 // 60-trading-day-complete) candidates before the diagnostic is worth building.
 var ASB_CALIBRATION_TARGET = 30;
 
+// The kept-vs-dismissed judgment verdict stays neutral until BOTH sides have
+// at least this many graded candidates — one lucky keep and one unlucky
+// dismissal must not read as "your judgment is adding value".
+var ASB_VERDICT_MIN = 5;
+
 // The exact prompt to paste into a fresh Claude Code session when it's time to
 // build Phase 6. Kept verbatim here so the "Calibration prompt" button can copy
 // it to the clipboard — the user won't have to remember the wording months out.
@@ -238,9 +243,17 @@ function _asbRender(page, graded, trades, totalScans, capped) {
             var keptAvg = _asbAvg(kept, function(r) { return r.ret60; });
             var dismAvg = _asbAvg(dism, function(r) { return r.ret60; });
             if (keptAvg != null && dismAvg != null) {
-                html += '<p class="muted-text">' + (keptAvg > dismAvg
-                    ? '✅ What you kept outperformed what you dismissed by ' + (keptAvg - dismAvg).toFixed(1) + ' points — your judgment is adding value.'
-                    : '⚠️ What you dismissed did better than what you kept by ' + (dismAvg - keptAvg).toFixed(1) + ' points — worth reviewing your dismissal reasons.') + '</p>';
+                // Sample-size guard: below ASB_VERDICT_MIN per side, a verdict
+                // would be noise dressed as insight — show the n's, stay neutral.
+                var ns = ' (kept n=' + kept.length + ' · dismissed n=' + dism.length + ')';
+                if (kept.length < ASB_VERDICT_MIN || dism.length < ASB_VERDICT_MIN) {
+                    html += '<p class="muted-text">⏳ Kept averaged ' + _abFmtPct(keptAvg) + ' vs dismissed ' + _abFmtPct(dismAvg) + ns +
+                        ' — too few graded candidates to mean anything yet. A verdict appears once both sides have ' + ASB_VERDICT_MIN + '+.</p>';
+                } else {
+                    html += '<p class="muted-text">' + (keptAvg > dismAvg
+                        ? '✅ What you kept outperformed what you dismissed by ' + (keptAvg - dismAvg).toFixed(1) + ' points' + ns + ' — your judgment is adding value.'
+                        : '⚠️ What you dismissed did better than what you kept by ' + (dismAvg - keptAvg).toFixed(1) + ' points' + ns + ' — worth reviewing your dismissal reasons.') + '</p>';
+                }
             }
         }
     } else {

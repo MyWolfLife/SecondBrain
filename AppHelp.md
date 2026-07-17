@@ -2547,6 +2547,7 @@ Stock Momentum owns **the top 25 stocks in your watched universe by 12-1 momentu
 - When you're ready, tap **📋 Calibration prompt** to copy a ready-made instruction into your clipboard — paste it into a new Claude Code session and it'll build the calibration report
 - Scans younger than 60 trading days show **pending** — grades fill in automatically as time passes (keep price data updated)
 - **Kept vs Dismissed** is the point: it measures whether the candidates you dismissed really were worse than the ones you kept — the verdict line tells you if your judgment is adding value
+- The verdict line always shows the sample sizes (kept n=X · dismissed n=Y), and it stays neutral ("⏳ too few graded candidates to mean anything yet") until **both** sides have at least 5 graded candidates — one lucky keep against one unlucky dismissal proves nothing, and this tool doesn't pretend otherwise
 - The **Your real trades** card summarizes your closed positions (win rate, avg return vs SPY, thesis-right tally) with a link to the Trades page
 - Each scan is a **collapsible section** (tap the header to expand its candidate table) and starts **collapsed** — the list stays tidy as scans pile up over the months
 - Each scan header has a **🗑 Delete** button — use it to remove a test or junk scan so it won't count toward your history or the future calibration; deleting is permanent and asks you to confirm first
