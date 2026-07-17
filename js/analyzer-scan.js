@@ -555,6 +555,9 @@ var AS_CHIP_INFO = [
     { re: '⚠️ Falling knife?', title: 'Falling knife?',
       simple: 'A caution flag, not a rejection: this company is both unprofitable and carries heavy debt (debt-to-equity over 2). Stocks like this can keep falling instead of bouncing back — worth a closer look before assuming this is a "buy the dip" situation.',
       deep: 'Flagged when trailing-twelve-month net margin is at or below zero AND debt-to-equity is above 2, per Finnhub quality data. It also deducts 15 points from the candidate’s grade — the largest single risk deduction in the scoring model.' },
+    { re: '⚠️ Deal-pinned?', title: 'Possibly deal-pinned',
+      simple: 'This stock’s price is barely moving at all — annualized volatility under 8%, quieter than almost any freely-trading stock. The most common cause: the company has agreed to be acquired, and the price is pinned to the buyout offer. A pinned stock can look like the "tightest spring" on the page while being structurally unable to rise 10% — the price is anchored to the deal, not coiling for a breakout.',
+      deep: 'Heuristic flag on coiled-spring candidates when annualized realized volatility is below 8% (freely-trading stocks almost never get that quiet; acquisition-pinned ones almost always are). It deducts 15 points from the grade. It won’t catch every deal situation, so before trading any ultra-quiet spring, check the dossier’s 📰 news feed for merger or buyout headlines.' },
     { re: /^Similar dips:/, title: 'Similar dips',
       simple: 'Looks at every time in the past 5 years this specific stock fell this hard, this fast. This is how many of those past episodes recovered by +10% within 60 days, and the typical (median) number of days it took.',
       deep: 'The app scans this stock’s own ~5 years of daily candles for past drops matching the dip detector’s size-and-speed thresholds, then checks each one: did the daily HIGH reach +10% above the dip’s close within the next 60 trading days (the level where a resting limit order would fill)? This is the single heaviest-weighted metric in the dip grade, but only when there are 3+ past episodes — fewer than that is treated as no signal.' },
@@ -661,6 +664,15 @@ function _asBadgeSpan(text) {
     if (i < 0) return '<span class="as-badge">' + escapeHtml(text) + '</span>';
     return '<span class="as-badge as-chip-click" onclick="_asChipInfoOpen(' + i + ')" title="' +
         escapeHtml(AS_CHIP_INFO[i].simple) + '">' + escapeHtml(text) + '</span>';
+}
+
+// Deal-pinned heuristic (spring candidates): annualized realized vol under 8%
+// — quieter than almost any freely-trading stock, and the signature of a
+// price pinned to an agreed acquisition offer. Shared by the scan card, the
+// dossier chip row, and the _asScoreSpring deduction so they can never
+// disagree about what "pinned" means.
+function _asDealPinned(c) {
+    return !!(c && c.detector === 'springD' && c.vol != null && c.vol < 0.08);
 }
 
 // Analyst / divergence chips (Stage 3.2). Returns { lead:[], rest:[] } —
@@ -915,6 +927,16 @@ function _asScoreSpring(c) {
     _asPushTarget(c, inc, exc, 15);
     _asPushGrades(c, inc, exc, 15);
     _asPushEarnDed(c, ded);
+
+    // Deal-pinned guard (_asDealPinned): annualized realized vol under 8% is
+    // quieter than almost any freely-trading stock — the classic cause is an
+    // agreed acquisition pinning the price to the offer (EA in the Stage 4
+    // sandbox). A pinned stock scores as the "tightest spring" on the page
+    // while being structurally unable to move +10%, so the flag subtracts
+    // hard. Heuristic: won't catch every deal, catches the pinned-to-offer case.
+    if (_asDealPinned(c)) {
+        ded.push({ label: 'Possibly deal-pinned (vol ' + Math.round(c.vol * 100) + '% < 8%)', points: 15 });
+    }
     return _asFinishScore(inc, exc, ded);
 }
 
@@ -1105,6 +1127,8 @@ function _asCandidateCard(c, score) {
     _asQualityChips(c).forEach(function(qc) {
         if (qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
+    // Deal-pinned flag (springs) leads the row too — see _asScoreSpring.
+    if (_asDealPinned(c)) html += _asChipSpan('⚠️ Deal-pinned?', 'as-chip-warn');
     chips.forEach(function(ch) { html += _asChipSpan(ch); });
     var earnChip = _asEarningsChipText(c);
     if (earnChip) {
@@ -1340,6 +1364,12 @@ function _adRender(page, rec, ev, params) {
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
         if (qc.lead) html += _asChipSpan(qc.text, qc.cls);
     });
+    // Deal-pinned flag (springs) — checks the live recomputed vol as well as
+    // the stamped candidate, so Stock-Rollup-opened dossiers still warn.
+    if (_asDealPinned(ctx.candidate) ||
+        _asDealPinned({ detector: ctx.detector, vol: ev.spring ? ev.spring.vol : null })) {
+        html += _asChipSpan('⚠️ Deal-pinned?', 'as-chip-warn');
+    }
     chips.forEach(function(c) { html += _asChipSpan(c); });
     _asQualityChips(ctx.candidate || {}).forEach(function(qc) {
         if (!qc.lead) html += _asChipSpan(qc.text, qc.cls);

@@ -175,7 +175,14 @@ scans lack it and the metric simply renormalizes away on them).
 | Price target upside vs current price | 15 | same bands as dipA |
 | Analyst grades, net (60d) | 15 | same bands as dipA |
 
-**Risk deductions:** Earnings inside the trading window → same formula as dipA.
+**Risk deductions:** Earnings inside the trading window → same formula as dipA. **Possibly
+deal-pinned (added 2026-07-17, code-review finding)**: annualized realized vol < 8% absolute
+(`_asDealPinned`) → **−15** + an amber **⚠️ Deal-pinned?** lead chip on the card and dossier.
+Rationale: the tightness metric actively rewards ultra-low vol, but a stock pinned to an
+agreed acquisition offer (EA in the Stage 4 sandbox — graded A · 84 before this guard) is the
+tightest "spring" in existence while being structurally unable to move +10%. 8% is an
+absolute floor freely-trading stocks essentially never sit under; heuristic — it won't catch
+every deal, it catches the pinned-to-offer case.
 
 ## Detector B — Post-earnings drift (`driftB`)
 
@@ -361,6 +368,17 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-17 — Deal-pinned guard on springs (code-review finding).** The spring scorer
+  rewarded exactly the pathology the Stage 4 sandbox demonstrated: EA, pinned near-zero-vol
+  by acquisition arb, graded **A · 84** as the top-scored candidate — untradeable for a +10%
+  move. New `_asDealPinned(c)` heuristic (springD + annualized vol < 8% absolute) is shared
+  by three call sites so they can't disagree: an amber **⚠️ Deal-pinned?** lead chip on the
+  scan card, the same chip on the dossier (also checks the LIVE recomputed `ev.spring.vol`,
+  so Stock-Rollup-opened dossiers warn too), and a **−15 deduction** in `_asScoreSpring`
+  (labeled with the actual vol %, visible in the grade breakdown). Chip registered in
+  `AS_CHIP_INFO` (tap-for-detail popup: what deal-pinning is, the 8% rule, the −15, and
+  "check the news feed for merger headlines"). Detector D deductions table updated above.
+  Bumps: analyzer-scan.js v25, sw v490.
 - **2026-07-17 — Phase-6 readiness aids (follow-up, not Phase 6 itself).** Three Scoreboard/
   Scan tweaks to support the eventual calibration build: (1) **Scan page** — the ▶ Run scan
   button is hidden Mon 07:00 → Fri 17:00 local (`_asScanAllowedNow`), shown only Fri 5pm →
