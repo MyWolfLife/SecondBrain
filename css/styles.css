@@ -20021,6 +20021,24 @@ a.legacy-fin-card:hover {
 /* Discoverability hint under the dossier's evidence-chip row */
 .as-chip-hint { margin: 4px 0 12px; font-size: 0.72rem; color: #999; }
 
+/* Dossier chart range buttons (30 days / 90 days / 1 year / 5 years) */
+.ad-chart-range { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 6px; }
+.ad-range-btn {
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #555;
+    border-radius: 10px;
+    padding: 3px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+.ad-range-btn-active {
+    background: #2b6cb0;
+    border-color: #2b6cb0;
+    color: #fff;
+    font-weight: 600;
+}
+
 /* Candidate grade pill (ranking plan Phase 3) — green→red by letter */
 .as-card-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .as-grade {

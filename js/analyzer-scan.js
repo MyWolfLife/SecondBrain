@@ -1386,8 +1386,16 @@ function _adRender(page, rec, ev, params) {
     html += '<h3 class="ana-section-title">🧮 Analyst view</h3>' +
         '<div id="adAnalyst"><p class="muted-text">Loading analyst data…</p></div>';
 
-    // Chart
-    html += '<div class="ad-chart-wrap"><canvas id="adChart"></canvas></div>';
+    // Chart + range chooser (trading days: ~21 per month, ~250 per year).
+    // Default is 1 year; the cache holds ~5 years of daily candles.
+    _adChartDays = 250;
+    html += '<div class="ad-chart-range" id="adChartRange">' +
+        '<button type="button" class="ad-range-btn" onclick="_adChartRange(21, this)">30 days</button>' +
+        '<button type="button" class="ad-range-btn" onclick="_adChartRange(63, this)">90 days</button>' +
+        '<button type="button" class="ad-range-btn ad-range-btn-active" onclick="_adChartRange(250, this)">1 year</button>' +
+        '<button type="button" class="ad-range-btn" onclick="_adChartRange(1250, this)">5 years</button>' +
+    '</div>' +
+    '<div class="ad-chart-wrap"><canvas id="adChart"></canvas></div>';
 
     // Similar-dips history (dips only)
     if (isDip) {
@@ -1898,13 +1906,30 @@ function _adUpdateExitPrices() {
                      ' · stop $' + (c * (1 - s / 100)).toFixed(2);
 }
 
+// Chart look-back in trading days, set by the range buttons above the chart
+// (reset to 1 year on every dossier render). rec/ev are stashed so a range
+// click can redraw without refetching or recomputing anything.
+var _adChartDays = 250;
+var _adChartRec = null, _adChartEv = null;
+
+function _adChartRange(days, btn) {
+    _adChartDays = days;
+    var wrap = document.getElementById('adChartRange');
+    if (wrap) {
+        wrap.querySelectorAll('.ad-range-btn').forEach(function(b) { b.classList.remove('ad-range-btn-active'); });
+    }
+    if (btn) btn.classList.add('ad-range-btn-active');
+    if (_adChartRec && _adChartEv) _adDrawChart(_adChartRec, _adChartEv);
+}
+
 function _adDrawChart(rec, ev) {
+    _adChartRec = rec; _adChartEv = ev;
     var canvas = document.getElementById('adChart');
     if (!canvas || typeof Chart === 'undefined') return;
     if (_adChart) { _adChart.destroy(); _adChart = null; }
 
     var n     = rec.dates.length;
-    var start = Math.max(0, n - 250);
+    var start = Math.max(0, n - _adChartDays);
     var labels = rec.dates.slice(start);
     var closes = rec.close.slice(start);
 
