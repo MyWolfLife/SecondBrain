@@ -856,7 +856,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'investments', 'investmentGroups', 'investmentConfig', 'investmentSnapshots', 'ssBenefits',
 
     // Stock Analyzer
-    'analyzerConfig', 'analyzerBacktests', 'analyzerScans', 'analyzerTrades', 'analyzerEstimates', 'dmSignals',
+    'analyzerConfig', 'analyzerBacktests', 'analyzerScans', 'analyzerTrades', 'analyzerEstimates', 'dmSignals', 'smSignals',
 
     // Legacy Financial (person-scoped — subcollections handled via PERSON_SCOPED_COLLECTIONS)
     'legacyFinancial',

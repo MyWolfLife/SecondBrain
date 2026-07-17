@@ -82,6 +82,77 @@ async function _smComputeRankings() {
 }
 
 // ---------------------------------------------------------------------------
+// Signal log (Firestore smSignals — this strategy's scoreboard)
+// ---------------------------------------------------------------------------
+// One doc per month, logged on the first visit of the month (same convention
+// as Dual Momentum). Grading needs no extra fetching: each logged month is
+// graded from log-date to the NEXT log's date using the shared price cache.
+
+async function _smLoadLog() {
+    var snap = await userCol('smSignals').get();
+    var rows = [];
+    snap.forEach(function(doc) { rows.push(doc.data()); });
+    rows.sort(function(a, b) { return a.month < b.month ? -1 : 1; });
+    return rows;
+}
+
+// Logs this month's top-25 if not already logged. entered/exited implement
+// the rank-buffer sell rule: a previous holding only "exits" when its
+// CURRENT rank falls below SM_SELL_RANK (or it can no longer be ranked).
+async function _smEnsureLogged(r, log) {
+    var month = new Date().toISOString().slice(0, 7);
+    var exists = log.some(function(x) { return x.month === month; });
+    if (exists) return log;
+
+    var top = r.rows.slice(0, SM_TOP_N).map(function(row, i) {
+        return { t: row.ticker, mom: row.mom, rank: i + 1 };
+    });
+    var rankNow = {};
+    r.rows.forEach(function(row, i) { rankNow[row.ticker] = i + 1; });
+
+    var prev = log.length ? log[log.length - 1] : null;
+    var entered = [], exited = [];
+    if (prev) {
+        var prevSet = {};
+        prev.tickers.forEach(function(p) { prevSet[p.t] = true; });
+        top.forEach(function(c) { if (!prevSet[c.t]) entered.push(c.t); });
+        prev.tickers.forEach(function(p) {
+            var rk = rankNow[p.t];
+            if (rk == null || rk > SM_SELL_RANK) exited.push(p.t);
+        });
+    }
+
+    var row = {
+        month: month, asOf: r.asOf, tickers: top,
+        entered: entered, exited: exited,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await userCol('smSignals').doc(month).set(row);
+    return log.concat([row]);
+}
+
+// Equal-weight return of a logged list from its asOf date to endDate, vs SPY.
+// Returns {list, spy, n} or null when the cache can't price the window.
+async function _smGradeWindow(row, endDate) {
+    var sum = 0, n = 0;
+    for (var i = 0; i < row.tickers.length; i++) {
+        var rec = await anaGetPriceHistory(row.tickers[i].t);
+        if (!rec) continue;
+        var i0 = anaEngIndexForDate(rec, row.asOf);
+        var i1 = anaEngIndexForDate(rec, endDate);
+        if (i0 < 0 || i1 <= i0 || !(rec.close[i0] > 0)) continue;
+        sum += rec.close[i1] / rec.close[i0] - 1;
+        n++;
+    }
+    if (n === 0) return null;
+    var spyRec = await anaGetPriceHistory('SPY');
+    var s0 = anaEngIndexForDate(spyRec, row.asOf);
+    var s1 = anaEngIndexForDate(spyRec, endDate);
+    if (s0 < 0 || s1 <= s0) return null;
+    return { list: sum / n, spy: spyRec.close[s1] / spyRec.close[s0] - 1, n: n };
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -149,6 +220,91 @@ async function _smRender() {
         '</tr>';
     }
     html += '</tbody></table></div>';
+
+    // Signal log: ensure this month is logged, show the diff + graded history.
+    var log = null, logErr = null;
+    try {
+        log = await _smEnsureLogged(r, await _smLoadLog());
+    } catch (e) {
+        logErr = e.message;
+        console.warn('[stockmomentum] signal log unavailable: ' + e.message);
+    }
+
+    if (log) {
+        var latest = log[log.length - 1];
+
+        // The actionable part: what changed vs last month's logged list.
+        html += '<h3 class="ana-section-title">🔄 This month\'s changes</h3>';
+        if (log.length === 1) {
+            html += '<p class="muted-text" style="max-width:560px">First month logged — diffs (“these entered, ' +
+                'these fell out”) appear from next month on.</p>';
+        } else if (!latest.entered.length && !latest.exited.length) {
+            html += '<p class="muted-text" style="max-width:560px">No changes — every holding is still ranked ' +
+                'inside the top ' + SM_SELL_RANK + '. Nothing to do this month.</p>';
+        } else {
+            if (latest.entered.length) {
+                html += '<p style="max-width:560px">➕ <strong>Entered the top ' + SM_TOP_N + ':</strong> ' +
+                    escapeHtml(latest.entered.join(', ')) + '</p>';
+            }
+            if (latest.exited.length) {
+                html += '<p style="max-width:560px">➖ <strong>Fell below rank ' + SM_SELL_RANK + ' (sell rule):</strong> ' +
+                    escapeHtml(latest.exited.join(', ')) + '</p>';
+            }
+        }
+
+        // Graded history: each logged month measured to the NEXT log's date.
+        html += '<h3 class="ana-section-title">🏁 Signal history</h3>';
+        if (log.length === 1) {
+            html += '<p class="muted-text" style="max-width:560px">One row is added each month. Each past month is ' +
+                'graded — the logged list\'s equal-weight return vs SPY over the following month — building the ' +
+                'live track record that shows whether the strategy earns its keep.</p>';
+        }
+        html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+            '<th>Month</th><th>Top pick</th><th>±</th><th>List vs SPY (next month)</th>' +
+            '</tr></thead><tbody>';
+        for (var li = log.length - 1; li >= 0 && li >= log.length - 12; li--) {
+            var lrow = log[li];
+            var nextRow = (li + 1 < log.length) ? log[li + 1] : null;
+            var gradeHtml = '<span class="muted-text">pending</span>';
+            if (nextRow) {
+                var g = await _smGradeWindow(lrow, nextRow.asOf);
+                gradeHtml = g
+                    ? _smPct(g.list) + ' <span class="muted-text">(SPY ' + _smPct(g.spy) + ')</span> ' + (g.list >= g.spy ? '✅' : '❌')
+                    : '<span class="muted-text">—</span>';
+            }
+            html += '<tr>' +
+                '<td>' + escapeHtml(lrow.month) + '</td>' +
+                '<td>' + escapeHtml(lrow.tickers.length ? lrow.tickers[0].t : '—') + '</td>' +
+                '<td>+' + (lrow.entered ? lrow.entered.length : 0) + '/−' + (lrow.exited ? lrow.exited.length : 0) + '</td>' +
+                '<td>' + gradeHtml + '</td>' +
+            '</tr>';
+        }
+        html += '</tbody></table></div>';
+    } else {
+        html += '<p class="muted-text">⚠️ Signal log unavailable (' + escapeHtml(logErr || 'unknown') + ') — the ranking above still works.</p>';
+    }
+
+    // Teach panel — section 5.2 recap
+    html += '<details class="dm-teach"><summary>📖 How this works — and when it looks broken</summary>' +
+        '<div class="dm-teach-body">' +
+        '<p><strong>The rules:</strong> rank the watched universe by 12-1 momentum (12-month return, skipping ' +
+        'the most recent month). Hold the top ' + SM_TOP_N + ' equal-weighted. Each month, buy what entered; ' +
+        'sell only what fell below rank ' + SM_SELL_RANK + ' (the buffer roughly halves turnover). The rank ' +
+        'makes every call — overriding it ("I don\'t like this one") reintroduces the exact biases the ' +
+        'system exists to remove.</p>' +
+        '<p><strong>Why it works:</strong> news seeps instead of splashing, investors sell winners too early ' +
+        'and hold losers too long, and people refuse to buy what already ran ("I missed it"). All three ' +
+        'stretch trends out — and the discomfort of buying stocks that feel expensive IS the edge. Momentum is ' +
+        'the most documented anomaly in finance: ~200 years of data, still working 30+ years after publication.</p>' +
+        '<p><strong>It is WORKING AS DESIGNED when:</strong> it lags in sharp V-rebounds off bear-market bottoms ' +
+        'and on rotation days (Nov 9 2020: stay-at-home winners −15–20% in a day). It always gives back a chunk ' +
+        'when a big trend ends — the system exits after the turn, never at the top.</p>' +
+        '<p><strong>It is broken only if:</strong> the graded history above persistently loses to SPY across a ' +
+        'full cycle. Judging it on a bad quarter is how people quit right before it pays.</p>' +
+        '<p><strong>Notes:</strong> ⚠️ regime banner = momentum\'s crash window (smaller/no new positions is the ' +
+        'canonical play). Turnover is mostly short-term gains — strongly prefers an IRA. Full write-up: ' +
+        'TradingStrategiesPlan.md sections 5.2 and 6.2.</p>' +
+        '</div></details>';
 
     el.innerHTML = html;
 }
