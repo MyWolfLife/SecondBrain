@@ -98,7 +98,7 @@ One major section per strategy, built out as we discuss. Teaching order = rankin
 | Strategy | Status |
 |----------|--------|
 | 1. Dual Momentum | ✅ Taught (section below) |
-| 2. Cross-Sectional Stock Momentum | Pending |
+| 2. Cross-Sectional Stock Momentum | ✅ Taught (section below) |
 | 3. Quality-Value Composite | Pending |
 | 4. PEAD + LLM Earnings Analysis | Pending |
 | 5. LLM News-Sentiment Trading | Pending |
@@ -167,6 +167,66 @@ That is the entire strategy. No intraday decisions, no stock picking, no discret
 - **Trend measure:** 12-month return vs. T-bills (GEM) or price vs. 10-month moving average (Faber) — near-identical results; the 10-month SMA version is easier to eyeball on any chart site.
 - **Risk-off asset:** aggregate bonds (better most years) vs. T-bills/cash (better in rising-rate years like 2022) vs. splitting the difference with short-term Treasuries (BSV/VGSH).
 - **Skip international:** some drop the SPY/VEU comparison and just run absolute momentum on SPY (in-or-out). Simpler, and international relative momentum has been the weaker leg out-of-sample.
+
+---
+
+### 5.2 Cross-Sectional Stock Momentum — Deep Dive
+
+#### The mechanism: the same anomaly as 5.1, but *between* stocks
+
+Dual momentum asks "is the market trending, and which market?" Cross-sectional momentum asks "**which stocks** have been winning?" — and buys them. The core finding (Jegadeesh & Titman 1993): rank all stocks by their return over the past 12 months *excluding the most recent month*, and the top slice outperforms the bottom slice by roughly 1%/month over the following 3–12 months. The skip-month matters: the most recent month has a *reversal* effect (last month's hottest stocks snap back short-term), so the convention "12-1" — months 12 through 2 ago — cleanly captures the trend without the noise.
+
+**Why prices trend in the first place — three behavioral engines:**
+1. **Underreaction / slow information diffusion.** Good news doesn't get fully priced instantly; it seeps through analysts, media, and investors over months. The stock drifts toward its new fair value rather than jumping there.
+2. **The disposition effect.** Investors sell winners too early (to lock in gains) and cling to losers (to avoid admitting the loss). Selling into a rise slows the rise; refusing to sell a falling stock slows the fall. Both *extend trends*.
+3. **Anchoring.** "It already went up 80%, I missed it" — people anchor on the old price and refuse to buy, delaying the adjustment. This is also why the strategy is psychologically hard: **it requires buying stocks that feel expensive and already-missed.** The discomfort is the edge.
+
+**Why it isn't arbitraged away:** Fama himself (father of efficient markets) called momentum "the premier anomaly" — it's the one his framework can't explain away, and it has survived 30+ years of everyone knowing about it. It persists because harvesting it is genuinely unpleasant: high turnover (costs + taxes), brutal occasional crashes (below), and long stretches of tracking error. Institutions that try to run it at scale in large caps compress it; in mid/small caps their size locks them out — which is where the retail advantage lives.
+
+#### The rules (retail long-only implementation)
+
+1. **Universe:** a liquid list — S&P 500 for simplicity, or S&P 400 mid-caps for a stronger version of the effect. Freeze the choice.
+2. **Signal:** total return from 12 months ago to 1 month ago (the 12-1 return). One number per stock.
+3. **Monthly, same day each month:** rank the universe by the signal. Buy the top ~20–30 names, equal-weighted.
+4. **Rank buffer to control turnover:** don't sell a holding just because it slipped from #18 to #25. Sell only when it falls out of a wider band (e.g., out of the top 20% of the universe), replacing it with the current top-ranked non-holding. This roughly halves turnover with negligible performance cost.
+5. **Crash guard (recommended):** only run fully invested when the S&P is above its 200-day / 10-month moving average. When below, either stand aside in cash or halve exposure. This directly targets the momentum-crash failure mode.
+
+Expected activity: replacing ~2–5 names per month. More decisions than dual momentum, but each is mechanical — the rank makes the call, not judgment.
+
+#### The evidence
+
+- **Origin:** Jegadeesh & Titman (1993) — ~12%/yr spread between past winners and past losers, US stocks 1965–1989.
+- **Depth:** Geczy & Samonov extended it back to **1801** — two centuries of US data. Asness, Moskowitz & Pedersen ("Value and Momentum Everywhere," 2013) found it in every major equity market (Japan is the famous weak spot), plus bonds, currencies, and commodities.
+- **Survival post-publication:** unlike most anomalies (which shrink ~half or die after publication), momentum has remained significant in the 30+ years since 1993 — the strongest post-publication record of any factor.
+- **Live long-only proof:** MTUM (iShares momentum ETF, launched 2013) is a real-money, fee-charging, long-only large-cap implementation — it has roughly tracked-to-modestly-beaten the S&P since inception, with clear lag in reversal years (2016, 2023) and strong runs when trends persist (2017, 2020, 2024). Long-only large-cap is the *weakest* form of the strategy; academic top-slice results in mid-caps are stronger.
+- **Honest expectation:** net of costs, a disciplined long-only top-slice with a trend filter has historically delivered roughly **+2–4%/yr over the index** across full cycles — not the headline 12% spread, which requires shorting the losers.
+
+#### The signature failure mode: momentum crashes
+
+Momentum's worst moments are **sharp reversals at bear-market bottoms**. In March–May 2009, the academic winners-minus-losers portfolio lost ~70% in three months — the "losers" (banks and cyclicals priced for death) tripled off the bottom while the defensive "winners" sat still. Daniel & Moskowitz ("Momentum Crashes," 2016) documented this pattern across a century: crashes cluster *after* big market declines, *during* the rebound.
+
+Critical nuance for us: **the crash lives mostly on the short side** (the exploding losers), and a long-only implementation doesn't short anything. Long-only momentum in 2009 merely *lagged* the rebound — painful, not catastrophic. The 200-day-MA crash guard exists precisely for this window: after a deep bear, the guard keeps exposure reduced until the trend re-establishes, sidestepping the most dangerous months.
+
+A second, smaller version: **rotation days**. On Nov 9, 2020 (Pfizer vaccine announcement), stay-at-home winners (Zoom, Peloton) fell 15–20% in a day while beaten-down airlines/cruises exploded — the largest one-day momentum reversal ever recorded. Long-only holders of the winners took a real hit. These events are unhedgeable and simply part of the strategy's cost of doing business.
+
+#### What it actually holds (intuition check)
+
+The screen has no opinion, no story, and no taste — it holds whatever has been working: NVDA through most of the 2023–24 AI run (a stock that always "felt expensive and already-missed" — see behavioral engine #3), Super Micro up 10x (and it would have ridden the later collapse partway down until the rank ejected it — momentum always gives back a chunk at trend end; the system exits *after* the turn, never at the top), plus at any given time a mix of unglamorous names — insurers, industrials, utilities in defensive years — that nobody talks about but that keep grinding up. Holding the portfolio means owning things you'd never pick by story, and *not* owning famous names that are down 40% and "due for a comeback" (the screen calls those losers, and the disposition effect says everyone else is still holding them all the way down).
+
+#### Failure modes summary
+
+1. **Reversal lag:** badly trails the index in V-rebounds off bear bottoms (2009-style) and on rotation days. The trend filter blunts the first; nothing fixes the second.
+2. **Turnover → taxes and costs:** ~50–100%+ annual turnover, mostly short-term gains. **Strongly prefers an IRA.** Commissions are ~$0 now, but bid-ask spread argues for liquid names and limit orders.
+3. **Tracking error + boredom:** months of mechanical rebalancing into stocks with no story, sometimes trailing the index — the abandonment risk from 5.1 applies double here because it's more work.
+4. **Tinkering temptation:** overriding the rank ("I don't like this one") reintroduces the exact behavioral biases the system exists to remove. The rank makes the call, or the strategy isn't being run at all.
+
+#### Variations (for Phase 6 — pick and freeze)
+
+- **Lookback:** 12-1 canonical; 6-1 faster/turnovers-more; blends smooth luck.
+- **Universe:** S&P 500 (simplest data, weakest effect) vs. S&P 400 mid-caps (stronger effect, still liquid) vs. broader.
+- **Quality overlay:** "frog-in-the-pan" research (Da, Gurun & Warachka 2014): *gradual* steady climbs outperform jumpy, news-spike momentum — a filter favoring smooth gainers over one-gap wonders improves results. Also a natural LLM/Analyzer angle: distinguish "up 60% on steady execution" from "up 60% on one meme spike."
+- **Weighting:** equal-weight (canonical) vs. signal-weighted.
+- **Crash guard:** market 200-day MA gate vs. volatility scaling vs. none.
 
 ## Phase 6 — Implementation Documentation (pending)
 
