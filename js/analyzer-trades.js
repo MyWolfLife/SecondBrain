@@ -104,7 +104,7 @@ async function _atSpyReturn(fromDate, toDate) {
 // ---------------------------------------------------------------------------
 
 async function loadAnalyzerTradesPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Trades' }]);
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift', href: '#analyzer/dipdrift' }, { label: 'Trades' }]);
     var page = document.getElementById('page-analyzer-trades');
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Loading trades…</p>';

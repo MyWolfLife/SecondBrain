@@ -211,7 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
+    'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
     'help'
 ];
@@ -254,7 +254,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
-                     'analyzer', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
+                     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
@@ -912,6 +912,12 @@ function handleRoute() {
     } else if (page === 'analyzer' && id === 'dossier' && parts[2] && parts[3] && parts[4]) {
         showPage('analyzer-dossier');
         loadAnalyzerDossierPage(parts[2], decodeURIComponent(parts[3]), parts[4]);
+    } else if (page === 'analyzer' && id === 'dipdrift') {
+        showPage('analyzer-dipdrift');
+        loadAnalyzerDipDriftPage();
+    } else if (page === 'analyzer' && id === 'dualmomentum') {
+        showPage('analyzer-dualmomentum');
+        loadAnalyzerDualMomentumPage();
     } else if (page === 'analyzer' && id === 'universe') {
         showPage('analyzer-universe');
         loadAnalyzerUniversePage();

@@ -29,8 +29,32 @@ function _analyzerBreadcrumb(trail) {
 }
 
 // ---------------------------------------------------------------------------
-// Hub page (#analyzer)
+// Hub page (#analyzer) — strategy hub (TradingStrategiesPlan.md Phase 7)
 // ---------------------------------------------------------------------------
+// One card per trading strategy. Dip & Drift is the original Analyzer
+// (Scan/Backtest/Scoreboard/Trades — detectors A–D), now a sub-hub. The
+// other strategies are built one at a time; unbuilt ones show as previews.
+// ---------------------------------------------------------------------------
+
+function _anaStrategyCard(href, icon, title, desc) {
+    if (!href) {
+        return '<div class="invest-hub-card ana-strategy-soon">' +
+            '<span class="invest-hub-icon">' + icon + '</span>' +
+            '<div class="invest-hub-text">' +
+                '<div class="invest-hub-title">' + title + ' <span class="ana-soon-badge">coming soon</span></div>' +
+                '<div class="invest-hub-desc">' + desc + '</div>' +
+            '</div>' +
+        '</div>';
+    }
+    return '<a class="invest-hub-card" href="' + href + '">' +
+        '<span class="invest-hub-icon">' + icon + '</span>' +
+        '<div class="invest-hub-text">' +
+            '<div class="invest-hub-title">' + title + '</div>' +
+            '<div class="invest-hub-desc">' + desc + '</div>' +
+        '</div>' +
+        '<span class="invest-hub-arrow">›</span>' +
+    '</a>';
+}
 
 function loadAnalyzerPage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer' }]);
@@ -41,6 +65,40 @@ function loadAnalyzerPage() {
     page.innerHTML =
         '<div class="page-header">' +
             '<h2>🎯 Stock Analyzer</h2>' +
+        '</div>' +
+        '<p class="muted-text" style="max-width:560px">' +
+            'Six trading strategies, each with its own tool. Every tool surfaces signals and ' +
+            'evidence — the trade decision is always yours. Full write-ups in TradingStrategiesPlan.md.' +
+        '</p>' +
+        '<div class="invest-hub">' +
+            _anaStrategyCard('#analyzer/dipdrift', '📉', 'Dip &amp; Drift',
+                'Short-term setups — overreaction dips, post-earnings drift, revision momentum, coiled springs') +
+            _anaStrategyCard('#analyzer/dualmomentum', '🌍', 'Dual Momentum',
+                'Monthly rotation between US stocks, international stocks, and cash — one check, one verdict') +
+            _anaStrategyCard(null, '🚀', 'Stock Momentum',
+                'Own the top 20–30 stocks by 12-month momentum, re-ranked monthly') +
+            _anaStrategyCard(null, '💎', 'Quality-Value',
+                'Good businesses at cheap prices — annual Magic-Formula screen with AI value-trap checks') +
+            _anaStrategyCard(null, '📈', 'Earnings Drift (PEAD)',
+                'Ride the 30–60 day drift after real earnings surprises — AI reads the call transcript') +
+            _anaStrategyCard(null, '📰', 'News Sentiment',
+                'Morning AI sweep of watchlist news — scored, logged, and graded before it is trusted') +
+        '</div>';
+}
+
+// ---------------------------------------------------------------------------
+// Dip & Drift sub-hub (#analyzer/dipdrift) — the original Analyzer screens
+// ---------------------------------------------------------------------------
+
+function loadAnalyzerDipDriftPage() {
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift' }]);
+
+    var page = document.getElementById('page-analyzer-dipdrift');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header">' +
+            '<h2>📉 Dip &amp; Drift</h2>' +
         '</div>' +
         '<p class="muted-text" style="max-width:560px">' +
             'Finds short-term trade setups — quality companies knocked down by emotion, ' +
@@ -376,7 +434,7 @@ async function _anaLoadHoldingTickers() {
 }
 
 async function loadAnalyzerUniversePage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Universe' }]);
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift', href: '#analyzer/dipdrift' }, { label: 'Universe' }]);
 
     var page = document.getElementById('page-analyzer-universe');
     if (!page) return;

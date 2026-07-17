@@ -24,7 +24,7 @@ var _abSavedRuns = null;   // cached list of saved run docs
 // ---------------------------------------------------------------------------
 
 function loadAnalyzerBacktestPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Backtest Lab' }]);
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift', href: '#analyzer/dipdrift' }, { label: 'Backtest Lab' }]);
     var page = document.getElementById('page-analyzer-backtest');
     if (!page) return;
 

@@ -51,7 +51,7 @@ function _asScanAllowedNow() {
 }
 
 async function loadAnalyzerScanPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scan' }]);
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift', href: '#analyzer/dipdrift' }, { label: 'Scan' }]);
     var page = document.getElementById('page-analyzer-scan');
     if (!page) return;
 
@@ -1189,7 +1189,7 @@ async function loadAnalyzerDossierPage(scanId, ticker, detector) {
     // page, same evidence, but no candidate record behind it (read-only mode).
     var fromScan = scanId && scanId !== 'none';
     _analyzerBreadcrumb(fromScan ? [
-        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Dip & Drift', href: '#analyzer/dipdrift' },
         { label: 'Scan', href: '#analyzer/scan' },
         { label: ticker }
     ] : [

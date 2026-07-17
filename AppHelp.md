@@ -2295,7 +2295,22 @@ Fill in the **🎫 Trade ticket** at the bottom of the dossier — the real pric
 
 ### What this is for
 
-The Stock Analyzer is a **weekly evidence-gathering machine for short-term stock trades**. Every Friday you press two buttons and, a few minutes later, it hands you a short list of stocks that just got knocked down (or are quietly coiling, or just beat earnings), each one carrying a stack of evidence: this stock's own history of recovering from drops like this, whether the company is financially healthy, whether insiders are buying, whether earnings are looming — and the headline metric, whether analysts still believe in the company even though the price fell (the "emotional vs. structural" read that was the whole point of the 2023 Target trade). It never tells you to buy anything. It assembles the case; you make the call.
+The Stock Analyzer is now a **hub of six trading strategies**, each with its own tool. Every tool does the same fundamental job: it surfaces signals and stacks up evidence — and **you** make every trade decision. No tool here ever buys or sells anything.
+
+### Quick Help
+- **📉 Dip & Drift** — the original Analyzer: weekly scans for short-term setups (overreaction dips, post-earnings drift, revision momentum, coiled springs). Opens a sub-screen with Scan, Backtest Lab, Trades, Scoreboard, Universe, and the price-data cache
+- **🌍 Dual Momentum** — a monthly rotation signal: hold US stocks, international stocks, or cash based on 12-month momentum. One check a month, one verdict
+- **🚀 Stock Momentum, 💎 Quality-Value, 📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
+- The strategies are documented in depth (what they are, the evidence, when they fail) in `TradingStrategiesPlan.md`
+- The **📊 Price data** section (cache status + Update button) moved to the **Dip & Drift** sub-screen
+
+---
+
+## screen:analyzer-dipdrift
+
+### What this is for
+
+Dip & Drift is a **weekly evidence-gathering machine for short-term stock trades**. Every Friday you press two buttons and, a few minutes later, it hands you a short list of stocks that just got knocked down (or are quietly coiling, or just beat earnings), each one carrying a stack of evidence: this stock's own history of recovering from drops like this, whether the company is financially healthy, whether insiders are buying, whether earnings are looming — and the headline metric, whether analysts still believe in the company even though the price fell (the "emotional vs. structural" read that was the whole point of the 2023 Target trade). It never tells you to buy anything. It assembles the case; you make the call.
 
 The goal isn't to get rich or to trade constantly — it's to **systematically find the setup you got right with Target, again and again, with the evidence laid out so you're deciding with facts instead of gut**. And it keeps score: it tracks every stock it showed you, grades what actually happened 30 and 60 days later, and specifically measures whether the ones you chose to ignore did worse than the ones you kept — so over time it's not just finding trades, it's telling you whether your own judgment is any good. That feedback loop is the real product.
 
@@ -2303,7 +2318,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 
 ### Quick Help
 - 📚 **New here?** [Open the Training guide](#help/analyzer-training) — the whole system explained step by step
-- The **Stock Analyzer** (🎯 on the Financial hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
+- **Dip & Drift** (📉 on the Stock Analyzer hub) helps find **short-term trade setups** — stocks with a shot at a meaningful gain (e.g., +10%) inside a defined window (e.g., 60 days)
 - It assembles evidence — price drops, quality checks, historical odds, catalysts — but **never tells you what to buy or sell**; every decision is yours
 - Five sections: **Backtest Lab** (test the detection rules against history), **Scan** (run the detectors on the watched universe), **Trades** (positions you took, tracked against your exits), **Scoreboard** (past scans graded against what actually happened), and **Universe** (manage which tickers are watched)
 - **📊 Price data** (bottom of the hub): shows what's cached on this device and the **Update price data** button — tap it to fetch/refresh 5 years of daily history for every watched ticker
@@ -2323,6 +2338,24 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 **Stock splits are handled automatically**: Price providers rescale a stock's entire history when it splits, which could clash with the older history already cached on your device and fake a giant one-day "drop." The updater checks for this on every refresh — if a stock's history no longer lines up with the cache (you might see **(rebased)** flash in the progress line), it quietly throws away the stale copy and re-downloads the full 5 years so everything stays on one consistent price scale. Nothing for you to do.
 
 **Build status**: Phases 1, 2, and 3 are all fully live. Phase 1 built the core — navigation, Universe manager, price data cache, detector engine, Backtest Lab, live Scan, candidate dossier, trade tickets, and the Scoreboard. Phase 2 added the Finnhub enrichment — quality + insider chips with a falling-knife flag on dips, post-earnings drift (Detector B), whole-market earnings chips with a ±typical-move risk gauge, and a dossier news feed with an optional AI emotional-vs-structural read. Phase 3 (paid FMP) added much faster parallel price updates, the flagship price-vs-estimate **divergence** metric, **revision momentum** (Detector C), market-wide **Discover** screening, and a final consolidation pass — one documented earnings/insider provider order (Finnhub first, FMP fallback), quota guardrails that back off cleanly on a limited FMP plan, and a provider-health line on the hub. See `StockAnalyzerPlan.md` for the full design.
+
+---
+
+## screen:analyzer-dualmomentum
+
+### What this is for
+
+Dual Momentum is a **once-a-month rotation strategy**: hold whichever is stronger — US stocks (SPY) or international stocks (VEU) — and step aside to cash (BIL) when neither is beating T-bills. Its edge isn't beating the market in good years; it's **sidestepping the long, grinding bear markets** (2000–02, 2008) and compounding from a higher base afterward. The full teaching write-up, evidence, and frozen rules live in `TradingStrategiesPlan.md` (sections 5.1, 6.1, 7.1).
+
+### Quick Help
+- The **verdict card** shows the current signal — HOLD US STOCKS, HOLD INTERNATIONAL, or HOLD CASH — with the three trailing 12-month total returns behind it
+- The signal is computed at each **month close** and logged automatically the first time you visit in the new month — so just **check on the 1st** (use 🗓️ **Add monthly reminder** to put a recurring event on your calendar)
+- You only ever act when the 🔔 **signal changed** banner appears — historically 1–3 times a year. No banner = do nothing
+- The mid-month **preview** line (if shown) is what today's prices would say — it swings with the market and is **not** the signal; only the month close counts
+- **Signal history** is this strategy's scoreboard: every month's verdict, plus how the signaled asset did the following month vs SPY (✅/❌). Over time it becomes the live track record that shows whether the strategy earns its keep
+- 📖 **How this works** (bottom) explains the rules and — critically — when the strategy *looks* broken but isn't: lagging the S&P in bull years and getting whipsawed in fast V-shaped crashes are **normal and expected**. Quitting during those stretches is the #1 way people lose with this strategy
+- Prices come fresh from Yahoo (dividend-adjusted, so BIL's interest counts) — ↻ **Refresh prices** refetches if something looks stale
+- Tax note: switches realize gains, so this strategy strongly prefers a **retirement account (IRA)**
 
 ---
 

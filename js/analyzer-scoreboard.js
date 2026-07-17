@@ -108,7 +108,7 @@ async function _asbDeleteScan(scanId, dateLabel) {
 }
 
 async function loadAnalyzerScoreboardPage() {
-    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scoreboard' }]);
+    _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Dip & Drift', href: '#analyzer/dipdrift' }, { label: 'Scoreboard' }]);
     var page = document.getElementById('page-analyzer-scoreboard');
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Grading past scans…</p>';

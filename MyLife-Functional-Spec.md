@@ -2050,7 +2050,11 @@ A per-budget list of non-monthly expenses (annual, quarterly, etc.). Each item h
 
 ## Part 8f: Stock Analyzer
 
-Short-term trade candidate finder under Life → Financial. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision. Plan document: `StockAnalyzerPlan.md` (full design, methodology, and staged implementation plan).
+**Strategy hub** under Life → Financial (restructured 2026-07-17 per `TradingStrategiesPlan.md`). The `#analyzer` page is now a hub of **six trading strategies**, each with (or planned to have) its own tool: **Dip & Drift** (the original short-term candidate finder — everything below under "Dip & Drift screens"), **Dual Momentum** (built — see its section), and four coming-soon cards (Stock Momentum, Quality-Value, Earnings Drift/PEAD, News Sentiment). Every tool surfaces signals and evidence; the user makes every trade decision. Plan documents: `StockAnalyzerPlan.md` (Dip & Drift design) and `TradingStrategiesPlan.md` (the five new strategies: teaching, rulebooks, feature specs).
+
+### Dip & Drift (the original Analyzer)
+
+Short-term trade candidate finder. Helps the user identify setups where a meaningful gain (e.g., +10%) within a defined window (e.g., 60 days) has historically been favored — the tool assembles evidence, the user makes every decision.
 
 **Build status**: ✅ **Phase 1 COMPLETE — all 9 stages built** (scaffolding, universe manager, IndexedDB price cache, detector engine, Backtest Lab, live scanner, candidate dossier, trade tickets, scoreboard/tracking loop). ✅ **Phase 2 COMPLETE — all 5 stages** (Finnhub data layer; quality + insider chips + falling-knife flag; Detector B post-earnings drift; all-symbol earnings catalyst map with ±event-move sizing; dossier news feed + optional AI emotional-vs-structural read). ✅ **Phase 3 COMPLETE — all 6 stages** (FMP Starter: tier map; FMP preferred price provider with parallel updates; weekly estimate snapshots → flagship divergence chip; Detector C estimate-revision momentum; Discover-mode screener for a market-wide universe; Stage 3.5 consolidation — unified earnings/insider providers with documented Finnhub-primary/FMP-fallback ordering, FMP session quota guardrails + plan-limited back-off, "not in your plan" 402 messaging, and a hub provider-health line). See `StockAnalyzerPlan.md` for the full staged design.
 
@@ -2059,7 +2063,9 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 
 | Route | Page | Status |
 |-------|------|--------|
-| `#analyzer` | Hub — nav cards for Backtest Lab, Scan, Universe | ✅ Built (Stage 1) |
+| `#analyzer` | **Strategy hub** — 6 strategy cards (Dip & Drift, Dual Momentum, 4 coming-soon) | ✅ Built (2026-07-17) |
+| `#analyzer/dipdrift` | **Dip & Drift sub-hub** — nav cards for Backtest Lab, Scan, Trades, Scoreboard, Universe + the 📊 Price data section | ✅ Built (2026-07-17) |
+| `#analyzer/dualmomentum` | **Dual Momentum** — monthly GEM rotation signal (see section below) | ✅ Built (2026-07-17) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
@@ -2067,7 +2073,15 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/trades` | Trades — open positions tracked against exits + closed-trade record | ✅ Built (Stage 8) |
 | `#analyzer/scoreboard` | Scoreboard — past scans auto-graded at 30/60 trading days vs SPY, kept vs dismissed | ✅ Built (Stage 9) |
 
-**Module**: `js/analyzer.js`. Placeholder pages render a "Coming soon" card with the stage number. Breadcrumbs: Life › Financial › Stock Analyzer › {page}.
+**Module**: `js/analyzer.js`. Breadcrumbs: Life › Financial › Stock Analyzer › Dip & Drift › {page} for the original screens; Life › Financial › Stock Analyzer › Dual Momentum for the new strategy. The 📊 Price data section (cache status, Update button, provider health) lives on the **Dip & Drift sub-hub**, not the strategy hub.
+
+### Dual Momentum (`#analyzer/dualmomentum`) — module `js/analyzer-dualmomentum.js`
+
+Monthly GEM rotation signal per `TradingStrategiesPlan.md` §6.1/§7.1 (frozen rules: 12-month total return of SPY vs VEU vs BIL at each month close; SPY ≤ BIL → hold cash/BIL, else hold the stronger of SPY/VEU).
+
+- **Data**: fetches its own **dividend-adjusted** (`adjclose`) 2-year daily series from Yahoo for the 3 tickers (worker → proxy chain, same as analyzer-data.js), reduced to month-end values, day-cached in localStorage (`dmPriceCache_v1`). The shared Analyzer price cache is NOT used — it stores closes without dividends, which would break total-return math (BIL's entire return is dividends).
+- **Signal**: computed for the most recent **completed** month on any visit; logged idempotently to Firestore `dmSignals` (doc id = `YYYY-MM`; fields: month, signalDate, retSpy, retVeu, retBil, verdict `SPY|VEU|CASH`, prevVerdict, changed, createdAt). In backup collection list.
+- **UI**: verdict card (big verdict + 3 return bars + next-check note) · 🔔 signal-change banner when the verdict differs from last month (the only time the user acts) · mid-month **preview** line if today's prices would flip the verdict (informational, never logged) · **signal history table** with each month's returns, verdict, and a next-month grade (verdict asset's return vs SPY ✅/❌) · **🗓️ Add monthly reminder** button (creates a recurring-monthly `calendarEvents` doc on the 1st, skips if one already exists) · ↻ Refresh prices · collapsible 📖 teach panel (rules, why it works, "working as designed vs broken", IRA note).
 
 **Help**: every analyzer screen has its own `## screen:analyzer*` section in AppHelp.md, plus a **📚 Training guide** (`## screen:analyzer-training`, reachable at `#help/analyzer-training`) — a plain-language walkthrough of the whole system (setup, weekly routine, reading cards, dossier, tickets, scoreboard, golden rules). Every analyzer help section's first Quick Help bullet links to it, and it's listed in the Help Topics menu under Life ("🎯 Stock Analyzer" and "📚 Stock Analyzer — Training").
 

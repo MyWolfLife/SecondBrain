@@ -413,7 +413,8 @@ Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest stra
 - `#analyzer` hub page → 6 strategy cards. Existing routes (`#analyzer/scan`, `#analyzer/backtest`, `#analyzer/scoreboard`, `#analyzer/trades`, …) stay **unchanged** — only the hub pages restructure, so nothing breaks and no bookmarks die.
 - Card 1 → new sub-hub screen listing the existing Analyzer cards (Scan, Backtest Lab, Scoreboard, Trades, Discover, etc.).
 - Cards 2–6 → one screen per new strategy, built one at a time. Unbuilt strategies show a "coming soon" card so the hub reflects the full roadmap from day one.
-- **Name proposal for the existing strategy:** **"Dip & Drift"** — it buys overreaction dips (Detector A), post-earnings drift (B), revision momentum (C), and coiled springs (D); "Dip & Drift" covers its two signature plays and is memorable. Alternatives considered: "Overreaction Scanner", "Short-Term Setups". *(Awaiting user approval.)*
+- **Name for the existing strategy:** **"Dip & Drift"** — approved by user 2026-07-17. It buys overreaction dips (Detector A), post-earnings drift (B), revision momentum (C), and coiled springs (D).
+- **BUILT 2026-07-17:** hub restructure + Dip & Drift sub-hub (`#analyzer/dipdrift`) + the Dual Momentum tool (`#analyzer/dualmomentum`, module `js/analyzer-dualmomentum.js`, Firestore `dmSignals`). Risk-off asset confirmed by user: **cash/BIL**. First live signal logged (2026-06: VEU). Verified in preview.
 
 ### Shared infrastructure (what every strategy reuses)
 | Layer | File | Reused by |
@@ -428,7 +429,7 @@ Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest stra
 
 ---
 
-### 6.1 Dual Momentum — Rulebook (proposed freeze)
+### 6.1 Dual Momentum — Rulebook (FROZEN 2026-07-17; ✅ BUILT as #analyzer/dualmomentum)
 
 | Decision | Frozen choice | Rationale |
 |----------|--------------|-----------|
