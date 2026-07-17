@@ -361,6 +361,17 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-17 — Phase-6 readiness aids (follow-up, not Phase 6 itself).** Three Scoreboard/
+  Scan tweaks to support the eventual calibration build: (1) **Scan page** — the ▶ Run scan
+  button is hidden Mon 07:00 → Fri 17:00 local (`_asScanAllowedNow`), shown only Fri 5pm →
+  Mon 7am, forcing the weekly after-close cadence the tracking loop assumes (UI nudge, not a
+  hard lock). (2) **Scoreboard** — a top calibration-progress banner (`_asbCalibrationBanner`)
+  shows "{scans} run · {graded} of 30 graded candidates toward calibration", green when ≥30.
+  (3) **Scoreboard** — a **📋 Calibration prompt** button (`_asbCopyCalibrationPrompt`) copies
+  the verbatim Phase-6 build prompt (`AS_CALIBRATION_PROMPT` in analyzer-scoreboard.js) to the
+  clipboard, so the user doesn't have to remember the wording months out. When building Phase
+  6, that constant is the canonical prompt. Bumps: analyzer-scan.js v22, analyzer-scoreboard.js
+  v6, styles.css v776, sw v486.
 - **2026-07-17 — ✅ Phase 5 COMPLETE → RANKING FEATURE COMPLETE (regression + close-out).**
   No new code — a full regression pass over the sandbox plus the doc/index close-out.
   - **Verified (preview, test account, scan v21 / engine v7 / css v774):**

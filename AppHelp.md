@@ -2381,6 +2381,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Scan** page is the "Friday morning" view — tap **▶ Run scan** to hunt the whole universe for active setups (takes a couple of seconds; uses cached price data)
+- The **Run scan** button only appears **after the market closes for the week** — from **Friday 5 pm to Monday 7 am**. During the trading week it's hidden (with a 🔒 note) so you always scan on the same weekly rhythm the tracking Scoreboard expects
 - The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
 - The scan hunts four kinds of setup: **📉 Panic dip** (a quality stock that fell hard and fast), **🌀 Compressed spring** (a stock coiled quietly near its highs), **🚀 Post-earnings drift** (a company that beat earnings and jumped — winners like that tend to keep drifting up for weeks), and **📈 Revision momentum** (analysts quietly raising their earnings estimates faster than the price is rising)
@@ -2486,6 +2487,8 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Scoreboard** grades every saved scan against what actually happened — each candidate's return at **30 and 60 trading days**, whether it hit +10%, and what SPY did over the same dates
+- The **banner at the top** tracks your progress toward calibration: how many scans you've run and how many **graded candidates** you have of the **30** needed before the scoring weights can be checked against real outcomes (candidates grade once they're 60 trading days old)
+- When you're ready, tap **📋 Calibration prompt** to copy a ready-made instruction into your clipboard — paste it into a new Claude Code session and it'll build the calibration report
 - Scans younger than 60 trading days show **pending** — grades fill in automatically as time passes (keep price data updated)
 - **Kept vs Dismissed** is the point: it measures whether the candidates you dismissed really were worse than the ones you kept — the verdict line tells you if your judgment is adding value
 - The **Your real trades** card summarizes your closed positions (win rate, avg return vs SPY, thesis-right tally) with a link to the Trades page

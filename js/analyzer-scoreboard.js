@@ -16,6 +16,79 @@
 var ASB_HORIZONS = [30, 60];   // trading-day checkpoints
 var ASB_MAX_SCANS = 25;
 
+// Calibration (ranking plan Phase 6) needs this many GRADED (non-pending,
+// 60-trading-day-complete) candidates before the diagnostic is worth building.
+var ASB_CALIBRATION_TARGET = 30;
+
+// The exact prompt to paste into a fresh Claude Code session when it's time to
+// build Phase 6. Kept verbatim here so the "Calibration prompt" button can copy
+// it to the clipboard — the user won't have to remember the wording months out.
+var AS_CALIBRATION_PROMPT =
+'Work on the Stock Analyzer ranking feature. Read StockAnalysisRankingPlan.md — ' +
+'I want to build Phase 6 (the calibration diagnostic), the last remaining phase.\n\n' +
+'It is gated on having 30+ graded (non-pending, 60-trading-day-complete) candidates ' +
+'on the Scoreboard, so first check whether that bar is met (log into the test account ' +
+'per CLAUDE.md\'s Preview Verification rule, load the Scoreboard, count the non-pending ' +
+'candidates). If we are not there yet, tell me how many we have and stop. If we are, ' +
+'build Phase 6 per the plan\'s "Future: calibration phase" section and Execution Plan: ' +
+'a read-only report on the Scoreboard page with (1) a grade-vs-outcome bucket table and ' +
+'(2) a per-metric correlation table, no automatic weight changes. Follow the plan\'s ' +
+'build/verify/commit conventions.';
+
+// Top-of-page calibration progress banner + the copy-prompt button. Shown on
+// every Scoreboard render (including the empty state) so the user always sees
+// how close they are to being able to calibrate.
+function _asbCalibrationBanner(gradedCount, totalScans, capped) {
+    var target    = ASB_CALIBRATION_TARGET;
+    var remaining = Math.max(0, target - gradedCount);
+    var ready     = gradedCount >= target;
+    // "25+" when the true total is unknown and we're at the display cap.
+    var scanLabel = totalScans + (capped ? '+' : '');
+    var msg = ready
+        ? '✅ <strong>' + gradedCount + '</strong> graded candidates — enough to calibrate! Tap <strong>Calibration prompt</strong> to copy the instructions for a new Claude Code session.'
+        : '📊 <strong>' + scanLabel + '</strong> scan' + (totalScans === 1 && !capped ? '' : 's') + ' run · <strong>' +
+          gradedCount + ' of ' + target + '</strong> graded candidates toward calibration (' + remaining +
+          ' to go). Candidates grade once they are 60 trading days old.';
+    return '<div class="asb-calib-banner' + (ready ? ' asb-calib-ready' : '') + '">' +
+        '<span>' + msg + '</span>' +
+        '<button class="ana-sp-btn" onclick="_asbCopyCalibrationPrompt(this)">📋 Calibration prompt</button>' +
+    '</div>';
+}
+
+// Copies the calibration prompt to the clipboard; brief inline confirmation.
+// Uses the async Clipboard API when available, else a legacy textarea +
+// execCommand fallback. Never alert()s (a blocking dialog is bad UX and can
+// hang) — a failure just flips the button to a brief error label.
+function _asbCopyCalibrationPrompt(btn) {
+    var orig = btn.textContent;
+    var flash = function(text) {
+        btn.textContent = text;
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+    };
+    var legacyCopy = function() {
+        try {
+            var ta = document.createElement('textarea');
+            ta.value = AS_CALIBRATION_PROMPT;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            flash(ok ? '✓ Copied!' : '⚠️ Copy failed');
+        } catch (e) {
+            flash('⚠️ Copy failed');
+        }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(AS_CALIBRATION_PROMPT)
+            .then(function() { flash('✓ Copied!'); })
+            .catch(legacyCopy);
+    } else {
+        legacyCopy();
+    }
+}
+
 // Short detector label for the per-scan table (detector-agnostic).
 var ASB_DET_SHORT = { dipA: 'Dip', springD: 'Spring', driftB: 'Drift', revC: 'Revision' };
 function _asbDetShort(det) { return ASB_DET_SHORT[det] || det; }
@@ -40,12 +113,22 @@ async function loadAnalyzerScoreboardPage() {
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Grading past scans…</p>';
 
-    var scans, trades;
+    var scans, trades, totalScans, capped = false;
     try {
         var snap = await userCol('analyzerScans').orderBy('createdAt', 'desc').limit(ASB_MAX_SCANS).get();
         scans = [];
         snap.forEach(function(d) { scans.push(Object.assign({ id: d.id }, d.data())); });
         trades = (typeof _atLoadTrades === 'function') ? await _atLoadTrades() : [];
+        // True total scan count (may exceed the ASB_MAX_SCANS we grade/display),
+        // via the count aggregation when available; else the loaded length, which
+        // caps at ASB_MAX_SCANS — flag that so the banner can show "25+".
+        totalScans = scans.length;
+        try {
+            var cs = await userCol('analyzerScans').count().get();
+            totalScans = cs.data().count;
+        } catch (eCount) {
+            if (scans.length >= ASB_MAX_SCANS) capped = true;
+        }
     } catch (e) {
         page.innerHTML = '<p class="muted-text" style="padding:16px">Could not load: ' + escapeHtml(e.message) + '</p>';
         return;
@@ -53,6 +136,7 @@ async function loadAnalyzerScoreboardPage() {
 
     if (!scans.length) {
         page.innerHTML = '<div class="page-header"><h2>🏁 Scoreboard</h2></div>' +
+            _asbCalibrationBanner(0, 0, false) +
             '<p class="muted-text">No scans saved yet — run one on the Scan page. Once a scan is 30+ trading days old, its candidates get graded here automatically.</p>';
         return;
     }
@@ -62,7 +146,7 @@ async function loadAnalyzerScoreboardPage() {
     for (var i = 0; i < scans.length; i++) {
         graded.push(await _asbGradeScan(scans[i], spy));
     }
-    _asbRender(page, graded, trades);
+    _asbRender(page, graded, trades, totalScans, capped);
 }
 
 // ---------------------------------------------------------------------------
@@ -127,14 +211,16 @@ function _asbAvg(rows, fn) {
 // Rendering
 // ---------------------------------------------------------------------------
 
-function _asbRender(page, graded, trades) {
+function _asbRender(page, graded, trades, totalScans, capped) {
     var allRows  = [];
     graded.forEach(function(g) { allRows = allRows.concat(g.rows); });
     var complete = allRows.filter(function(r) { return !r.pending; });
     var kept     = complete.filter(function(r) { return !r.dismissed; });
     var dism     = complete.filter(function(r) { return r.dismissed; });
+    if (totalScans == null) totalScans = graded.length;
 
     var html = '<div class="page-header"><h2>🏁 Scoreboard</h2></div>' +
+        _asbCalibrationBanner(complete.length, totalScans, capped) +
         '<p class="muted-text" style="max-width:620px">Every saved scan, graded against what actually happened — entry at the next day\'s open, ' +
             'checked at 30 and 60 trading days. Kept vs dismissed shows whether your judgment beats the raw detectors.</p>';
 

@@ -6188,6 +6188,24 @@ a.ar-target-link:hover {
 .asb-scan-acc .detail-acc-count  { flex: 1 1 auto; min-width: 0; }
 .asb-scan-acc .detail-acc-actions { flex-shrink: 0; }
 
+/* Scoreboard calibration-progress banner */
+.asb-calib-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    margin: 0 0 14px;
+    background: #f0f4ff;
+    border: 1px solid #cdd8f5;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+.asb-calib-ready { background: #eaf7ec; border-color: #86c98f; }
+.asb-calib-banner > span { flex: 1 1 240px; min-width: 0; }
+.asb-calib-banner button { flex-shrink: 0; }
+
 /* Toolbar on the main journal page */
 .journal-toolbar {
     display: flex;

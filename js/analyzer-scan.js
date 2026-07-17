@@ -35,15 +35,34 @@ var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compress
 // Page
 // ---------------------------------------------------------------------------
 
+// The Run-scan button is only shown outside market week — Friday 5pm through
+// Monday 7am (local time). During the trading week (Mon 07:00 → Fri 17:00) it's
+// hidden so scans only happen after the market closes for the week, keeping the
+// tracking cadence weekly (rationale in StockAnalysisRankingPlan.md). This is a
+// self-discipline nudge, not a hard lock.
+function _asScanAllowedNow() {
+    var now  = new Date();
+    var day  = now.getDay();    // 0 Sun … 6 Sat
+    var hour = now.getHours();
+    if (day === 0 || day === 6) return true;   // Sun / Sat — always allowed
+    if (day === 1) return hour < 7;            // Mon before 7am (weekend tail)
+    if (day === 5) return hour >= 17;          // Fri 5pm onward
+    return false;                              // Tue–Thu — hidden all day
+}
+
 async function loadAnalyzerScanPage() {
     _analyzerBreadcrumb([{ label: 'Stock Analyzer', href: '#analyzer' }, { label: 'Scan' }]);
     var page = document.getElementById('page-analyzer-scan');
     if (!page) return;
 
+    var runControl = _asScanAllowedNow()
+        ? '<button class="btn-primary" id="asRunBtn" onclick="_asRunScan()">▶ Run scan</button>'
+        : '<span class="ab-dim">🔒 The weekly scan unlocks after the market closes — run it any time from <strong>Friday&nbsp;5&nbsp;pm</strong> to <strong>Monday&nbsp;7&nbsp;am</strong>.</span>';
+
     page.innerHTML =
         '<div class="page-header"><h2>📡 Scan</h2></div>' +
         '<div class="ab-form-row">' +
-            '<button class="btn-primary" id="asRunBtn" onclick="_asRunScan()">▶ Run scan</button>' +
+            runControl +
             '<span class="ab-dim" id="asCacheNote"></span>' +
         '</div>' +
         '<div id="asProgress"></div>' +
