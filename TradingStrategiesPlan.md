@@ -151,6 +151,16 @@ That is the entire strategy. No intraday decisions, no stock picking, no discret
 - **2020 COVID (the bad case):** Feb–Mar crash was so fast the end-of-Feb check was still risk-on. End-of-March check: risk-off → bonds, near the bottom. Market V-recovered; signal re-entered months later, well above its exit. Cost: roughly 10+ points vs. buy-and-hold that year. This is the honest worst case and it will happen again.
 - **2022 (the good case):** signal went risk-off in **early 2022** after January's decline tipped the 12-month return negative vs. T-bills. Sat out most of a grinding -25% year, re-entered in early 2023. Bonds also fell in 2022 (unusual), muting the win — a cash/BIL fallback did better than AGG that year, which is why the fallback asset choice is a Phase 6 decision.
 
+#### Discussion Q&A (from teaching sessions)
+
+**Q: Why not just stay in the S&P and ride out crashes? Or hold 60/40 forever?** (asked 2026-07-17)
+
+**A — the loss-asymmetry arithmetic:** -50% needs +100% to recover; -20% only needs +25%. Worked example, $100k at the Oct 2007 peak: buy-and-hold fell to ~$43k and the subsequent market *double* only got it back to ~$100k by early 2013. GEM exited Jan 2008 at ~$88k, sat in bonds (~$92k by mid-2009), re-entered ~30% above the bottom, and rode the same rally to ~$152k by the day buy-and-hold broke even. It never beat the market in any single year — the entire win was the higher base it compounded from after the crash. The strategy's value only shows across a full cycle containing a real bear.
+
+**Where buy-and-hold genuinely wins:** long horizon + ongoing contributions (crashes become discounted buying), and iron discipline (if you'd truly hold through -50%). Two honest counters: (a) the behavior gap — most people don't actually hold through -50%, and dual momentum doubles as a pre-commitment device that takes panic out of the loop; (b) sequence-of-returns risk — the 2000 peak took ~13 years to durably recover; tolerable at age 30, dangerous within 10–15 years of spending the money.
+
+**vs. 60/40:** same goal, opposite payment plan. 60/40 pays for crash protection *every year* (~1.5%/yr return drag — the difference between ~$2.0M and ~$1.3M on $100k over 30 years) and its protection assumes bonds rise when stocks fall — an assumption that failed in 2022 (-17%, one of 60/40's worst years, while trend-following sidestepped it). Dual momentum holds ~100% equities in trending markets and pays for protection only in whipsaw years. Bottom line: in a future of only V-shaped crashes, buy-and-hold wins; in a future containing even one grinding 2000/2008-style bear (historically ~one per decade), dual momentum likely comes out ahead; 60/40 lands in between in both worlds.
+
 #### Variations (for Phase 6 discussion — pick one and freeze it)
 
 - **Lookback:** 12-month is canonical; blends (e.g., average of 3/6/12-month) reduce signal-date luck and whipsaw slightly.
