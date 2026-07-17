@@ -21,7 +21,7 @@ Investigate trading/investing strategies with **credible statistical evidence of
 | 2 | Select top 3–5 candidates | ✅ COMPLETE (5 selected) |
 | 3 | One-paragraph descriptions, ranked 1–5 | ✅ COMPLETE (below) |
 | 4 | User removes 2 (any reason — preference counts) | ✅ DECIDED — user kept all 5 |
-| 5 | Deep teaching of all 5 strategies (one section per strategy, built out as we discuss) | 🔄 IN PROGRESS (1 of 5 taught) |
+| 5 | Deep teaching of all 5 strategies (one section per strategy, built out as we discuss) | ✅ COMPLETE (all 5 taught) |
 | 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | Pending |
 | 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | Pending |
 
@@ -101,7 +101,9 @@ One major section per strategy, built out as we discuss. Teaching order = rankin
 | 2. Cross-Sectional Stock Momentum | ✅ Taught (section below) |
 | 3. Quality-Value Composite | ✅ Taught (section below) |
 | 4. PEAD + LLM Earnings Analysis | ✅ Taught (section below) |
-| 5. LLM News-Sentiment Trading | Pending |
+| 5. LLM News-Sentiment Trading | ✅ Taught (section below) |
+
+**Next up: Phase 6 (full implementation documentation) and Phase 7 (one app feature per strategy).** Before Phase 6, an open cross-cutting decision worth making: these five aren't mutually exclusive. Strategies 1–3 (dual momentum, stock momentum, quality-value) are slow "core" strategies that combine well — momentum and value are historically complementary (each tends to win when the other struggles). Strategies 4–5 (PEAD, news) are fast "satellite" strategies that share earnings/news infrastructure. A realistic end-state is a small core allocation across 1–3 plus opportunistic satellite trades from 4–5 — but that's a Phase 6+ portfolio decision, flagged here so we design the app features to coexist rather than compete.
 
 ---
 
@@ -340,6 +342,66 @@ The closest to already-built of the five: the Stock Analyzer already does drift/
 - **Hold-through-next-earnings:** yes (bigger drift capture, event risk) vs. exit-before (cleaner, canonical for us).
 - **Short side:** negative surprises drift down too — shorting is out of scope, but a *negative* PEAD signal is useful as a "don't buy this dip" warning on holdings.
 - **LLM scoring rubric:** binary organic/cosmetic vs. graded score feeding position size.
+
+---
+
+### 5.5 LLM News-Sentiment Event Trading — Deep Dive
+
+#### The mechanism: read the news faster/deeper than the crowd, trade the gap before it closes
+
+Prices move on news. Between the moment news breaks and the moment it's fully priced, there's a window — and the bet is that an LLM reading and *interpreting* a story (not just matching keywords) can judge "how good/bad is this, really, for this specific stock" fast enough and well enough to trade the remaining move. Unlike PEAD (one scheduled event type — earnings), this is *any* market-moving news: FDA decisions, contract wins, guidance pre-announcements, management changes, legal outcomes, analyst-day surprises, sector shocks.
+
+**Why an edge could exist at all:**
+1. **Interpretation beats keywords.** Old-school sentiment models counted positive/negative words and get fooled by nuance ("beat lowered expectations," "in-line but guided down," "wins contract but dilutive"). An LLM reads context — the same thing a sharp analyst does, but in seconds across a whole watchlist. The measurable claim (Lopez-Lira & Tang 2023): GPT scoring of *headlines* predicted next-day returns, and the effect concentrated in small caps and after-hours news where human attention is thin.
+2. **Nuance and second-order reasoning.** "Company loses lawsuit but the penalty is far below the feared amount" reads as bad-news-good-outcome. Keyword models miss this entirely; LLMs handle it — this is the genuine, novel capability.
+3. **Breadth.** No human watches 200 tickers' news flow overnight. An LLM can sweep the whole list every morning, which is where the retail-scale advantage is real.
+
+**Why this is ranked LAST — three honest problems:**
+1. **The edge decays fastest.** The gap between news and price is closing every year as more machines read news. What was tradeable over a day in 2015 may be priced in minutes now. This is a footrace against professional quants with faster data feeds and colocated servers — the one game on our list where *speed* is a primary axis, and retail loses speed races.
+2. **Least proven live.** Strategies 1–3 have decades of out-of-sample evidence; even PEAD has 55 years. This has ~2–3 years of academic results and heavy publication risk (the moment a profitable signal is published, it gets competed away). Backtests here are especially treacherous because of **look-ahead/point-in-time bias** — an LLM trained on data through 2024 "knows" how stories resolved; testing it on 2022 news is contaminated unless the model is strictly walled off from the future. This bias makes news-sentiment backtests look far better than live results.
+3. **Costs eat thin, fast edges.** Short holding periods (days) → all short-term gains → high turnover → spread and slippage on every trade. A 1–2% expected move per event is easily half-eaten by frictions if you're not disciplined about liquidity and limit orders.
+
+#### The rules (retail implementation — deliberately conservative)
+
+1. **Universe:** a **watchlist you already understand** (your holdings + a tracked list of ~30–100 liquid small/mid caps), not the whole market. Constrained universe = you can sanity-check the LLM's read and manage costs.
+2. **Trigger:** material news hits a watchlist name — screen via a news API (Finnhub/FMP already wired) for company-specific stories, filtering out routine noise (analyst reit., minor PR).
+3. **LLM scoring — the core step:** feed the LLM the story (+ recent context on the company) and require a *structured* verdict, not a vibe:
+   - Directional call (bullish/bearish/neutral) **with a confidence score**
+   - **Materiality:** does this change the earnings/cash-flow trajectory, or is it noise? (Most news is noise — the filter's main job is saying "ignore.")
+   - **Already-priced check:** has the stock already moved on this? (If it gapped 8% pre-market, the edge is likely gone — the LLM must reason about what's *left*, not what happened.)
+   - **Second-order read:** expectations vs. outcome (the "bad news but less bad than feared" logic).
+4. **Entry:** only high-confidence + high-materiality + not-yet-fully-priced. Expect to act on a small fraction of flagged stories — the discipline is in *how much you skip*.
+5. **Exit:** short and rule-based — a few days, or a target move, or a same-day stop if the thesis is wrong. This is not a hold-for-drift strategy; it's a fade-the-underreaction pop and get out.
+6. **Sizing:** small, uniform, many events. Never let one headline trade be large — you *will* be wrong on individual reads.
+
+#### The evidence
+
+- **Lopez-Lira & Tang (2023), "Can ChatGPT Forecast Stock Price Movements?":** LLM headline sentiment predicted next-day returns; long-short portfolios showed significant alpha, concentrated in small caps and around news the market hadn't fully absorbed. Follow-on work (2023–2025) broadly replicates *some* predictive content in LLM-read news, while emphasizing rapid decay and sensitivity to transaction costs.
+- **Older base:** event-study and news-sentiment literature (pre-LLM, e.g., Tetlock 2007 on media pessimism) established that news carries tradeable information short-term. LLMs improve the *reading*, not the underlying phenomenon.
+- **The honest summary:** real phenomenon, genuinely improved by LLMs, but the *tradeable-after-costs, out-of-sample, at-retail-speed* version is unproven. This is a **research project with a plausible edge**, not a battle-tested strategy. Treat any backtest with deep suspicion until forward-tested with the Scoreboard on live, timestamped signals.
+
+#### What it looks like in practice
+
+Overnight, a $1.5B medical-device name on your watchlist announces FDA clearance for a new product. Pre-market it's up 4%. The LLM reads: clearance was widely expected (management guided to it last call), the product is a modest revenue add (~3% of sales), and the 4% pop roughly matches the value — verdict: **priced, pass.** Contrast: a $900M industrial announces a surprise multi-year defense contract not in any estimates, worth ~15% of annual revenue; pre-market up only 3% (thin overnight volume, few paying attention); LLM verdict: **material, under-reacted, bullish high-confidence** → small long, exit in 2–3 days as coverage catches up. The strategy's whole value is telling those two apart *before* the market does — and mostly, correctly saying "pass."
+
+#### Failure modes
+
+1. **Racing machines you can't outrun.** For big, liquid, widely-followed news you are last in line; the edge only exists in the neglected corners (small caps, overnight, complex/nuanced stories). Straying into liquid mega-cap news = donating to HFT.
+2. **LLM hallucination / overconfidence.** The model can invent materiality or misjudge what's priced. Mitigation: structured outputs, confidence thresholds, and *you* as the final check — never auto-trade.
+3. **Overtrading.** The flow of "interesting" news is endless; the failure mode is trading too many marginal signals and bleeding costs. The strategy is 90% filter, 10% trade.
+4. **Backtest mirage (repeat, because it's the killer here).** Look-ahead bias makes historical results glow. Only forward-tested, timestamped signal tracking tells the truth.
+5. **Tax/cost drag:** highest-turnover, all-short-term of the five. **IRA only**, and even there, costs are the enemy.
+
+#### App fit (Phase 7 preview)
+
+Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest strategy fit. The natural build: a morning **watchlist news sweep** — pull overnight/early news for watchlist names, LLM-score each with the structured rubric, surface only high-confidence/high-materiality/not-yet-priced items as cards, and **log every signal with a timestamp to the Scoreboard** so we measure real forward performance before trusting it with a dollar. Framed honestly, the first version of this feature is a *measurement instrument* — prove the edge exists on live data before treating it as a strategy.
+
+#### Variations (for Phase 6 — pick and freeze)
+
+- **Scope:** holdings-only alert layer (defensive: "react to news on what you own") vs. active screener (offensive: hunt new longs). The defensive version is far safer and a natural first build.
+- **News source:** company filings/8-Ks (cleaner, material by definition) vs. general news wire (broader, noisier).
+- **Holding period:** intraday (hardest, competing with machines) vs. 1–3 day underreaction fade (more retail-viable).
+- **Human gate:** always require user confirmation (recommended) — this is the strategy where "the app decides, the human approves" matters most.
 
 ## Phase 6 — Implementation Documentation (pending)
 
