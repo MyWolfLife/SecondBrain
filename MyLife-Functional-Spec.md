@@ -2066,7 +2066,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer` | **Strategy hub** — 6 strategy cards (Dip & Drift, Dual Momentum, 4 coming-soon) | ✅ Built (2026-07-17) |
 | `#analyzer/dipdrift` | **Dip & Drift sub-hub** — nav cards for Backtest Lab, Scan, Trades, Scoreboard, Universe + the 📊 Price data section | ✅ Built (2026-07-17) |
 | `#analyzer/dualmomentum` | **Dual Momentum** — monthly GEM rotation signal (see section below) | ✅ Built (2026-07-17) |
-| `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking from the price cache | 🔄 Build in progress (Piece A: ranked list + regime banner live; signal log/grading and full docs land with Pieces B/C — see TradingStrategiesPlan.md 7.2 checklist) |
+| `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking with monthly signal log (see section below) | ✅ Built (2026-07-17) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
@@ -2075,6 +2075,14 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/scoreboard` | Scoreboard — past scans auto-graded at 30/60 trading days vs SPY, kept vs dismissed | ✅ Built (Stage 9) |
 
 **Module**: `js/analyzer.js`. Breadcrumbs: Life › Financial › Stock Analyzer › Dip & Drift › {page} for the original screens; Life › Financial › Stock Analyzer › Dual Momentum for the new strategy. The 📊 Price data section (cache status, Update button, provider health) lives on the **Dip & Drift sub-hub**, not the strategy hub.
+
+### Stock Momentum (`#analyzer/stockmomentum`) — module `js/analyzer-stockmomentum.js`
+
+Cross-sectional 12-1 momentum ranking per `TradingStrategiesPlan.md` §6.2/§7.2 (frozen rules: rank the effective universe by total return from ~12 months ago to ~1 month ago — trading-day offsets 252/21 — hold top 25 equal-weight, sell only below rank 75).
+
+- **Data**: entirely from the shared IndexedDB price cache (`anaGetPriceHistory`) — no new fetching. Tickers skipped if <260 candles or last candle >7 days older than SPY's. SPY is the freshness reference and regime gauge. Split-adjusted closes without dividends — acceptable for a *relative* ranking (documented in rulebook 6.2), unlike Dual Momentum's absolute comparison.
+- **UI**: ⚠️ regime banner when SPY < its 200-day SMA (informational, never blocks) · ranked/skipped/as-of note with stale-cache warning linking to Dip & Drift · top-25 table (rank, ticker, name, 12-1 return, own-200d flag) · **🔄 This month's changes** (➕ entered top 25 / ➖ fell below rank 75) · **🏁 Signal history** (last 12 logged months: top pick, ±counts, equal-weight list return vs SPY to the next log date ✅/❌) · collapsible 📖 teach panel.
+- **Firestore**: `smSignals` (doc id `YYYY-MM`, logged idempotently on first visit of the month; fields: month, asOf, tickers[{t,mom,rank}] top 25, entered[], exited[], createdAt). In backup collection list. Grades are computed on render from the price cache, never stored (Scoreboard convention).
 
 ### Dual Momentum (`#analyzer/dualmomentum`) — module `js/analyzer-dualmomentum.js`
 

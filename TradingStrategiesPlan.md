@@ -459,7 +459,7 @@ Strong infrastructure fit (news APIs + LLM pipeline already exist), weakest stra
 
 ---
 
-### 6.2 Stock Momentum — Rulebook (FROZEN 2026-07-17; build pending)
+### 6.2 Stock Momentum — Rulebook (FROZEN 2026-07-17; ✅ BUILT as #analyzer/stockmomentum, all 3 pieces shipped same day)
 
 | Decision | Frozen choice | Rationale |
 |----------|--------------|-----------|
@@ -489,7 +489,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 
 - [x] **Piece A — ranked list renders.** ✅ DONE (verified in preview: routing, ranking, names, 200d flags, regime + cache-age notes) — `js/analyzer-stockmomentum.js`: compute 12-1 momentum for the effective universe from the IndexedDB price cache (`anaGetPriceHistory`; skip tickers with <260 candles or stale last-date), render top-25 table (rank, ticker, name, 12-1 return, above/below own 200d MA) + cache-age note linking to Dip & Drift's update button + SPY-vs-200d regime banner. Registrations: hub card live (analyzer.js), route (app.js ×2 places), page div + script tag (index.html), CSS if needed. Cache bump. Spec: route row + "build in progress" note.
 - [x] **Piece B — signal log + diff + grading.** ✅ DONE (verified in preview: 2026-07 logged, diff + graded history + teach panel render) — Firestore `smSignals` (doc id `YYYY-MM`: top-25 tickers/returns, logged on first visit of the month), ➕/➖ diff vs prior month (sell rule: fell below rank 75), next-month grade per logged month (equal-weight list return vs SPY ✅/❌), `smSignals` in settings.js backup list, teach panel. Cache bump.
-- [ ] **Piece C — docs + verify + close out.** Full spec section, AppHelp `screen:analyzer-stockmomentum` + help.js registrations, verify all pieces in preview per CLAUDE.md, mark this checklist done, final cache bump if needed.
+- [x] **Piece C — docs + verify + close out.** ✅ DONE — Full spec section, AppHelp `screen:analyzer-stockmomentum` + help.js registrations, verify all pieces in preview per CLAUDE.md, mark this checklist done, final cache bump if needed.
 
 **Kickoff prompt for the build session (paste into a fresh Claude Code session):**
 > Work on the trading strategies feature. Read TradingStrategiesPlan.md — build Phase 7.2 (Stock Momentum tool) exactly per the frozen rulebook 6.2 and feature spec 7.2. Model it on the existing js/analyzer-dualmomentum.js pattern (signal log, monthly convention, teach panel) but compute rankings from the existing IndexedDB price cache (analyzer-data.js) instead of fetching. Replace the coming-soon card on the #analyzer hub, add the route/page/script registrations like Dual Momentum's (app.js, index.html, help.js), add smSignals to the settings.js backup list, update the spec and AppHelp (new screen:analyzer-stockmomentum section), bump the service worker cache, verify in the preview server per CLAUDE.md, then commit/notify/push.

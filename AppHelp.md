@@ -2300,7 +2300,8 @@ The Stock Analyzer is now a **hub of six trading strategies**, each with its own
 ### Quick Help
 - **📉 Dip & Drift** — the original Analyzer: weekly scans for short-term setups (overreaction dips, post-earnings drift, revision momentum, coiled springs). Opens a sub-screen with Scan, Backtest Lab, Trades, Scoreboard, Universe, and the price-data cache
 - **🌍 Dual Momentum** — a monthly rotation signal: hold US stocks, international stocks, or cash based on 12-month momentum. One check a month, one verdict
-- **🚀 Stock Momentum, 💎 Quality-Value, 📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
+- **🚀 Stock Momentum** — the top 25 stocks in your watched universe by 12-month momentum, re-ranked monthly with buy/sell diffs and a graded track record
+- **💎 Quality-Value, 📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
 - The strategies are documented in depth (what they are, the evidence, when they fail) in `TradingStrategiesPlan.md`
 - The **📊 Price data** section (cache status + Update button) moved to the **Dip & Drift** sub-screen
 
@@ -2356,6 +2357,24 @@ Dual Momentum is a **once-a-month rotation strategy**: hold whichever is stronge
 - 📖 **How this works** (bottom) explains the rules and — critically — when the strategy *looks* broken but isn't: lagging the S&P in bull years and getting whipsawed in fast V-shaped crashes are **normal and expected**. Quitting during those stretches is the #1 way people lose with this strategy
 - Prices come fresh from Yahoo (dividend-adjusted, so BIL's interest counts) — ↻ **Refresh prices** refetches if something looks stale
 - Tax note: switches realize gains, so this strategy strongly prefers a **retirement account (IRA)**
+
+---
+
+## screen:analyzer-stockmomentum
+
+### What this is for
+
+Stock Momentum owns **the top 25 stocks in your watched universe by 12-1 momentum** — each stock's return over the trailing year, *skipping the most recent month* (last month's hottest names tend to snap back short-term, so it's excluded). Momentum is the most-documented anomaly in finance: winners keep winning for months because news gets priced in slowly, investors sell winners too early and hold losers too long, and people refuse to buy what already ran. Buying stocks that feel expensive and already-missed is uncomfortable — **that discomfort is the edge**. Full write-up: `TradingStrategiesPlan.md` (sections 5.2, 6.2, 7.2).
+
+### Quick Help
+- The **table** is the current top 25, ranked by 12-1 return, with each stock's own 200-day-average position
+- Rankings come from the **Dip & Drift price cache** — if the "prices as of" date looks old, update price data there first, then come back
+- **🔄 This month's changes** is the actionable part: ➕ names that entered the top 25 (candidate buys) and ➖ holdings that fell below **rank 75** (the sell rule — the wide buffer roughly halves trading)
+- Check **once a month** — the list is logged automatically on your first visit of each new month; between logs, nothing needs doing
+- **🏁 Signal history** grades every logged month: the list's average return vs SPY over the following month (✅/❌) — the live track record that shows whether the strategy earns its keep
+- ⚠️ **SPY below its 200-day average** banner = momentum's historical crash window (sharp reversals after deep declines). The canonical play is smaller or no new positions; the list still shows and the call is yours
+- **Don't override the rank** ("I don't like this one") — that reintroduces the exact human biases the system exists to remove
+- Expect it to lag in fast V-rebounds and on rotation days, and to give back a chunk when a big trend ends — those are normal, not broken. Turnover is mostly short-term gains, so this strategy strongly prefers an **IRA**
 
 ---
 

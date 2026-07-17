@@ -67,6 +67,7 @@ var HELP_SECTION_MAP = {
     // ── Stock Analyzer sub-routes (placeholders share the hub section until built) ──
     'analyzer-dipdrift'              : 'analyzer-dipdrift',
     'analyzer-dualmomentum'          : 'analyzer-dualmomentum',
+    'analyzer-stockmomentum'         : 'analyzer-stockmomentum',
     'analyzer-universe'              : 'analyzer-universe',
     'analyzer-backtest'              : 'analyzer-backtest',
     'analyzer-scan'                  : 'analyzer-scan',
@@ -185,6 +186,7 @@ var HELP_TOPIC_MAP = [
             { label: '🎯 Stock Analyzer',            key: 'analyzer'          },
             { label: '📉 Dip & Drift',               key: 'analyzer-dipdrift' },
             { label: '🌍 Dual Momentum',             key: 'analyzer-dualmomentum' },
+            { label: '🚀 Stock Momentum',            key: 'analyzer-stockmomentum' },
             { label: '📚 Stock Analyzer — Training', key: 'analyzer-training' }
         ]
     },
@@ -222,6 +224,7 @@ var HELP_SCREEN_LABELS = {
     'analyzer'      : 'Stock Analyzer',
     'analyzer-dipdrift' : 'Dip & Drift',
     'analyzer-dualmomentum' : 'Dual Momentum',
+    'analyzer-stockmomentum' : 'Stock Momentum',
     'analyzer-training' : 'Stock Analyzer Training',
     'yardmap'       : 'Yard Map',
     'yard-problems' : 'Yard Problems',
