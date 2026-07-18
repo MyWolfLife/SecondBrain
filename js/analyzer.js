@@ -77,7 +77,7 @@ function loadAnalyzerPage() {
                 'Monthly rotation between US stocks, international stocks, and cash — one check, one verdict') +
             _anaStrategyCard('#analyzer/stockmomentum', '🚀', 'Stock Momentum',
                 'Own the top 25 stocks by 12-month momentum, re-ranked monthly') +
-            _anaStrategyCard(null, '💎', 'Quality-Value',
+            _anaStrategyCard('#analyzer/qualityvalue', '💎', 'Quality-Value',
                 'Good businesses at cheap prices — annual Magic-Formula screen with AI value-trap checks') +
             _anaStrategyCard(null, '📈', 'Earnings Drift (PEAD)',
                 'Ride the 30–60 day drift after real earnings surprises — AI reads the call transcript') +
