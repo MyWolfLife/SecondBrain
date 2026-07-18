@@ -113,6 +113,82 @@ async function _qvRunScreen() {
 }
 
 // ---------------------------------------------------------------------------
+// LLM value-trap thesis (Piece B)
+// ---------------------------------------------------------------------------
+// The screen's blind spot: trailing numbers can't tell "cheap because hated"
+// from "cheap because dying". The LLM reads the metrics + a month of news
+// headlines and rules on it. Saved onto the screen doc so it's a one-time
+// cost per name per screen.
+
+async function _qvThesis(screenId, ticker, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+        var screens = await _qvLoadScreens();
+        var screen = screens.find(function(s) { return s.id === screenId; });
+        var row = screen && screen.rows.find(function(r) { return r.t === ticker; });
+        if (!row) throw new Error('row not found');
+
+        var headlines = [];
+        try {
+            var to = _anaTodayStr();
+            var d = new Date(); d.setDate(d.getDate() - 30);
+            var items = await anaFinnhubNews(ticker, d.toISOString().slice(0, 10), to, 15);
+            headlines = (items || []).map(function(it) { return '- ' + (it.headline || ''); }).filter(function(h) { return h.length > 3; });
+        } catch (e) { /* news optional — thesis still runs on metrics alone */ }
+
+        var reply = await _investAiCallLLM([
+            { role: 'system', content:
+                'You are a skeptical value-investing analyst reviewing a Magic-Formula screen result ' +
+                '(cheap + profitable stocks). Your one job: is this company cheap because it is HATED ' +
+                '(fine business, bad narrative — a value opportunity) or cheap because it is DYING ' +
+                '(structural decline, melting ice cube — a value trap)? Start your reply with exactly one line: ' +
+                '"TRAP RISK: LOW", "TRAP RISK: MEDIUM", or "TRAP RISK: HIGH". Then 3-5 plain sentences of reasoning. ' +
+                'Be blunt about structural threats (secular decline, disruption, leverage). No investment advice — ' +
+                'the user decides.' },
+            { role: 'user', content:
+                ticker + ' (' + (row.n || '') + ', sector: ' + (row.sector || '?') + ') screened at rank ' + row.rank +
+                '. Earnings yield ' + (row.ey * 100).toFixed(1) + '%, return on capital ' + (row.roc * 100).toFixed(1) + '%.\n\n' +
+                (headlines.length ? 'Recent news headlines (last 30 days):\n' + headlines.join('\n') : 'No recent news available.') }
+        ]);
+
+        var m = /TRAP RISK:\s*(LOW|MEDIUM|HIGH)/i.exec(reply || '');
+        row.trapRisk = m ? m[1].toUpperCase() : 'UNKNOWN';
+        row.thesis = (reply || '').trim();
+        await userCol('qvScreens').doc(screenId).update({ rows: screen.rows });
+        _qvRender();
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖'; }
+        alert('Thesis failed: ' + e.message);
+    }
+}
+
+var QV_RISK_BADGE = { LOW: '🟢 low', MEDIUM: '🟡 medium', HIGH: '🔴 HIGH', UNKNOWN: '⚪ ?' };
+
+// ---------------------------------------------------------------------------
+// Grading — each stored screen's list vs SPY since its screen date
+// ---------------------------------------------------------------------------
+
+async function _qvGrade(screen) {
+    var spyRec = await anaGetPriceHistory('SPY');
+    if (!spyRec) return null;
+    var s0 = anaEngIndexForDate(spyRec, screen.date);
+    var s1 = spyRec.close.length - 1;
+    if (s0 < 0 || s1 <= s0) return null;
+    var sum = 0, n = 0;
+    for (var i = 0; i < screen.rows.length; i++) {
+        var rec = await anaGetPriceHistory(screen.rows[i].t);
+        if (!rec) continue;
+        var i0 = anaEngIndexForDate(rec, screen.date);
+        var i1 = rec.close.length - 1;
+        if (i0 < 0 || i1 <= i0 || !(rec.close[i0] > 0)) continue;
+        sum += rec.close[i1] / rec.close[i0] - 1;
+        n++;
+    }
+    if (n === 0) return null;
+    return { list: sum / n, spy: spyRec.close[s1] / spyRec.close[s0] - 1, n: n };
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -178,10 +254,13 @@ async function _qvRender() {
             '<p class="muted-text" style="max-width:560px">' + latest.ranked + ' of ' + latest.universeCount +
             ' companies had usable fundamentals (' + latest.skipped + ' skipped) · max ' + QV_SECTOR_CAP + ' per sector.</p>';
         html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
-            '<th>#</th><th>Ticker</th><th>Name</th><th>Sector</th><th>Earnings yield</th><th>Return on capital</th>' +
+            '<th>#</th><th>Ticker</th><th>Name</th><th>Sector</th><th>Earnings yield</th><th>Return on capital</th><th>Trap check</th>' +
             '</tr></thead><tbody>';
         for (var i = 0; i < latest.rows.length; i++) {
             var r = latest.rows[i];
+            var trapCell = r.thesis
+                ? '<a href="javascript:void(0)" onclick="_qvToggleThesis(\'' + escapeHtml(r.t) + '\')">' + (QV_RISK_BADGE[r.trapRisk] || r.trapRisk) + '</a>'
+                : '<button class="ana-sp-btn" onclick="_qvThesis(\'' + latest.id + '\',\'' + escapeHtml(r.t) + '\', this)">🤖</button>';
             html += '<tr>' +
                 '<td>' + r.rank + '</td>' +
                 '<td><strong>' + escapeHtml(r.t) + '</strong></td>' +
@@ -189,10 +268,69 @@ async function _qvRender() {
                 '<td>' + escapeHtml(r.sector || '') + '</td>' +
                 '<td>' + _qvPct(r.ey) + '</td>' +
                 '<td>' + _qvPct(r.roc) + '</td>' +
+                '<td>' + trapCell + '</td>' +
             '</tr>';
+            if (r.thesis) {
+                html += '<tr class="qv-thesis-row" id="qvThesis-' + escapeHtml(r.t) + '" style="display:none">' +
+                    '<td colspan="7"><div class="qv-thesis">' + escapeHtml(r.thesis).replace(/\n/g, '<br>') + '</div></td></tr>';
+            }
         }
         html += '</tbody></table></div>';
+        html += '<p class="muted-text" style="max-width:560px">🤖 = ask the AI whether the name is cheap-because-hated ' +
+            'or cheap-because-dying (reads the metrics + a month of news). Run it on any name you\'re considering — ' +
+            'the verdict saves onto this screen.</p>';
+
+        // Screen history, graded from the price cache (never stored).
+        html += '<h3 class="ana-section-title">🏁 Screen history</h3>';
+        html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+            '<th>Screened</th><th>Top pick</th><th>List vs SPY since screen</th>' +
+            '</tr></thead><tbody>';
+        for (var si = screens.length - 1; si >= 0; si--) {
+            var s = screens[si];
+            var g = null;
+            try { g = await _qvGrade(s); } catch (eG) {}
+            var gradeHtml = g
+                ? _qvPct(g.list) + ' <span class="muted-text">(SPY ' + _qvPct(g.spy) + ', ' + g.n + ' of ' + s.rows.length + ' priced)</span> ' + (g.list >= g.spy ? '✅' : '❌')
+                : '<span class="muted-text">— (needs tickers in the price cache)</span>';
+            html += '<tr>' +
+                '<td>' + escapeHtml(s.date) + '</td>' +
+                '<td>' + escapeHtml(s.rows.length ? s.rows[0].t : '—') + '</td>' +
+                '<td>' + gradeHtml + '</td>' +
+            '</tr>';
+        }
+        html += '</tbody></table></div>' +
+            '<p class="muted-text" style="max-width:560px">Remember the timescale: this strategy is judged across ' +
+            '<strong>years, not months</strong> — a losing first year is normal and expected sometimes.</p>';
     }
 
+    // Teach panel — section 5.3 recap
+    html += '<details class="dm-teach"><summary>📖 How this works — and when it looks broken</summary>' +
+        '<div class="dm-teach-body">' +
+        '<p><strong>The rules:</strong> rank the universe on earnings yield (cheapness) and return on capital ' +
+        '(quality), add the two ranks, hold the ~25 best combined scores about a year, re-screen, rotate. ' +
+        'Max ' + QV_SECTOR_CAP + ' per sector. Financials/utilities/real estate excluded (the metrics lie there).</p>' +
+        '<p><strong>Why it works:</strong> markets overextrapolate — great stories get priced as if growth lasts ' +
+        'forever, troubled ones as if the trouble is permanent. Quality removes the truly dying companies from ' +
+        'the cheap list. What remains is good businesses having a bad year. This is systematized Buffett.</p>' +
+        '<p><strong>Why it still works:</strong> time arbitrage. The payoff horizon is years, and value can trail ' +
+        'growth for a DECADE (2010–2020) — no professional survives waiting that long, but you can. ' +
+        'Greenblatt: "it still works because it doesn\'t always work." The droughts ARE the moat.</p>' +
+        '<p><strong>It is broken only if</strong> the screen history above loses to SPY across a full cycle ' +
+        '(think 5+ years). Quitting in year 2 of a drought is the classic failure — the best fund of 2000–2010 ' +
+        'made 18%/yr while its average investor lost money by quitting at the bottoms.</p>' +
+        '<p><strong>Buying the list means</strong> owning unloved things (homebuilders in 2022, tobacco, ' +
+        'mature tech) and never owning the exciting stuff. That discomfort is the edge. Don\'t override the ' +
+        'rank on vibes — use the 🤖 trap check instead, then decide.</p>' +
+        '<p><strong>Taxes:</strong> the one strategy of the five that\'s reasonable in a taxable account — ' +
+        'low turnover, mostly long-term gains. Greenblatt\'s trick: sell losers just BEFORE the 1-year mark ' +
+        '(short-term loss offsets more), winners just AFTER it (long-term rate). ' +
+        'Full write-up: TradingStrategiesPlan.md sections 5.3 and 6.3.</p>' +
+        '</div></details>';
+
     el.innerHTML = html;
+}
+
+function _qvToggleThesis(ticker) {
+    var row = document.getElementById('qvThesis-' + ticker);
+    if (row) row.style.display = (row.style.display === 'none') ? '' : 'none';
 }

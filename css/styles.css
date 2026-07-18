@@ -18725,6 +18725,19 @@ a.legacy-fin-card:hover {
     .dm-bar-label { flex-basis: 120px; font-size: 0.78rem; }
 }
 
+/* Quality-Value: inline AI thesis row */
+.qv-thesis {
+    font-size: 0.85rem;
+    background: #f6f8fa;
+    border-left: 3px solid #90a4ae;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 2px 0 6px;
+    white-space: normal;
+    max-width: 560px;
+}
+.qv-thesis-row td { white-space: normal; }
+
 /* Form action buttons */
 .ex-form-actions {
     display: flex;
