@@ -2067,7 +2067,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/dipdrift` | **Dip & Drift sub-hub** — nav cards for Backtest Lab, Scan, Trades, Scoreboard, Universe + the 📊 Price data section | ✅ Built (2026-07-17) |
 | `#analyzer/dualmomentum` | **Dual Momentum** — monthly GEM rotation signal (see section below) | ✅ Built (2026-07-17) |
 | `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking with monthly signal log (see section below) | ✅ Built (2026-07-17) |
-| `#analyzer/qualityvalue` | **Quality-Value** — annual Magic-Formula screen (see section below) | 🔄 Build in progress (Piece A: screen job + ranked table live; LLM theses + grading land with Piece B — see TradingStrategiesPlan.md 7.3 checklist) |
+| `#analyzer/qualityvalue` | **Quality-Value** — annual Magic-Formula screen with AI trap checks (see section below) | ✅ Built (2026-07-18) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
@@ -2076,6 +2076,15 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/scoreboard` | Scoreboard — past scans auto-graded at 30/60 trading days vs SPY, kept vs dismissed | ✅ Built (Stage 9) |
 
 **Module**: `js/analyzer.js`. Breadcrumbs: Life › Financial › Stock Analyzer › Dip & Drift › {page} for the original screens; Life › Financial › Stock Analyzer › Dual Momentum for the new strategy. The 📊 Price data section (cache status, Update button, provider health) lives on the **Dip & Drift sub-hub**, not the strategy hub.
+
+### Quality-Value (`#analyzer/qualityvalue`) — module `js/analyzer-qualityvalue.js`
+
+Annual Magic-Formula screen per `TradingStrategiesPlan.md` §6.3/§7.3 (frozen rules: S&P 500 minus Financials/Utilities/Real Estate, ranked on earnings yield TTM + return on capital TTM, sum of ranks, top 25 equal-weight, max 4 per sector, re-screen annually).
+
+- **Screen job**: on-demand "Run screen" button — 2 FMP calls per ticker (`key-metrics-ttm`, `ratios-ttm` via `_anaFmpGet`; ROC falls back to ROIC), ~10 min with progress + cancel, needs an FMP key. Result stored in Firestore `qvScreens` (one doc per run: date, universeCount/ranked/skipped, rows[{t,n,sector,ey,roc,score,rank,thesis?,trapRisk?}]; in backup list) so it's viewable all year. Re-screen nudge banner at ~11 months.
+- **AI trap check**: per-name 🤖 button → `_investAiCallLLM` with the metrics + last 30 days of Finnhub headlines → structured verdict ("TRAP RISK: LOW/MEDIUM/HIGH" + 3–5 sentences), parsed and saved onto the screen doc; renders as a 🟢/🟡/🔴 badge that toggles the full thesis inline. News fetch is optional (thesis runs on metrics alone if Finnhub fails).
+- **Screen history**: every stored screen graded on render — equal-weight return of its 25 vs SPY since screen date, from the price cache (never stored; "—" until tickers are cached). Timescale reminder: judged across years.
+- **Teach panel**: 5.3 recap — overextrapolation mechanism, time-arbitrage moat ("it still works because it doesn't always work"), drought expectations, Greenblatt tax trick (only strategy of the five that's taxable-account-friendly).
 
 ### Stock Momentum (`#analyzer/stockmomentum`) — module `js/analyzer-stockmomentum.js`
 

@@ -494,7 +494,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 **Kickoff prompt for the build session (paste into a fresh Claude Code session):**
 > Work on the trading strategies feature. Read TradingStrategiesPlan.md — build Phase 7.2 (Stock Momentum tool) exactly per the frozen rulebook 6.2 and feature spec 7.2. Model it on the existing js/analyzer-dualmomentum.js pattern (signal log, monthly convention, teach panel) but compute rankings from the existing IndexedDB price cache (analyzer-data.js) instead of fetching. Replace the coming-soon card on the #analyzer hub, add the route/page/script registrations like Dual Momentum's (app.js, index.html, help.js), add smSignals to the settings.js backup list, update the spec and AppHelp (new screen:analyzer-stockmomentum section), bump the service worker cache, verify in the preview server per CLAUDE.md, then commit/notify/push.
 
-### 6.3 Quality-Value — Rulebook (FROZEN 2026-07-18; build in progress)
+### 6.3 Quality-Value — Rulebook (FROZEN 2026-07-18; ✅ BUILT as #analyzer/qualityvalue, all 3 pieces shipped same day)
 
 | Decision | Frozen choice | Rationale |
 |----------|--------------|-----------|
@@ -514,7 +514,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 
 - [x] **Piece A — screen job + ranked table.** ✅ DONE (verified end-to-end in preview with a shrunken 10-ticker universe: FMP field names confirmed live, rank/sector-cap/save/render all exercised; test doc deleted) — "Run screen" button → FMP fundamentals fetch with progress (2 calls/ticker via `_anaFmpGet`: `key-metrics-ttm`, `ratios-ttm`), combined rank, sector cap, top-25 table (rank, ticker, name, sector, earnings yield, ROC), saved to `qvScreens`, latest screen rendered on load with its age + re-screen guidance ("annual"). Registrations (hub card, app.js route ×2, index.html div+script, help stub), `qvScreens` in backup list, cache bump. Spec route row.
 - [x] **Piece B — LLM value-trap thesis + grading.** ✅ DONE (verified live: ADBE thesis ran end-to-end — Finnhub news + LLM verdict "🟡 medium" parsed/saved/rendered with expandable text; history grading renders with graceful no-cache fallback; test doc deleted) — Per-name 🤖 button: `_investAiCallLLM` with the name's metrics + last 30 days of Finnhub news headlines → structured verdict (`trap risk: low/medium/high` + 3–5 sentence thesis), saved onto the screen doc, rendered inline. Screen-history section with equal-weight-vs-SPY grade since each screen's date. Teach panel (5.3 recap: droughts are the moat, Greenblatt tax trick, no-override rule). Cache bump.
-- [ ] **Piece C — docs + close out.** Full spec section, AppHelp `screen:analyzer-qualityvalue` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
+- [x] **Piece C — docs + close out.** ✅ DONE — full spec section, AppHelp `screen:analyzer-qualityvalue` + hub help line + help.js registrations, verified per CLAUDE.md.
 
 ### 6.4–7.5 Remaining strategies — pending (built one at a time, in order)
 

@@ -2301,7 +2301,8 @@ The Stock Analyzer is now a **hub of six trading strategies**, each with its own
 - **📉 Dip & Drift** — the original Analyzer: weekly scans for short-term setups (overreaction dips, post-earnings drift, revision momentum, coiled springs). Opens a sub-screen with Scan, Backtest Lab, Trades, Scoreboard, Universe, and the price-data cache
 - **🌍 Dual Momentum** — a monthly rotation signal: hold US stocks, international stocks, or cash based on 12-month momentum. One check a month, one verdict
 - **🚀 Stock Momentum** — the top 25 stocks in your watched universe by 12-month momentum, re-ranked monthly with buy/sell diffs and a graded track record
-- **💎 Quality-Value, 📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
+- **💎 Quality-Value** — an annual Magic-Formula screen: good businesses at cheap prices, with an AI "value trap or bargain?" check per name
+- **📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
 - The strategies are documented in depth (what they are, the evidence, when they fail) in `TradingStrategiesPlan.md`
 - The **📊 Price data** section (cache status + Update button) moved to the **Dip & Drift** sub-screen
 
@@ -2375,6 +2376,22 @@ Stock Momentum owns **the top 25 stocks in your watched universe by 12-1 momentu
 - ⚠️ **SPY below its 200-day average** banner = momentum's historical crash window (sharp reversals after deep declines). The canonical play is smaller or no new positions; the list still shows and the call is yours
 - **Don't override the rank** ("I don't like this one") — that reintroduces the exact human biases the system exists to remove
 - Expect it to lag in fast V-rebounds and on rotation days, and to give back a chunk when a big trend ends — those are normal, not broken. Turnover is mostly short-term gains, so this strategy strongly prefers an **IRA**
+
+---
+
+## screen:analyzer-qualityvalue
+
+### What this is for
+
+Quality-Value is **systematized Buffett**: buy good businesses having a bad year. It ranks the S&P 500 (minus financials, utilities, and real estate, where the math doesn't apply) on two numbers — **earnings yield** (how cheap) and **return on capital** (how good) — adds the two ranks, and lists the 25 best combined scores. Cheapness alone attracts dying companies; quality alone is usually overpriced; together they filter to *good businesses temporarily on sale*. This is the slowest strategy in the hub — screen once a year, hold about a year — and the only one that's reasonable in a taxable account. Full write-up: `TradingStrategiesPlan.md` (sections 5.3, 6.3, 7.3).
+
+### Quick Help
+- **💎 Run screen** fetches fundamentals for the whole universe (~10 minutes, needs an FMP key) and stores the result — you run it about **once a year**; a banner nudges you when the list is ~11 months old
+- The **table** is the current list: rank, sector, earnings yield, return on capital — max 4 names per sector so one hated industry can't dominate
+- **🤖 Trap check** is the AI's job: trailing numbers can't tell "cheap because hated" (a bargain) from "cheap because dying" (a trap — think Blockbuster). The AI reads the metrics plus a month of news and rules 🟢 low / 🟡 medium / 🔴 high trap risk; tap the badge to read the full reasoning. Run it on any name you're considering
+- **🏁 Screen history** grades every past screen — the list's average return vs SPY since its screen date. **Judge across years, not months**: value strategies trail for long stretches by design ("it still works because it doesn't always work")
+- Expect to own **unloved names** (the 2022 version was full of homebuilders at 6× earnings) and never the exciting ones — that discomfort is the edge
+- Tax notes (📖 panel): low turnover and mostly long-term gains make this taxable-account-friendly; Greenblatt's trick is selling losers just *before* the 1-year mark and winners just *after*
 
 ---
 
