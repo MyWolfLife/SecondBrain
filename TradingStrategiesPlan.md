@@ -494,9 +494,30 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 **Kickoff prompt for the build session (paste into a fresh Claude Code session):**
 > Work on the trading strategies feature. Read TradingStrategiesPlan.md — build Phase 7.2 (Stock Momentum tool) exactly per the frozen rulebook 6.2 and feature spec 7.2. Model it on the existing js/analyzer-dualmomentum.js pattern (signal log, monthly convention, teach panel) but compute rankings from the existing IndexedDB price cache (analyzer-data.js) instead of fetching. Replace the coming-soon card on the #analyzer hub, add the route/page/script registrations like Dual Momentum's (app.js, index.html, help.js), add smSignals to the settings.js backup list, update the spec and AppHelp (new screen:analyzer-stockmomentum section), bump the service worker cache, verify in the preview server per CLAUDE.md, then commit/notify/push.
 
-### 6.3–7.5 Remaining strategies — pending (built one at a time, in order)
+### 6.3 Quality-Value — Rulebook (FROZEN 2026-07-18; build in progress)
 
-Sketches from teaching sections (to be expanded into rulebooks like 6.1/6.2 when their turn comes):
-- **Quality-Value** → annual Magic-Formula screen (EV/EBIT + ROC via FMP), sector caps, LLM value-trap dossier per name ("melting ice cube or fine business having a bad year?").
+| Decision | Frozen choice | Rationale |
+|----------|--------------|-----------|
+| Universe | **S&P 500 minus Financials, Utilities, Real Estate** (sectors from `data/sp500.json`) | The formula's metrics are meaningless for banks/insurers/REITs/regulated utilities. Large-cap version is the data-clean starting point; mid-cap expansion is a noted future variation |
+| Value metric | **Earnings yield TTM** (FMP `key-metrics-ttm`) | EV-based Greenblatt yield; debt can't hide in it |
+| Quality metric | **Return on capital employed TTM** (FMP `ratios-ttm`; fallback ROIC) | Closest FMP field to Greenblatt's ROC |
+| Ranking | Rank on each metric separately; **combined score = sum of ranks**; buy lowest | Canonical Magic Formula |
+| Portfolio | **Top 25**, equal-weighted, **max 4 per sector** | Sector cap stops the screen loading up on one hated industry |
+| Cadence | **Annual** re-screen (on-demand "Run screen" button; results stored, viewable all year) | Canonical; ~900 FMP calls per run is fine at this frequency |
+| LLM check | Per-name **value-trap thesis**: LLM reads recent news + the metrics and rules "melting ice cube vs fine business having a bad year" | The screen's one blind spot; the analyst step, automated |
+| Account | **Taxable OK** (only strategy of the five) — low turnover, mostly long-term gains; Greenblatt tax trick noted in teach panel | Per section 5.3 |
+| "Broken" test | Multi-year droughts are the mechanism, not failure; judge across a full cycle via the graded screen history | Prevents abandonment |
+
+### 7.3 Quality-Value — Feature spec + build checklist
+
+**Screen:** `#analyzer/qualityvalue`, module `js/analyzer-qualityvalue.js`, Firestore `qvScreens` (one doc per screen run: date, rows with metrics/ranks/sector, LLM theses added in place; in backup list). Grading: each stored screen graded on render — equal-weight return of its 25 vs SPY since screen date (price cache, never stored).
+
+- [ ] **Piece A — screen job + ranked table.** "Run screen" button → FMP fundamentals fetch with progress (2 calls/ticker via `_anaFmpGet`: `key-metrics-ttm`, `ratios-ttm`), combined rank, sector cap, top-25 table (rank, ticker, name, sector, earnings yield, ROC), saved to `qvScreens`, latest screen rendered on load with its age + re-screen guidance ("annual"). Registrations (hub card, app.js route ×2, index.html div+script, help stub), `qvScreens` in backup list, cache bump. Spec route row.
+- [ ] **Piece B — LLM value-trap thesis + grading.** Per-name 🤖 button: `_investAiCallLLM` with the name's metrics + last 30 days of Finnhub news headlines → structured verdict (`trap risk: low/medium/high` + 3–5 sentence thesis), saved onto the screen doc, rendered inline. Screen-history section with equal-weight-vs-SPY grade since each screen's date. Teach panel (5.3 recap: droughts are the moat, Greenblatt tax trick, no-override rule). Cache bump.
+- [ ] **Piece C — docs + close out.** Full spec section, AppHelp `screen:analyzer-qualityvalue` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
+
+### 6.4–7.5 Remaining strategies — pending (built one at a time, in order)
+
+Sketches from teaching sections (to be expanded into rulebooks when their turn comes):
 - **PEAD** → earnings-calendar scan the morning after reports: surprise trifecta + gap-hold filters → LLM organic-vs-cosmetic transcript verdict → candidate card with entry window + announcement-low invalidation.
 - **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.
