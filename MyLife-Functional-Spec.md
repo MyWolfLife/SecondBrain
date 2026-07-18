@@ -2071,6 +2071,7 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/qualityvalue/about` | **About Strategy** — TL;DR + pros/cons, then the full lesson (two half-broken factors, Magic Formula mechanics, time-arbitrage moat, evidence incl. the $590k vs $1.08M math, behavior gap, trap-check rationale, Greenblatt tax trick) | ✅ Built (2026-07-18) |
 | `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking with monthly signal log (see section below) | ✅ Built (2026-07-17) |
 | `#analyzer/qualityvalue` | **Quality-Value** — annual Magic-Formula screen with AI trap checks (see section below) | ✅ Built (2026-07-18) |
+| `#analyzer/earningsdrift` | **Earnings Drift (PEAD)** — post-earnings surprise scanner with tracked signals | 🔄 Build in progress (Piece A: scan + candidate cards live; LLM verdict + teach land with Piece B — see TradingStrategiesPlan.md 7.4 checklist) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |

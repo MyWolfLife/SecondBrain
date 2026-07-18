@@ -79,7 +79,7 @@ function loadAnalyzerPage() {
                 'Own the top 25 stocks by 12-month momentum, re-ranked monthly') +
             _anaStrategyCard('#analyzer/qualityvalue', '💎', 'Quality-Value',
                 'Good businesses at cheap prices — annual Magic-Formula screen with AI value-trap checks') +
-            _anaStrategyCard(null, '📈', 'Earnings Drift (PEAD)',
+            _anaStrategyCard('#analyzer/earningsdrift', '📈', 'Earnings Drift (PEAD)',
                 'Ride the 30–60 day drift after real earnings surprises — AI reads the call transcript') +
             _anaStrategyCard(null, '📰', 'News Sentiment',
                 'Morning AI sweep of watchlist news — scored, logged, and graded before it is trusted') +
