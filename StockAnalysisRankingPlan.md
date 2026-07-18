@@ -368,6 +368,14 @@ they need bumps but no spec/help edits.
 
 ## Build Log
 
+- **2026-07-18 — Scoreboard ticker de-dupe (code-review finding).** A ticker firing two
+  detectors in one scan (FLEX under dipA AND revC) was graded twice against the same price
+  outcome, double-weighting it in the top-line stats. `_asbRender` now de-dupes by
+  `scanId|ticker` before the stat cards, the verdict n's, **and the calibration-banner
+  graded count** (kept wins over dismissed on a mixed dupe); a footnote appears when dupes
+  were removed. Per-scan tables intentionally NOT de-duped — Phase 6 calibration wants the
+  per-detector rows. Note for Phase 6: apply the same de-dupe if computing any overall
+  (non-per-detector) outcome stats. Bumps: analyzer-scoreboard.js v9, sw v497.
 - **2026-07-17 — Deal-pinned guard on springs (code-review finding).** The spring scorer
   rewarded exactly the pathology the Stage 4 sandbox demonstrated: EA, pinned near-zero-vol
   by acquisition arb, graded **A · 84** as the top-scored candidate — untradeable for a +10%

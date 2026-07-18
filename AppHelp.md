@@ -2557,6 +2557,8 @@ Stock Momentum owns **the top 25 stocks in your watched universe by 12-1 momentu
 
 **How grading works**: Same rules as the Backtest Lab — entry at the next trading day's open after the scan, target-hit if the day's high touches +10% within 60 trading days, SPY measured close-to-close over the identical span.
 
+**One stock, two detectors, one outcome**: Occasionally the same stock is flagged by two detectors in a single scan (say, a dip *and* rising estimates). It only has one entry price and one outcome, so the top-line stats — hit rate, averages, verdict sample sizes, calibration count — count it **once** (a footnote under the stat cards tells you when this happened). The per-scan tables still show a row for each detector, because *which* detector flagged it is exactly what the future calibration wants to know.
+
 **What it measures vs the Trades page**: The Scoreboard grades a no-judgment robot taking *every* scan candidate — the detectors' floor. The Trades page records what *you* actually did. Comparing the two over time is the whole feedback loop: are the detectors finding real edges, and is your filtering improving on them?
 
 **Why dismissals matter**: Dismissing a candidate is a prediction ("this one won't work"). The Scoreboard checks those predictions. If dismissed candidates keep outperforming kept ones, your dismissal reasons deserve a rethink — that's a finding worth more than any single trade.

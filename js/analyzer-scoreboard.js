@@ -168,7 +168,7 @@ async function _asbGradeScan(scan, spy) {
 
     for (var i = 0; i < cands.length; i++) {
         var c = cands[i];
-        var row = { ticker: c.ticker, detector: c.detector, dismissed: !!c.dismissed,
+        var row = { ticker: c.ticker, detector: c.detector, dismissed: !!c.dismissed, scanId: scan.id,
                     entryPrice: null, ret30: null, ret60: null, hit: null, spy60: null, pending: true };
         var rec = await anaGetPriceHistory(c.ticker);
         if (rec && rec.dates.length) {
@@ -219,7 +219,25 @@ function _asbAvg(rows, fn) {
 function _asbRender(page, graded, trades, totalScans, capped) {
     var allRows  = [];
     graded.forEach(function(g) { allRows = allRows.concat(g.rows); });
-    var complete = allRows.filter(function(r) { return !r.pending; });
+
+    // One price outcome per ticker per scan: a ticker that fired two detectors
+    // in the same scan (e.g. FLEX under dipA AND revC) has ONE entry price and
+    // ONE outcome — counting both rows would double-weight it in every
+    // top-line stat (hit rate, averages, verdict n's, calibration count).
+    // De-dupe here; the per-scan tables below still show each detector's row.
+    // On a mixed dupe, kept wins over dismissed — if it was kept under either
+    // detector, the exposure was real.
+    var byKey = {}, unique = [];
+    allRows.forEach(function(r) {
+        var k = (r.scanId || '') + '|' + r.ticker;
+        if (!byKey[k]) { byKey[k] = r; unique.push(r); }
+        else if (byKey[k].dismissed && !r.dismissed) {
+            unique[unique.indexOf(byKey[k])] = r;
+            byKey[k] = r;
+        }
+    });
+    var dupCount = allRows.length - unique.length;
+    var complete = unique.filter(function(r) { return !r.pending; });
     var kept     = complete.filter(function(r) { return !r.dismissed; });
     var dism     = complete.filter(function(r) { return r.dismissed; });
     if (totalScans == null) totalScans = graded.length;
@@ -233,12 +251,16 @@ function _asbRender(page, graded, trades, totalScans, capped) {
     if (complete.length) {
         var hitRate = complete.filter(function(r) { return r.hit; }).length / complete.length;
         html += '<div class="ana-stat-row">' +
-            '<div class="ana-stat"><div class="ana-stat-num">' + complete.length + '</div><div class="ana-stat-label">Graded (of ' + allRows.length + ')</div></div>' +
+            '<div class="ana-stat"><div class="ana-stat-num">' + complete.length + '</div><div class="ana-stat-label">Graded (of ' + unique.length + ')</div></div>' +
             '<div class="ana-stat"><div class="ana-stat-num">' + Math.round(hitRate * 100) + '%</div><div class="ana-stat-label">Hit +10% ≤60d</div></div>' +
             '<div class="ana-stat"><div class="ana-stat-num">' + _abFmtPct(_asbAvg(kept, function(r) { return r.ret60; })) + '</div><div class="ana-stat-label">Kept — avg 60d</div></div>' +
             '<div class="ana-stat"><div class="ana-stat-num">' + _abFmtPct(_asbAvg(dism, function(r) { return r.ret60; })) + '</div><div class="ana-stat-label">Dismissed — avg 60d</div></div>' +
             '<div class="ana-stat"><div class="ana-stat-num">' + _abFmtPct(_asbAvg(complete, function(r) { return r.spy60; })) + '</div><div class="ana-stat-label">SPY — avg 60d</div></div>' +
         '</div>';
+        if (dupCount > 0) {
+            html += '<p class="ab-dim">' + dupCount + ' duplicate row' + (dupCount === 1 ? '' : 's') +
+                ' (same stock flagged by two detectors in one scan) counted once in the stats above — the per-scan tables below still show every detector’s row.</p>';
+        }
         if (dism.length && kept.length) {
             var keptAvg = _asbAvg(kept, function(r) { return r.ret60; });
             var dismAvg = _asbAvg(dism, function(r) { return r.ret60; });
