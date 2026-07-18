@@ -516,8 +516,29 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 - [x] **Piece B — LLM value-trap thesis + grading.** ✅ DONE (verified live: ADBE thesis ran end-to-end — Finnhub news + LLM verdict "🟡 medium" parsed/saved/rendered with expandable text; history grading renders with graceful no-cache fallback; test doc deleted) — Per-name 🤖 button: `_investAiCallLLM` with the name's metrics + last 30 days of Finnhub news headlines → structured verdict (`trap risk: low/medium/high` + 3–5 sentence thesis), saved onto the screen doc, rendered inline. Screen-history section with equal-weight-vs-SPY grade since each screen's date. Teach panel (5.3 recap: droughts are the moat, Greenblatt tax trick, no-override rule). Cache bump.
 - [x] **Piece C — docs + close out.** ✅ DONE — full spec section, AppHelp `screen:analyzer-qualityvalue` + hub help line + help.js registrations, verified per CLAUDE.md.
 
-### 6.4–7.5 Remaining strategies — pending (built one at a time, in order)
+### 6.4 Earnings Drift (PEAD) — Rulebook (FROZEN 2026-07-18; build in progress)
 
-Sketches from teaching sections (to be expanded into rulebooks when their turn comes):
-- **PEAD** → earnings-calendar scan the morning after reports: surprise trifecta + gap-hold filters → LLM organic-vs-cosmetic transcript verdict → candidate card with entry window + announcement-low invalidation.
+| Decision | Frozen choice | Rationale |
+|----------|--------------|-----------|
+| Universe | The Analyzer's **effective universe** (S&P 500 + holdings + watchlist + optional Discover) | Reuses existing plumbing. Note: the anomaly is strongest in small/mid caps — enabling Discover with a lower min-cap widens the net where the edge lives |
+| Event source | **Finnhub all-symbol earnings calendar** (one call covers the whole market: date + EPS/revenue actual vs estimate) | Already wired (`anaFinnhubEarningsCalendar`) |
+| Scan window | Reports from the **last 7 days** (on-demand "Scan recent earnings" button, run mornings during earnings season) | Drift is measured in weeks; a few days' delay costs little |
+| Surprise filter | **EPS beat > +10%** AND **revenue beat** (both actual > estimate) | Revenue is much harder to massage than EPS; guidance is covered by the LLM read, not the numeric filter |
+| Market's-first-vote filter | Day-after reaction from the price cache: **close-to-close move ≥ +5%** on **volume ≥ 2× 20-day average**, and the gap **held** (closed above the announcement-day open) | Day-one reaction predicts drift better than the raw surprise; a fading gap is a no |
+| LLM verdict | Per candidate: **organic vs cosmetic** beat — FMP earnings-call transcript when the plan allows it, else surprise numbers + 2 weeks of Finnhub news | The nuance layer the headline misses; structured verdict (ORGANIC / COSMETIC / UNCLEAR + reasoning) |
+| Entry | Within **1–3 days** of the scan flagging it (no chasing the open) | Drift persists for weeks |
+| Exit | **~45 trading days** after the report, and always **before the next earnings report**; invalidation stop = **close below the announcement-day low** | Canonical window; the failed-gap stop kills dead theses early |
+| Sizing guidance | Many small positions — per-event edge is ~+3–7%; batting-average strategy | Teach-panel guidance, not enforced |
+| Account | **IRA strongly preferred** (all short-term gains) | Per section 5.4 |
+| "Broken" test | Losers are routine (batting average, not perfection); broken only if the graded signal history persistently loses to SPY across seasons | Prevents abandonment |
+
+### 7.4 Earnings Drift — Feature spec + build checklist
+
+**Screen:** `#analyzer/earningsdrift`, module `js/analyzer-pead.js`, Firestore `peadSignals` (one doc per candidate, id `TICKER_YYYY-MM-DD`: report date, surprises, day-1 reaction, annLow invalidation level, LLM verdict when run; in backup list). Grading on render from the price cache: return from flag date to +45 trading days (or latest) vs SPY, plus an ⚠️ invalidated flag when price closed below the announcement-day low.
+
+- [ ] **Piece A — earnings scan + candidate cards.** "Scan recent earnings" button → Finnhub calendar (last 7 days) filtered to universe + surprise trifecta → price-cache day-1 reaction filters → candidate cards (ticker, report date, EPS/rev surprise %, day-1 move/volume, ann-day low, entry-window note) logged idempotently to `peadSignals`. Registrations (hub card, routes, page div, script tag, help stub), backup list, cache bump, spec route row.
+- [ ] **Piece B — LLM verdict + signal history grading.** Per-candidate 🤖 organic-vs-cosmetic verdict (FMP transcript with 402 fallback to news headlines), saved onto the signal doc, badge + expandable reasoning. Signal history table graded vs SPY with invalidation flags. Teach panel. Cache bump.
+- [ ] **Piece C — About page + docs + close out.** `#analyzer/earningsdrift/about` (TL;DR + pros/cons + full 5.4 lesson incl. the analyst-revision conveyor belt and worked trade example), full spec section, AppHelp `screen:analyzer-earningsdrift` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
+
+### 6.5/7.5 News Sentiment — pending (last)
 - **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.
