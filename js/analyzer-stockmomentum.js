@@ -162,6 +162,7 @@ function loadAnalyzerStockMomentumPage() {
     if (!page) return;
     page.innerHTML =
         '<div class="page-header"><h2>🚀 Stock Momentum</h2></div>' +
+        '<div class="ana-add-row"><a class="ana-sp-btn" href="#analyzer/stockmomentum/about">📖 About Strategy</a></div>' +
         '<p class="muted-text" style="max-width:560px">The top ' + SM_TOP_N + ' stocks in your watched ' +
         'universe by 12-1 momentum — the trailing year\'s return, skipping the most recent month. ' +
         'Re-ranked monthly; a holding is sold only when it falls below rank ' + SM_SELL_RANK + '. ' +
@@ -173,6 +174,123 @@ function loadAnalyzerStockMomentumPage() {
 function _smPct(v) {
     if (v == null) return '—';
     return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+}
+
+// ---------------------------------------------------------------------------
+// About Strategy page (#analyzer/stockmomentum/about)
+// ---------------------------------------------------------------------------
+// TL;DR + pros/cons up top, full lesson below. Deep source:
+// TradingStrategiesPlan.md section 5.2.
+
+function loadAnalyzerStockMomentumAboutPage() {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Stock Momentum', href: '#analyzer/stockmomentum' },
+        { label: 'About' }
+    ]);
+    var page = document.getElementById('page-analyzer-sm-about');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header"><h2>📖 Stock Momentum — About the Strategy</h2></div>' +
+
+        // ------------------------------------------------ TL;DR
+        '<div class="dm-verdict-card">' +
+        '<div class="dm-verdict">TL;DR</div>' +
+        '<p><strong>Once a month:</strong> rank every stock in the watched universe by its return over the past ' +
+        '12 months <em>excluding the most recent month</em> (the "12-1" return). Own the top 25, equal-weighted. ' +
+        'Sell a holding only when it falls below rank 75. The rank makes every call — no stories, no opinions.</p>' +
+        '<p><strong>The point:</strong> winners keep winning for months because news gets priced in slowly and ' +
+        'people herd. It\'s the single most-documented anomaly in finance, and it works precisely because buying ' +
+        'stocks that feel expensive and "already missed" is uncomfortable — <em>the discomfort is the edge</em>.</p>' +
+        '<div class="dm-about-proscons">' +
+        '<div><strong>✅ Pros</strong><ul>' +
+        '<li>Strongest evidence of any strategy here — ~200 years of data, still working 30+ years after publication</li>' +
+        '<li>Realistic edge: +2–4%/yr over the index across a cycle</li>' +
+        '<li>Fully mechanical — the app ranks, you execute</li>' +
+        '<li>Sell buffer (rank 75) roughly halves the trading</li>' +
+        '</ul></div>' +
+        '<div><strong>❌ Cons</strong><ul>' +
+        '<li>Lags badly in V-rebounds off bear bottoms and on rotation days</li>' +
+        '<li>Always gives back a chunk when a big trend ends</li>' +
+        '<li>Turnover = mostly short-term gains → strongly prefers an IRA</li>' +
+        '<li>More work than Dual Momentum: ~2–5 trades a month</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '</div>' +
+
+        '<h3 class="ana-section-title">Longer strategy description</h3>' +
+        '<div class="dm-about-body">' +
+
+        '<h4>The core idea</h4>' +
+        '<p>Rank stocks by their trailing 12-month return, skipping the most recent month, and buy the top slice. ' +
+        'The skip-month matters: last month\'s hottest stocks tend to snap back short-term, so months 12-through-2 ' +
+        'capture the real trend without that noise. This is the same anomaly as Dual Momentum, but applied ' +
+        '<em>between individual stocks</em> instead of between whole markets — more horsepower, more homework.</p>' +
+
+        '<h4>Why do prices trend at all? Three human engines</h4>' +
+        '<ol>' +
+        '<li><strong>News seeps, it doesn\'t splash.</strong> Good news gets priced in over months, not minutes — ' +
+        'it filters through analysts, media, and slow-moving investors. The stock <em>drifts</em> toward fair value ' +
+        'instead of jumping there.</li>' +
+        '<li><strong>The disposition effect.</strong> People sell winners too early (lock in the gain, feel smart) ' +
+        'and hold losers too long (selling means admitting the mistake). Selling into rises slows the rise; refusing ' +
+        'to sell falls slows the fall. Both behaviors stretch trends out.</li>' +
+        '<li><strong>Anchoring.</strong> "It\'s already up 80%, I missed it." People anchor on the old price and ' +
+        'won\'t buy — which delays the adjustment further. Notice what this implies: <strong>the strategy works ' +
+        'because buying it feels bad.</strong> You are systematically buying stocks that feel expensive and ' +
+        'already-missed. That discomfort is literally the edge, and it\'s why the anomaly survives being famous.</li>' +
+        '</ol>' +
+
+        '<h4>How strong is the evidence?</h4>' +
+        '<p>Strongest of any anomaly, full stop. Documented back to <strong>1801</strong> in US data, found in every ' +
+        'major market, and — the part that matters most — still working 30+ years after publication, while most ' +
+        'published anomalies shrink or die once known. Fama, the father of efficient-markets theory, calls momentum ' +
+        '"the premier anomaly" — the one his own framework can\'t kill. For live proof there\'s MTUM, an iShares ETF ' +
+        'running a long-only version since 2013: it roughly tracks-to-modestly-beats the S&amp;P, which is meaningful ' +
+        'because large-cap long-only is the <em>weakest</em> form of the strategy.</p>' +
+        '<p><strong>Realistic expectation — and what it\'s worth:</strong> a disciplined long-only version has ' +
+        'historically delivered roughly +2–4%/yr over the index across a full cycle. That sounds small; it isn\'t. ' +
+        '$100k compounding 30 years at the S&amp;P\'s ~10.5% becomes ~$2.0M. At 13.5% it becomes ~$4.4M — ' +
+        '<strong>more than double the ending wealth from "just" 3 extra points a year</strong>. Compounding turns ' +
+        'small persistent edges into enormous differences; that\'s the entire reason to bother with the monthly work.</p>' +
+
+        '<h4>The signature failure: momentum crashes and rotation days</h4>' +
+        '<p>Momentum\'s worst moments are <strong>sharp reversals at bear-market bottoms</strong>. In March–May 2009 ' +
+        'the academic version (which also shorts the losers) lost ~70% in three months — the left-for-dead banks ' +
+        'tripled off the bottom while the safe "winners" sat still. Key nuance: <strong>that carnage lives mostly on ' +
+        'the short side, and this strategy never shorts anything.</strong> Long-only momentum in 2009 merely lagged ' +
+        'the rebound — painful, not fatal. The ⚠️ regime banner (SPY below its 200-day average) marks exactly this ' +
+        'danger window; the canonical play there is smaller or no new positions until the trend recovers.</p>' +
+        '<p>The unhedgeable mini-version is the <strong>rotation day</strong>: on Nov 9, 2020 (vaccine news), ' +
+        'stay-at-home winners like Zoom and Peloton dropped 15–20% in a day while beaten-down airlines exploded — ' +
+        'the largest one-day momentum reversal ever recorded. Those just happen; they\'re the cost of doing business.</p>' +
+
+        '<h4>What owning it actually feels like</h4>' +
+        '<p>The screen has no taste and no narrative. In 2023–24 it would have held NVDA nearly the whole run — the ' +
+        'stock everyone called "too expensive" the entire way up (that\'s engine #3 paying you). It also would have ' +
+        'ridden Super Micro up 10x <em>and partway back down</em> — momentum always exits after the turn, never at ' +
+        'the top; giving back a chunk at trend-end is built in, not a malfunction. And it will hold boring insurers ' +
+        'and industrials nobody tweets about. Equally important is what it won\'t let you do: buy a famous stock ' +
+        'that\'s down 40% because it\'s "due" — the screen calls that a loser, and the disposition effect says ' +
+        'everyone still holding it is why it keeps falling.</p>' +
+
+        '<h4>The failure modes to accept up front</h4>' +
+        '<ul>' +
+        '<li><strong>Reversal lag</strong> — trails the index in V-rebounds and on rotation days. The regime banner ' +
+        'blunts the first; nothing fixes the second.</li>' +
+        '<li><strong>Turnover and taxes</strong> — ~50–100%+ annual turnover, mostly short-term gains. ' +
+        '<strong>Run this in an IRA.</strong> Use limit orders; per-trade sloppiness compounds.</li>' +
+        '<li><strong>Boredom and tracking error</strong> — months of mechanical rebalancing into stocks with no ' +
+        'story, sometimes trailing the index. Abandonment is the #1 killer, same as every strategy here.</li>' +
+        '<li><strong>Tinkering</strong> — overriding the rank ("I don\'t like this one") reintroduces the exact ' +
+        'human biases the system exists to remove. The rank makes the call, or the strategy isn\'t being run at all.</li>' +
+        '</ul>' +
+
+        '<p class="muted-text">Deep source: TradingStrategiesPlan.md sections 5.2 (teaching), 6.2 (frozen rulebook), ' +
+        '7.2 (how this screen works). The Signal history table on the Stock Momentum screen is this strategy\'s ' +
+        'live, graded track record.</p>' +
+        '</div>';
 }
 
 async function _smRender() {

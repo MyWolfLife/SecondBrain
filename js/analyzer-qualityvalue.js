@@ -198,6 +198,7 @@ function loadAnalyzerQualityValuePage() {
     if (!page) return;
     page.innerHTML =
         '<div class="page-header"><h2>💎 Quality-Value</h2></div>' +
+        '<div class="ana-add-row"><a class="ana-sp-btn" href="#analyzer/qualityvalue/about">📖 About Strategy</a></div>' +
         '<p class="muted-text" style="max-width:560px">Good businesses at cheap prices — the S&amp;P 500 ' +
         '(minus financials, utilities, and real estate) ranked on earnings yield + return on capital, ' +
         'Magic-Formula style. Screen once a year, hold the list about a year. ' +
@@ -333,4 +334,120 @@ async function _qvRender() {
 function _qvToggleThesis(ticker) {
     var row = document.getElementById('qvThesis-' + ticker);
     if (row) row.style.display = (row.style.display === 'none') ? '' : 'none';
+}
+
+// ---------------------------------------------------------------------------
+// About Strategy page (#analyzer/qualityvalue/about)
+// ---------------------------------------------------------------------------
+// TL;DR + pros/cons up top, full lesson below. Deep source:
+// TradingStrategiesPlan.md section 5.3.
+
+function loadAnalyzerQualityValueAboutPage() {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Quality-Value', href: '#analyzer/qualityvalue' },
+        { label: 'About' }
+    ]);
+    var page = document.getElementById('page-analyzer-qv-about');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header"><h2>📖 Quality-Value — About the Strategy</h2></div>' +
+
+        // ------------------------------------------------ TL;DR
+        '<div class="dm-verdict-card">' +
+        '<div class="dm-verdict">TL;DR</div>' +
+        '<p><strong>Once a year:</strong> rank the universe on two numbers — earnings yield (how cheap) and return ' +
+        'on capital (how good) — add the two ranks, and hold the ~25 best combined scores for about a year. ' +
+        'Max 4 per sector. That\'s systematized Buffett: <em>good businesses having a bad year</em>.</p>' +
+        '<p><strong>The point:</strong> markets overextrapolate — exciting stocks get priced as if growth lasts ' +
+        'forever, troubled ones as if the trouble is permanent. Reality mean-reverts. Quality removes the truly ' +
+        'dying companies from the cheap list; cheapness removes the overpriced ones from the quality list. It\'s the ' +
+        'slowest strategy in the hub, and the only one that\'s reasonable in a taxable account.</p>' +
+        '<div class="dm-about-proscons">' +
+        '<div><strong>✅ Pros</strong><ul>' +
+        '<li>Lowest maintenance of all six: one screen a year</li>' +
+        '<li>Both components are among the most robust factors known</li>' +
+        '<li>Taxable-account friendly (low turnover, long-term gains)</li>' +
+        '<li>The AI trap check covers its one blind spot</li>' +
+        '</ul></div>' +
+        '<div><strong>❌ Cons</strong><ul>' +
+        '<li>Multi-year droughts are guaranteed — value trailed growth for most of 2010–2020</li>' +
+        '<li>Some value traps still slip through</li>' +
+        '<li>You\'ll own unloved, boring names and never the exciting ones</li>' +
+        '<li>Can only be judged across years, not quarters</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '</div>' +
+
+        '<h3 class="ana-section-title">Longer strategy description</h3>' +
+        '<div class="dm-about-body">' +
+
+        '<h4>Two half-broken factors that fix each other</h4>' +
+        '<p><strong>Value alone</strong> works because markets overextrapolate — but the cheap list is salted with ' +
+        '<em>value traps</em>: companies cheap because they\'re actually dying. Blockbuster looked statistically ' +
+        'cheap all the way to zero. <strong>Quality alone</strong> works because highly profitable, stable firms ' +
+        'outperform — but everyone can see quality, so the best businesses are usually expensive, and overpaying ' +
+        'eats the edge. <strong>Together they patch each other\'s hole.</strong> What remains after both filters is ' +
+        'good businesses temporarily on sale — hated, boring, or having a bad year, but demonstrably profitable.</p>' +
+
+        '<h4>The mechanics (Greenblatt\'s "Magic Formula")</h4>' +
+        '<p>Rank every stock on <strong>earnings yield</strong> (operating profit ÷ enterprise value — a P/E that ' +
+        'debt can\'t hide inside) and <strong>return on capital</strong> (how much profit the business squeezes from ' +
+        'its assets). Add the two ranks; buy the ~25 best combined scores; hold about a year; re-screen; rotate. ' +
+        'Banks, utilities, and real estate are excluded because those metrics are meaningless for them. The sector ' +
+        'cap (4) stops the screen from loading up on one hated industry.</p>' +
+
+        '<h4>Why hasn\'t everyone arbitraged it away? Time arbitrage — the best moat on the list</h4>' +
+        '<p>The payoff horizon is <em>years</em>, and almost nobody professional can wait that long. Value spent ' +
+        'most of 2010–2020 losing to growth; any fund manager who held through that was fired years before the ' +
+        '2021–22 payback arrived. Greenblatt\'s own explanation is the best one-liner in the whole plan: ' +
+        '<strong>"it still works because it doesn\'t always work."</strong> The droughts ARE the moat — and an ' +
+        'individual with conviction is one of the very few market participants structurally able to cross them. ' +
+        'You can\'t be fired for tracking error. That\'s your entire edge here.</p>' +
+
+        '<h4>What the evidence honestly says — with the math</h4>' +
+        '<p>Greenblatt\'s book claims ~30%/yr (1988–2004); treat that as marketing. Independent replications with ' +
+        'realistic assumptions land around <strong>mid-teens vs. ~11% for the market</strong> over that span — still ' +
+        'clearly winning, and the compounding difference is huge: $100k for 17 years at 11% ≈ $590k, at 15% ≈ ' +
+        '<strong>$1.08M — nearly double</strong>. Post-2007 it\'s streakier: roughly market-matching through the ' +
+        'growth-crazed 2010s, strong in value years like 2021–22. This is the strategy you judge across ' +
+        '<em>decades, not quarters</em>.</p>' +
+        '<p>One stat worth burning in: the single best US mutual fund of 2000–2010 returned ~18%/yr, and its ' +
+        '<em>average investor lost money</em> — they bought after hot streaks and sold in droughts. For this ' +
+        'strategy, your own behavior is a bigger risk than anything in the screen.</p>' +
+
+        '<h4>What owning it feels like</h4>' +
+        '<p>Permanently out of step with whatever\'s exciting. In 2022\'s rate panic the screen loaded up on ' +
+        'homebuilders at ~5–6× earnings — priced for a housing collapse, then up enormously in 2023–24. Its ' +
+        'perennial residents are tobacco, defense contractors, used-car dealers, mature tech. It will essentially ' +
+        'never own an NVDA-type glamour stock — by the time a stock is exciting, its cheapness rank is dead. Note ' +
+        'the symmetry with Stock Momentum: momentum forces you to buy what feels <em>already-missed</em>; this ' +
+        'forces you to buy what feels <em>broken</em>. Both work because the discomfort is what stops other people. ' +
+        '(And the two are famously complementary — each tends to win in the years the other struggles.)</p>' +
+
+        '<h4>The blind spot — and the 🤖 trap check</h4>' +
+        '<p>Trailing numbers can\'t tell "cheap because hated" from "cheap because dying" — homebuilders-2022 and ' +
+        'Blockbuster-2008 look identical on a screen. That distinction lives in <em>text</em>: earnings calls, ' +
+        'filings, industry news. The 🤖 button on each screened name has the AI read the metrics plus a month of ' +
+        'news and rule on exactly that question. It\'s the analyst step Greenblatt says individual investors skip — ' +
+        'automated. Use it on any name you\'re considering, then decide.</p>' +
+
+        '<h4>The failure modes to accept up front</h4>' +
+        '<ul>' +
+        '<li><strong>Droughts — the defining risk.</strong> Committing to this strategy means committing ' +
+        '<em>through</em> a 2010s-style stretch. Quitting in year 2 of a drought is the classic failure and the ' +
+        'exact behavior that keeps the strategy working for everyone who stays.</li>' +
+        '<li><strong>Value traps that slip through.</strong> Trailing profits can\'t see the future — retailers ' +
+        'screened cheap-and-profitable right up until e-commerce ate them. Quality reduces this; the trap check ' +
+        'reduces it further; nothing eliminates it. That\'s what diversifying across ~25 names is for.</li>' +
+        '<li><strong>Taxes (the good news).</strong> The one strategy of the five that\'s reasonable in a taxable ' +
+        'account. Greenblatt\'s trick: sell losers just <em>before</em> the 1-year mark (short-term losses offset ' +
+        'more), winners just <em>after</em> it (long-term rate).</li>' +
+        '</ul>' +
+
+        '<p class="muted-text">Deep source: TradingStrategiesPlan.md sections 5.3 (teaching), 6.3 (frozen rulebook), ' +
+        '7.3 (how this screen works). The Screen history table on the Quality-Value screen is this strategy\'s ' +
+        'live, graded track record.</p>' +
+        '</div>';
 }
