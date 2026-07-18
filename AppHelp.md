@@ -2350,6 +2350,7 @@ The goal isn't to get rich or to trade constantly — it's to **systematically f
 Dual Momentum is a **once-a-month rotation strategy**: hold whichever is stronger — US stocks (SPY) or international stocks (VEU) — and step aside to cash (BIL) when neither is beating T-bills. Its edge isn't beating the market in good years; it's **sidestepping the long, grinding bear markets** (2000–02, 2008) and compounding from a higher base afterward. The full teaching write-up, evidence, and frozen rules live in `TradingStrategiesPlan.md` (sections 5.1, 6.1, 7.1).
 
 ### Quick Help
+- **📖 About Strategy** (top of the page) opens the full in-app lesson: a quick TL;DR with pros/cons, then the long version — how the strategy works, the honest evidence, the crash math ($100k buy-and-hold vs $152k dual momentum through 2007–13), the 60/40 comparison, and the failure modes to accept up front. Read it once before following any signal, and re-read it whenever a lagging year makes you doubt the strategy
 - The **verdict card** shows the current signal — HOLD US STOCKS, HOLD INTERNATIONAL, or HOLD CASH — with the three trailing 12-month total returns behind it
 - The signal is computed at each **month close** and logged automatically the first time you visit in the new month — so just **check on the 1st** (use 🗓️ **Add monthly reminder** to put a recurring event on your calendar)
 - You only ever act when the 🔔 **signal changed** banner appears — historically 1–3 times a year. No banner = do nothing

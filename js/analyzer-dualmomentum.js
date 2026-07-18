@@ -222,11 +222,175 @@ function loadAnalyzerDualMomentumPage() {
     if (!page) return;
     page.innerHTML =
         '<div class="page-header"><h2>🌍 Dual Momentum</h2></div>' +
+        '<div class="ana-add-row"><a class="ana-sp-btn" href="#analyzer/dualmomentum/about">📖 About Strategy</a></div>' +
         '<p class="muted-text" style="max-width:560px">Once a month, hold whichever is stronger — ' +
         'US stocks or international — and step aside to cash when neither beats T-bills. ' +
         'The signal updates at each month close. You decide whether to follow it.</p>' +
         '<div id="dmContent"><p class="muted-text">Loading prices…</p></div>';
     _dmRender();
+}
+
+// ---------------------------------------------------------------------------
+// About Strategy page (#analyzer/dualmomentum/about)
+// ---------------------------------------------------------------------------
+// The full strategy education, in-app: a TL;DR with pros/cons up top, then
+// the long-form lesson (mechanism, evidence, crash arithmetic, the 60/40
+// comparison, failure modes, worked history). Static content — the deep
+// source is TradingStrategiesPlan.md section 5.1.
+
+function loadAnalyzerDualMomentumAboutPage() {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Dual Momentum', href: '#analyzer/dualmomentum' },
+        { label: 'About' }
+    ]);
+    var page = document.getElementById('page-analyzer-dm-about');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header"><h2>📖 Dual Momentum — About the Strategy</h2></div>' +
+
+        // ------------------------------------------------ TL;DR
+        '<div class="dm-verdict-card">' +
+        '<div class="dm-verdict">TL;DR</div>' +
+        '<p><strong>Once a month:</strong> hold whichever of US stocks (SPY) or international stocks (VEU) has the ' +
+        'higher trailing 12-month return — but if US stocks aren\'t beating T-bills, hold cash instead. Trade only ' +
+        'when the answer changes (1–3 times a year). That\'s the entire strategy.</p>' +
+        '<p><strong>The point:</strong> it is NOT trying to beat the market in good years. It matches the market most ' +
+        'of the time and tries to <em>sidestep the long, grinding bear markets</em> (2000–02, 2008) — because losing ' +
+        '50% requires a +100% recovery, and avoiding that hole is worth more than any amount of stock-picking.</p>' +
+        '<div class="dm-about-proscons">' +
+        '<div><strong>✅ Pros</strong><ul>' +
+        '<li>5 minutes a month, zero judgment calls</li>' +
+        '<li>Sidesteps grinding bears (its whole job)</li>' +
+        '<li>Strongest evidence-to-effort ratio of the 6 strategies</li>' +
+        '<li>No capacity limit — the edge can\'t get "used up"</li>' +
+        '</ul></div>' +
+        '<div><strong>❌ Cons</strong><ul>' +
+        '<li>Whipsawed by fast V-crashes (2020 cost ~10 pts)</li>' +
+        '<li>Lags the S&amp;P in some bull years — must be endured</li>' +
+        '<li>Switches realize gains → strongly prefers an IRA</li>' +
+        '<li>Only pays off if a real bear market shows up</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '</div>' +
+
+        '<h3 class="ana-section-title">Longer strategy description</h3>' +
+        '<div class="dm-about-body">' +
+
+        '<h4>The core idea</h4>' +
+        '<p>It stacks two of the most durable findings in finance. First, <strong>relative momentum</strong>: markets ' +
+        'that beat their peers over the past ~12 months tend to keep winning for a while, because investors underreact ' +
+        'to news and then herd into what\'s working. Second, <strong>absolute momentum</strong> (trend following): when ' +
+        'a market\'s 12-month return is below what T-bills paid, its forward returns are historically poor. The key ' +
+        'insight behind the second one is that <strong>bear markets are processes, not events</strong> — 2008 took 17 ' +
+        'months to bottom, 2000–02 took two years. That\'s why a signal you only check once a month is still fast ' +
+        'enough to sidestep most of the damage.</p>' +
+
+        '<h4>The entire rulebook</h4>' +
+        '<p>Once a month, on the same day every month:</p>' +
+        '<ol>' +
+        '<li>Look up the trailing 12-month total return of US stocks (SPY), international stocks (VEU), and T-bills (BIL).</li>' +
+        '<li>If SPY\'s return is <strong>below</strong> T-bills → hold cash (BIL). You\'re done.</li>' +
+        '<li>If it\'s <strong>above</strong> → hold whichever of SPY or VEU has the higher return.</li>' +
+        '<li>Come back next month. You only trade when the answer changes — historically 1–3 times a year, sometimes not at all.</li>' +
+        '</ol>' +
+        '<p>That\'s everything. No stock picking, no watching the market, no judgment calls — which is exactly why it ' +
+        'ranks #1 of the six strategies: the discipline demand is as low as it gets. (This app computes the signal at ' +
+        'each month close and logs it automatically — the Dual Momentum screen shows the current verdict and only ever ' +
+        'asks you to act when it changes.)</p>' +
+
+        '<h4>Why hasn\'t everyone arbitraged it away?</h4>' +
+        '<p>Three reasons, and this is the most important part of the lesson. The edge is <strong>behavioral</strong> — ' +
+        'human herding didn\'t stop when the papers were published. The trades are in the most liquid ETFs on earth, so ' +
+        'there\'s <strong>no capacity limit</strong> for others to "use up." And the real price of admission is ' +
+        '<strong>tracking error</strong> — the strategy can trail the S&amp;P for years during a bull market. A fund ' +
+        'manager gets fired for that; you just have to endure it. Career risk is the moat, and you don\'t have a career ' +
+        'at stake.</p>' +
+
+        '<h4>What the evidence honestly says</h4>' +
+        '<p>Antonacci\'s 1974–2013 backtest showed ~17% a year vs. ~12% for the S&amp;P, with half the worst-case loss ' +
+        '(-23% vs. -51%). Treat the exact numbers as optimistic — the durable claim is the <em>shape</em>: similar ' +
+        'returns, much shallower crashes. Since publication it has <strong>lagged</strong> the S&amp;P, because 2014 ' +
+        'onward was a nearly uninterrupted US bull with one V-shaped crash — the exact environment it\'s worst at. It ' +
+        'earned its keep in 2022 (stepped toward safety early, skipped most of a -25% year). Whether it wins over the ' +
+        'next 30 years depends on whether those years contain long grinding bears (its specialty) or only fast crashes.</p>' +
+
+        '<h4>The real benefit: crash arithmetic (this is the whole business model)</h4>' +
+        '<p>Losses and gains are not symmetric. <strong>A -50% loss requires +100% to get back to even. A -20% loss ' +
+        'only needs +25%.</strong> The strategy\'s entire value lives in that asymmetry. Walk through 2007–2013 with ' +
+        'real numbers, $100,000 invested at the October 2007 peak:</p>' +
+        '<ul>' +
+        '<li><strong>Buy-and-hold:</strong> $100k falls to ~$43k at the March 2009 bottom (-57%). The market then ' +
+        '<em>doubles</em> over the next four years — and all that heroic doubling accomplishes is getting back to ' +
+        '~$100k in early 2013. Five and a half years to break even.</li>' +
+        '<li><strong>Dual Momentum:</strong> the signal exits in January 2008, about 12% off the peak — so ~$88k goes ' +
+        'to safety and sits there, worth ~$92k by mid-2009. It re-enters <em>after</em> missing the first ~30% of the ' +
+        'rebound (that\'s the toll it always pays). But from that re-entry point back to the old peak is still +65%: ' +
+        '$92k × 1.65 ≈ <strong>$152k</strong> in early 2013 — the same day buy-and-hold got back to $100k.</li>' +
+        '</ul>' +
+        '<p>Same market, same ending index level, ~50% more money. Notice it never "beat the market" in any single up ' +
+        'year — the entire win came from <strong>which base it was compounding from</strong> after the crash. That\'s ' +
+        'why the strategy looks unimpressive year-by-year and only shows its value across a full cycle that contains a ' +
+        'real bear market.</p>' +
+        '<p><strong>The honest frequency bet:</strong> if the next 30 years contain only fast V-shaped crashes (like ' +
+        '2020), buy-and-hold wins and every monthly check-in was wasted effort. If they contain even <em>one</em> ' +
+        '2000- or 2008-style grinding bear — historically there\'s been roughly one per decade — Dual Momentum likely ' +
+        'comes out well ahead. You are essentially buying insurance where the premium is whipsaw risk instead of cash.</p>' +
+        '<p><strong>And the closer you are to spending the money, the more this matters.</strong> Buy-and-hold ' +
+        'recovered from every crash <em>eventually</em> — but "eventually" was ~13 years for the 2000 peak (dot-com ' +
+        'crash straight into 2008). At age 30 with decades of paychecks ahead, that\'s an annoyance and crashes are ' +
+        'actually a buying opportunity. Within 10–15 years of retirement, a lost decade starting at the wrong time is ' +
+        'the single biggest risk you face (sequence-of-returns risk), and drawdown avoidance is worth far more than it ' +
+        'is to a young investor.</p>' +
+
+        '<h4>Versus 60/40 — the real alternative</h4>' +
+        '<p>A permanent 60% stocks / 40% bonds mix is trying to solve the same problem (crash protection) with the ' +
+        'opposite payment plan:</p>' +
+        '<div class="dm-history"><table class="dm-table"><thead>' +
+        '<tr><th></th><th>60/40 forever</th><th>Dual Momentum</th></tr></thead><tbody>' +
+        '<tr><td><strong>How it protects</strong></td><td>Always holds 40% bonds</td><td>~100% stocks normally, ~100% safety only when the trend breaks</td></tr>' +
+        '<tr><td><strong>What protection costs</strong></td><td>~1.5%/yr return drag, every year, bull or bear</td><td>Nothing in trending years; a few points in whipsaw years</td></tr>' +
+        '<tr><td><strong>30-yr cost of that drag</strong></td><td>$100k at 9% → ~$1.3M</td><td>$100k at ~10.5% → ~$2.0M</td></tr>' +
+        '<tr><td><strong>2008–09 drawdown</strong></td><td>~-30%</td><td>~-13%</td></tr>' +
+        '<tr><td><strong>2022 (bonds crashed too)</strong></td><td>-17% — its worst year in decades; the insurance failed exactly when needed</td><td>Went risk-off early; roughly flat-to-modestly-down</td></tr>' +
+        '<tr><td><strong>Effort</strong></td><td>Zero</td><td>5 minutes a month, forever, including years it feels pointless</td></tr>' +
+        '</tbody></table></div>' +
+        '<p>Two things jump out. First, 60/40\'s annual drag compounds into an enormous difference over 30 years. ' +
+        'Dual Momentum\'s claim is that it buys <em>similar or better</em> crash protection without paying that toll ' +
+        'every year — you pay only in whipsaw years. Second, 2022 exposed 60/40\'s hidden assumption: it only protects ' +
+        'when bonds zig while stocks zag. In an inflation shock both crash together and the 40% is dead weight. A ' +
+        'trend signal doesn\'t care <em>why</em> the market is falling.</p>' +
+
+        '<h4>The failure modes to accept up front</h4>' +
+        '<ul>' +
+        '<li><strong>Whipsaw</strong> — 2020 was the worst case: the crash was so fast the signal exited after the ' +
+        'drop, then the market V-recovered before it got back in. Cost 10+ points that year. This will happen again.</li>' +
+        '<li><strong>Bull-market lag</strong> — expect occasional "market made 20%, I made 13%" years and decide ' +
+        '<em>now</em> that won\'t shake you out. Quitting in frustration right before the bear market it was built for ' +
+        'is the #1 way people lose with this. (The best US mutual fund of 2000–2010 returned ~18%/yr while its ' +
+        '<em>average investor lost money</em> — buying after hot streaks, selling after droughts. The behavior gap is ' +
+        'the real enemy, not the strategy.)</li>' +
+        '<li><strong>Taxes</strong> — every switch realizes gains, so this strategy strongly prefers a retirement ' +
+        'account (IRA), where switching is a non-event.</li>' +
+        '</ul>' +
+
+        '<h4>Worked history</h4>' +
+        '<ul>' +
+        '<li><strong>2008 (the good case):</strong> went to safety in January 2008 — before the S&amp;P fell another ' +
+        '45% — and re-entered mid-2009. It missed the first chunk of the rebound (the toll it always pays), but ' +
+        'skipping a -50% drawdown to pay a ~10% re-entry toll is the whole business model.</li>' +
+        '<li><strong>2020 (the bad case):</strong> the February–March crash was too fast for a monthly signal — it ' +
+        'exited near the bottom, the market V-recovered, and it re-entered well above its exit. Roughly a 10-point ' +
+        'cost vs. buy-and-hold that year. The honest worst case, and it will recur.</li>' +
+        '<li><strong>2022 (the good case, smaller):</strong> risk-off in early 2022, sat out most of a grinding -25% ' +
+        'year, re-entered in early 2023 — while 60/40 had one of its worst years ever because bonds fell too.</li>' +
+        '</ul>' +
+
+        '<p class="muted-text">Deep source: TradingStrategiesPlan.md sections 5.1 (teaching + Q&amp;A), 6.1 (frozen ' +
+        'rulebook), 7.1 (how this screen works). The Signal history table on the Dual Momentum screen is this ' +
+        'strategy\'s live, graded track record.</p>' +
+        '</div>';
 }
 
 function _dmPct(v) {

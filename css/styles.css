@@ -18725,6 +18725,21 @@ a.legacy-fin-card:hover {
     .dm-bar-label { flex-basis: 120px; font-size: 0.78rem; }
 }
 
+/* Dual Momentum: About Strategy page */
+.dm-about-proscons {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.dm-about-proscons > div { flex: 1 1 220px; min-width: 0; }
+.dm-about-proscons ul { margin: 6px 0 0; padding-left: 20px; }
+.dm-about-proscons li { margin: 3px 0; font-size: 0.88rem; }
+.dm-about-body { max-width: 640px; font-size: 0.92rem; }
+.dm-about-body h4 { margin: 20px 0 6px; }
+.dm-about-body p, .dm-about-body li { line-height: 1.5; }
+.dm-about-body ol, .dm-about-body ul { padding-left: 22px; }
+
 /* Quality-Value: inline AI thesis row */
 .qv-thesis {
     font-size: 0.85rem;
