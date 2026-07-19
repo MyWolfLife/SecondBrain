@@ -1832,7 +1832,7 @@ var _dmMonthActivitiesKey = '';     // 'YYYY-M' key — invalidates cache when m
 var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded      = false;  // sticky accordion state — loaded from settings/exercisePrefs
 var _dmExtraColsOpen      = false;  // show/hide extra columns (Total Miles etc.) — sticky
-var _dmNutriColsOpen      = false;  // show/hide nutrition columns (Protein/Carbs/Fat/Water) — sticky
+var _dmNutriColsOpen      = false;  // show/hide nutrition columns (Protein/Carbs/Fiber/Fat/Water) — sticky
 var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
 var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
@@ -2614,7 +2614,7 @@ async function _dmApplyFilter() {
 // and the per-day average reflect the full month rather than just weigh-in span.
 function _dmComputeSummary(records, denominator, nextMonthRec) {
     var stdFields = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
-                     'protein','carbs','fat','water'];
+                     'protein','carbs','fiber','fat','water'];
     var sums = {}, counts = {};
     stdFields.forEach(function(f) { sums[f] = 0; counts[f] = 0; });
 
@@ -2686,6 +2686,7 @@ function _dmComputeSummary(records, denominator, nextMonthRec) {
     // Nutrition averages — only logged days count toward the average
     result.protein = counts.protein ? Math.round(sums.protein / counts.protein).toLocaleString() : '—';
     result.carbs   = counts.carbs   ? Math.round(sums.carbs   / counts.carbs).toLocaleString()   : '—';
+    result.fiber   = counts.fiber   ? Math.round(sums.fiber   / counts.fiber).toLocaleString()   : '—';
     result.fat     = counts.fat     ? Math.round(sums.fat     / counts.fat).toLocaleString()     : '—';
     result.water   = counts.water   ? Math.round(sums.water   / counts.water).toLocaleString()   : '—';
 
@@ -2709,6 +2710,7 @@ function _dmComputeSummary(records, denominator, nextMonthRec) {
         foodCalories: counts.foodCalories ? sums.foodCalories : null,
         protein:      counts.protein      ? sums.protein      : null,
         carbs:        counts.carbs        ? sums.carbs        : null,
+        fiber:        counts.fiber        ? sums.fiber        : null,
         fat:          counts.fat          ? sums.fat          : null,
         water:        counts.water        ? sums.water        : null
     };
@@ -2828,6 +2830,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     var nutriCols = [
         { key: 'protein', label: 'Protein', tooltip: 'Total grams of protein consumed this day' },
         { key: 'carbs',   label: 'Carbs',   tooltip: 'Total grams of carbohydrates consumed this day' },
+        { key: 'fiber',   label: 'Fiber',   tooltip: 'Total grams of fiber consumed this day' },
         { key: 'fat',     label: 'Fat',     tooltip: 'Total grams of fat consumed this day' },
         { key: 'water',   label: 'Water',   tooltip: 'Total ounces of water drank this day' }
     ];
@@ -2967,7 +2970,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
             foodCalories: _l7Avg(l7.foodCalories),
             diff:         (l7.diffSum != null && l7.diffCount > 0)
                               ? Math.round(l7.diffSum / l7.diffCount).toLocaleString() : '',
-            nutrition:    [l7.protein, l7.carbs, l7.fat, l7.water].map(_l7Avg),
+            nutrition:    [l7.protein, l7.carbs, l7.fiber, l7.fat, l7.water].map(_l7Avg),
             custom:       function(def) { var c = l7.custom[def.id]; return c == null ? '' : _exEsc(c); }
         });
     }
@@ -2987,7 +2990,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         totalBurn:    (gMonth && gMonth.burnGreen != null) ? parseFloat(gMonth.burnGreen).toLocaleString() : '',
         foodCalories: foodGoal != null ? foodGoal.toLocaleString() : '',
         diff:         dailyCalLossGoal != null ? dailyCalLossGoal.toLocaleString() : '',
-        nutrition:    ['', '', '', ''],   // no nutrition goals yet
+        nutrition:    ['', '', '', '', ''],   // no nutrition goals yet
         custom:       function() { return ''; }
     });
 
@@ -3014,7 +3017,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         foodCalories: summary.foodCalories,
         diff:         (summary.diffSum != null && summary.diffCount > 0)
                           ? Math.round(summary.diffSum / summary.diffCount).toLocaleString() : '',
-        nutrition:    [summary.protein, summary.carbs, summary.fat, summary.water]
+        nutrition:    [summary.protein, summary.carbs, summary.fiber, summary.fat, summary.water]
                           .map(function(v) { return v === '—' ? '' : v; }),
         custom:       function() { return ''; }
     });
@@ -3045,7 +3048,8 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         foodCalories: _fmtNum(summary.totals.foodCalories),
         diff:         diffTotal,
         nutrition:    [_fmtNum(summary.totals.protein), _fmtNum(summary.totals.carbs),
-                       _fmtNum(summary.totals.fat), _fmtNum(summary.totals.water)],
+                       _fmtNum(summary.totals.fiber), _fmtNum(summary.totals.fat),
+                       _fmtNum(summary.totals.water)],
         custom:       function(def) { return _exEsc(summary.custom[def.id] || ''); }
     });
     // Column header row
@@ -3541,10 +3545,11 @@ function _dmBuildSummaryCardHtml(summary, title, opts) {
 
     // Nutrition row — only shown when at least one nutrition value was logged
     var nutriRow = '';
-    if (summary.protein !== '—' || summary.carbs !== '—' || summary.fat !== '—' || summary.water !== '—') {
+    if (summary.protein !== '—' || summary.carbs !== '—' || summary.fiber !== '—' || summary.fat !== '—' || summary.water !== '—') {
         nutriRow =
             '<span class="dm-card-metric"><span class="dm-card-label">Protein</span> ' + summary.protein + '</span>' +
             '<span class="dm-card-metric"><span class="dm-card-label">Carbs</span> ' + summary.carbs + '</span>' +
+            '<span class="dm-card-metric"><span class="dm-card-label">Fiber</span> ' + summary.fiber + '</span>' +
             '<span class="dm-card-metric"><span class="dm-card-label">Fat</span> ' + summary.fat + '</span>' +
             '<span class="dm-card-metric"><span class="dm-card-label">Water</span> ' + summary.water + '</span>';
     }
@@ -3867,6 +3872,7 @@ function _dmBuildEntryForm(el) {
             '<div class="dm-section-header">Nutrition</div>' +
             stdField('protein', 'Protein (g)', 'numeric', 'Total grams of protein for the day') +
             stdField('carbs',   'Carbs (g)',   'numeric', 'Total grams of carbohydrates for the day') +
+            stdField('fiber',   'Fiber (g)',   'numeric', 'Total grams of fiber for the day') +
             stdField('fat',     'Fat (g)',     'numeric', 'Total grams of fat for the day') +
             stdField('water',   'Water (oz)',  'numeric', 'Total ounces of water for the day') +
 
@@ -3936,7 +3942,7 @@ async function _dmSaveMetric() {
     if (!dateVal) { alert('Please enter a date.'); return; }
 
     var stdKeys = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
-                   'protein','carbs','fat','water'];
+                   'protein','carbs','fiber','fat','water'];
     var data = { date: dateVal };
 
     // Standard fields — blank → null
