@@ -2303,7 +2303,7 @@ The Stock Analyzer is now a **hub of six trading strategies**, each with its own
 - **🚀 Stock Momentum** — the top 25 stocks in your watched universe by 12-month momentum, re-ranked monthly with buy/sell diffs and a graded track record
 - **💎 Quality-Value** — an annual Magic-Formula screen: good businesses at cheap prices, with an AI "value trap or bargain?" check per name
 - **📈 Earnings Drift (PEAD)** — scans the last week of earnings for real beats the market confirmed, tracks each signal with AI "real beat?" verdicts and exit rules
-- **📰 News Sentiment** — coming soon; the last of the six to be built
+- **📰 News Sentiment** — a morning AI sweep of your holdings/watchlist news, run as a measurement experiment: signals are logged and graded, and an edge meter decides if the approach ever deserves real money
 - The strategies are documented in depth (what they are, the evidence, when they fail) in `TradingStrategiesPlan.md`
 - The **📊 Price data** section (cache status + Update button) moved to the **Dip & Drift** sub-screen
 
@@ -2412,6 +2412,22 @@ Earnings Drift rides the market's slow reaction to earnings surprises: when a co
 - **🤖 Real beat?** asks the AI whether the beat was **organic** (real operating strength, stronger guidance → drift follows) or **cosmetic** (one-time items, tax benefits, buybacks → fades). It reads the earnings-call transcript when available, news otherwise. Tap the verdict badge to read the reasoning
 - The playbook: enter within 1–3 days of the flag, exit by **~45 trading days** and always **before the next report**, bail at the invalidation level. Many small positions — winners drift ~+3–7%, losers get cut early
 - Trades cluster in the four earnings seasons; expect quiet stretches between. All gains are short-term — this strategy strongly prefers an **IRA**
+
+---
+
+## screen:analyzer-newssentiment
+
+### What this is for
+
+News Sentiment tests whether an AI reading your watchlist's news each morning can spot **material, not-yet-priced** stories before the market fully digests them. It is deliberately framed as a **measurement instrument, not a trading tool**: this is the least proven strategy in the hub, and its backtests can't be trusted (an AI trained on the past already "knows" how old stories ended), so the only honest evidence is live, timestamped signals graded against what happened next. The **edge meter** — not enthusiasm — decides if this ever graduates to real money. Full write-up: 📖 About Strategy, and `TradingStrategiesPlan.md` (sections 5.5, 6.5, 7.5).
+
+### Quick Help
+- **📖 About Strategy** (top) opens the full lesson — why an edge could exist, the three honest problems, and the graduation rule
+- **📰 Morning sweep** (best run before the open) has the AI read the last 2 days of news for your **holdings + watchlist**, with the stock's recent price move as context. It ignores noise and already-priced stories — **most sweeps produce zero signals, and that's the filter working**
+- Sweeps are capped at ~15 AI reads for cost control — a summary line shows what was checked, read, ignored, and signaled
+- Each **signal card** shows direction (🟢 bullish / 🔴 bearish), confidence, materiality, the headlines, expandable reasoning, and its grade: the stock's next **3 trading days vs SPY**, direction-adjusted (a bearish call "wins" when the stock lags SPY)
+- **📏 Edge meter**: needs **20+ graded signals** before it says anything; then it shows the hit rate and average edge, with an honest verdict — "promising, keep measuring" or "no edge shown." Until it's green over months, **watch — don't trade**
+- If it ever graduates: IRA only, small uniform positions, limit orders — thin fast edges can't afford sloppy fills
 
 ---
 

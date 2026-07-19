@@ -22,8 +22,10 @@ Investigate trading/investing strategies with **credible statistical evidence of
 | 3 | One-paragraph descriptions, ranked 1–5 | ✅ COMPLETE (below) |
 | 4 | User removes 2 (any reason — preference counts) | ✅ DECIDED — user kept all 5 |
 | 5 | Deep teaching of all 5 strategies (one section per strategy, built out as we discuss) | ✅ COMPLETE (all 5 taught) |
-| 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | 🔄 IN PROGRESS — 6.1 Dual Momentum rulebook drafted |
-| 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | 🔄 IN PROGRESS — hub restructure decided; 7.1 Dual Momentum spec drafted |
+| 6 | Full implementation documentation per strategy (rules, universe, signals, position sizing, exits, costs, failure modes) | ✅ COMPLETE — all 5 rulebooks frozen (6.1–6.5) |
+| 7 | Design an app feature per strategy (Analyzer-style: signal surfacing, evidence, user decides) | ✅ COMPLETE — all 5 tools BUILT + shipped (7.1–7.5), each with an 📖 About Strategy education page |
+
+**ALL 7 PHASES COMPLETE (2026-07-19).** The Stock Analyzer hub now has six live strategies: Dip & Drift, Dual Momentum, Stock Momentum, Quality-Value, Earnings Drift, News Sentiment. Ongoing work from here: run the strategies, let each signal log build its live track record, and revisit rulebook variations only with graded evidence in hand.
 
 ---
 
@@ -540,7 +542,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 - [x] **Piece B — LLM verdict + signal history grading.** ✅ DONE (verified live on a real FLEX earnings pop: transcript→news fallback worked, ORGANIC verdict parsed/saved, badge + expandable reasoning + teach panel render; test doc deleted) — Per-candidate 🤖 organic-vs-cosmetic verdict (FMP transcript with 402 fallback to news headlines), saved onto the signal doc, badge + expandable reasoning. Signal history table graded vs SPY with invalidation flags. Teach panel. Cache bump.
 - [x] **Piece C — About page + docs + close out.** ✅ DONE (About page verified in preview; spec + AppHelp + help.js registered) — `#analyzer/earningsdrift/about` (TL;DR + pros/cons + full 5.4 lesson incl. the analyst-revision conveyor belt and worked trade example), full spec section, AppHelp `screen:analyzer-earningsdrift` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
 
-### 6.5 News Sentiment — Rulebook (FROZEN 2026-07-19; build in progress)
+### 6.5 News Sentiment — Rulebook (FROZEN 2026-07-19; ✅ BUILT as #analyzer/newssentiment, all pieces shipped same day)
 
 **Framing (the most important rule): v1 is a MEASUREMENT INSTRUMENT, not a trading strategy.** Signals are logged and graded for months first; the aggregate hit-rate meter decides whether this ever graduates to real money. This is the only strategy of the five whose backtests are structurally untrustworthy (LLM look-ahead bias), so live timestamped signals are the *only* evidence that counts.
 
@@ -559,6 +561,6 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 
 **Screen:** `#analyzer/newssentiment`, module `js/analyzer-news.js`, Firestore `newsSignals` (doc id `TICKER_YYYY-MM-DD`: date, direction, confidence, materiality, alreadyPriced, headlines, reasoning; in backup list).
 
-- [ ] **Piece A — morning sweep + logged signal cards.** Sweep button → per-watchlist-ticker Finnhub news (2 days, skip no-news, cap ~15 LLM calls) → structured LLM verdict with recent-price-move context → SIGNAL rows logged idempotently; sweep summary line (tickers checked / stories read / ignored / signals). Signal cards: direction badge + confidence + materiality + headlines + expandable reasoning + 3-day grade vs SPY (✅/❌, direction-adjusted). Prominent measurement-instrument banner. Registrations, backup list, cache bump, spec route row.
-- [ ] **Piece B — edge meter + teach panel.** Aggregate stats over all graded signals: count, directional hit rate, avg 3-day return vs SPY, and a verdict line ("not enough data" < 20 graded / "no edge shown" / "promising — keep measuring"). Teach panel (5.5 recap: decay, look-ahead bias, why the meter gates everything). Cache bump.
-- [ ] **Piece C — About page + docs + close out.** `#analyzer/newssentiment/about` (TL;DR + pros/cons + full 5.5 lesson incl. the three honest problems and the priced/pass worked example), full spec section, AppHelp `screen:analyzer-newssentiment` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
+- [x] **Piece A — morning sweep + logged signal cards.** ✅ DONE (verified live: real sweep over 3 tickers, 2 AI reads, both correctly ignored as noise — zero signals is the filter working; card/grade render verified with a back-dated test signal, then deleted) — Sweep button → per-watchlist-ticker Finnhub news (2 days, skip no-news, cap ~15 LLM calls) → structured LLM verdict with recent-price-move context → SIGNAL rows logged idempotently; sweep summary line (tickers checked / stories read / ignored / signals). Signal cards: direction badge + confidence + materiality + headlines + expandable reasoning + 3-day grade vs SPY (✅/❌, direction-adjusted). Prominent measurement-instrument banner. Registrations, backup list, cache bump, spec route row.
+- [x] **Piece B — edge meter + teach panel.** ✅ DONE (meter + teach verified in preview; shipped together with Piece A in one module) — Aggregate stats over all graded signals: count, directional hit rate, avg 3-day return vs SPY, and a verdict line ("not enough data" < 20 graded / "no edge shown" / "promising — keep measuring"). Teach panel (5.5 recap: decay, look-ahead bias, why the meter gates everything). Cache bump.
+- [x] **Piece C — About page + docs + close out.** ✅ DONE — `#analyzer/newssentiment/about` (TL;DR + pros/cons + full 5.5 lesson incl. the three honest problems and the priced/pass worked example), full spec section, AppHelp `screen:analyzer-newssentiment` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.

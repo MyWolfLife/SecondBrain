@@ -81,7 +81,7 @@ function loadAnalyzerPage() {
                 'Good businesses at cheap prices — annual Magic-Formula screen with AI value-trap checks') +
             _anaStrategyCard('#analyzer/earningsdrift', '📈', 'Earnings Drift (PEAD)',
                 'Ride the 30–60 day drift after real earnings surprises — AI reads the call transcript') +
-            _anaStrategyCard(null, '📰', 'News Sentiment',
+            _anaStrategyCard('#analyzer/newssentiment', '📰', 'News Sentiment',
                 'Morning AI sweep of watchlist news — scored, logged, and graded before it is trusted') +
         '</div>';
 }

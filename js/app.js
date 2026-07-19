@@ -211,7 +211,7 @@ const ALL_PAGES = [
     'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
     'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
     'budget', 'budget-archive', 'budget-nonmonthly',
-    'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
+    'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
     'help'
 ];
@@ -254,7 +254,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'investments', 'investments-accounts', 'investments-account', 'investments-groups', 'investments-form', 'investments-summary', 'investments-snapshots', 'investments-snapshots-type', 'investments-stocks',
                      'investments-ss-benefits', 'investments-ss-form', 'investments-ai-setup', 'investments-ai', 'investments-import',
                      'budget', 'budget-archive', 'budget-nonmonthly',
-                     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
+                     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
@@ -939,6 +939,12 @@ function handleRoute() {
     } else if (page === 'analyzer' && id === 'earningsdrift') {
         showPage('analyzer-earningsdrift');
         loadAnalyzerEarningsDriftPage();
+    } else if (page === 'analyzer' && id === 'newssentiment' && parts[2] === 'about') {
+        showPage('analyzer-news-about');
+        loadAnalyzerNewsSentimentAboutPage();
+    } else if (page === 'analyzer' && id === 'newssentiment') {
+        showPage('analyzer-newssentiment');
+        loadAnalyzerNewsSentimentPage();
     } else if (page === 'analyzer' && id === 'universe') {
         showPage('analyzer-universe');
         loadAnalyzerUniversePage();

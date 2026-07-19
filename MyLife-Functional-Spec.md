@@ -2073,6 +2073,8 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/qualityvalue` | **Quality-Value** — annual Magic-Formula screen with AI trap checks (see section below) | ✅ Built (2026-07-18) |
 | `#analyzer/earningsdrift` | **Earnings Drift (PEAD)** — post-earnings surprise scanner with AI verdicts and tracked signals (see section below) | ✅ Built (2026-07-19) |
 | `#analyzer/earningsdrift/about` | **About Strategy** — TL;DR + pros/cons, then the full lesson (four drift engines incl. the analyst-revision conveyor belt, honest decay state, worked good/rejected trade examples, failure modes) | ✅ Built (2026-07-19) |
+| `#analyzer/newssentiment` | **News Sentiment** — morning AI news sweep, logged + graded as a measurement instrument (see section below) | ✅ Built (2026-07-19) |
+| `#analyzer/newssentiment/about` | **About Strategy** — TL;DR + pros/cons, then the full lesson (why an edge could exist, the three honest problems incl. look-ahead bias, worked pass/signal example, the graduation rule) | ✅ Built (2026-07-19) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
@@ -2107,6 +2109,15 @@ Post-earnings-announcement-drift scanner per `TradingStrategiesPlan.md` §6.4/§
 - **Signal cards**: setup facts (surprises, day-1 move/volume), invalidation level with live ⚠️ INVALIDATED flag, and live grading vs SPY over the 45-trading-day window (computed on render from the price cache, never stored) with exit-window countdown notes.
 - **🤖 "Real beat?" verdict**: per-signal LLM read — FMP earnings-call transcript preferred (fiscal-quarter guess, 8k-char cap), Finnhub news around the report as fallback on limited plans, metrics-only as last resort → structured "VERDICT: ORGANIC / COSMETIC / UNCLEAR" + reasoning, parsed and saved onto the signal doc; renders as a 🟢/🔴/⚪ badge with expandable reasoning and an evidence-source note.
 - **Teach panel** (5.4 recap) + **📖 About Strategy** page (`#analyzer/earningsdrift/about`, `loadAnalyzerEarningsDriftAboutPage`) following the standard About template.
+
+### News Sentiment (`#analyzer/newssentiment`) — module `js/analyzer-news.js`
+
+Morning AI news sweep per `TradingStrategiesPlan.md` §6.5/§7.5. **Framing: a measurement instrument, not a trading tool** — a prominent banner says so, and the edge meter is the graduation gate.
+
+- **Sweep**: on-demand "Morning sweep" over **holdings + watchlist only** (`_newsSweepList`): per ticker, last 2 days of Finnhub news (skip no-news, skip already-signaled-today), capped at 15 LLM calls per sweep. Each read gets the recent 2-day price move from the cache as already-priced context and must return a structured verdict (DIRECTION / CONFIDENCE / MATERIALITY / ALREADY_PRICED / ACTION). Only ACTION: SIGNAL non-neutral rows are logged to Firestore `newsSignals` (doc id `TICKER_YYYY-MM-DD`; in backup list); everything else counts in the sweep summary line (checked / had news / AI reads / ignored / signals).
+- **Signal cards**: direction badge + confidence + materiality + priced flag + top headlines + expandable reasoning + forward grade (3 trading days vs SPY, **direction-adjusted** — a bearish call wins when the stock underperforms), ✅/❌.
+- **📏 Edge meter**: aggregate over all fully-graded signals — needs 20+ before verdicting; then directional hit rate + avg direction-adjusted 3-day edge vs SPY with a "promising / no edge shown" line. Grades computed on render from the price cache, never stored.
+- **Teach panel** (5.5 recap: decay, look-ahead bias, why backtests are banned, zero-signal sweeps are the filter working) + **📖 About Strategy** page (`#analyzer/newssentiment/about`, `loadAnalyzerNewsSentimentAboutPage`) on the standard template.
 
 ### Dual Momentum (`#analyzer/dualmomentum`) — module `js/analyzer-dualmomentum.js`
 
