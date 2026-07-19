@@ -119,6 +119,86 @@ async function _peadRunScan() {
 }
 
 // ---------------------------------------------------------------------------
+// LLM verdict: organic vs cosmetic beat (Piece B)
+// ---------------------------------------------------------------------------
+// Headline numbers are priced in minutes; the QUALITY of the beat is not.
+// Preferred evidence: the earnings-call transcript (FMP; falls through on a
+// limited plan). Fallback: two weeks of Finnhub news around the report.
+
+async function _peadFetchTranscript(ticker, reportDate) {
+    // The report usually covers the fiscal quarter ~45 days before the call.
+    var d = new Date(reportDate + 'T00:00:00Z');
+    d.setDate(d.getDate() - 45);
+    var year = d.getUTCFullYear(), quarter = Math.floor(d.getUTCMonth() / 3) + 1;
+    var data = await _anaFmpGet('earning-call-transcript?symbol=' + encodeURIComponent(ticker) +
+                                '&year=' + year + '&quarter=' + quarter);
+    var content = Array.isArray(data) && data[0] && data[0].content;
+    if (!content) throw new Error('no transcript');
+    return content.slice(0, 8000);   // enough for tone + guidance; caps token cost
+}
+
+async function _peadVerdict(signalId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+        var ref = userCol('peadSignals').doc(signalId);
+        var snap = await ref.get();
+        if (!snap.exists) throw new Error('signal not found');
+        var s = snap.data();
+
+        // Evidence: transcript preferred, news fallback.
+        var evidence = '', evidenceKind = '';
+        try {
+            evidence = await _peadFetchTranscript(s.t, s.reportDate);
+            evidenceKind = 'earnings-call transcript (excerpt)';
+        } catch (e1) {
+            try {
+                var d = new Date(s.reportDate + 'T00:00:00Z'); d.setDate(d.getDate() - 3);
+                var to = new Date(s.reportDate + 'T00:00:00Z'); to.setDate(to.getDate() + 10);
+                var items = await anaFinnhubNews(s.t, d.toISOString().slice(0, 10), to.toISOString().slice(0, 10), 15);
+                evidence = (items || []).map(function(it) {
+                    return '- ' + it.headline + (it.summary ? ' — ' + it.summary.slice(0, 200) : '');
+                }).join('\n');
+                evidenceKind = 'news around the report';
+            } catch (e2) { /* metrics-only read below */ }
+        }
+
+        var reply = await _investAiCallLLM([
+            { role: 'system', content:
+                'You are an earnings analyst evaluating a post-earnings-announcement-drift (PEAD) candidate. ' +
+                'The stock beat estimates and the market confirmed with a strong day-one reaction. Your ONE question: ' +
+                'is this an ORGANIC beat (real operating strength — volume/margin/demand — with strengthening guidance) ' +
+                'or a COSMETIC beat (one-time items, tax benefits, buybacks shrinking the share count, easy comparisons, ' +
+                'hedged or lowered guidance)? Drift follows organic beats; cosmetic beats fade. Start your reply with ' +
+                'exactly one line: "VERDICT: ORGANIC", "VERDICT: COSMETIC", or "VERDICT: UNCLEAR". Then 3-5 plain ' +
+                'sentences of reasoning. No investment advice — the user decides.' },
+            { role: 'user', content:
+                s.t + (s.name ? ' (' + s.name + ')' : '') + ' reported ' + s.reportDate + '. EPS beat estimates by ' +
+                (s.epsSurp * 100).toFixed(1) + '%, revenue beat by ' + (s.revSurp * 100).toFixed(1) + '%. Day-after: ' +
+                (s.day1Move * 100).toFixed(1) + '% on ' + (s.volX != null ? s.volX.toFixed(1) : '?') + 'x volume, gap held.\n\n' +
+                (evidence ? 'Evidence (' + evidenceKind + '):\n' + evidence : 'No transcript or news available — judge from the numbers alone and say so.') }
+        ]);
+
+        var m = /VERDICT:\s*(ORGANIC|COSMETIC|UNCLEAR)/i.exec(reply || '');
+        await ref.update({
+            verdict: m ? m[1].toUpperCase() : 'UNCLEAR',
+            verdictReason: (reply || '').trim(),
+            verdictEvidence: evidenceKind || 'metrics only'
+        });
+        _peadRenderSignals();
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Real beat?'; }
+        alert('Verdict failed: ' + e.message);
+    }
+}
+
+var PEAD_VERDICT_BADGE = { ORGANIC: '🟢 ORGANIC', COSMETIC: '🔴 COSMETIC', UNCLEAR: '⚪ UNCLEAR' };
+
+function _peadToggleReason(id) {
+    var el = document.getElementById('peadReason-' + id);
+    if (el) el.style.display = (el.style.display === 'none') ? '' : 'none';
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -177,6 +257,29 @@ async function _peadRenderSignals() {
     for (var i = 0; i < signals.length; i++) {
         html += await _peadSignalCard(signals[i]);
     }
+
+    // Teach panel — section 5.4 recap
+    html += '<details class="dm-teach"><summary>📖 How this works — and when it looks broken</summary>' +
+        '<div class="dm-teach-body">' +
+        '<p><strong>The rules:</strong> a candidate needs a real surprise (EPS beat >10% AND revenue beat — revenue ' +
+        'is much harder to massage) plus the market\'s first vote (day-after ≥+5% on ≥2× volume, gap held into the ' +
+        'close). Enter within 1–3 days — no chasing the open; the drift is measured in weeks. Exit by ~45 trading ' +
+        'days and always before the next report. Bail early if price closes below the announcement-day low: the gap ' +
+        'failed and the thesis is dead.</p>' +
+        '<p><strong>Why it works:</strong> investors underreact to earnings news. Analysts raise estimates and ' +
+        'targets one by one over weeks (the revision conveyor belt), each upgrade pulling in another wave of buyers. ' +
+        'And surprises come in streaks — one big beat is usually chapter one of a multi-quarter story priced as a ' +
+        'one-off. The headline is priced in minutes; the QUALITY of the beat is not — that\'s what the 🤖 verdict reads.</p>' +
+        '<p><strong>Expectations:</strong> this is a batting-average strategy — winners drift ~+3–7% over the window, ' +
+        'losers get cut at the invalidation level, and trades cluster in the four earnings seasons with quiet gaps ' +
+        'between. All gains are short-term: <strong>strongly prefers an IRA</strong>, and use limit orders — thin ' +
+        'edges can\'t afford sloppy fills.</p>' +
+        '<p><strong>It is broken only if</strong> the graded signals persistently lose to SPY across several ' +
+        'seasons. Individual losers are routine and expected. In a bear market, drift is weaker and stops trigger ' +
+        'more — smaller or no positions when SPY is below its 200-day average is the canonical play. ' +
+        'Full write-up: 📖 About Strategy, and TradingStrategiesPlan.md sections 5.4 and 6.4.</p>' +
+        '</div></details>';
+
     el.innerHTML = html;
 }
 
@@ -224,5 +327,15 @@ async function _peadSignalCard(s) {
         '<div class="muted-text">Invalidation: close below $' + (s.annLow != null ? s.annLow.toFixed(2) : '—') +
             ' (announcement-day low)' + (invalid ? ' — <strong>⚠️ INVALIDATED (closed below it)</strong>' : '') + '</div>' +
         (grade ? '<div style="margin-top:4px">' + grade + (exitNote ? ' <span class="muted-text">' + exitNote + '</span>' : '') + '</div>' : '') +
+        '<div style="margin-top:6px">' +
+            (s.verdict
+                ? '<a href="javascript:void(0)" onclick="_peadToggleReason(\'' + escapeHtml(s.id) + '\')">' +
+                  (PEAD_VERDICT_BADGE[s.verdict] || s.verdict) + '</a> <span class="muted-text">(' + escapeHtml(s.verdictEvidence || '') + ')</span>'
+                : '<button class="ana-sp-btn" onclick="_peadVerdict(\'' + escapeHtml(s.id) + '\', this)">🤖 Real beat?</button>') +
+        '</div>' +
+        (s.verdictReason
+            ? '<div class="qv-thesis" id="peadReason-' + escapeHtml(s.id) + '" style="display:none;margin-top:6px">' +
+              escapeHtml(s.verdictReason).replace(/\n/g, '<br>') + '</div>'
+            : '') +
     '</div>';
 }
