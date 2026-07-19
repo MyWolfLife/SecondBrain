@@ -2081,8 +2081,22 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/dossier/{scanId}/{ticker}/{detector}` | Candidate dossier — chart, dip history, thesis, exit plan | ✅ Built (Stage 7) |
 | `#analyzer/trades` | Trades — open positions tracked against exits + closed-trade record | ✅ Built (Stage 8) |
 | `#analyzer/scoreboard` | Scoreboard — past scans auto-graded at 30/60 trading days vs SPY, kept vs dismissed | ✅ Built (Stage 9) |
+| `#analyzer/holdingshealth` | **Holdings Health** (Goal 2) — forward-looking exit check per held ticker, one verdict each (Healthy / Watch / Review exit) | ✅ Built (2026-07-19) |
 
 **Module**: `js/analyzer.js`. Breadcrumbs: Life › Financial › Stock Analyzer › Dip & Drift › {page} for the original screens; Life › Financial › Stock Analyzer › Dual Momentum for the new strategy. The 📊 Price data section (cache status, Update button, provider health) lives on the **Dip & Drift sub-hub**, not the strategy hub.
+
+### Holdings Health (`#analyzer/holdingshealth`) — module `js/analyzer-holdingshealth.js`
+
+The Stock Analyzer's original **Goal 2** (finally built 2026-07-19; plan `HoldingsHealthPlan.md`): a forward-looking health check on the stocks the user already **owns** — the exit-side mirror of the buy hunt. Its own tool on the hub under a **💼 Portfolio** heading (visually separate from the six buy strategies). **Locked philosophy: forward-looking only — holding duration is never an input** (the only question is "would you buy this today?"). **Evidence, never advice.**
+
+- **Per held ticker** (from `_anaLoadHoldingTickers` — same read path as Stock Rollup), five checks run, each emitting `{status: healthy|watch|concern|na, label, detail, weight}`:
+  1. **Estimate trajectory** (flagship, weight 2) — `anaEngDeteriorationCheck` (analyzer-engine.js), the exit-side mirror of `anaEngRevisionTrigger`: fires when consensus EPS has been revised DOWN over the weekly `analyzerEstimates` snapshots (≥3% over ≥28 days, ≥3 analysts). Reports `priceReacted` — a cut the price hasn't caught down to yet is the urgent case. Needs an FMP key + accrued snapshots, else `na`.
+  2. **Trend** (weight 1) — below both 50d and 200d SMAs = concern; below one = watch (`anaEngSma`).
+  3. **Analyst momentum** (weight 1, FMP) — net downgrades 60d or consensus target ≤ price = concern; thin upside (<5%) = watch (`anaFmpGrades`, `anaFmpPriceTarget`).
+  4. **Quality** (weight 1, Finnhub) — unprofitable AND debt/eq > 2 (falling-knife) = concern; either alone = watch (`anaFinnhubMetrics`).
+  5. **Earnings risk** (weight 1) — a report inside the next ~90 days (`HH_WINDOW_DAYS`, ONE `anaEarningsCalendar` call for all holdings) with a large typical move (±8%+, `anaEngTypicalEventMovePct`) = concern; smaller = watch; none = healthy.
+- **Verdict rollup** (`_hhVerdict`, flag-count): concern-weight = Σ weights of concerns (flagship 2, others 1), watch counts ½. **Flagship concern OR concern-weight ≥ 3 → ⚠️ Review exit**; any residual signal → 👀 Watch; else ✅ Healthy. `na` checks are excluded from the tally AND the "X/5 checked" coverage note — never counted against the stock; a card with 0 checked shows ❔ Not enough data instead of a false Healthy.
+- **Page** (`loadAnalyzerHoldingsHealthPage`/`_hhRender`): market regime banner (reuses `anaEngRegime` + `AS_REGIME_STYLES`), a summary line (N holdings · review/watch/healthy counts, plus an "add an FMP key" nudge when absent), then one card per holding **sorted worst-verdict-first** (review → watch → healthy → thin, then concern-weight desc). Each card: the verdict chip (tappable → "how the verdict is decided" popup) + a tappable status chip per check (colored by status, tooltip = the check's detail, tap → that check's plain-language explanation via the shared `_adOpenInfoModal`). Explanations live in `HH_CHECK_INFO`; thresholds are `HH_*` module consts. Degrades gracefully — no FMP key or thin cache just lowers coverage, never errors.
 
 ### Quality-Value (`#analyzer/qualityvalue`) — module `js/analyzer-qualityvalue.js`
 

@@ -117,6 +117,25 @@ index.html AND `sw.js` CACHE_NAME, notify-before-push, commit+push.
 
 ## Build Log (newest first)
 
+- **2026-07-19 — ✅ Piece B COMPLETE (the page + verdict chips + hub tile).**
+  `loadAnalyzerHoldingsHealthPage`/`_hhRender` in analyzer-holdingshealth.js: reads holdings via
+  `_anaLoadHoldingTickers`, one shared `anaEarningsCalendar` call for the ~90d window
+  (`HH_WINDOW_DAYS`), the weekly `analyzerEstimates` snapshots, and per-holding runs `_hhRunChecks`;
+  renders a regime banner (`anaEngRegime` + `AS_REGIME_STYLES`), a summary line, and one card per
+  holding sorted worst-verdict-first. Each card = a tappable verdict chip + tappable per-check
+  status chips (explanations in `HH_CHECK_INFO`, opened via the shared `_adOpenInfoModal`); 0-checked
+  holdings show ❔ Not enough data, not a false Healthy. Wired: hub tile under a new **💼 Portfolio**
+  heading (+ intro copy updated), route `#analyzer/holdingshealth` and both page-list arrays in
+  app.js, the `page-analyzer-holdingshealth` section in index.html, and `.hh-*` CSS. Small
+  correctness fix: estimate check needs a price record too (no candles → "not checked", never a
+  false Healthy). **Verified in preview on the test account's real holdings (GRAB, NVDA)**: hub tile
+  + Portfolio heading present; page renders regime banner + summary + 2 cards with honest 3/5
+  coverage; all five check chips open their own explanation, the verdict chip opens the verdict
+  explanation; a synthetic deteriorating holding renders the red Review-exit card correctly; no
+  console errors. Per CLAUDE.md same-commit rule, spec (Part 8f Holdings Health subsection + route
+  row) and AppHelp (`## screen:analyzer-holdingshealth`) landed with the code. **Deferred to Piece
+  C**: the in-app 📖 About education page + help registration + this doc's final status. Bumps:
+  analyzer-holdingshealth.js v2, analyzer.js v17, app.js v683, styles.css v782, sw v509.
 - **2026-07-19 — ✅ Piece A COMPLETE (checks engine + verdict, pure logic).** Added
   `anaEngDeteriorationCheck(rec, snapshots, opts)` to analyzer-engine.js — the exit-side mirror
   of `anaEngRevisionTrigger` (fires on consensus EPS revised DOWN; does not gate on price lag

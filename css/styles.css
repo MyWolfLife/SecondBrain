@@ -20171,6 +20171,37 @@ a.legacy-fin-card:hover {
     font-weight: 600;
 }
 
+/* Holdings Health (Goal 2) — per-holding verdict cards + check chips */
+.hh-card {
+    border: 1px solid #e2e2e2;
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #fff;
+}
+.hh-card-review  { border-left-color: #c62828; }
+.hh-card-watch   { border-left-color: #b7791f; }
+.hh-card-healthy { border-left-color: #2e7d32; }
+.hh-card-thin    { border-left-color: #999; }
+.hh-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.hh-ticker { font-weight: 700; font-size: 0.95rem; }
+.hh-verdict {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.hh-verdict-review  { background: #fde7e7; color: #a32222; }
+.hh-verdict-watch   { background: #fff3d6; color: #6b5416; }
+.hh-verdict-healthy { background: #eaf7ec; color: #245c2e; }
+.hh-verdict-thin    { background: #eee; color: #666; }
+.hh-chip-row { gap: 6px; }
+.hh-chip-watch { background: #fff8e6; border-color: #e6c15a; color: #6b5416; }
+.hh-chip-na    { background: #f3f3f3; border-color: #ddd; color: #999; }
+
 /* Candidate grade pill (ranking plan Phase 3) — green→red by letter */
 .as-card-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .as-grade {

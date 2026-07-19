@@ -2431,6 +2431,32 @@ News Sentiment tests whether an AI reading your watchlist's news each morning ca
 
 ---
 
+## screen:analyzer-holdingshealth
+
+### What this is for
+
+Holdings Health is the flip side of the whole Analyzer: instead of finding stocks to **buy**, it checks the ones you already **own** and asks, for each, a single forward-looking question — *given what's true now and what the next few months look like, would you still buy this today?* It runs each holding through five checks and boils them down to one verdict: **✅ Healthy · 👀 Watch · ⚠️ Review exit**. It is evidence to weigh, never a recommendation — "Review exit" means *look closely*, not *sell*. How long you've held a stock is deliberately ignored; only where it's headed matters.
+
+### Quick Help
+- The page reads the tickers from your **investment accounts** (the same holdings the Universe screen pulls in) and checks each one — no setup, just open it
+- Each holding gets a **verdict chip**: ✅ Healthy (nothing flagging), 👀 Watch (keep an eye on it), or ⚠️ Review exit (enough is wrong to take a serious look). Cards are sorted **worst-first** so anything needing attention is at the top
+- The chip also shows **coverage** ("3/5 checked") — a verdict built on fewer checks is a weaker statement; a holding with no usable data reads **❔ Not enough data** rather than a false green
+- **Tap any chip** — the verdict or any of the five checks — for a plain-language explanation of what it means, with the exact rule underneath
+- The five checks: **Estimate trend** (are analysts cutting earnings estimates? — the heaviest-weighted signal, the mirror of the buy-side divergence hunt), **Trend** (below its 50/200-day averages?), **Analyst view** (recent downgrades, or no upside left to the target?), **Quality** (unprofitable *and* heavily indebted — the falling-knife test), and **Earnings risk** (a report coming up that tends to move it hard?)
+- The **estimate-trend and analyst checks need an FMP key** (Settings → Stock Analyzer) and a few weeks of accumulated estimate snapshots; without them those checks read "not checked" and the verdict leans on the rest — the summary line nudges you if a key is missing
+- A **market regime banner** up top gives the backdrop — a Watch in a calm bull market is a different read than the same Watch in a downturn
+- Keep **price data updated** (Dip & Drift → Update price data) for the freshest trend and earnings-move reads
+
+### Details
+
+**Why forward-looking only**: The original brief framed this as "have I been in too long?" — but time held is sunk-cost thinking. A stock doesn't owe you a recovery because you've held it a while, and it isn't riskier just because you bought it recently. The only honest question is whether the *next* few months look good enough that you'd buy it today. So there's no holding-duration input anywhere — every check looks ahead.
+
+**How the verdict is decided (flag-count)**: Each check reports Healthy, Watch, or Concern. The verdict counts the concerns — the estimate-trend check counts double, since a falling earnings outlook is the sharpest exit signal — with Watches counting half. If the estimate-trend check is a concern on its own, or the concerns add up to 3+, the verdict is **Review exit**. Any smaller amount of trouble is **Watch**. Nothing flagging is **Healthy**. Checks with no data are set aside entirely — never counted against the stock — and shown in the coverage number. It's a checklist a person would run, not a false-precision score.
+
+**Evidence, not advice**: Every verdict is a prompt to look, with the reasoning one tap away. It never says sell, never predicts a price, and never acts. Whether to trim, exit, or hold through the noise is always your call — the tool just makes sure you're deciding with the current facts in front of you.
+
+---
+
 ## screen:analyzer-universe
 
 ### Quick Help

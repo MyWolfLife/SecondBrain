@@ -67,8 +67,9 @@ function loadAnalyzerPage() {
             '<h2>🎯 Stock Analyzer</h2>' +
         '</div>' +
         '<p class="muted-text" style="max-width:560px">' +
-            'Six trading strategies, each with its own tool. Every tool surfaces signals and ' +
-            'evidence — the trade decision is always yours. Full write-ups in TradingStrategiesPlan.md.' +
+            'Six trading strategies for finding buys, plus a portfolio health check on what you ' +
+            'already own. Every tool surfaces signals and evidence — the trade decision is always ' +
+            'yours. Full write-ups in TradingStrategiesPlan.md.' +
         '</p>' +
         '<div class="invest-hub">' +
             _anaStrategyCard('#analyzer/dipdrift', '📉', 'Dip &amp; Drift',
@@ -83,6 +84,11 @@ function loadAnalyzerPage() {
                 'Ride the 30–60 day drift after real earnings surprises — AI reads the call transcript') +
             _anaStrategyCard('#analyzer/newssentiment', '📰', 'News Sentiment',
                 'Morning AI sweep of watchlist news — scored, logged, and graded before it is trusted') +
+        '</div>' +
+        '<h3 class="ana-section-title">💼 Portfolio</h3>' +
+        '<div class="invest-hub">' +
+            _anaStrategyCard('#analyzer/holdingshealth', '🩺', 'Holdings Health',
+                'A forward-looking exit check on the stocks you already own — one verdict per holding: Healthy, Watch, or Review exit') +
         '</div>';
 }
 
