@@ -540,5 +540,25 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 - [x] **Piece B — LLM verdict + signal history grading.** ✅ DONE (verified live on a real FLEX earnings pop: transcript→news fallback worked, ORGANIC verdict parsed/saved, badge + expandable reasoning + teach panel render; test doc deleted) — Per-candidate 🤖 organic-vs-cosmetic verdict (FMP transcript with 402 fallback to news headlines), saved onto the signal doc, badge + expandable reasoning. Signal history table graded vs SPY with invalidation flags. Teach panel. Cache bump.
 - [x] **Piece C — About page + docs + close out.** ✅ DONE (About page verified in preview; spec + AppHelp + help.js registered) — `#analyzer/earningsdrift/about` (TL;DR + pros/cons + full 5.4 lesson incl. the analyst-revision conveyor belt and worked trade example), full spec section, AppHelp `screen:analyzer-earningsdrift` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
 
-### 6.5/7.5 News Sentiment — pending (last)
-- **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.
+### 6.5 News Sentiment — Rulebook (FROZEN 2026-07-19; build in progress)
+
+**Framing (the most important rule): v1 is a MEASUREMENT INSTRUMENT, not a trading strategy.** Signals are logged and graded for months first; the aggregate hit-rate meter decides whether this ever graduates to real money. This is the only strategy of the five whose backtests are structurally untrustworthy (LLM look-ahead bias), so live timestamped signals are the *only* evidence that counts.
+
+| Decision | Frozen choice | Rationale |
+|----------|--------------|-----------|
+| Scope | **Holdings + watchlist tickers only** (not the whole universe) | The defensive first build from §5.5 — a curated list the user understands, manageable LLM cost |
+| News source | **Finnhub company news**, last ~2 days per ticker | Already wired; per-ticker calls fine at watchlist scale |
+| Sweep | On-demand **"Morning sweep"** button (best run before the open); caps LLM calls at ~15/sweep | Cost control; skip tickers with no stories |
+| LLM rubric | Structured verdict per ticker-with-news: **DIRECTION** (bullish/bearish/neutral) + **CONFIDENCE** (0–100) + **MATERIALITY** (high/med/low — does it change the earnings trajectory?) + **ALREADY_PRICED** (yes/partly/no — recent price move from the cache is given as input) + **ACTION** (signal/ignore) | The filter's main job is saying "ignore" — most news is noise |
+| Signal bar | Only **ACTION: SIGNAL** rows are logged (high materiality, not already priced) | Everything else is counted in the sweep summary but not logged |
+| Grading | Forward **3-trading-day** return vs SPY per signal (direction-adjusted for bearish), computed on render from the price cache; aggregate **edge meter**: hit rate + avg vs SPY across all graded signals | Short horizon matches the decay profile; the meter is the graduation gate |
+| Trading | **None recommended in v1.** If the meter ever proves an edge across months of signals: IRA only, small uniform sizing, limit orders | Per §5.5 — costs eat thin fast edges |
+| "Broken" test | This one starts unproven — the meter isn't measuring "is it broken" but "does an edge exist at all" | Honest inversion of the other four |
+
+### 7.5 News Sentiment — Feature spec + build checklist
+
+**Screen:** `#analyzer/newssentiment`, module `js/analyzer-news.js`, Firestore `newsSignals` (doc id `TICKER_YYYY-MM-DD`: date, direction, confidence, materiality, alreadyPriced, headlines, reasoning; in backup list).
+
+- [ ] **Piece A — morning sweep + logged signal cards.** Sweep button → per-watchlist-ticker Finnhub news (2 days, skip no-news, cap ~15 LLM calls) → structured LLM verdict with recent-price-move context → SIGNAL rows logged idempotently; sweep summary line (tickers checked / stories read / ignored / signals). Signal cards: direction badge + confidence + materiality + headlines + expandable reasoning + 3-day grade vs SPY (✅/❌, direction-adjusted). Prominent measurement-instrument banner. Registrations, backup list, cache bump, spec route row.
+- [ ] **Piece B — edge meter + teach panel.** Aggregate stats over all graded signals: count, directional hit rate, avg 3-day return vs SPY, and a verdict line ("not enough data" < 20 graded / "no edge shown" / "promising — keep measuring"). Teach panel (5.5 recap: decay, look-ahead bias, why the meter gates everything). Cache bump.
+- [ ] **Piece C — About page + docs + close out.** `#analyzer/newssentiment/about` (TL;DR + pros/cons + full 5.5 lesson incl. the three honest problems and the priced/pass worked example), full spec section, AppHelp `screen:analyzer-newssentiment` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
