@@ -516,7 +516,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 - [x] **Piece B — LLM value-trap thesis + grading.** ✅ DONE (verified live: ADBE thesis ran end-to-end — Finnhub news + LLM verdict "🟡 medium" parsed/saved/rendered with expandable text; history grading renders with graceful no-cache fallback; test doc deleted) — Per-name 🤖 button: `_investAiCallLLM` with the name's metrics + last 30 days of Finnhub news headlines → structured verdict (`trap risk: low/medium/high` + 3–5 sentence thesis), saved onto the screen doc, rendered inline. Screen-history section with equal-weight-vs-SPY grade since each screen's date. Teach panel (5.3 recap: droughts are the moat, Greenblatt tax trick, no-override rule). Cache bump.
 - [x] **Piece C — docs + close out.** ✅ DONE — full spec section, AppHelp `screen:analyzer-qualityvalue` + hub help line + help.js registrations, verified per CLAUDE.md.
 
-### 6.4 Earnings Drift (PEAD) — Rulebook (FROZEN 2026-07-18; build in progress)
+### 6.4 Earnings Drift (PEAD) — Rulebook (FROZEN 2026-07-18; ✅ BUILT as #analyzer/earningsdrift, all 3 pieces shipped 2026-07-18/19)
 
 | Decision | Frozen choice | Rationale |
 |----------|--------------|-----------|
@@ -538,7 +538,7 @@ Each piece is independently committed + pushed, so the app is never broken betwe
 
 - [x] **Piece A — earnings scan + candidate cards.** ✅ DONE (verified live: 203 real reports fetched, 8 passed surprise filter, cache-skip path correct; day-1 math + card grading verified on real FLEX candle data) — "Scan recent earnings" button → Finnhub calendar (last 7 days) filtered to universe + surprise trifecta → price-cache day-1 reaction filters → candidate cards (ticker, report date, EPS/rev surprise %, day-1 move/volume, ann-day low, entry-window note) logged idempotently to `peadSignals`. Registrations (hub card, routes, page div, script tag, help stub), backup list, cache bump, spec route row.
 - [x] **Piece B — LLM verdict + signal history grading.** ✅ DONE (verified live on a real FLEX earnings pop: transcript→news fallback worked, ORGANIC verdict parsed/saved, badge + expandable reasoning + teach panel render; test doc deleted) — Per-candidate 🤖 organic-vs-cosmetic verdict (FMP transcript with 402 fallback to news headlines), saved onto the signal doc, badge + expandable reasoning. Signal history table graded vs SPY with invalidation flags. Teach panel. Cache bump.
-- [ ] **Piece C — About page + docs + close out.** `#analyzer/earningsdrift/about` (TL;DR + pros/cons + full 5.4 lesson incl. the analyst-revision conveyor belt and worked trade example), full spec section, AppHelp `screen:analyzer-earningsdrift` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
+- [x] **Piece C — About page + docs + close out.** ✅ DONE (About page verified in preview; spec + AppHelp + help.js registered) — `#analyzer/earningsdrift/about` (TL;DR + pros/cons + full 5.4 lesson incl. the analyst-revision conveyor belt and worked trade example), full spec section, AppHelp `screen:analyzer-earningsdrift` + hub help line + help.js registrations, verify per CLAUDE.md, mark checklist done.
 
 ### 6.5/7.5 News Sentiment — pending (last)
 - **News Sentiment** → morning watchlist news sweep, structured LLM rubric (direction + confidence + materiality + already-priced check), signals logged and graded for months **before** being trusted — v1 is a measurement instrument, not a strategy.

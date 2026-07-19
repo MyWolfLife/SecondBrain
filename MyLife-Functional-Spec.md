@@ -2071,7 +2071,8 @@ Tile: 🎯 **Stock Analyzer** card on the Financial hub (`#investments`), betwee
 | `#analyzer/qualityvalue/about` | **About Strategy** — TL;DR + pros/cons, then the full lesson (two half-broken factors, Magic Formula mechanics, time-arbitrage moat, evidence incl. the $590k vs $1.08M math, behavior gap, trap-check rationale, Greenblatt tax trick) | ✅ Built (2026-07-18) |
 | `#analyzer/stockmomentum` | **Stock Momentum** — top-25 12-1 momentum ranking with monthly signal log (see section below) | ✅ Built (2026-07-17) |
 | `#analyzer/qualityvalue` | **Quality-Value** — annual Magic-Formula screen with AI trap checks (see section below) | ✅ Built (2026-07-18) |
-| `#analyzer/earningsdrift` | **Earnings Drift (PEAD)** — post-earnings surprise scanner with tracked signals | 🔄 Build in progress (Piece A: scan + candidate cards live; LLM verdict + teach land with Piece B — see TradingStrategiesPlan.md 7.4 checklist) |
+| `#analyzer/earningsdrift` | **Earnings Drift (PEAD)** — post-earnings surprise scanner with AI verdicts and tracked signals (see section below) | ✅ Built (2026-07-19) |
+| `#analyzer/earningsdrift/about` | **About Strategy** — TL;DR + pros/cons, then the full lesson (four drift engines incl. the analyst-revision conveyor belt, honest decay state, worked good/rejected trade examples, failure modes) | ✅ Built (2026-07-19) |
 | `#analyzer/universe` | Universe manager — watched tickers (S&P 500 + holdings + watchlist) | ✅ Built (Stage 2) |
 | `#analyzer/backtest` | Backtest Lab — walk-forward historical simulation with scorecard | ✅ Built (Stage 5) |
 | `#analyzer/scan` | Scan — regime banner, funnel stats, per-detector candidate shortlists | ✅ Built (Stage 6) |
@@ -2097,6 +2098,15 @@ Cross-sectional 12-1 momentum ranking per `TradingStrategiesPlan.md` §6.2/§7.2
 - **Data**: entirely from the shared IndexedDB price cache (`anaGetPriceHistory`) — no new fetching. Tickers skipped if <260 candles or last candle >7 days older than SPY's. SPY is the freshness reference and regime gauge. Split-adjusted closes without dividends — acceptable for a *relative* ranking (documented in rulebook 6.2), unlike Dual Momentum's absolute comparison.
 - **UI**: ⚠️ regime banner when SPY < its 200-day SMA (informational, never blocks) · ranked/skipped/as-of note with stale-cache warning linking to Dip & Drift · top-25 table (rank, ticker, name, 12-1 return, own-200d flag) · **🔄 This month's changes** (➕ entered top 25 / ➖ fell below rank 75) · **🏁 Signal history** (last 12 logged months: top pick, ±counts, equal-weight list return vs SPY to the next log date ✅/❌) · collapsible 📖 teach panel.
 - **Firestore**: `smSignals` (doc id `YYYY-MM`, logged idempotently on first visit of the month; fields: month, asOf, tickers[{t,mom,rank}] top 25, entered[], exited[], createdAt). In backup collection list. Grades are computed on render from the price cache, never stored (Scoreboard convention).
+
+### Earnings Drift / PEAD (`#analyzer/earningsdrift`) — module `js/analyzer-pead.js`
+
+Post-earnings-announcement-drift scanner per `TradingStrategiesPlan.md` §6.4/§7.4 (frozen rules: last-7-days reports across the effective universe; EPS beat >10% AND revenue beat; day-after ≥+5% close-to-close on ≥2× 20-day volume with the gap held; enter 1–3 days after flag; exit ~45 trading days / before next report; invalidation = close below the announcement-day low).
+
+- **Scan job**: on-demand "Scan recent earnings" — one Finnhub all-symbol calendar call (`anaFinnhubEarningsCalendar`) filtered to the universe + surprise trifecta, then per-candidate day-1 confirmation from the shared price cache (`_peadDay1` handles bmo/amc report timing). Candidates logged idempotently to Firestore `peadSignals` (doc id `TICKER_YYYY-MM-DD`; in backup list). Scan summary line reports funnel counts (reports → surprise-pass → confirmed, plus skip reasons).
+- **Signal cards**: setup facts (surprises, day-1 move/volume), invalidation level with live ⚠️ INVALIDATED flag, and live grading vs SPY over the 45-trading-day window (computed on render from the price cache, never stored) with exit-window countdown notes.
+- **🤖 "Real beat?" verdict**: per-signal LLM read — FMP earnings-call transcript preferred (fiscal-quarter guess, 8k-char cap), Finnhub news around the report as fallback on limited plans, metrics-only as last resort → structured "VERDICT: ORGANIC / COSMETIC / UNCLEAR" + reasoning, parsed and saved onto the signal doc; renders as a 🟢/🔴/⚪ badge with expandable reasoning and an evidence-source note.
+- **Teach panel** (5.4 recap) + **📖 About Strategy** page (`#analyzer/earningsdrift/about`, `loadAnalyzerEarningsDriftAboutPage`) following the standard About template.
 
 ### Dual Momentum (`#analyzer/dualmomentum`) — module `js/analyzer-dualmomentum.js`
 

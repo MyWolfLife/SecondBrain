@@ -226,6 +226,114 @@ function _peadPct(v) {
     return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
 }
 
+// ---------------------------------------------------------------------------
+// About Strategy page (#analyzer/earningsdrift/about)
+// ---------------------------------------------------------------------------
+// TL;DR + pros/cons up top, full lesson below. Deep source:
+// TradingStrategiesPlan.md section 5.4.
+
+function loadAnalyzerEarningsDriftAboutPage() {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Earnings Drift', href: '#analyzer/earningsdrift' },
+        { label: 'About' }
+    ]);
+    var page = document.getElementById('page-analyzer-pead-about');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header"><h2>📖 Earnings Drift — About the Strategy</h2></div>' +
+
+        // ------------------------------------------------ TL;DR
+        '<div class="dm-verdict-card">' +
+        '<div class="dm-verdict">TL;DR</div>' +
+        '<p><strong>The event:</strong> when a company reports earnings that genuinely surprise — big EPS beat, ' +
+        'revenue beat, and the market confirms with a strong day-one pop that holds — the stock tends to keep ' +
+        'drifting the same direction for the next 30–60 days. You enter <em>after</em> the news (1–3 days later, no ' +
+        'racing anyone), ride the drift, and exit by ~45 trading days or the next report — bailing early if price ' +
+        'closes below the announcement-day low.</p>' +
+        '<p><strong>The point:</strong> you\'re not predicting earnings. You\'re betting the market\'s reaction to ' +
+        '<em>known</em> news is chronically incomplete — the oldest documented anomaly in finance (1968). The AI\'s ' +
+        'job is the part headlines miss: was it a REAL beat or an accounting one?</p>' +
+        '<div class="dm-about-proscons">' +
+        '<div><strong>✅ Pros</strong><ul>' +
+        '<li>No prediction needed — enter after the news, with days to act</li>' +
+        '<li>The LLM transcript/news read is a genuinely new retail edge</li>' +
+        '<li>Clear, mechanical exit rules (time, next report, invalidation low)</li>' +
+        '<li>Best strategy fit for "use AI where others don\'t"</li>' +
+        '</ul></div>' +
+        '<div><strong>❌ Cons</strong><ul>' +
+        '<li>Batting-average strategy — routine losers, ~+3–7% per winner</li>' +
+        '<li>Trades cluster in earnings seasons; quiet between</li>' +
+        '<li>All short-term gains → IRA strongly preferred</li>' +
+        '<li>The most actively quant-hunted edge of our five</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '</div>' +
+
+        '<h3 class="ana-section-title">Longer strategy description</h3>' +
+        '<div class="dm-about-body">' +
+
+        '<h4>The core idea: the market underreacts to earnings — slowly, predictably</h4>' +
+        '<p>Post-Earnings Announcement Drift is the <em>oldest</em> documented anomaly in finance (Ball &amp; Brown, ' +
+        '1968 — it predates the efficient-market theory it embarrasses). A stock that surprises keeps earning ' +
+        'abnormal returns for weeks after the report, with a final kick around the <em>next</em> quarter\'s report.</p>' +
+
+        '<h4>Why the drift exists — four engines</h4>' +
+        '<ol>' +
+        '<li><strong>Limited attention.</strong> In peak season, hundreds of companies report per day. Nobody ' +
+        'processes them all; smaller names get digested slowly or not at all. This is measurable: surprises announced ' +
+        'on Fridays or crowded days drift <em>more</em> — inattention literally shows up in the data.</li>' +
+        '<li><strong>Anchoring.</strong> Investors update their view of a company in steps, not all at once.</li>' +
+        '<li><strong>The analyst-revision conveyor belt — the mechanical heart of the drift.</strong> After a big ' +
+        'beat, analysts don\'t re-rate overnight; they raise estimates and price targets one by one over weeks, and ' +
+        'each upgrade triggers another wave of buying from funds keyed to estimates. The drift IS that conveyor belt ' +
+        'in motion. (The Dip &amp; Drift scanner\'s revision-momentum detector tracks the same force — this strategy ' +
+        'catches the belt at its starting point.)</li>' +
+        '<li><strong>Surprises come in streaks.</strong> A company that beats big this quarter is more likely than ' +
+        'average to beat next quarter too — one surprise is usually chapter one of a multi-quarter story, but the ' +
+        'market prices it as a one-off.</li>' +
+        '</ol>' +
+
+        '<h4>The honest state of the edge</h4>' +
+        '<p>The dumb version — "buy any EPS beat" — is dead in large caps; algorithms price the headline within ' +
+        'seconds. What survives is (a) <strong>smaller caps</strong>, where institutions can\'t deploy size and ' +
+        'attention is thinnest (enabling Discover mode with a lower minimum cap widens the net where the edge ' +
+        'actually lives), and (b) <strong>everything the headline number misses</strong> — guidance language, call ' +
+        'tone, one-time items — which is exactly what the 🤖 verdict reads. Fair warning: of the five strategies in ' +
+        'this hub, this edge is the most actively hunted by quant funds. The graded signal history exists precisely ' +
+        'to tell you whether it\'s still working with real, timestamped data.</p>' +
+
+        '<h4>What a trade looks like (worked example)</h4>' +
+        '<p><strong>The good one:</strong> a $2B industrial reports EPS +22% vs. estimates, revenue +6%, guidance ' +
+        'raised. Stock gaps +11% on 3× volume and closes near the high. The AI reads the call: beat driven by volume ' +
+        'growth and margin expansion (organic), guidance language upgraded, management answered margin questions ' +
+        'with specifics. Verdict: ORGANIC. Enter day 2. Over six weeks, five analysts raise targets stepwise; the ' +
+        'stock drifts another +7%. Exit at day 45, before the next report.</p>' +
+        '<p><strong>The one the filters reject:</strong> same headline beat — but revenue <em>missed</em>, the EPS ' +
+        'beat came from a tax item, and the +8% gap faded to +2% by the close. The revenue filter, the gap-hold ' +
+        'filter, and the AI read all exist to leave that one alone. Most of this strategy\'s value is in what it ' +
+        '<em>skips</em>.</p>' +
+
+        '<h4>The failure modes to accept up front</h4>' +
+        '<ul>' +
+        '<li><strong>Gap-and-fade:</strong> some pops reverse instead of drifting. The announcement-low invalidation ' +
+        'caps the damage; losers are routine. This strategy wins on batting average and asymmetry, not on being ' +
+        'right every time.</li>' +
+        '<li><strong>Lumpy opportunity:</strong> four earnings seasons a year; capital sits idle between them ' +
+        '(arguably a feature — it coexists well with the slower strategies).</li>' +
+        '<li><strong>Regime dependence:</strong> in a bear market even great earnings fade. Smaller or no positions ' +
+        'when SPY is below its 200-day average.</li>' +
+        '<li><strong>Taxes and costs:</strong> all short-term gains (<strong>IRA strongly preferred</strong>), and ' +
+        'with per-event edges of a few percent, limit orders and liquid names are load-bearing, not optional.</li>' +
+        '</ul>' +
+
+        '<p class="muted-text">Deep source: TradingStrategiesPlan.md sections 5.4 (teaching), 6.4 (frozen rulebook), ' +
+        '7.4 (how this screen works). The Signals list on the Earnings Drift screen is this strategy\'s live, graded ' +
+        'track record — trust it over any backtest.</p>' +
+        '</div>';
+}
+
 async function _peadLoadSignals() {
     var snap = await userCol('peadSignals').get();
     var out = [];

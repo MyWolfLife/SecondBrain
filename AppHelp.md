@@ -2302,7 +2302,8 @@ The Stock Analyzer is now a **hub of six trading strategies**, each with its own
 - **🌍 Dual Momentum** — a monthly rotation signal: hold US stocks, international stocks, or cash based on 12-month momentum. One check a month, one verdict
 - **🚀 Stock Momentum** — the top 25 stocks in your watched universe by 12-month momentum, re-ranked monthly with buy/sell diffs and a graded track record
 - **💎 Quality-Value** — an annual Magic-Formula screen: good businesses at cheap prices, with an AI "value trap or bargain?" check per name
-- **📈 Earnings Drift, 📰 News Sentiment** — coming soon; each will get its own tool as it's built
+- **📈 Earnings Drift (PEAD)** — scans the last week of earnings for real beats the market confirmed, tracks each signal with AI "real beat?" verdicts and exit rules
+- **📰 News Sentiment** — coming soon; the last of the six to be built
 - The strategies are documented in depth (what they are, the evidence, when they fail) in `TradingStrategiesPlan.md`
 - The **📊 Price data** section (cache status + Update button) moved to the **Dip & Drift** sub-screen
 
@@ -2395,6 +2396,22 @@ Quality-Value is **systematized Buffett**: buy good businesses having a bad year
 - **🏁 Screen history** grades every past screen — the list's average return vs SPY since its screen date. **Judge across years, not months**: value strategies trail for long stretches by design ("it still works because it doesn't always work")
 - Expect to own **unloved names** (the 2022 version was full of homebuilders at 6× earnings) and never the exciting ones — that discomfort is the edge
 - Tax notes (📖 panel): low turnover and mostly long-term gains make this taxable-account-friendly; Greenblatt's trick is selling losers just *before* the 1-year mark and winners just *after*
+
+---
+
+## screen:analyzer-earningsdrift
+
+### What this is for
+
+Earnings Drift rides the market's slow reaction to earnings surprises: when a company delivers a **real** beat and the market confirms it with a strong first day, the stock tends to keep drifting up for the next 30–60 days — because analysts raise their estimates one at a time over weeks, and each upgrade pulls in more buyers. You never predict earnings; you enter 1–3 days **after** the news and ride the drift with mechanical exits. It's the oldest documented anomaly in finance (1968) and the best fit for using AI as the edge. Full write-up: 📖 About Strategy, and `TradingStrategiesPlan.md` (sections 5.4, 6.4, 7.4).
+
+### Quick Help
+- **📖 About Strategy** (top of the page) opens the full lesson — the four drift engines, the honest state of the edge, and worked examples of a good trade and a rejected one
+- **📈 Scan recent earnings** checks the last 7 days of reports: a candidate needs an **EPS beat >10% AND a revenue beat**, plus the market's first vote — a **day-after gain ≥5% on ≥2× volume with the gap held**. Run it mornings during earnings season; it needs a Finnhub key and a fresh price cache
+- Each **signal card** shows the setup facts, live performance vs SPY, and the **invalidation level** (the announcement-day low) — a close below it means the thesis is dead, and the card flags ⚠️ INVALIDATED
+- **🤖 Real beat?** asks the AI whether the beat was **organic** (real operating strength, stronger guidance → drift follows) or **cosmetic** (one-time items, tax benefits, buybacks → fades). It reads the earnings-call transcript when available, news otherwise. Tap the verdict badge to read the reasoning
+- The playbook: enter within 1–3 days of the flag, exit by **~45 trading days** and always **before the next report**, bail at the invalidation level. Many small positions — winners drift ~+3–7%, losers get cut early
+- Trades cluster in the four earnings seasons; expect quiet stretches between. All gains are short-term — this strategy strongly prefers an **IRA**
 
 ---
 

@@ -69,6 +69,7 @@ var HELP_SECTION_MAP = {
     'analyzer-dualmomentum'          : 'analyzer-dualmomentum',
     'analyzer-stockmomentum'         : 'analyzer-stockmomentum',
     'analyzer-qualityvalue'          : 'analyzer-qualityvalue',
+    'analyzer-earningsdrift'         : 'analyzer-earningsdrift',
     'analyzer-universe'              : 'analyzer-universe',
     'analyzer-backtest'              : 'analyzer-backtest',
     'analyzer-scan'                  : 'analyzer-scan',
@@ -189,6 +190,7 @@ var HELP_TOPIC_MAP = [
             { label: '🌍 Dual Momentum',             key: 'analyzer-dualmomentum' },
             { label: '🚀 Stock Momentum',            key: 'analyzer-stockmomentum' },
             { label: '💎 Quality-Value',             key: 'analyzer-qualityvalue' },
+            { label: '📈 Earnings Drift',            key: 'analyzer-earningsdrift' },
             { label: '📚 Stock Analyzer — Training', key: 'analyzer-training' }
         ]
     },
@@ -228,6 +230,7 @@ var HELP_SCREEN_LABELS = {
     'analyzer-dualmomentum' : 'Dual Momentum',
     'analyzer-stockmomentum' : 'Stock Momentum',
     'analyzer-qualityvalue' : 'Quality-Value',
+    'analyzer-earningsdrift' : 'Earnings Drift',
     'analyzer-training' : 'Stock Analyzer Training',
     'yardmap'       : 'Yard Map',
     'yard-problems' : 'Yard Problems',
