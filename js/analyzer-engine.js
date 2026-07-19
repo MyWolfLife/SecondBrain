@@ -449,6 +449,60 @@ function anaEngRevisionTrigger(rec, snapshots, ticker, opts) {
     };
 }
 
+// Forward-looking DETERIORATION check (Holdings Health / Goal 2) — the exit-side
+// mirror of anaEngRevisionTrigger. That fires when consensus EPS is RISING (a
+// buy setup); this fires when consensus EPS has been revised DOWN over the
+// accumulated weekly snapshots — the business outlook is weakening, which is an
+// exit signal on something you already own. Pure: takes the same parsed
+// [{date, eps, analysts}] series `_asExtractEstSeries` produces. Unlike the buy
+// trigger it does NOT gate on the price lagging — for a holder, a falling
+// estimate is a concern regardless of what price has done; the price move is
+// reported so the caller can flag the urgent "price hasn't caught down yet" case.
+//   opts: { minDropPct=3, minSpanDays=28, minAnalysts=3, asOfIndex }
+// Returns { estChangePct (negative), priceChangePct, weeksCovered, analysts,
+//           priceReacted } or null when EPS is not falling meaningfully / too
+//           little data to judge.
+function anaEngDeteriorationCheck(rec, snapshots, opts) {
+    opts = opts || {};
+    var minDropPct  = (opts.minDropPct  != null) ? opts.minDropPct  : 3;
+    var minSpanDays = (opts.minSpanDays != null) ? opts.minSpanDays : 28;
+    var minAnalysts = (opts.minAnalysts != null) ? opts.minAnalysts : 3;
+    if (!rec || !Array.isArray(snapshots) || snapshots.length < 3) return null;
+
+    var first = snapshots[0], last = snapshots[snapshots.length - 1];
+    if (first.eps == null || last.eps == null || first.eps === 0) return null;
+
+    // Window must span enough calendar time to be a trend, not noise
+    var spanDays = (new Date(last.date) - new Date(first.date)) / 86400000;
+    if (spanDays < minSpanDays) return null;
+
+    // Enough analyst coverage (use the latest known count)
+    var analysts = (last.analysts != null) ? last.analysts : first.analysts;
+    if (analysts == null || analysts < minAnalysts) return null;
+
+    var estChangePct = (last.eps - first.eps) / Math.abs(first.eps) * 100;
+    if (estChangePct > -minDropPct) return null;   // not falling meaningfully → no concern
+
+    var asOf     = (opts.asOfIndex != null) ? opts.asOfIndex : rec.dates.length - 1;
+    var startIdx = anaEngIndexForDate(rec, first.date);
+    var priceChangePct = null;
+    if (startIdx >= 0 && rec.close[startIdx] > 0) {
+        priceChangePct = (rec.close[asOf] / rec.close[startIdx] - 1) * 100;
+    }
+    // "Price has reacted" = it already fell at least as far as the estimate cut.
+    // When false, the market hasn't caught down to the weaker outlook yet — the
+    // most urgent exit case.
+    var priceReacted = (priceChangePct != null) && (priceChangePct <= estChangePct);
+
+    return {
+        estChangePct:   estChangePct,        // negative
+        priceChangePct: priceChangePct,
+        weeksCovered:   snapshots.length,
+        analysts:       analysts,
+        priceReacted:   priceReacted
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Market regime
 // ---------------------------------------------------------------------------

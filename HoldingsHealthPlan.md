@@ -117,6 +117,22 @@ index.html AND `sw.js` CACHE_NAME, notify-before-push, commit+push.
 
 ## Build Log (newest first)
 
+- **2026-07-19 — ✅ Piece A COMPLETE (checks engine + verdict, pure logic).** Added
+  `anaEngDeteriorationCheck(rec, snapshots, opts)` to analyzer-engine.js — the exit-side mirror
+  of `anaEngRevisionTrigger` (fires on consensus EPS revised DOWN; does not gate on price lag
+  since a falling estimate concerns a holder regardless, but reports `priceReacted` to flag the
+  urgent "price hasn't caught down yet" case). New `js/analyzer-holdingshealth.js` with the five
+  pure checks (`_hhCheckEstimates` [flagship, weight 2], `_hhCheckTrend`, `_hhCheckAnalysts`,
+  `_hhCheckQuality`, `_hhCheckEarnings`), the flag-count `_hhVerdict`, and the async `_hhRunChecks`
+  orchestrator that fetches (FMP grades/target, Finnhub metrics) and delegates. Thresholds are
+  module consts (`HH_*`) for easy tuning. **Verified in preview** against the real functions:
+  `anaEngDeteriorationCheck` exact on 5 cases (−20% cut detected; rising/too-few/thin-analysts/
+  short-span all → null); every check's na/healthy/watch/concern path; verdict rollup (flagship-
+  alone → review, 3 concerns → review, 2 → watch, watches → watch, thin/zero coverage counted
+  honestly); and `_hhRunChecks` end-to-end on real FLEX candles — no-key path degrades to 3/5
+  checked without throwing, synthetic-deterioration path → Review exit. No console errors. No
+  user-visible surface yet (no route/page/tile) — that is Piece B. Bumps: analyzer-engine.js v8,
+  analyzer-holdingshealth.js v1 (new), sw v508.
 - **2026-07-19 — Plan frozen.** Design locked with the user: own tool, forward-looking only (no
   duration), flag-count verdict (flagship weighted 2×), evidence-not-advice, honest coverage.
   Key finding: snapshot coverage already includes holdings, so no early fix — the feature is
