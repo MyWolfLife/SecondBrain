@@ -115,8 +115,23 @@ index.html AND `sw.js` CACHE_NAME, notify-before-push, commit+push.
 
 ---
 
+## Status: ✅ COMPLETE (Pieces A–C, 2026-07-19)
+
+Goal 2 shipped. Holdings Health is live at `#analyzer/holdingshealth` (with an About page at
+`/about`), on the hub under the 💼 Portfolio heading. Follow-on ideas if ever revisited: tune the
+`HH_*` thresholds against real outcomes; optionally log verdicts over time for a Scoreboard-style
+"did Review-exit calls actually underperform?" track record (not built — no evidence yet to justify it).
+
 ## Build Log (newest first)
 
+- **2026-07-19 — ✅ Piece C COMPLETE (About page + help registration → FEATURE COMPLETE).**
+  `loadAnalyzerHoldingsHealthAboutPage` (`#analyzer/holdingshealth/about`): TL;DR + good-at/is-not,
+  the "holding duration is the wrong question" argument, the five checks, the flag-count verdict, and
+  the honest limits. Added the 📖 About link on the main page; route + both page-list arrays in app.js;
+  `page-analyzer-hh-about` section in index.html. Help registration in help.js (route→section map,
+  topic list with 🩺 label, screen-label map) so the in-app Help page and LLM Q&A both cover it. Spec
+  route row + About/registration note; AllPlans.md status flipped to COMPLETE. Bumps:
+  analyzer-holdingshealth.js v3, help.js v556, app.js v684, sw v510.
 - **2026-07-19 — ✅ Piece B COMPLETE (the page + verdict chips + hub tile).**
   `loadAnalyzerHoldingsHealthPage`/`_hhRender` in analyzer-holdingshealth.js: reads holdings via
   `_anaLoadHoldingTickers`, one shared `anaEarningsCalendar` call for the ~90d window

@@ -71,6 +71,7 @@ var HELP_SECTION_MAP = {
     'analyzer-qualityvalue'          : 'analyzer-qualityvalue',
     'analyzer-earningsdrift'         : 'analyzer-earningsdrift',
     'analyzer-newssentiment'         : 'analyzer-newssentiment',
+    'analyzer-holdingshealth'        : 'analyzer-holdingshealth',
     'analyzer-universe'              : 'analyzer-universe',
     'analyzer-backtest'              : 'analyzer-backtest',
     'analyzer-scan'                  : 'analyzer-scan',
@@ -193,6 +194,7 @@ var HELP_TOPIC_MAP = [
             { label: '💎 Quality-Value',             key: 'analyzer-qualityvalue' },
             { label: '📈 Earnings Drift',            key: 'analyzer-earningsdrift' },
             { label: '📰 News Sentiment',            key: 'analyzer-newssentiment' },
+            { label: '🩺 Holdings Health',           key: 'analyzer-holdingshealth' },
             { label: '📚 Stock Analyzer — Training', key: 'analyzer-training' }
         ]
     },
@@ -234,6 +236,7 @@ var HELP_SCREEN_LABELS = {
     'analyzer-qualityvalue' : 'Quality-Value',
     'analyzer-earningsdrift' : 'Earnings Drift',
     'analyzer-newssentiment' : 'News Sentiment',
+    'analyzer-holdingshealth' : 'Holdings Health',
     'analyzer-training' : 'Stock Analyzer Training',
     'yardmap'       : 'Yard Map',
     'yard-problems' : 'Yard Problems',

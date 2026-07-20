@@ -295,6 +295,7 @@ function loadAnalyzerHoldingsHealthPage() {
     if (!page) return;
     page.innerHTML =
         '<div class="page-header"><h2>🩺 Holdings Health</h2></div>' +
+        '<div class="ana-add-row"><a class="ana-sp-btn" href="#analyzer/holdingshealth/about">📖 About Holdings Health</a></div>' +
         '<p class="muted-text" style="max-width:600px">A forward-looking check on the stocks you already own — ' +
         'the exit-side mirror of the buy hunt. Each holding runs through five checks (earnings-estimate trend, ' +
         'price trend, analyst view, quality, upcoming earnings) and gets one verdict: ✅ Healthy · 👀 Watch · ' +
@@ -387,4 +388,99 @@ async function _hhRender() {
         'weekly estimate snapshots, and live analyst/quality data. Keep price data updated (Dip &amp; Drift → ' +
         'Update price data) for the freshest read. This is evidence to weigh, not a recommendation to act.</p>';
     box.innerHTML = html;
+}
+
+// ---------------------------------------------------------------------------
+// About page (#analyzer/holdingshealth/about) — in-app education
+// ---------------------------------------------------------------------------
+// TL;DR + what-each-check-means up top, then the philosophy and honest limits.
+// Deep source: HoldingsHealthPlan.md.
+
+function loadAnalyzerHoldingsHealthAboutPage() {
+    _analyzerBreadcrumb([
+        { label: 'Stock Analyzer', href: '#analyzer' },
+        { label: 'Holdings Health', href: '#analyzer/holdingshealth' },
+        { label: 'About' }
+    ]);
+    var page = document.getElementById('page-analyzer-hh-about');
+    if (!page) return;
+
+    page.innerHTML =
+        '<div class="page-header"><h2>📖 Holdings Health — About</h2></div>' +
+
+        // ------------------------------------------------ TL;DR
+        '<div class="dm-verdict-card">' +
+        '<div class="dm-verdict">TL;DR</div>' +
+        '<p><strong>The idea:</strong> every other tool in the Analyzer looks for stocks to <em>buy</em>. This one ' +
+        'looks at the stocks you already <em>own</em> and asks one question about each: <strong>knowing what you ' +
+        'know now, would you buy it today?</strong> If the answer is turning into "no," that\'s worth seeing early.</p>' +
+        '<p><strong>How:</strong> five forward-looking checks per holding, boiled down to one verdict — ' +
+        '✅ Healthy, 👀 Watch, or ⚠️ Review exit. It surfaces evidence and explains itself; it never tells you to ' +
+        'sell and never predicts a price. The decision is always yours.</p>' +
+        '<div class="dm-about-proscons">' +
+        '<div><strong>✅ What it\'s good at</strong><ul>' +
+        '<li>Catches a weakening story early — falling earnings estimates usually lead the price down</li>' +
+        '<li>Fights the two classic holding mistakes: falling in love with a position, and anchoring on your cost</li>' +
+        '<li>One glance ranks your whole portfolio worst-first</li>' +
+        '<li>Honest about what it couldn\'t check, instead of faking a clean bill of health</li>' +
+        '</ul></div>' +
+        '<div><strong>❌ What it is not</strong><ul>' +
+        '<li>Not a sell signal — "Review exit" means <em>look</em>, not <em>act</em></li>' +
+        '<li>Not a market-timer or a crash predictor</li>' +
+        '<li>Blind on the flagship check until a few weeks of estimate snapshots exist (needs an FMP key)</li>' +
+        '<li>Only as fresh as your price cache and your holdings list</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '</div>' +
+
+        '<h3 class="ana-section-title">Why "how long have I held it?" is the wrong question</h3>' +
+        '<div class="dm-about-body">' +
+        '<p>The instinct that started this tool was "have I been in this too long?" — but that\'s a trap. A stock ' +
+        'doesn\'t owe you a bounce because you\'ve held it three years, and it isn\'t safer because you just bought ' +
+        'it last month. <strong>Your holding period is sunk cost; the market has never heard of it.</strong> The only ' +
+        'question that actually predicts anything is forward-looking: do the next few months look good enough that ' +
+        'you\'d put money in today? So there is no "time held" input anywhere in this tool — every check looks ahead, ' +
+        'and a stock you bought yesterday and a stock you\'ve held for a decade are judged by exactly the same evidence.</p>' +
+
+        '<h4>The five checks</h4>' +
+        '<ol>' +
+        '<li><strong>Estimate trend (the flagship, counts double).</strong> Are Wall Street analysts, on average, ' +
+        'quietly <em>cutting</em> their earnings estimates for this company over recent weeks? This is the single ' +
+        'sharpest exit signal — the exact mirror of the buy setup the Analyzer hunts for. A falling outlook usually ' +
+        'leads the price down, especially when the price hasn\'t reacted yet. It\'s built from the app\'s own weekly ' +
+        'estimate snapshots, so it needs an FMP key and a few weeks of history before it can speak.</li>' +
+        '<li><strong>Trend.</strong> Is the price below both its 50-day and 200-day averages? That\'s a confirmed ' +
+        'downtrend — the market voting against it — versus a single-average dip that\'s only worth watching.</li>' +
+        '<li><strong>Analyst view.</strong> More downgrades than upgrades lately, or a consensus price target that\'s ' +
+        'no longer above the current price? Both say the professionals have cooled.</li>' +
+        '<li><strong>Quality.</strong> The falling-knife test, aimed at something you own: a company that\'s both ' +
+        'unprofitable <em>and</em> heavily indebted can keep sliding rather than recover.</li>' +
+        '<li><strong>Earnings risk.</strong> Is a report coming up in the next ~3 months, and does this stock tend to ' +
+        'swing hard on its earnings days? Not a prediction of direction — just a heads-up that you\'d be holding ' +
+        'through a coin-flip event.</li>' +
+        '</ol>' +
+
+        '<h4>How the verdict is decided</h4>' +
+        '<p>It\'s a flag-count, not a score out of 100 — because a precise number would fake a precision that exit ' +
+        'timing simply doesn\'t have. Each check flashes Healthy, Watch, or Concern. Concerns are tallied (the ' +
+        'estimate-trend check counts as two, the rest as one; a Watch counts as a half). If the estimate check is a ' +
+        'concern on its own, or the concerns add up to three or more, the holding is flagged <strong>⚠️ Review ' +
+        'exit</strong>. A little trouble is <strong>👀 Watch</strong>. Nothing flagging is <strong>✅ Healthy</strong>. ' +
+        'Any check that couldn\'t run (no FMP key, thin history) is set aside — <em>never</em> counted against the ' +
+        'stock — and shown in the "X/5 checked" coverage note, so a thin verdict is visibly a thin verdict.</p>' +
+
+        '<h4>The honest limits</h4>' +
+        '<ul>' +
+        '<li><strong>It\'s a flashlight, not a trigger.</strong> Every verdict is a prompt to look, with the reasoning ' +
+        'one tap away. It never sells, never sets a stop, never predicts a price.</li>' +
+        '<li><strong>The best check needs warm-up.</strong> Estimate trend only works once the app has collected a few ' +
+        'weeks of estimate snapshots for a stock (and an FMP key is set). Until then it reads "not checked" — the ' +
+        'verdict leans on the other four and says so in the coverage number.</li>' +
+        '<li><strong>Garbage in, garbage out.</strong> It reads your holdings from your investment accounts and prices ' +
+        'from the shared cache. Keep both current — stale prices mean stale trend and earnings reads.</li>' +
+        '<li><strong>Thresholds are judgment calls.</strong> The exact percentages (a 3% estimate cut, an 8% typical ' +
+        'earnings move) are reasoned starting points, not laws of nature — they\'ll be tuned as the tool earns its ' +
+        'keep against real outcomes.</li>' +
+        '</ul>' +
+        '</div>';
 }
