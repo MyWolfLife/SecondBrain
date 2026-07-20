@@ -2260,7 +2260,7 @@ You don't have to memorize these — each card tells you which kind it is and wh
   - **⚠️ Falling knife?** (yellow, jumps to the front) = it loses money **and** owes a ton. Careful — this one might keep falling. *Don't try to catch a falling knife.* The tool never throws it out for you; it just waves the flag.
 - **Any danger from the calendar?** — an amber **⚠️ Earnings Aug 25 (±18% history)** chip means the company shows its report card on Aug 25, and on its biggest days this stock usually swings about 18% — up **or** down — overnight. So a lot is riding on that one day. Your call whether to hold through it, take profits before, or wait until after.
 
-Not interested? Tap **Dismiss**. Secret: the app remembers your dismissals and later grades whether they were smart (see Scoreboard below).
+Not interested? Tap **Dismiss** and pick a one-tap reason (falling knife, earnings risk, don't like the story, sector concern, or other). The app remembers both the dismissal *and why*, so the Scoreboard can later grade which kinds of dismissals were smart (see Scoreboard below).
 
 ### When a card interests you: the Dossier
 
@@ -2529,7 +2529,7 @@ Holdings Health is the flip side of the whole Analyzer: instead of finding stock
 - An amber **⚠️ Falling knife?** flag leads the card when a stock is *both* unprofitable and heavily indebted — a warning, not an automatic reject; the tool never removes anything for you
 - An amber **⚠️ Deal-pinned?** flag leads a spring card when the stock is *too* quiet (volatility under 8% a year) — the usual cause is an agreed acquisition pinning the price to the buyout offer, which makes it the "tightest spring" on the page while being unable to actually move; check the news for merger headlines before trusting an ultra-quiet spring
 - An amber **⚠️ Earnings {date} (±X% history)** chip warns when a report falls inside your 60-day window — the ±X% is how much that stock *typically* jumps or drops on its biggest days, so you can size the binary-event risk; whether to accept or avoid it is your call
-- **Dismiss** hides a candidate you've rejected (undo via the ↩ buttons); the page always reopens showing your latest scan
+- **Dismiss** hides a candidate you've rejected — tapping it asks for a quick one-tap **reason** (falling knife / earnings risk / don't like the story / sector concern / other), which is stored so the Scoreboard can later tell you which kinds of dismissals were right. Undo via the ↩ buttons in the Dismissed row (they show the reason beside each ticker); the page always reopens showing your latest scan
 - Make sure prices are current first — the note beside the button shows when data was last updated
 
 ### Details

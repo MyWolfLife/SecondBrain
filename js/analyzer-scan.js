@@ -491,7 +491,11 @@ function _asRenderScan(scan, container) {
         if (dismissed) {
             html += '<p class="ab-dim">Dismissed: ';
             all.forEach(function(c) {
-                if (c.dismissed) html += '<button class="ana-sp-btn" style="margin-right:6px" onclick="_asToggleDismiss(\'' + c.ticker + '\',\'' + c.detector + '\')">↩ ' + escapeHtml(c.ticker) + '</button>';
+                if (c.dismissed) {
+                    var rl = _asDismissReasonLabel(c);
+                    html += '<button class="ana-sp-btn" style="margin-right:6px" onclick="_asUndismiss(\'' + c.ticker + '\',\'' + c.detector + '\')">↩ ' +
+                        escapeHtml(c.ticker) + (rl ? ' <span class="ab-dim">(' + escapeHtml(rl) + ')</span>' : '') + '</button>';
+                }
             });
             html += '</p>';
         }
@@ -1145,9 +1149,9 @@ function _asCandidateCard(c, score) {
     // Analyst evidence (target, grades, divergence-note) after quality.
     analyst.rest.forEach(function(ac) { html += _asChipSpan(ac.text, ac.cls); });
     html += '</div>' +
-        '<div class="ab-form-row" style="margin:8px 0 0">' +
+        '<div class="ab-form-row" style="margin:8px 0 0" id="' + _asActId(c.ticker, c.detector) + '">' +
             '<button class="ana-sp-btn" onclick="_asOpenDossier(\'' + c.ticker + '\',\'' + c.detector + '\')">Open dossier</button>' +
-            '<button class="ana-sp-btn" onclick="_asToggleDismiss(\'' + c.ticker + '\',\'' + c.detector + '\')">Dismiss</button>' +
+            '<button class="ana-sp-btn" onclick="_asBeginDismiss(\'' + c.ticker + '\',\'' + c.detector + '\')">Dismiss</button>' +
         '</div>' +
     '</div>';
     return html;
@@ -1158,18 +1162,93 @@ function _asOpenDossier(ticker, detector) {
     window.location.hash = '#analyzer/dossier/' + _asLatestScan.id + '/' + encodeURIComponent(ticker) + '/' + detector;
 }
 
-// Dismiss / un-dismiss a candidate on the displayed scan (persisted to the scan doc).
-async function _asToggleDismiss(ticker, detector) {
+// Dismissal reasons (learning loop): a one-tap reason is stored on the
+// candidate so the Scoreboard can eventually grade WHICH kinds of dismissals
+// were right. Codes are stable; labels are resolved for display.
+var AS_DISMISS_REASONS = {
+    knife:    'Falling knife',
+    earnings: 'Earnings risk',
+    story:    'Don’t like the story',
+    sector:   'Sector concern',
+    other:    'Other'
+};
+
+function _asDismissReasonLabel(c) {
+    if (!c || !c.dismissReason) return '';
+    var base = AS_DISMISS_REASONS[c.dismissReason] || c.dismissReason;
+    if (c.dismissReason === 'other' && c.dismissNote) return c.dismissNote;
+    return base;
+}
+
+// DOM-safe id fragment for a candidate's action row.
+function _asActId(ticker, detector) {
+    return 'asact-' + detector + '-' + ticker.replace(/[^A-Za-z0-9]/g, '_');
+}
+
+// Tap "Dismiss" → swap the action row for one-tap reason chips (no full
+// re-render, so the rest of the list doesn't jump).
+function _asBeginDismiss(ticker, detector) {
+    var row = document.getElementById(_asActId(ticker, detector));
+    if (!row) return;
+    var esc = ticker.replace(/'/g, "\\'");
+    var chips = '<span class="ab-dim" style="margin-right:4px">Dismiss — why?</span>';
+    Object.keys(AS_DISMISS_REASONS).forEach(function(code) {
+        chips += '<button class="ana-sp-btn" style="margin:0 4px 4px 0" onclick="_asDismissWithReason(\'' + esc + '\',\'' + detector + '\',\'' + code + '\')">' +
+            escapeHtml(AS_DISMISS_REASONS[code]) + '</button>';
+    });
+    chips += '<button class="ana-sp-btn ab-dim" style="margin:0 4px 4px 0" onclick="_asRenderScan(_asLatestScan, document.getElementById(\'asBody\'))">Cancel</button>';
+    row.innerHTML = chips;
+}
+
+// Store the dismissal with its reason (persisted to the scan doc). For "other",
+// prompt for a short free-text note inline first.
+async function _asDismissWithReason(ticker, detector, code) {
+    if (code === 'other') {
+        var row = document.getElementById(_asActId(ticker, detector));
+        if (row) {
+            var esc = ticker.replace(/'/g, "\\'");
+            row.innerHTML = '<input type="text" id="asDismNote" placeholder="Reason (optional)" ' +
+                'style="flex:1;min-width:140px;padding:4px 8px" maxlength="80">' +
+                '<button class="ana-sp-btn" onclick="_asDismissSave(\'' + esc + '\',\'' + detector + '\',\'other\',document.getElementById(\'asDismNote\').value)">Dismiss</button>';
+            var inp = document.getElementById('asDismNote');
+            if (inp) inp.focus();
+            return;
+        }
+    }
+    _asDismissSave(ticker, detector, code, '');
+}
+
+async function _asDismissSave(ticker, detector, code, note) {
     var scan = _asLatestScan;
     if (!scan || !scan.id) return;
     var hit = (scan.candidates || []).find(function(c) { return c.ticker === ticker && c.detector === detector; });
     if (!hit) return;
-    hit.dismissed = !hit.dismissed;
+    hit.dismissed = true;
+    hit.dismissReason = code;
+    hit.dismissNote = (code === 'other' && note) ? note.trim().slice(0, 80) : null;
+    hit.dismissedAt = new Date().toISOString();
     try {
         await userCol('analyzerScans').doc(scan.id).update({ candidates: scan.candidates });
     } catch (e) {
         console.error('[scan] dismiss save failed:', e);
-        hit.dismissed = !hit.dismissed;   // revert on failure
+        hit.dismissed = false; hit.dismissReason = null; hit.dismissNote = null; hit.dismissedAt = null;
+    }
+    _asRenderScan(scan, document.getElementById('asBody'));
+}
+
+// Un-dismiss: clear the flag and the reason fields.
+async function _asUndismiss(ticker, detector) {
+    var scan = _asLatestScan;
+    if (!scan || !scan.id) return;
+    var hit = (scan.candidates || []).find(function(c) { return c.ticker === ticker && c.detector === detector; });
+    if (!hit) return;
+    var prev = { d: hit.dismissed, r: hit.dismissReason, n: hit.dismissNote, a: hit.dismissedAt };
+    hit.dismissed = false; hit.dismissReason = null; hit.dismissNote = null; hit.dismissedAt = null;
+    try {
+        await userCol('analyzerScans').doc(scan.id).update({ candidates: scan.candidates });
+    } catch (e) {
+        console.error('[scan] un-dismiss save failed:', e);
+        hit.dismissed = prev.d; hit.dismissReason = prev.r; hit.dismissNote = prev.n; hit.dismissedAt = prev.a;
     }
     _asRenderScan(scan, document.getElementById('asBody'));
 }

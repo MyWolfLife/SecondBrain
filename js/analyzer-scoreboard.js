@@ -169,6 +169,8 @@ async function _asbGradeScan(scan, spy) {
     for (var i = 0; i < cands.length; i++) {
         var c = cands[i];
         var row = { ticker: c.ticker, detector: c.detector, dismissed: !!c.dismissed, scanId: scan.id,
+                    dismissReason: c.dismissReason || null, dismissNote: c.dismissNote || null,
+                    aiRead: c.aiRead || null,
                     entryPrice: null, ret30: null, ret60: null, hit: null, spy60: null, pending: true };
         var rec = await anaGetPriceHistory(c.ticker);
         if (rec && rec.dates.length) {
@@ -327,7 +329,10 @@ function _asbRender(page, graded, trades, totalScans, capped) {
                 html += '<tr>' +
                     '<td><strong>' + escapeHtml(r.ticker) + '</strong></td>' +
                     '<td>' + _asbDetShort(r.detector) + '</td>' +
-                    '<td>' + (r.dismissed ? '<span class="ab-badge ab-badge-neutral">dismissed</span>' : '<span class="ab-badge ab-badge-win">kept</span>') + '</td>' +
+                    '<td>' + (r.dismissed
+                        ? '<span class="ab-badge ab-badge-neutral">dismissed</span>' +
+                          (typeof _asDismissReasonLabel === 'function' && _asDismissReasonLabel(r) ? ' <span class="ab-dim">' + escapeHtml(_asDismissReasonLabel(r)) + '</span>' : '')
+                        : '<span class="ab-badge ab-badge-win">kept</span>') + '</td>' +
                     '<td>' + (r.entryPrice != null ? '$' + r.entryPrice.toFixed(2) : '—') + '</td>' +
                     '<td class="' + (r.ret30 > 0 ? 'ab-pos' : (r.ret30 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret30) + '</td>' +
                     '<td class="' + (r.ret60 > 0 ? 'ab-pos' : (r.ret60 != null ? 'ab-neg' : 'ab-dim')) + '">' + _abFmtPct(r.ret60) + '</td>' +
