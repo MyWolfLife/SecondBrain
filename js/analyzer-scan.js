@@ -1956,11 +1956,53 @@ async function _adRenderNews(ev, days) {
     host = document.getElementById('adNews');
     if (!host) return;
     if (llmOk) {
+        // Prior stamped read (learning loop) — shown so you can see the last
+        // call without re-running, and know the Scoreboard has it on record.
+        var prior = _adCtx.candidate && _adCtx.candidate.aiRead;
+        var priorHtml = prior && prior.verdict
+            ? '<p class="ab-dim" style="margin:6px 0 0">📌 Last AI read: <strong>' + escapeHtml(prior.verdict) + '</strong>' +
+              (prior.at ? ' · ' + escapeHtml(prior.at.slice(0, 10)) : '') + ' · recorded for the Scoreboard</p>'
+            : '';
         html += '<div class="ab-form-row" style="margin-top:10px">' +
             '<button class="ana-sp-btn" id="adAiReadBtn" onclick="_adAiRead()">🤖 AI read: emotional vs structural</button>' +
-            '</div><div id="adAiReadOut"></div>';
+            '</div>' + priorHtml + '<div id="adAiReadOut"></div>';
     }
     host.innerHTML = html;
+}
+
+// Parses the AI response's "Read:" line → { verdict (full line text), category }.
+// category = the leaning direction when the read is MIXED-with-lean, else the
+// leading word; null when unparseable. Drives the Scoreboard's AI grading.
+function _adParseAiVerdict(resp) {
+    var m = /(?:^|\n)\s*Read:\s*(.+)/i.exec(resp || '');
+    if (!m) return null;
+    var verdict = m[1].trim().replace(/\s+/g, ' ');
+    var lean = /leaning\s+(EMOTIONAL|STRUCTURAL|SUPPORTED|CONTRADICTED)/i.exec(verdict);
+    var cat;
+    if (lean) cat = lean[1].toUpperCase();
+    else {
+        var w = /^(EMOTIONAL|STRUCTURAL|SUPPORTED|CONTRADICTED|MIXED)/i.exec(verdict);
+        cat = w ? w[1].toUpperCase() : null;
+    }
+    return { verdict: verdict, category: cat };
+}
+
+// Stamp the one-line verdict onto the scan candidate so the Scoreboard can
+// grade the AI's calls over time. No-op for Stock-Rollup dossiers (no scan
+// candidate to attach to). Latest read wins on re-run.
+async function _adStampAiRead(resp) {
+    var ctx = _adCtx;
+    if (!ctx || !ctx.scan || !ctx.scan.id || !ctx.candidate) return null;
+    var parsed = _adParseAiVerdict(resp);
+    if (!parsed) return null;
+    ctx.candidate.aiRead = { verdict: parsed.verdict, category: parsed.category, at: new Date().toISOString() };
+    try {
+        await userCol('analyzerScans').doc(ctx.scan.id).update({ candidates: ctx.scan.candidates });
+        return parsed;
+    } catch (e) {
+        console.log('[dossier] AI read stamp failed: ' + e.message);
+        return null;
+    }
 }
 
 // Build the prompt from ON-SCREEN evidence only and call the shared LLM helper.
@@ -2001,8 +2043,13 @@ async function _adAiRead() {
         var model = cfg.model || llm.model;
         var resp = await chatCallOpenAICompat(llm, cfg.apiKey, content, model);
 
+        // Stamp the one-line verdict onto the scan candidate (learning loop).
+        var stamped = await _adStampAiRead(resp);
+        var savedNote = stamped
+            ? '<p class="ab-dim" style="margin:4px 0 0">📌 Read <strong>' + escapeHtml(stamped.verdict) + '</strong> recorded — the Scoreboard will grade it against what happens.</p>'
+            : '';
         out.innerHTML = '<div class="ad-ai-box">' + escapeHtml(resp).replace(/\n/g, '<br>') +
-            '<p class="ad-ai-disclaimer">AI draft — not financial advice. The tool assembles evidence; the decision is yours.</p></div>';
+            '<p class="ad-ai-disclaimer">AI draft — not financial advice. The tool assembles evidence; the decision is yours.</p></div>' + savedNote;
     } catch (e) {
         out.innerHTML = '<p class="as-chip as-chip-warn" style="display:inline-block">AI read failed: ' + escapeHtml(e.message) + '</p>';
     } finally {
