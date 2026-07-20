@@ -25,6 +25,11 @@ var ASB_CALIBRATION_TARGET = 30;
 // dismissal must not read as "your judgment is adding value".
 var ASB_VERDICT_MIN = 5;
 
+// The learning breakdowns (dismissal-reason accuracy, AI-read accuracy) stay
+// hidden until this many matured, tagged candidates exist — same "don't dress
+// noise as insight" bar. Below it, a quiet "accruing" line shows instead.
+var ASB_LEARN_MIN = 5;
+
 // The exact prompt to paste into a fresh Claude Code session when it's time to
 // build Phase 6. Kept verbatim here so the "Calibration prompt" button can copy
 // it to the clipboard — the user won't have to remember the wording months out.
@@ -218,6 +223,100 @@ function _asbAvg(rows, fn) {
 // Rendering
 // ---------------------------------------------------------------------------
 
+// ── Learning breakdowns (gated on ASB_LEARN_MIN matured, tagged rows) ───────
+
+// Dismissal-reason accuracy: a dismissal was "right" when the candidate did NOT
+// hit +10% within 60d (you correctly skipped a dud). Groups matured dismissed
+// rows by reason. Returns { total, right, byReason:{code:{right,total}} }.
+function _asbDismissAccuracy(rows) {
+    var out = { total: 0, right: 0, byReason: {} };
+    rows.forEach(function(r) {
+        if (!r.dismissed || r.pending || !r.dismissReason || r.hit == null) return;
+        var wasRight = (r.hit === false);
+        out.total++; if (wasRight) out.right++;
+        var b = out.byReason[r.dismissReason] || (out.byReason[r.dismissReason] = { right: 0, total: 0 });
+        b.total++; if (wasRight) b.right++;
+    });
+    return out;
+}
+
+// AI-read accuracy: a directional call is "right" when the outcome matched —
+// EMOTIONAL/SUPPORTED (bullish) → hit; STRUCTURAL/CONTRADICTED (bearish) →
+// miss. Bare MIXED (no lean) makes no call and is excluded. Returns
+// { total, right, excludedMixed, byCat:{cat:{right,total}} }.
+function _asbAiCat(cat) {
+    if (cat === 'EMOTIONAL' || cat === 'SUPPORTED')   return 'bull';
+    if (cat === 'STRUCTURAL' || cat === 'CONTRADICTED') return 'bear';
+    return null;   // MIXED / unknown → no directional call
+}
+function _asbAiAccuracy(rows) {
+    var out = { total: 0, right: 0, excludedMixed: 0, byCat: {} };
+    rows.forEach(function(r) {
+        if (r.pending || !r.aiRead || !r.aiRead.category || r.hit == null) return;
+        var dir = _asbAiCat(r.aiRead.category);
+        if (!dir) { out.excludedMixed++; return; }
+        var wasRight = (dir === 'bull') ? (r.hit === true) : (r.hit === false);
+        out.total++; if (wasRight) out.right++;
+        var b = out.byCat[r.aiRead.category] || (out.byCat[r.aiRead.category] = { right: 0, total: 0 });
+        b.total++; if (wasRight) b.right++;
+    });
+    return out;
+}
+
+// Renders both learning breakdowns from the matured (deduped) rows. Each panel
+// is gated: below ASB_LEARN_MIN it shows a quiet "accruing" line so the user
+// knows it's coming, not broken.
+function _asbLearningPanels(rows) {
+    var html = '';
+
+    // Dismissal accuracy
+    var reasonLabel = (typeof _asDismissReasonLabel === 'function')
+        ? function(code) { return _asDismissReasonLabel({ dismissReason: code }); }
+        : function(code) { return code; };
+    var da = _asbDismissAccuracy(rows);
+    var dismTagged = rows.filter(function(r) { return r.dismissed && !r.pending && r.dismissReason; }).length;
+    html += '<h3 class="ana-section-title">🗂 Were your dismissals right?</h3>';
+    if (da.total < ASB_LEARN_MIN) {
+        html += '<p class="muted-text">⏳ ' + dismTagged + ' of ' + ASB_LEARN_MIN +
+            ' graded dismissals-with-a-reason so far. Once there are ' + ASB_LEARN_MIN +
+            ', this shows which kinds of dismissals were right (a dismissal is "right" when the stock then missed +10%).</p>';
+    } else {
+        html += '<p class="muted-text">Across ' + da.total + ' graded dismissals, <strong>' +
+            Math.round(da.right / da.total * 100) + '%</strong> were right — the stock missed +10%, so skipping it paid off. By reason:</p>' +
+            '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Reason</th><th>Right</th><th>Rate</th></tr>';
+        Object.keys(da.byReason).sort(function(a, b) { return da.byReason[b].total - da.byReason[a].total; }).forEach(function(code) {
+            var b = da.byReason[code];
+            html += '<tr><td>' + escapeHtml(reasonLabel(code)) + '</td><td>' + b.right + ' of ' + b.total +
+                '</td><td>' + Math.round(b.right / b.total * 100) + '%</td></tr>';
+        });
+        html += '</table></div>';
+    }
+
+    // AI-read accuracy
+    var aa = _asbAiAccuracy(rows);
+    var aiTagged = rows.filter(function(r) { return r.aiRead && r.aiRead.category && !r.pending; }).length;
+    html += '<h3 class="ana-section-title">🤖 Is the AI read any good?</h3>';
+    if (aa.total < ASB_LEARN_MIN) {
+        html += '<p class="muted-text">⏳ ' + aiTagged + ' of ' + ASB_LEARN_MIN +
+            ' graded AI reads so far (run the 🤖 AI read on a dossier to add one). Once there are ' + ASB_LEARN_MIN +
+            ', this shows the AI\'s hit rate — an EMOTIONAL/SUPPORTED call is "right" when the stock hit +10%, a STRUCTURAL/CONTRADICTED call when it missed.</p>';
+    } else {
+        html += '<p class="muted-text">Across ' + aa.total + ' graded directional AI reads, <strong>' +
+            Math.round(aa.right / aa.total * 100) + '%</strong> were right' +
+            (aa.excludedMixed ? ' (' + aa.excludedMixed + ' MIXED read' + (aa.excludedMixed === 1 ? '' : 's') + ' excluded — no directional call)' : '') +
+            '. By call:</p>' +
+            '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Call</th><th>Right</th><th>Rate</th></tr>';
+        Object.keys(aa.byCat).sort(function(a, b) { return aa.byCat[b].total - aa.byCat[a].total; }).forEach(function(cat) {
+            var b = aa.byCat[cat];
+            html += '<tr><td>' + escapeHtml(cat) + '</td><td>' + b.right + ' of ' + b.total +
+                '</td><td>' + Math.round(b.right / b.total * 100) + '%</td></tr>';
+        });
+        html += '</table></div>';
+    }
+
+    return html;
+}
+
 function _asbRender(page, graded, trades, totalScans, capped) {
     var allRows  = [];
     graded.forEach(function(g) { allRows = allRows.concat(g.rows); });
@@ -284,6 +383,9 @@ function _asbRender(page, graded, trades, totalScans, capped) {
         html += '<p class="muted-text">Nothing graded yet — the newest scans are still inside their 60-day windows. Grades appear automatically as windows complete (keep price data updated).</p>';
     }
 
+    // Learning breakdowns — dismissal-reason accuracy + AI-read accuracy (gated)
+    html += _asbLearningPanels(complete);
+
     // Closed-trades recap
     var closed = (trades || []).filter(function(t) { return t.status === 'closed'; });
     if (closed.length) {
@@ -324,7 +426,7 @@ function _asbRender(page, graded, trades, totalScans, capped) {
             html += '<p class="muted-text">No candidates in this scan.</p>';
         } else {
             html += '<div class="ab-table-wrap"><table class="ab-table">' +
-                '<tr><th>Ticker</th><th>Detector</th><th>Kept?</th><th>Entry</th><th>+30d</th><th>+60d</th><th>Hit +10%?</th><th>SPY 60d</th></tr>';
+                '<tr><th>Ticker</th><th>Detector</th><th>Kept?</th><th>Entry</th><th>+30d</th><th>+60d</th><th>Hit +10%?</th><th>SPY 60d</th><th>AI read</th></tr>';
             g.rows.forEach(function(r) {
                 html += '<tr>' +
                     '<td><strong>' + escapeHtml(r.ticker) + '</strong></td>' +
@@ -339,6 +441,8 @@ function _asbRender(page, graded, trades, totalScans, capped) {
                     '<td>' + (r.pending ? '<span class="ab-badge ab-badge-neutral">pending</span>'
                                         : (r.hit ? '<span class="ab-badge ab-badge-win">hit</span>' : '<span class="ab-badge ab-badge-loss">miss</span>')) + '</td>' +
                     '<td class="ab-dim">' + _abFmtPct(r.spy60) + '</td>' +
+                    '<td class="ab-dim"' + (r.aiRead && r.aiRead.verdict ? ' title="' + escapeHtml(r.aiRead.verdict) + '"' : '') + '>' +
+                        (r.aiRead && r.aiRead.category ? escapeHtml(r.aiRead.category) : '—') + '</td>' +
                 '</tr>';
             });
             html += '</table></div>';
