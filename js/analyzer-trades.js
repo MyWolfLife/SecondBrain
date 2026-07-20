@@ -137,10 +137,20 @@ async function loadAnalyzerTradesPage() {
         var wins = closed.filter(function(t) { return t.retPct > 0; });
         var avg  = closed.reduce(function(a, t) { return a + (t.retPct || 0); }, 0) / closed.length;
         var right = closed.filter(function(t) { return t.thesisVerdict === 'right'; }).length;
+
+        // Trading days held per closed trade — the SAME unit the time stop uses
+        // (so a time-stopped trade reads ~timeStopDays, not the larger calendar
+        // count). From the price cache; calendar-day fallback when uncached.
+        var closedTd = {};
+        for (var ci = 0; ci < closed.length; ci++) {
+            var crec = await anaGetPriceHistory(closed[ci].ticker);
+            closedTd[closed[ci].id] = _atTradingDaysHeld(crec, closed[ci].entryDate, closed[ci].closeDate);
+        }
+
         html += '<p class="muted-text">' + wins.length + ' of ' + closed.length + ' profitable · avg ' + _abFmtPct(avg) +
             ' per trade · thesis right ' + right + ' of ' + closed.length + '</p>' +
             '<div class="ab-table-wrap"><table class="ab-table">' +
-            '<tr><th>Ticker</th><th>Entry</th><th>Exit</th><th>Days</th><th>Ret</th><th>SPY</th><th>Reason</th><th>Thesis</th><th>Notes</th></tr>';
+            '<tr><th>Ticker</th><th>Entry</th><th>Exit</th><th title="Trading days from entry to exit — the same unit as the time stop">Days held</th><th>Ret</th><th>SPY</th><th>Reason</th><th>Thesis</th><th>Notes</th></tr>';
         closed.forEach(function(t) {
             var reasonBadge = t.closeReason === 'target' ? 'ab-badge-win' : (t.closeReason === 'stop' ? 'ab-badge-loss' : 'ab-badge-neutral');
             var verdictIcon = t.thesisVerdict === 'right' ? '✅' : (t.thesisVerdict === 'wrong' ? '❌' : (t.thesisVerdict === 'mixed' ? '➗' : '—'));
@@ -148,7 +158,7 @@ async function loadAnalyzerTradesPage() {
                 '<td><strong>' + escapeHtml(t.ticker) + '</strong></td>' +
                 '<td>' + t.entryDate + ' $' + t.entryPrice.toFixed(2) + '</td>' +
                 '<td>' + (t.closeDate || '—') + ' $' + (t.closePrice != null ? t.closePrice.toFixed(2) : '—') + '</td>' +
-                '<td>' + _atCalDays(t.entryDate, t.closeDate) + '</td>' +
+                '<td>' + _atDaysHeldCell(closedTd[t.id], t.entryDate, t.closeDate) + '</td>' +
                 '<td class="' + (t.retPct > 0 ? 'ab-pos' : 'ab-neg') + '">' + _abFmtPct(t.retPct) + '</td>' +
                 '<td class="ab-dim">' + _abFmtPct(t.spyRetPct) + '</td>' +
                 '<td><span class="ab-badge ' + reasonBadge + '">' + escapeHtml(t.closeReason || '—') + '</span></td>' +
@@ -177,6 +187,27 @@ function _atCalDays(fromDate, toDate) {
     return Math.round((new Date(toDate) - new Date(fromDate)) / 86400000);
 }
 
+// Trading days between entry and close from a price record — candles strictly
+// after the entry date, through the close date. Matches the open-card counter
+// (`n - entryIdx`) and the time-stop unit. null when uncomputable.
+function _atTradingDaysHeld(rec, fromDate, toDate) {
+    if (!rec || !rec.dates || !toDate) return null;
+    var i0 = anaEngIndexForDate(rec, fromDate);
+    var i1 = anaEngIndexForDate(rec, toDate);
+    if (i0 < 0 || i1 < i0) return null;
+    return i1 - i0;
+}
+
+// Closed-trade "Days held" cell: trading days (consistent with the time stop),
+// calendar days shown on hover; calendar-day fallback (tagged) when the ticker
+// isn't cached so no trading-day count is available.
+function _atDaysHeldCell(tradingDays, fromDate, toDate) {
+    var cal = _atCalDays(fromDate, toDate);
+    if (tradingDays != null)
+        return '<span title="' + cal + ' calendar days">' + tradingDays + '</span>';
+    return '<span title="calendar days — no cached prices for a trading-day count">' + cal + ' cal</span>';
+}
+
 async function _atOpenCard(t) {
     var live = await _atLiveStatus(t);
     var name = _asName(t.ticker);
@@ -202,7 +233,7 @@ async function _atOpenCard(t) {
         '<div class="as-chip-row">' +
             '<span class="as-chip">🎯 $' + t.targetPrice.toFixed(2) + ' (+' + t.exits.targetPct + '%)</span>' +
             '<span class="as-chip">🛑 $' + t.stopPrice.toFixed(2) + ' (−' + t.exits.stopPct + '%)</span>' +
-            '<span class="as-chip">⏰ day ' + (live ? live.daysHeld : '—') + ' of ' + t.exits.timeStopDays + '</span>' +
+            '<span class="as-chip">⏰ trading day ' + (live ? live.daysHeld : '—') + ' of ' + t.exits.timeStopDays + '</span>' +
         '</div>' +
         (t.thesis ? '<p class="ab-dim" style="margin:6px 0 0">💭 ' + escapeHtml(t.thesis) + '</p>' : '') +
         '<div class="ab-form-row" style="margin:8px 0 0">' +

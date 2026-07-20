@@ -48,7 +48,8 @@ function _hhCheckEstimates(det, dataOk) {
     var note = det.priceReacted ? 'price already reacting' : 'price hasn’t caught down yet';
     return { key: 'estimates', label: 'Estimate trend', status: concern ? 'concern' : 'watch', weight: 2,
              detail: 'Consensus EPS cut ' + det.estChangePct.toFixed(1) + '% over ' + det.weeksCovered +
-                     ' weekly snapshots (' + note + ')' };
+                     ' weeks' + (det.snapshotCount != null ? ' (' + det.snapshotCount + ' snapshots)' : '') +
+                     ' (' + note + ')' };
 }
 
 // ── Check 2: trend vs 50/200-day averages ──────────────────────────────────

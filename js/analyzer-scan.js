@@ -296,6 +296,7 @@ async function _asComputeScan(onNote) {
                     priceChangePct: rev.priceChangePct,
                     gapPts: rev.gapPts,
                     weeksCovered: rev.weeksCovered,
+                    snapshotCount: rev.snapshotCount,
                     analysts: rev.analysts,
                     baseRate: br.rate,
                     earningsDate: null,
@@ -992,7 +993,10 @@ function _asScoreRevision(c) {
     }
 
     if (c.weeksCovered != null) {
-        inc.push({ label: 'Trend duration', raw: c.weeksCovered + ' weeks',
+        // weeksCovered is the real calendar span (engine change 2026-07-19), so
+        // this scores actual trend duration, not the snapshot count.
+        var durRaw = c.weeksCovered + ' weeks' + (c.snapshotCount != null ? ' (' + c.snapshotCount + ' snapshots)' : '');
+        inc.push({ label: 'Trend duration', raw: durRaw,
                    subscore: _asBand(c.weeksCovered, [[4, 50], [7, 75]], 95), weight: 15 });
     } else {
         exc.push({ label: 'Trend duration', why: 'not recorded on this candidate' });
@@ -1394,7 +1398,8 @@ function _adRender(page, rec, ev, params) {
         var trg  = ev.revision.trigger;
         if (trg) {
             html += '<p class="muted-text">📈 Consensus EPS rose ' + _asPct(trg.estChangePct) + ' over ' + trg.weeksCovered +
-                ' weekly snapshots while the price moved ' + _asPct(trg.priceChangePct) + ' — a ' + _asPtsStr(trg.gapPts) + '-point gap.</p>';
+                ' weeks' + (trg.snapshotCount != null ? ' (' + trg.snapshotCount + ' snapshots)' : '') +
+                ' while the price moved ' + _asPct(trg.priceChangePct) + ' — a ' + _asPtsStr(trg.gapPts) + '-point gap.</p>';
         }
         if (sers.length) {
             html += '<h3 class="ana-section-title">Estimate history — ' + escapeHtml(ctx.ticker) + '</h3>' +

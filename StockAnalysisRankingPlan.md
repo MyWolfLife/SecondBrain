@@ -204,7 +204,7 @@ formula as dipA, when applicable.
 | Metric | Weight | Subscore mapping |
 |---|---:|---|
 | Estimate-vs-price gap (pts) | 30 | <0→20 · 0–5→50 · 5–10→75 · 10–20→90 · >20→100 |
-| Trend duration (weeks covered) | 15 | 3wk→50 · 4–6wk→75 · >6wk→95 (longer confirmed trend = more confidence) |
+| Trend duration (weeks covered) | 15 | 3wk→50 · 4–6wk→75 · >6wk→95 (longer confirmed trend = more confidence). **`weeksCovered` = the real calendar span (spanDays/7), NOT the snapshot count** — fixed 2026-07-19 (code-review): a gappy 3-snapshot/10-week trend must score as 10 weeks, not 3. `snapshotCount` is stamped separately for display. |
 | Unconditional base rate | 25 | same bands as dipA (banded, not direct) |
 | Price target upside vs current price | 12 | same bands as dipA |
 | Analyst grades, net (60d) | 8 | same bands as dipA |

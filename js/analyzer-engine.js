@@ -443,7 +443,11 @@ function anaEngRevisionTrigger(rec, snapshots, ticker, opts) {
         estChangePct:   estChangePct,
         priceChangePct: priceChangePct,
         gapPts:         estChangePct - priceChangePct,
-        weeksCovered:   snapshots.length,
+        // weeksCovered = the ACTUAL calendar span (rounded weeks), not the
+        // snapshot count — 3 snapshots straddling 10 weeks is a 10-week trend,
+        // not a 3-week one. snapshotCount is kept separately for display.
+        weeksCovered:   Math.max(1, Math.round(spanDays / 7)),
+        snapshotCount:  snapshots.length,
         analysts:       analysts,
         close:          rec.close[asOf]
     };
@@ -497,7 +501,10 @@ function anaEngDeteriorationCheck(rec, snapshots, opts) {
     return {
         estChangePct:   estChangePct,        // negative
         priceChangePct: priceChangePct,
-        weeksCovered:   snapshots.length,
+        // Truthful calendar span, not the snapshot count (see the note in
+        // anaEngRevisionTrigger — a gappy series must not read as fewer weeks).
+        weeksCovered:   Math.max(1, Math.round(spanDays / 7)),
+        snapshotCount:  snapshots.length,
         analysts:       analysts,
         priceReacted:   priceReacted
     };

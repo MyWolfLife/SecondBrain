@@ -2598,7 +2598,7 @@ Holdings Health is the flip side of the whole Analyzer: instead of finding stock
 
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
-- **Trades** tracks positions you actually took — each open position shows live P&L against the latest cached prices, plus your 🎯 target price, 🛑 stop price, and ⏰ time-stop progress ("day X of N")
+- **Trades** tracks positions you actually took — each open position shows live P&L against the latest cached prices, plus your 🎯 target price, 🛑 stop price, and ⏰ time-stop progress ("trading day X of N")
 - A colored banner appears when action is due: **Target reached** (green), **Stop breached** (red), or **Time stop expired** (amber)
 - Tap **Close trade** when you sell — the close price and reason are pre-suggested; record whether your **thesis was right, wrong, or mixed**
 - Closed trades show your track record: win rate, average return per trade, return vs SPY over the same dates, and how often your thesis held up
@@ -2613,7 +2613,7 @@ Holdings Health is the flip side of the whole Analyzer: instead of finding stock
 
 **The SPY column**: Every closed trade shows what SPY did over the same dates. A +8% trade while SPY did +9% wasn't really a win — this column keeps you honest.
 
-**Time stop**: Counted in trading days (market days, not calendar days), matched to how the Backtest Lab counts.
+**Time stop**: Counted in trading days (market days, not calendar days), matched to how the Backtest Lab counts. Both places that show "days" use this same trading-day count — the open card's "trading day X of N" *and* the closed-trades **Days held** column — so a trade closed by its time stop reads about the same number both before and after (hover the closed number to see the calendar days). This is deliberate: one word, one meaning.
 
 ---
 
