@@ -3347,36 +3347,50 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
         }
 
         // ── Projected weight (calorie-driven) ────────────────────────────────
-        // Anchored to the first weigh-in in range (so it starts at the same point
-        // as the actual line), then each day applies that day's calorie balance
-        // (totalBurn − foodCalories) at 3500 cal/lb. Days with no logged balance
-        // count as 0 change, so the line carries flat across gaps.
+        // Anchored to the first weigh-in on/after the first day food calories were
+        // logged — before that there's no calorie balance to project from, so a line
+        // there would just be a useless flat run. From the anchor on, each day applies
+        // that day's balance (totalBurn − foodCalories) at 3500 cal/lb; days with no
+        // logged balance count as 0 change, so the line carries flat across gaps.
         var projArr = null;
         if (_dmWeightChartProjected && pts.length > 0) {
             var diffByDate = {};
+            var firstCalDate = null;
             allDocs.forEach(function(r) {
                 if (!r.date) return;
                 var b = (r.totalBurn    != null && r.totalBurn    !== '') ? parseFloat(r.totalBurn)    : null;
                 var f = (r.foodCalories != null && r.foodCalories !== '') ? parseFloat(r.foodCalories) : null;
                 diffByDate[r.date] = (b != null && f != null) ? (b - f) : 0;
+                if (f != null && (firstCalDate === null || r.date < firstCalDate)) firstCalDate = r.date;
             });
-            var anchorDate = pts[0].date;
-            var startW     = pts[0].w;
+            // Find the first weigh-in point on/after the first food-calorie date
+            var anchorIdx = 0;
+            if (firstCalDate) {
+                while (anchorIdx < pts.length && pts[anchorIdx].date < firstCalDate) anchorIdx++;
+            }
+            if (anchorIdx >= pts.length) anchorIdx = pts.length - 1;   // fallback: keep one point
+            var anchorDate = pts[anchorIdx].date;
+            var startW     = pts[anchorIdx].w;
             var sortedDates = Object.keys(diffByDate).sort();
             // Single pass: accumulate each day's balance as we reach each weigh-in.
             // A day's balance affects the NEXT reading, so we sum dates strictly
-            // before each point (and on/after the anchor).
+            // before each point (and on/after the anchor). Points before the anchor
+            // are null so the projected line simply doesn't draw there.
             var di = 0, cum = 0;
-            projArr = pts.map(function(p) {
+            projArr = pts.map(function(p, idx) {
+                if (idx < anchorIdx) return null;
                 while (di < sortedDates.length && sortedDates[di] < p.date) {
                     if (sortedDates[di] >= anchorDate) cum += diffByDate[sortedDates[di]];
                     di++;
                 }
                 return r1(startW - cum / 3500);
             });
-            // Widen the Y range so the projected line isn't clipped
-            yMin = Math.min(yMin, Math.floor(Math.min.apply(null, projArr) - 1));
-            yMax = Math.max(yMax, Math.ceil(Math.max.apply(null, projArr)  + 1));
+            // Widen the Y range so the projected line isn't clipped (ignore leading nulls)
+            var projNums = projArr.filter(function(v) { return v != null; });
+            if (projNums.length) {
+                yMin = Math.min(yMin, Math.floor(Math.min.apply(null, projNums) - 1));
+                yMax = Math.max(yMax, Math.ceil(Math.max.apply(null, projNums)  + 1));
+            }
         }
 
         // ── X-axis labels: M/D, add /YY for multi-year ranges ────────────────
