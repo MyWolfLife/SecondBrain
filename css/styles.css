@@ -14113,6 +14113,14 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(3, 105, 161, 0.35);
 }
+.landing-tile--exercise-summary {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    color: #fff;
+}
+.landing-tile--exercise-summary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+}
 
 /* Coming-soon tile — greyed out, not clickable */
 .landing-tile--coming-soon {
@@ -17831,6 +17839,43 @@ a.legacy-fin-card:hover {
 /* Nutrition columns — toggled by the 🥗 Nutrition button (class on #dmListContent) */
 .dm-col-nutri { display: none; }
 .dm-nutri-visible .dm-col-nutri { display: table-cell; }
+
+/* ── Exercise Summary (year pivot) ──────────────────────────── */
+/* Line toggles in the filter bar */
+.sum-line-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.sum-line-toggle input { cursor: pointer; }
+
+/* Each month is its own <tbody>; group them with a top border */
+.sum-table tbody.sum-month { border-top: 2px solid #d1d5db; }
+.sum-table tbody.sum-month:first-of-type { border-top: none; }
+.sum-table .sum-month-name { font-weight: 700; color: #111827; }
+.sum-table .sum-sub {
+    font-size: 0.78rem;
+    color: #6b7280;
+    font-style: italic;
+    padding-left: 10px;
+}
+.sum-table .sum-total-row td { font-weight: 600; }
+.sum-table .sum-avg-row td, .sum-table .sum-goal-row td {
+    font-weight: 400;
+    background: #fafafa;
+    color: #4b5563;
+}
+.sum-table .sum-future .sum-total-row td { color: #b0b4bb; }
+
+/* Avg / Goal lines hidden unless their toggle class is present on #sumListContent */
+.dm-sum-avg-row  { display: none; }
+.sum-show-avg  .dm-sum-avg-row  { display: table-row; }
+.dm-sum-goal-row { display: none; }
+.sum-show-goal .dm-sum-goal-row { display: table-row; }
 
 /* Weight Chart accordion */
 .dm-weight-chart-section { margin-bottom: 10px; }

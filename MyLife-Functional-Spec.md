@@ -1170,10 +1170,10 @@ Tracks major life events — trips, milestones, goals, relationships.
 
 **Plan document**: `ExercisePlan.md`
 
-Exercise tracking lives in the Life section. Activities, Daily Metrics, and Goals are built; Summary shows "Coming Soon".
+Exercise tracking lives in the Life section. Activities, Daily Metrics, Goals, and Summary are all built.
 
 ### Exercise Hub (`#exercise`)
-Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (active), **Summary** (coming soon).
+Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (active), **Summary** (active).
 Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
@@ -1249,6 +1249,17 @@ Accessible via a "Manage Metrics" link on the Daily Metrics list screen. Manages
 - **Delete**: Confirms before deleting. Sets `archived: true` in Firestore (soft delete). Row removed from list.
 - **Seeding**: On first visit, 5 default metrics are written if collection is empty: Stand 1 Hour (boolean), Drinking (boolean), Eat Before 7 (boolean), Device Off by 10pm (boolean), Alcohol Calories (number, unit: cal).
 - **Firestore collection**: `exerciseMetricDefs` — fields: `name`, `type` (boolean/number/text), `allowDecimal` (bool), `unitLabel` (string), `sortOrder` (int), `archived` (bool), `createdAt`.
+
+### Summary (`#exercise-summary`, `exercise.js`)
+Year-at-a-glance pivot of the Daily Metrics data — one row per month (Jan–Dec) for a selected year. Reuses the exact Daily Metrics footer-row math (`_dmStatCells` / `_dmStatRowHtml`, shared with the daily table), so every number matches what the user sees drilling into that month.
+
+- **Year dropdown**: built from the range of years present in `exerciseDailyMetrics` (oldest→newest, derived from a first/last date query). Defaults to the most recent year. Changing it reloads that year's goals, daily records, and activities.
+- **Columns**: identical set to the Daily Metrics grid — Weight, Sleep, Body Bat., Steps, the 📏 Exercise group (Total/Walk/Run/Dogs Mi. + one column per tracked exercise), Burn, Food Cal., +/- Diff, the 🥗 Nutrition group (Protein/Carbs/Fiber/Fat/Water), and all custom metric columns. The 📏 Exercise and 🥗 Nutrition toggle buttons share the same sticky prefs (`dmExtraColsOpen`, `dmNutriColsOpen`) as Daily Metrics.
+- **Per-month lines**: the **Totals** line always shows. Two checkboxes — **Show Avg line** and **Show Goal line** (sticky prefs `sumShowAvg` / `sumShowGoal`) — reveal stacked **Avg** and **Goal** lines beneath each month (up to 3 lines per month). Toggling flips a class on the container (no re-render). Avg/Goal lines render only for months that have data and are not in the future.
+- **Weight**: the Totals weight is the month's 1st-to-1st loss/gain (green when losing, red when gaining); the Avg weight is per-day loss — same logic as Daily Metrics. Past months use the next month's first weigh-in as the ending weight (December pulls January of the next year, which the year query range includes).
+- **Future / empty months**: all 12 rows always render; months with no data (including future months in the current year) show a single cleanly blank line.
+- **Weight Chart**: collapsible accordion reusing the Daily Metrics chart component (`_dmRenderWeightChart` with unique element ids to avoid duplicate-id collisions). Range selector defaults to **Selected Year** (year-to-date for the current year, full calendar year for a past year); also offers Last 30/90 Days, This Year, All Time. Sticky prefs `sumWeightChartOpen` / `sumWeightChartRange`; shares the `dmWeightChartProjected` projected-weight toggle.
+- **No new Firestore collections** — reads `exerciseDailyMetrics`, `exerciseActivities`, `exerciseGoals`, `exerciseMetricDefs`, `exerciseTypes`.
 
 ### Activities List (`#exercise-activities`, `exercise.js`)
 Displays logged exercise activities in a filterable, sortable list.

@@ -170,7 +170,7 @@ const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals'
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
                          'exercise', 'exercise-activities', 'exercise-types', 'exercise-metrics', 'exercise-metric-defs',
-                         'exercise-goals',
+                         'exercise-goals', 'exercise-summary',
                          'legacy',
                          'private', 'private-bookmarks', 'private-documents', 'private-photos', 'private-photos-gallery',
                          'credentials',
@@ -257,7 +257,7 @@ const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'jo
                      'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
-                     'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises'];
+                     'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises', 'exercise-summary'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -807,6 +807,9 @@ function handleRoute() {
     } else if (page === 'exercise-metrics') {
         showPage('exercise-metrics');
         loadExerciseMetricsPage();
+    } else if (page === 'exercise-summary') {
+        showPage('exercise-summary');
+        loadExerciseSummaryPage();
     } else if (page === 'exercise-metric' && id) {
         showPage('exercise-metric');
         loadExerciseMetricPage(id);

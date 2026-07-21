@@ -4045,7 +4045,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Tap **Activities** to log and view your workouts
 - Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
 - Tap **Goals** to set and manage your yearly exercise and weight goals
-- **Summary** is coming soon
+- Tap **Summary** for a year-at-a-glance view of every month's numbers
 
 ---
 
@@ -4301,6 +4301,29 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - Review trends for a specific month at a glance
 - Switch to Year view to scan the whole year and drill into individual months
 - Find a specific day's entry to edit or review
+
+---
+
+## screen:exercise-summary
+
+**What this screen is for:** A year-at-a-glance view of your Daily Metrics — one row per month (January–December) for a chosen year, showing each month's monthly totals side by side. The numbers are exactly the same ones you'd see in the summary rows if you opened that month on the Daily Metrics screen.
+
+### Quick Help
+- **Year dropdown**: pick a year to view. The list only includes years you actually have data for, and it defaults to the most recent one.
+- Every month January–December shows as its own row. Months with no data (including months still to come this year) are left blank.
+- **Totals line** (always shown): each month's totals — net weight change for the month (green = you lost, red = you gained), total steps/burn/food, total +/- Diff with its pound equivalent, total miles, sessions per exercise, nutrition totals, and custom-metric totals.
+- **Show Avg line** checkbox: reveals a second line under each month with **per-day averages** — weight loss per day, sleep, body battery, steps, burn, food, diff, miles per day, and calories per session per exercise.
+- **Show Goal line** checkbox: reveals a third line with that month's **goals** from your Exercise Goals — goal weight, step/burn/food targets, miles, goal sessions per exercise, and daily calorie deficit needed. Nutrition and custom columns have no goals, so they stay blank.
+- With both checkboxes on, each month shows up to three stacked lines (Totals, Avg, Goal). Your choices are remembered between visits.
+- **Weight** for the month is measured from your **first weigh-in of the month to the first weigh-in of the next month** — the same 1st-to-1st loss used on the Daily Metrics screen. (For December, the following January's first weigh-in is the ending weight.)
+- **📏 Exercise button**: show or hide the miles columns (Total / Walk / Run / Dogs) plus one column per tracked exercise. **🥗 Nutrition button**: show or hide Protein / Carbs / Fiber / Fat / Water. Both share the same show/hide setting as the Daily Metrics screen.
+- **⚖ Weight Chart accordion**: a chart of your weight for the whole year — tap to expand. It defaults to the **Selected Year** range (year-to-date for the current year, the full year for a past year); you can also switch to Last 30/90 Days, This Year, or All Time. The Reduce Width % and Show Projected Weight controls work the same as on Daily Metrics.
+- **Daily Metrics** link (top right): jump to the day-by-day screen.
+
+### When to use this
+- Compare month-to-month at a glance across a whole year
+- See your weight trend for the year in one chart
+- Check how each month stacked up against your goals without opening every month
 
 ---
 

@@ -1038,3 +1038,40 @@ Confirm phases one at a time before moving to the next.
 - **Streak counter**: boolean + daily-record structure is ideal for "Stand 1 Hour: 7 days in a row". Easy to add later — park in FutureEnhancements.
 - **CSV export**: structured daily data + date range = great for spreadsheet export. Park in FutureEnhancements.
 - **Mobile summary strip**: if the standard-metric averages strip above mobile cards proves valuable, adding custom metric summaries there is a small addition. Revisit after seeing real usage.
+
+---
+
+## Summary Screen (Exercise → Summary)
+
+Replaces the "Coming Soon" tile on the Exercise hub. A **year-at-a-glance** view: 12 rows (Jan–Dec), same columns as the Daily Metrics grid, each month showing the monthly rollups the Daily Metrics footer already computes.
+
+### Core idea — reuse, don't reinvent
+The Daily Metrics screen already computes three footer rows per month — **Total, Avg, Goal** — over the same column set (built-in + custom metric defs), including the 1st-to-1st weight-loss logic. The Summary screen **pivots those footer rows so each month is a row**, then stacks up to three lines per month:
+- **Total line** — always shown (the default).
+- **Avg line** — shown only when "Show Avg line" toggle is on.
+- **Goal line** — shown only when "Show Goal line" toggle is on.
+
+So at most each month renders 3 stacked lines. Numbers must match exactly what the user sees drilling into that month on Daily Metrics — same rollup functions, no parallel math.
+
+### Layout
+- **Grid**: 12 month rows. Column set mirrors Daily Metrics, including the collapsible **📏 Exercise** and **🥗 Nutrition** column groups (same show/hide toggles, sticky prefs) rolling up to the same numbers.
+- **Year dropdown**: unique list of years present in the data, defaulted to the most recent (usually current year).
+- **Two line toggles**: "Show Avg line" / "Show Goal line" — off by default; each reveals its stacked line beneath the Total line for every month.
+- **Future months**: for the current year, months after the current month render blank (still show all 12 rows).
+
+### Weight
+- Weight's Total line = **monthly loss**, measured from the 1st weigh-in of the month (should be the 1st) to the 1st weigh-in of the next month. This is exactly the existing Daily Metrics weight-change logic — inherit it.
+
+### Weight chart
+- Collapsible accordion, full-year chart. Reuse the existing Daily Metrics weight-chart component.
+- Add a new range option **"Selected Year"** to the chart's range selector; make it the default on this screen (year-to-date for the current year, full year for a past selected year). Keep the other range selectors available.
+
+### Notes / open items
+- **Nutrition has no goals** currently, so the Goal line will be blank for nutrition columns — expected, not a bug.
+- **Total vs Avg semantics** per metric inherit whatever Daily Metrics already does (e.g. average-natured metrics like sleep score behave as they do there). Tweak after seeing it live.
+
+### Required-behavior checklist for the build commit
+- New route/screen → update `MyLife-Functional-Spec.md` (Exercise section).
+- New screen → author `## screen:exercise-summary` in `AppHelp.md`.
+- Touches JS/HTML/CSS → bump `CACHE_NAME` in `sw.js`.
+- No new Firestore collections (reads existing daily records / goals) → backup logic unaffected; confirm at build time.
