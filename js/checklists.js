@@ -30,6 +30,11 @@ var clCurrentContext = null;
  *  Cleared immediately after use to avoid stale expansion on the next page load. */
 var _clFocusRunId = null;
 
+/** Set by clCommitLabelAndAddNext to {runId, idx} so the next render of a run's
+ *  items opens that freshly-inserted item for inline editing (Enter-to-add-below).
+ *  Cleared as soon as the matching item is built. */
+var _clAutoEditItem = null;
+
 // ---------- Page Entry Point ----------
 
 /**
@@ -530,6 +535,13 @@ function clBuildItemsWrapper(runId, items, card) {
         Sortable.create(undoneList, {
             handle: '.run-drag-handle',
             animation: 150,
+            // Auto-scroll the page when dragging near the top/bottom edge, so an
+            // item can be moved across a long list without dropping and re-grabbing.
+            scroll: true,
+            forceAutoScrollFallback: true,
+            scrollSensitivity: 80,
+            scrollSpeed: 12,
+            bubbleScroll: true,
             onEnd: function() {
                 clSaveRunItemOrder(runId, wrapper, items, card);
             }
@@ -734,10 +746,13 @@ function clBuildItemEl(runId, item, idx, card) {
         }
     });
 
-    // In edit mode, clicking the item label makes it editable inline
+    // In edit mode, clicking the item label makes it editable inline.
+    // Pressing Enter commits and inserts a new blank item directly below at the
+    // same indent, opening it for editing — so a list can be built without the mouse.
     if (!isUrl) {
-        label.addEventListener('click', function() {
-            if (!card.classList.contains('cl-run-card--editing')) return;
+        // Opens the inline editor for this item. isNew=true means the item was just
+        // inserted blank via Enter, so leaving it empty discards it instead of saving.
+        function beginItemEdit(isNew) {
             var inp = document.createElement('input');
             inp.type      = 'text';
             inp.value     = item.label;
@@ -746,21 +761,54 @@ function clBuildItemEl(runId, item, idx, card) {
             inp.focus();
             inp.select();
 
-            function saveLabel() {
+            var committed = false;
+
+            // Commits the edit. addNext=true also inserts + opens a new blank item below.
+            function commit(addNext) {
+                if (committed) return;
+                committed = true;
                 var newLabel = inp.value.trim();
-                row.replaceChild(label, inp);
+                if (inp.parentNode === row) row.replaceChild(label, inp);
+
+                // A freshly-inserted blank item left empty is discarded, not saved.
+                if (isNew && !newLabel) {
+                    clRemoveItemFromRun(runId, idx, card);
+                    return;
+                }
+                // Enter with text: save this label and add a new blank sibling below,
+                // both in a single Firestore write (avoids a save/insert race).
+                if (addNext && newLabel) {
+                    clCommitLabelAndAddNext(runId, idx, newLabel, parseInt(li.dataset.indent || '0'), card);
+                    return;
+                }
                 if (newLabel && newLabel !== item.label) {
                     label.textContent = newLabel;
                     item.label = newLabel;
                     clSaveItemLabel(runId, idx, newLabel);
                 }
             }
-            inp.addEventListener('blur', saveLabel);
+
+            inp.addEventListener('blur', function() { commit(false); });
             inp.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { e.preventDefault(); saveLabel(); }
-                if (e.key === 'Escape') { row.replaceChild(label, inp); }
+                if (e.key === 'Enter') { e.preventDefault(); commit(true); }
+                if (e.key === 'Escape') {
+                    committed = true;
+                    if (inp.parentNode === row) row.replaceChild(label, inp);
+                    if (isNew && !inp.value.trim()) clRemoveItemFromRun(runId, idx, card);
+                }
             });
+        }
+
+        label.addEventListener('click', function() {
+            if (!card.classList.contains('cl-run-card--editing')) return;
+            beginItemEdit(false);
         });
+
+        // Auto-open this item for editing when it was just inserted below another via Enter.
+        if (_clAutoEditItem && _clAutoEditItem.runId === runId && _clAutoEditItem.idx === idx) {
+            _clAutoEditItem = null;
+            setTimeout(function() { beginItemEdit(true); }, 0);
+        }
     }
 
     return li;
@@ -936,6 +984,41 @@ async function clSaveItemLabel(runId, idx, newLabel) {
         await userCol('checklistRuns').doc(runId).update({ items: items });
     } catch (err) {
         console.error('Error saving item label:', err);
+    }
+}
+
+/**
+ * Commits an edited item label AND inserts a new blank item directly below it
+ * (same indent) in a single Firestore write, then re-renders and flags the new
+ * item to auto-open for editing. Powers Enter-to-add-below in a running checklist.
+ * @param {string}      runId
+ * @param {number}      idx     — Storage index of the item being edited.
+ * @param {string}      label   — New label text for the edited item.
+ * @param {number}      indent  — Indent level to give the new blank item.
+ * @param {HTMLElement} card
+ */
+async function clCommitLabelAndAddNext(runId, idx, label, indent, card) {
+    try {
+        var doc = await userCol('checklistRuns').doc(runId).get();
+        if (!doc.exists) return;
+
+        var runData = doc.data();
+        var items   = runData.items || [];
+
+        if (idx < items.length) {
+            items[idx] = Object.assign({}, items[idx], { label: label });
+        }
+        var newIdx = idx + 1;
+        items.splice(newIdx, 0, { label: '', done: false, note: null, indent: indent });
+
+        await userCol('checklistRuns').doc(runId).update({ items: items });
+
+        // Ask the next render to open the freshly-inserted item for editing.
+        _clAutoEditItem = { runId: runId, idx: newIdx };
+        clRerenderRunItems(runId, items, runData.templateId || null, card);
+
+    } catch (err) {
+        console.error('Error adding item below:', err);
     }
 }
 
@@ -1791,11 +1874,13 @@ async function clPopulateTargetPicker(ctx, existing) {
 }
 
 /**
- * Appends one item row (drag handle + indent button + text input + remove button) to the editor.
- * @param {string} value  — Pre-fill text, or empty string for a blank row.
- * @param {number} indent — 0 (normal) or 1 (indented sub-item).
+ * Adds one item row (drag handle + indent button + text input + remove button) to the editor.
+ * @param {string} value         — Pre-fill text, or empty string for a blank row.
+ * @param {number} indent        — 0 (normal), 1, or 2 (indented sub-item).
+ * @param {HTMLElement} afterRow — Optional: insert directly after this row instead of appending.
+ * @returns {HTMLElement}         — The created row element.
  */
-function clAddItemRow(value, indent) {
+function clAddItemRow(value, indent, afterRow) {
     var editor = document.getElementById('clTemplateItemsEditor');
     indent = Math.min(2, Math.max(0, parseInt(indent) || 0));
 
@@ -1832,12 +1917,11 @@ function clAddItemRow(value, indent) {
     input.value       = value || '';
 
     input.addEventListener('keydown', function(e) {
-        // Enter: add a new blank row (inheriting current indent level)
+        // Enter: add a new blank row directly below this one (same indent level)
         if (e.key === 'Enter') {
             e.preventDefault();
-            clAddItemRow('', parseInt(row.dataset.indent || '0'));
-            var rows = editor.querySelectorAll('.cl-item-input');
-            rows[rows.length - 1].focus();
+            var newRow = clAddItemRow('', parseInt(row.dataset.indent || '0'), row);
+            newRow.querySelector('.cl-item-input').focus();
         }
         // Tab: indent more (up to 2); Shift+Tab: unindent
         if (e.key === 'Tab') {
@@ -1865,7 +1949,15 @@ function clAddItemRow(value, indent) {
     row.appendChild(indentBtn);
     row.appendChild(input);
     row.appendChild(removeBtn);
-    editor.appendChild(row);
+
+    // Insert directly after a reference row when provided (Enter-to-add-below);
+    // otherwise append to the end of the editor.
+    if (afterRow && afterRow.parentNode === editor) {
+        editor.insertBefore(row, afterRow.nextSibling);
+    } else {
+        editor.appendChild(row);
+    }
+    return row;
 }
 
 /**
@@ -1878,7 +1970,13 @@ function clInitTemplateSortable() {
     if (typeof Sortable !== 'undefined') {
         editor._sortable = Sortable.create(editor, {
             handle: '.cl-tmpl-drag-handle',
-            animation: 150
+            animation: 150,
+            // Auto-scroll the modal body when dragging near its top/bottom edge.
+            scroll: true,
+            forceAutoScrollFallback: true,
+            scrollSensitivity: 80,
+            scrollSpeed: 12,
+            bubbleScroll: true
         });
     }
 }

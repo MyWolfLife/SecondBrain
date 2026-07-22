@@ -3022,12 +3022,16 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **Indenting items**: Each item row has a `→` / `←` indent button. Click it to cycle through 3 levels: normal → indented (level 1) → double-indented (level 2) → back to normal. This button appears in both the **template editor** and in **active run cards** (when in edit mode ✏️). In the template editor you can also use **Tab** to indent and **Shift+Tab** to unindent while typing. Indentation carries over from templates into runs.
 
+**Adding items with Enter**: In the **template editor**, pressing **Enter** in an item field inserts a new blank row *directly below the one you're on* (not at the bottom) at the same indent level, and focuses it — so you can type a list top to bottom without reaching for the mouse. The same works while editing an **active run** in edit mode: press **Enter** on an item to save it and drop a new blank item right below at the same indent, ready to type. Leaving that new item empty (tap away or press Escape) discards it.
+
+**Auto-scroll while dragging**: When reordering a long list by its ⠿ drag handle, drag toward the top or bottom edge and the list scrolls automatically — no need to drop the item, scroll, and grab it again. Works in both the template editor and active run cards.
+
 **Pinning favorites**: Every checklist card and template card has a ☆ star next to its name. Tap it to pin (★) — pinned checklists/templates always sort above unpinned ones (pinned runs still sort newest-first among themselves; pinned templates stay alphabetical among themselves). Tap the ★ again to unpin. Pinning a run and pinning its source template are independent.
 
 **Active run cards**:
 - Items are shown directly on the card. Undone items are at the top; checked items collapse into a "▶ X completed" toggle.
 - **Check an item**: tap the checkbox. A completion date is recorded and shown next to the label.
-- **Edit mode** (tap ✏️): drag handles appear for reordering, ✕ buttons appear for removal, and an "Add item" row appears at the bottom. In edit mode, **tap any item's text to edit it inline** — press Enter or tap away to save, Escape to cancel.
+- **Edit mode** (tap ✏️): drag handles appear for reordering, ✕ buttons appear for removal, and an "Add item" row appears at the bottom. In edit mode, **tap any item's text to edit it inline** — tap away to save, Escape to cancel. Pressing **Enter** saves and inserts a new blank item directly below (same indent) for quick list building.
 - **Add a note to an item**: tap the 📝 icon to open a small text area below the item. Press Enter or tap away to save. Tap the note text (or 📝 again) to re-edit it.
 - **Width on phone**: cards default to full-width (1-column) for readability. Use the ⊞ button to switch to a 2-column compact view. Your preference is saved.
 

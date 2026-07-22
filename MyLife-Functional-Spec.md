@@ -3061,10 +3061,10 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
   - `pinned`: boolean (false/absent by default) — toggled via the ☆/★ star next to the template name; pinned templates sort above unpinned ones (alphabetical order preserved within each group)
 - **Runs** (`checklistRuns`): same fields copied from template; `items:[{label, done, doneAt, note, indent}]`; `archived: boolean` (false by default); `pinned: boolean` (false/absent by default) — independent of the source template's pinned state; toggled via the ☆/★ star next to the run title; pinned runs sort above unpinned ones in the Active section (newest-started-first within each group)
 - **Template modal**: Location dropdown shows the full hierarchy for the current context (e.g., Yard → zones → subzones), defaulting to the entity the user was on when they clicked Checklists; full hierarchy shown so user can pick any level. Delete button is inside the edit modal.
-  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering), an indent toggle button, the text input, and a ✕ remove button
+  - **Item editor**: each item row has a drag handle `⠿` (SortableJS drag-and-drop reordering, with edge auto-scroll — see below), an indent toggle button, the text input, and a ✕ remove button
   - **Indent levels**: 3-way cycle — 0 (normal) → 1 (28px) → 2 (56px) → back to 0. Button shows `→` at levels 0–1, `←` at level 2.
   - **Indent shortcut**: Tab key increments indent (cap at 2); Shift+Tab decrements indent (floor at 0)
-  - **Enter key**: adds a new blank row inheriting the current row's indent level
+  - **Enter key**: inserts a new blank row *directly below the current row* (not at the bottom of the editor), inheriting its indent level, and focuses the new row (`clAddItemRow(value, indent, afterRow)`)
 - **Location badge**: shown on template/run cards in roll-up views (e.g., "📍 Front Yard")
 - **Context subtitle**: shown on the page header ("Showing: Front Yard (Zone)")
 - **Breadcrumb bar**: set on page load based on context — yard/zone context shows `Yard › Checklists` (linking to `#zones`); house/floor/room context shows `House › Checklists` (linking to `#house`); life context shows `Life › Checklists` (linking to `#life`); other contexts clear the bar
@@ -3076,11 +3076,13 @@ Postponed `reset_interval` occurrences never appear in any section while `postpo
   - **Completed items**: collapse into a "▶ X completed" toggle row (click to expand/collapse inline). No progress bar.
   - **Footer**: tags chips on the left; action icon buttons on the right (✓ Mark Complete, ✏️ Edit, 📦 Archive, 🗑️ Abandon).
   - **Hover-reveal actions**: action buttons have `opacity: 0`, revealed on card hover. Always visible on touch devices (`@media (hover: none)`) and in edit mode.
-  - **Edit mode** (`cl-run-card--editing`): shows add-item row, drag handles, and remove buttons. Actions always visible in edit mode. Clicking a non-URL item label converts it to an inline text input for editing; blur or Enter saves, Escape cancels.
-  - Drag-and-drop reorder of undone items in edit mode (SortableJS on `.cl-undone-list`)
+  - **Edit mode** (`cl-run-card--editing`): shows add-item row, drag handles, and remove buttons. Actions always visible in edit mode. Clicking a non-URL item label converts it to an inline text input for editing; blur saves, Escape cancels.
+    - **Enter-to-add-below**: pressing Enter on an inline label editor saves the label AND inserts a new blank item directly below it at the same indent, then auto-opens that new item for editing (`clCommitLabelAndAddNext` — single Firestore write; `_clAutoEditItem` flag drives the auto-open on re-render). A freshly-inserted blank item left empty (blur or Escape) is discarded rather than saved.
+  - Drag-and-drop reorder of undone items in edit mode (SortableJS on `.cl-undone-list`), with edge auto-scroll — see below
   - Adding items in edit mode prompts "Add to template too?" for template-derived runs
 - **URL items**: labels starting with `http://` or `https://` render as clickable links (new tab) in run cards and completed accordions
 - **Sub-item indentation**: `indent: 1` → 28px padding; `indent: 2` → 56px padding — applies in run cards, completed, and archived cards. In run card edit mode, each item also shows a `→`/`←` indent button (same 3-way cycle as the template editor) that saves immediately to Firestore.
+- **Drag auto-scroll**: both SortableJS instances (run undone list + template editor) enable `scroll: true, forceAutoScrollFallback: true, scrollSensitivity: 80, scrollSpeed: 12, bubbleScroll: true` — dragging an item near the top/bottom edge auto-scrolls the page (run cards) or modal body (template editor), so items can be moved across long lists without dropping and re-grabbing.
 - **Per-item notes**: 📝 button → inline textarea. Saves on blur/Enter. Escape discards. Clicking the note text itself (when it exists) also opens the editor. Fixed blur/click race: `mousedown` on the 📝 button prevents blur from firing before click, so clicking 📝 to close correctly saves without re-opening.
 - **Item completion date**: `doneAt` recorded on check; shown as `(Apr 17)` inline. Cleared on uncheck.
 - **Item sort order**: undone first (drag-reordered); done at bottom by completion time.
