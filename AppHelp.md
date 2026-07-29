@@ -4262,13 +4262,16 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Habits & Custom**: your custom metrics in order — YES/NO metrics are checkboxes; Number metrics have an optional unit label (e.g. oz, cal); Text metrics are free-form
 - **📝 button** next to each field: click to open a small note box — add any context for that value. The button turns yellow when a note is saved
 - **Save**: writes the record (one record per date — saving again for the same date overwrites it)
+- **‹ Previous / Next ›**: save the current day and jump one day at a time — Previous goes back a day, Next goes forward a day. You land on that day's entry (its saved record if there is one, otherwise a blank form for that day). If the day you're leaving is brand new and you haven't entered anything, it isn't saved — so you can page across empty days without creating blank records
 - **Cancel**: returns to the Daily Metrics list without saving
 - **Delete** (edit mode only): removes the record for that date after confirmation
+- The Previous / Save / Next / Cancel row appears at both the top and bottom of the form
 
 ### When to use this
 - Log today's metrics each morning or evening
 - Go back and fill in yesterday's Total Actual Burn after your watch syncs
 - Edit a previous entry to correct a value or add a note
+- Use Previous / Next to move through several days in a row without returning to the list each time
 
 ---
 

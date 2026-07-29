@@ -1236,7 +1236,8 @@ Create or edit a single day's metric record. One record per date (date is the Fi
 - **Sections**: **Body** (Weight decimal, Sleep Score, Body Battery) | **Activity** (Daily Steps, Total Actual Burn with helper text, Food Calories) | **Nutrition** (Protein g, Carbs g, Fiber g, Fat g, Water oz — total consumed for the day, typically entered at night or the next day) | **Habits & Custom** (all non-archived custom metric defs in sort order).
 - **Custom field types**: boolean → checkbox; number → text input with optional unit label; text → text input. If a custom metric has a tooltip defined, it appears as a hover title on the field label.
 - **📝 note toggle** on every field: clicking the button opens/closes a 2-row textarea for that field. If a note already exists the button is highlighted yellow and the textarea opens pre-filled.
-- **Buttons**: Save (primary) | Cancel → `#exercise-metrics` | Delete (danger — edit mode only, soft deletes and navigates back).
+- **Buttons**: ‹ Previous | Save (primary) | Next › | Cancel → `#exercise-metrics` | Delete (danger — edit mode only, soft deletes and navigates back). The button row appears at both the top and bottom of the form.
+- **Previous / Next**: save the current day (same write as Save) and then move one calendar day — **Previous** = one day back in time, **Next** = one day forward — landing on that day's entry form (its existing record if one exists, otherwise a blank form for that day). The save is **skipped** when the current day has no existing record *and* the form is empty (all standard fields blank, all custom values at default, no notes), so paging through untouched new days never creates empty records.
 - **Save**: writes full document via `.set()` (safe overwrite since date = doc ID). Null for blank standard fields; boolean/number/null for custom values; only non-empty note strings stored.
 
 #### Manage Metrics (`#exercise-metric-defs`)

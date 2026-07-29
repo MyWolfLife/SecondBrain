@@ -1840,6 +1840,7 @@ var _dmWeightChartNaturalW = 0;     // natural width at render time — basis fo
 var _dmWeightChartProjected = false; // "Show Projected Weight" line (calorie-driven) — sticky, default off
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
+var _dmInitialSig     = null;       // signature of the form as first rendered (for dirty-check)
 
 // No default seeding — each user creates their own custom metrics via Manage Metrics.
 function seedExerciseMetricDefsIfNeeded() { return Promise.resolve(); }
@@ -4299,8 +4300,11 @@ function _dmBuildEntryForm(el) {
     }
 
     // Use onclick so both top and bottom instances work (avoids duplicate-ID wiring issues)
+    // Previous/Next save the current day (see _dmStepDay) then move one calendar day.
     var formActionBtns =
+        '<button type="button" onclick="_dmStepDay(-1)" class="btn-secondary">&lsaquo; Previous</button>' +
         '<button type="button" onclick="_dmSaveMetric()" class="btn-primary">Save</button>' +
+        '<button type="button" onclick="_dmStepDay(1)" class="btn-secondary">Next &rsaquo;</button>' +
         '<button type="button" onclick="window.location.hash=\'exercise-metrics\'" class="btn-secondary">Cancel</button>' +
         (isEdit ? '<button type="button" onclick="_dmDeleteMetric()" class="btn-danger">Delete</button>' : '');
 
@@ -4394,12 +4398,28 @@ function _dmBuildEntryForm(el) {
     });
 
     // Save / Cancel / Delete are wired via onclick attributes (supports both top and bottom buttons)
+
+    // Snapshot the form as first rendered so Prev/Next can tell whether the user changed
+    // anything (used to avoid creating an untouched new-day record).
+    _dmInitialSig = _dmFormSignature();
 }
 
-async function _dmSaveMetric() {
-    var dateVal = document.getElementById('dmfDate').value;
-    if (!dateVal) { alert('Please enter a date.'); return; }
+// A stable string signature of the editable field values (std fields, custom values, notes;
+// date excluded). Two identical signatures mean the form is unchanged from a prior capture.
+function _dmFormSignature() {
+    var data = _dmCollectFormData();
+    return JSON.stringify({ std: (function() {
+        var o = {};
+        ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
+         'protein','carbs','fiber','fat','water'].forEach(function(k) { o[k] = data[k]; });
+        return o;
+    })(), custom: data.customValues || {}, notes: data.notes || {} });
+}
 
+// Read all form fields into a metrics document object (date, std fields, custom values, notes).
+// Shared by Save and by Prev/Next stepping so both persist identical data.
+function _dmCollectFormData() {
+    var dateVal = document.getElementById('dmfDate').value;
     var stdKeys = ['weight','sleepScore','bodyBattery','dailySteps','totalBurn','foodCalories',
                    'protein','carbs','fiber','fat','water'];
     var data = { date: dateVal };
@@ -4438,6 +4458,14 @@ async function _dmSaveMetric() {
     });
     data.notes = notesObj;
 
+    return data;
+}
+
+async function _dmSaveMetric() {
+    var dateVal = document.getElementById('dmfDate').value;
+    if (!dateVal) { alert('Please enter a date.'); return; }
+
+    var data = _dmCollectFormData();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     if (!_dmEditDate) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
 
@@ -4448,6 +4476,41 @@ async function _dmSaveMetric() {
         console.error('DailyMetrics: save failed', err);
         alert('Save failed. Please try again.');
     }
+}
+
+// Save the current day (if warranted), then move one calendar day: delta -1 = Previous
+// (back in time), delta +1 = Next (forward in time). Lands on the target day's record if
+// one exists, otherwise a blank form for that day. Skips the save only when the current
+// day has no existing record AND the user hasn't changed the form since it was rendered
+// (an untouched new day is not turned into a record).
+async function _dmStepDay(delta) {
+    var curDate = document.getElementById('dmfDate').value || _dmEditDate || _dmTodayStr();
+
+    // Persist the current day unless it's an untouched new day.
+    if (document.getElementById('dmfDate').value) {
+        var data      = _dmCollectFormData();
+        var isNewDay  = !_dmExistingDoc;
+        var unchanged = _dmFormSignature() === _dmInitialSig;
+        if (!(isNewDay && unchanged)) {
+            data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+            if (isNewDay) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            try {
+                await userCol('exerciseDailyMetrics').doc(curDate).set(data);
+            } catch (err) {
+                console.error('DailyMetrics: save failed', err);
+                alert('Save failed. Please try again.');
+                return;
+            }
+        }
+    }
+
+    // Compute the adjacent calendar day and navigate to its entry form.
+    var p  = curDate.split('-');
+    var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+    dt.setDate(dt.getDate() + delta);
+    var m = dt.getMonth() + 1, d = dt.getDate();
+    var target = dt.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+    window.location.hash = 'exercise-metric/' + target;
 }
 
 async function _dmDeleteMetric() {
