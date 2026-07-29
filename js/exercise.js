@@ -4301,10 +4301,12 @@ function _dmBuildEntryForm(el) {
 
     // Use onclick so both top and bottom instances work (avoids duplicate-ID wiring issues)
     // Previous/Next save the current day (see _dmStepDay) then move one calendar day.
+    // They're disabled until a date is set (no anchor day to step from otherwise).
+    var stepDisabled = dateVal ? '' : ' disabled';
     var formActionBtns =
-        '<button type="button" onclick="_dmStepDay(-1)" class="btn-secondary">&lsaquo; Previous</button>' +
+        '<button type="button" onclick="_dmStepDay(-1)" class="btn-secondary dm-step-btn"' + stepDisabled + '>&lsaquo; Previous</button>' +
         '<button type="button" onclick="_dmSaveMetric()" class="btn-primary">Save</button>' +
-        '<button type="button" onclick="_dmStepDay(1)" class="btn-secondary">Next &rsaquo;</button>' +
+        '<button type="button" onclick="_dmStepDay(1)" class="btn-secondary dm-step-btn"' + stepDisabled + '>Next &rsaquo;</button>' +
         '<button type="button" onclick="window.location.hash=\'exercise-metrics\'" class="btn-secondary">Cancel</button>' +
         (isEdit ? '<button type="button" onclick="_dmDeleteMetric()" class="btn-danger">Delete</button>' : '');
 
@@ -4350,6 +4352,7 @@ function _dmBuildEntryForm(el) {
         var warnEl  = document.getElementById('dmDateWarning');
         if (!newDate) {
             if (warnEl) { warnEl.textContent = ''; warnEl.classList.add('hidden'); }
+            _dmSyncStepBtns();   // no date → disable Prev/Next
             return;
         }
         var docSnap = await userCol('exerciseDailyMetrics').doc(newDate).get();
@@ -4366,6 +4369,7 @@ function _dmBuildEntryForm(el) {
                 warnEl.classList.remove('hidden');
             }
             _dmUpdateBreadcrumb();
+            _dmSyncStepBtns();   // field cleared → disable Prev/Next
             return;
         }
 
@@ -4384,6 +4388,7 @@ function _dmBuildEntryForm(el) {
             if (delBtn) delBtn.remove();
             var dowEl = document.getElementById('dmDateDow');
             if (dowEl) dowEl.textContent = _dowLabel(newDate);
+            _dmSyncStepBtns();   // date now set → enable Prev/Next
         }
     });
 
@@ -4402,6 +4407,14 @@ function _dmBuildEntryForm(el) {
     // Snapshot the form as first rendered so Prev/Next can tell whether the user changed
     // anything (used to avoid creating an untouched new-day record).
     _dmInitialSig = _dmFormSignature();
+}
+
+// Enable/disable the Prev/Next step buttons based on whether a date is set. With no date
+// there is no anchor day to step from, so the buttons are disabled.
+function _dmSyncStepBtns() {
+    var dateEl = document.getElementById('dmfDate');
+    var on = !!(dateEl && dateEl.value);
+    document.querySelectorAll('.dm-step-btn').forEach(function(b) { b.disabled = !on; });
 }
 
 // A stable string signature of the editable field values (std fields, custom values, notes;
