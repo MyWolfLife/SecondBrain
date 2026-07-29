@@ -407,6 +407,10 @@ function showPage(page) {
     if (typeof favUpdateStar === 'function') favUpdateStar();
 }
 
+// Hash of the page currently shown — updated at the end of each successful route so the
+// next navigation knows where it came from (used for the place detail back button/breadcrumb).
+var _routeCurrentHash = null;
+
 /**
  * Parse the URL hash and route to the correct page + load its data.
  */
@@ -415,6 +419,7 @@ function handleRoute() {
     const parts = hash.split('/');
     const page  = parts[0];
     const id    = parts[1] || null;
+    const prevHash = _routeCurrentHash;   // where we were before this navigation
 
     // Clean up the neighbor map when navigating away from it
     if (page !== 'neighborhood' && typeof _nbCleanupMap === 'function') {
@@ -1101,6 +1106,11 @@ function handleRoute() {
         showPage('places');
         loadPlacesPage();
     } else if (page === 'place' && id) {
+        // Remember where we came from so the back button + breadcrumb return there
+        // (journal, search, an entity's activity list, etc.), not always the places list.
+        if (prevHash && prevHash !== hash && prevHash.split('/')[0] !== 'place') {
+            _placeDetailFrom = '#' + prevHash;
+        }
         showPage('place');
         loadPlaceDetailPage(id);
     // ---------- Help route ----------
@@ -1113,6 +1123,10 @@ function handleRoute() {
         // Unknown route — go to landing page
         showPage('main');
     }
+
+    // Record the landed hash so the next navigation can trace its origin. (The #home
+    // branch returns early above, so its transient redirect is intentionally not recorded.)
+    _routeCurrentHash = hash;
 }
 
 // ---------- Mobile Navigation ----------

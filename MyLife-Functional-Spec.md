@@ -2287,6 +2287,7 @@ Tracks real-world places the user visits. Places tie together journal check-ins,
 
 ### Place Detail Page (`#place/{id}`)
 - Sets `window.currentPlace` on load
+- **Origin-aware breadcrumb + back button**: the page traces where it was opened from and leads back there instead of always to the places list. The router (`handleRoute`) records the previous hash and stores it in `_placeDetailFrom` (skipping place→place hops); the back button navigates there, and the breadcrumb renders `{origin} › {place name}` with the origin as a **clickable** link (`_placeOriginCrumb` / `_placeSetBreadcrumb`). Known origins get friendly labels — Journal, Places, Search — and any other page (e.g. an entity's activity list) gets a "‹ Back" crumb linking to that exact page. Direct loads (bookmark/URL) fall back to Places. This replaces the previous behavior where the page inherited a stale, unclickable breadcrumb from whatever screen preceded it.
 - **Summary line**: "X journal entries · Y activities" (loaded in parallel via `Promise.all`)
 - **Interactive map**: Leaflet.js map centered on `lat`/`lng`, showing a marker. Initialized in a 50ms `setTimeout` after the container becomes visible; `map.invalidateSize()` called to handle deferred layout. Previous map instance destroyed with `_placeDetailMap.remove()` on re-visit.
 - **Photos**: Full gallery via `photos.js` — `targetType: 'place'`, `targetId: place.id`. Camera and gallery upload buttons wired in `photos.js` `DOMContentLoaded`.

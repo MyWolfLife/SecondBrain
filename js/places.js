@@ -15,8 +15,36 @@ var _placeEditId = null;
 var _placeModalLat = null;
 var _placeModalLng = null;
 
-// Remember which page launched the place detail (for back button)
+// Remember which page launched the place detail (for back button + breadcrumb).
+// Set by the router (app.js) from the previous hash; defaults to the places list.
 var _placeDetailFrom = '#places';
+
+// Map the origin hash to a clickable breadcrumb crumb { label, href } so the place detail
+// page leads back to wherever the user actually came from (journal, search, places list, or
+// an entity page), rather than showing a stale, unclickable crumb from the previous screen.
+function _placeOriginCrumb() {
+    var from = _placeDetailFrom || '#places';
+    var base = from.split('/')[0];   // e.g. '#journal', '#places', '#plant'
+    var known = {
+        '#journal': { label: 'Journal', href: '#journal' },
+        '#places':  { label: 'Places',  href: '#places' },
+        '#search':  { label: 'Search',  href: '#search' }
+    };
+    if (known[base]) return known[base];
+    // Any other origin (an entity's activity list, etc.) — link back to that exact page.
+    return { label: '‹ Back', href: from };
+}
+
+// Render the place detail breadcrumb: {origin link} › {place name}.
+function _placeSetBreadcrumb(placeName) {
+    var crumb = document.getElementById('breadcrumbBar');
+    if (!crumb) return;
+    var o = _placeOriginCrumb();
+    crumb.innerHTML =
+        '<a href="' + o.href + '">' + escapeHtml(o.label) + '</a>' +
+        '<span class="separator">&rsaquo;</span>' +
+        '<span>' + escapeHtml(placeName || 'Place') + '</span>';
+}
 
 // ============================================================
 // Places List Page
@@ -156,6 +184,10 @@ async function loadPlaceDetailPage(placeId) {
     infoEl.innerHTML     = '';
     if (summaryEl)  summaryEl.textContent = '';
 
+    // Replace any stale breadcrumb from the previous page right away; refined with the
+    // place name once the record loads below.
+    _placeSetBreadcrumb(null);
+
     // Destroy any previous map instance so Leaflet doesn't complain
     if (_placeDetailMap) {
         _placeDetailMap.remove();
@@ -183,6 +215,7 @@ async function loadPlaceDetailPage(placeId) {
         window.currentPlace = { id: placeId, ...data };  // global for photo/fact/activity buttons
 
         nameEl.textContent = data.name || '(unnamed)';
+        _placeSetBreadcrumb(data.name || '(unnamed)');
 
         // ── Info table ───────────────────────────────────────────
         var rows = [];
