@@ -717,7 +717,9 @@ async function placesGeocodeLocation(locationText) {
     if (!locationText) return null;
     try {
         await _placesNominatimRateLimit();
-        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' +
+        // countrycodes=us anchors bare/ambiguous queries to the United States. Without it a
+        // 5-digit ZIP like "72205" geocodes to a same-numbered place abroad (e.g. Lithuania).
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=' +
                   encodeURIComponent(locationText);
         var resp = await fetch(url, {
             headers: { 'Accept-Language': 'en', 'User-Agent': 'MyLifeApp/1.0' }
@@ -736,12 +738,19 @@ async function placesGeocodeLocation(locationText) {
  * Search for places by name.
  * Priority: saved places (Firestore) first, then Foursquare text search.
  *
+ * Location handling: when the user typed a place/area (`nearText`, e.g. "Little Rock, AR"
+ * or a ZIP), it is passed to Foursquare as `near` — an AREA search that reliably returns
+ * venues anywhere in that area. A geocoded city center used as a point `ll` bias sorts by
+ * distance and buries venues in the suburbs (they fall off the result limit). `ll` is only
+ * used for a true GPS point (e.g. "Current location") when no `nearText` is given.
+ *
  * @param {string} query       - User-typed search string
- * @param {number} [biasLat]   - Latitude to bias Foursquare results toward (optional)
- * @param {number} [biasLng]   - Longitude to bias Foursquare results toward (optional)
+ * @param {number} [biasLat]   - Latitude for GPS point bias (used only when nearText absent)
+ * @param {number} [biasLng]   - Longitude for GPS point bias (used only when nearText absent)
+ * @param {string} [nearText]  - Typed location/area to search within (preferred over ll)
  * @returns {Promise<Array>} Merged array of venue objects
  */
-async function placesSearchByName(query, biasLat, biasLng) {
+async function placesSearchByName(query, biasLat, biasLng, nearText) {
     query = (query || '').trim();
     if (!query) return [];
 
@@ -774,8 +783,12 @@ async function placesSearchByName(query, biasLat, biasLng) {
         if (workerUrl) {
             var url = workerUrl + '/places/search?query=' + encodeURIComponent(query) + '&limit=8';
 
-            // Bias toward a known location when provided
-            if (biasLat != null && biasLng != null) {
+            // Prefer an area search (`near`) for a typed location; fall back to a GPS point
+            // bias (`ll`). Never send both — Foursquare treats them as competing anchors.
+            var near = (typeof nearText === 'string') ? nearText.trim() : '';
+            if (near) {
+                url += '&near=' + encodeURIComponent(near);
+            } else if (biasLat != null && biasLng != null) {
                 url += '&ll=' + biasLat + ',' + biasLng;
             }
 

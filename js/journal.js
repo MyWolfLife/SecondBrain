@@ -31,6 +31,7 @@ var _journalPlaceIds = new Set();
 /** Bias coordinates for place text search (set from GPS or manual geocode). */
 var _journalBiasLat = null;
 var _journalBiasLng = null;
+var _journalBiasText = null;   // typed location text → Foursquare `near` (null when using GPS)
 
 /** Map of placeId → place name, pre-loaded when rendering the feed. */
 var _journalPlaceNamesMap = {};
@@ -60,6 +61,7 @@ var _checkinPickerVenues = [];
 /** GPS coords captured when the check-in picker opens — used to bias name searches. */
 var _checkinPickerLat = null;
 var _checkinPickerLng = null;
+var _checkinPickerNearText = null;   // typed location text → Foursquare `near` area search
 
 /**
  * When non-null, the check-in picker calls this function (venue) instead of
@@ -2442,6 +2444,7 @@ function _journalInitPlaceSearch() {
     // Reset bias coords from any previous form session
     _journalBiasLat = null;
     _journalBiasLng = null;
+    _journalBiasText = null;
     if (biasInput) biasInput.value = '';
 
     if (navigator.geolocation) {
@@ -2467,6 +2470,7 @@ function _journalInitPlaceSearch() {
             // If cleared, reset bias coords
             if (!text || text === 'Current location') {
                 if (!text) { _journalBiasLat = null; _journalBiasLng = null; }
+                _journalBiasText = null;   // GPS/empty → point bias, not an area search
                 return;
             }
             biasDebounce = setTimeout(async function() {
@@ -2475,11 +2479,13 @@ function _journalInitPlaceSearch() {
                 if (coords) {
                     _journalBiasLat = coords.lat;
                     _journalBiasLng = coords.lng;
+                    _journalBiasText = text;   // drive name search via Foursquare `near`
                     biasInput.style.borderColor = ''; // reset
                 } else {
                     // Geocode failed — clear bias so search runs globally
                     _journalBiasLat = null;
                     _journalBiasLng = null;
+                    _journalBiasText = null;
                     biasInput.style.borderColor = 'var(--danger)'; // red hint
                 }
             }, 800);
@@ -2489,7 +2495,7 @@ function _journalInitPlaceSearch() {
         biasInput.onfocus = function() { biasInput.style.borderColor = ''; };
     }
 
-    // ── Name search — passes bias + radius to placesSearchByName ────────────
+    // ── Name search — typed location drives Foursquare `near`; else GPS point bias ──
     var debounceTimer = null;
     input.oninput = function() {
         clearTimeout(debounceTimer);
@@ -2497,8 +2503,7 @@ function _journalInitPlaceSearch() {
         if (q.length < 2) { dropdown.style.display = 'none'; return; }
         debounceTimer = setTimeout(async function() {
             try {
-                var radiusKm = radiusSel ? parseFloat(radiusSel.value) : null;
-                var results  = await placesSearchByName(q, _journalBiasLat, _journalBiasLng, radiusKm);
+                var results = await placesSearchByName(q, _journalBiasLat, _journalBiasLng, _journalBiasText);
                 _journalShowPlaceDropdown(results);
             } catch (err) {
                 console.warn('Place search error:', err);
@@ -2660,6 +2665,7 @@ function openCheckIn() {
     if (biasEl)    biasEl.value         = '';
     _checkinPickerLat = null;
     _checkinPickerLng = null;
+    _checkinPickerNearText = null;
     _checkinPickerVenues = [];
 
     // Wire Cancel button
@@ -2694,6 +2700,7 @@ function openCheckIn() {
             var text = biasEl.value.trim();
             if (!text) {
                 biasEl.style.borderColor = '';
+                _checkinPickerNearText = null;
                 return;
             }
             _biasTimer = setTimeout(async function() {
@@ -2702,6 +2709,7 @@ function openCheckIn() {
                 if (coords) {
                     _checkinPickerLat = coords.lat;
                     _checkinPickerLng = coords.lng;
+                    _checkinPickerNearText = text;   // drive name search via Foursquare `near`
                     biasEl.style.borderColor = 'var(--success, #2e7d32)';
                     // Re-run nearby search with the new location
                     var statusEl2 = document.getElementById('checkInPickerStatus');
@@ -2719,6 +2727,7 @@ function openCheckIn() {
                         if (statusEl2) statusEl2.textContent = 'Could not load places. Try searching by name.';
                     }
                 } else {
+                    _checkinPickerNearText = null;
                     biasEl.style.borderColor = 'var(--danger, #c62828)';
                 }
             }, 800);
@@ -2736,7 +2745,7 @@ function openCheckIn() {
             _searchTimer = setTimeout(async function() {
                 if (statusEl) statusEl.textContent = '🔍 Searching...';
                 try {
-                    var results = await placesSearchByName(q, _checkinPickerLat, _checkinPickerLng);
+                    var results = await placesSearchByName(q, _checkinPickerLat, _checkinPickerLng, _checkinPickerNearText);
                     _checkinPickerVenues = results;
                     _checkinPickerShowResults(results);
                     if (statusEl) statusEl.textContent = results.length

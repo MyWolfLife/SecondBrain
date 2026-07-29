@@ -2314,11 +2314,15 @@ Tracks real-world places the user visits. Places tie together journal check-ins,
 - **Proxy required**: Browser cannot call Foursquare directly (CORS OPTIONS returns 400). A Cloudflare Worker proxy handles auth and adds CORS headers. Worker URL stored in `userCol('settings').doc('places').workerUrl`.
 - **Auth**: Worker adds `Authorization: Bearer <key>` and `X-Places-Api-Version: 2025-06-17` headers — no auth headers sent from browser.
 - **Nearby search** (`placesNearby`): `GET /places/search?ll=lat,lng&limit=20&fields=fsq_place_id,name,categories,location,geocodes`
-- **Text search** (`placesSearchByName`): `GET /places/search?query=...&ll=lat,lng&limit=8&fields=fsq_place_id,name,categories,location,geocodes` — `ll` bias toward user's GPS position
+- **Text search** (`placesSearchByName(query, biasLat, biasLng, nearText)`): `GET /places/search?query=...&limit=8&fields=...` plus a location anchor:
+  - When the user typed a location/area (`nearText`, e.g. "Little Rock, AR" or a ZIP) → `&near=<text>`. This is an **area** search: it returns venues anywhere in that area, including suburbs. A geocoded city-center used as an `ll` point sorts by distance and buries suburban venues past the result limit (this is why searching a downtown for a hotel a few miles out returned nothing).
+  - Otherwise, for a true GPS point ("Current location") → `&ll=lat,lng`.
+  - `near` and `ll` are mutually exclusive — never both.
 - **Response shape**: `fsq_place_id` (not `fsq_id`); coordinates in `geocodes.main.latitude/longitude`
 - Worker URL cached in memory for 5 minutes (`_placesWorkerUrlCache`)
 - **Distance label**: `placesDistanceLabel(lat1,lng1,lat2,lng2)` — Haversine formula, returns e.g. "0.3 mi" or "nearby"
-- **Nominatim** (reverse geocode only): `https://nominatim.openstreetmap.org/reverse` — converts lat/lng to address; rate-limited to 1 req/sec
+- **Nominatim reverse geocode**: `https://nominatim.openstreetmap.org/reverse` — converts lat/lng to address; rate-limited to 1 req/sec
+- **Nominatim forward geocode** (`placesGeocodeLocation`): converts a typed location/ZIP to lat/lng (for distance-label bias). Uses `&countrycodes=us` so a bare 5-digit ZIP anchors to the United States — without it "72205" geocodes to a same-numbered place abroad.
 
 ### LLM Enrichment (`placesEnrichWithLLM()`)
 - Non-blocking background enrichment after a new place is saved
