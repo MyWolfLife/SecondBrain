@@ -2120,6 +2120,7 @@ Annual Magic-Formula screen per `TradingStrategiesPlan.md` §6.3/§7.3 (frozen r
 - **AI trap check**: per-name 🤖 button → `_investAiCallLLM` with the metrics + last 30 days of Finnhub headlines → structured verdict ("TRAP RISK: LOW/MEDIUM/HIGH" + 3–5 sentences), parsed and saved onto the screen doc; renders as a 🟢/🟡/🔴 badge that toggles the full thesis inline. News fetch is optional (thesis runs on metrics alone if Finnhub fails).
 - **Screen history**: every stored screen graded on render — equal-weight return of its 25 vs SPY since screen date, from the price cache (never stored; "—" until tickers are cached). Timescale reminder: judged across years.
 - **Teach panel**: 5.3 recap — overextrapolation mechanism, time-arbitrage moat ("it still works because it doesn't always work"), drought expectations, Greenblatt tax trick (only strategy of the five that's taxable-account-friendly).
+- **Current-list layout**: the ranked table uses its own `.qv-list-wrap` (not the 560px-capped `.dm-history`) so it fills the screen width — all columns visible without sideways scrolling on desktop — with a **frozen header row** (sticky `<th>`) that stays in view as the list scrolls (bounded to 70vh; still scrolls horizontally on narrow phones).
 
 ### Stock Momentum (`#analyzer/stockmomentum`) — module `js/analyzer-stockmomentum.js`
 
