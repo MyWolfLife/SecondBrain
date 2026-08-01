@@ -283,7 +283,7 @@ function _asbLearningPanels(rows) {
     } else {
         html += '<p class="muted-text">Across ' + da.total + ' graded dismissals, <strong>' +
             Math.round(da.right / da.total * 100) + '%</strong> were right — the stock missed +10%, so skipping it paid off. By reason:</p>' +
-            '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Reason</th><th>Right</th><th>Rate</th></tr>';
+            '<div class="ana-grid-wrap"><table class="ab-table"><tr><th>Reason</th><th>Right</th><th>Rate</th></tr>';
         Object.keys(da.byReason).sort(function(a, b) { return da.byReason[b].total - da.byReason[a].total; }).forEach(function(code) {
             var b = da.byReason[code];
             html += '<tr><td>' + escapeHtml(reasonLabel(code)) + '</td><td>' + b.right + ' of ' + b.total +
@@ -305,7 +305,7 @@ function _asbLearningPanels(rows) {
             Math.round(aa.right / aa.total * 100) + '%</strong> were right' +
             (aa.excludedMixed ? ' (' + aa.excludedMixed + ' MIXED read' + (aa.excludedMixed === 1 ? '' : 's') + ' excluded — no directional call)' : '') +
             '. By call:</p>' +
-            '<div class="ab-table-wrap"><table class="ab-table"><tr><th>Call</th><th>Right</th><th>Rate</th></tr>';
+            '<div class="ana-grid-wrap"><table class="ab-table"><tr><th>Call</th><th>Right</th><th>Rate</th></tr>';
         Object.keys(aa.byCat).sort(function(a, b) { return aa.byCat[b].total - aa.byCat[a].total; }).forEach(function(cat) {
             var b = aa.byCat[cat];
             html += '<tr><td>' + escapeHtml(cat) + '</td><td>' + b.right + ' of ' + b.total +
@@ -425,7 +425,7 @@ function _asbRender(page, graded, trades, totalScans, capped) {
         if (!g.rows.length) {
             html += '<p class="muted-text">No candidates in this scan.</p>';
         } else {
-            html += '<div class="ab-table-wrap"><table class="ab-table">' +
+            html += '<div class="ana-grid-wrap"><table class="ab-table">' +
                 '<tr><th>Ticker</th><th>Detector</th><th>Kept?</th><th>Entry</th><th>+30d</th><th>+60d</th><th>Hit +10%?</th><th>SPY 60d</th><th>AI read</th></tr>';
             g.rows.forEach(function(r) {
                 html += '<tr>' +

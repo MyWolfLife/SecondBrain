@@ -149,7 +149,7 @@ async function loadAnalyzerTradesPage() {
 
         html += '<p class="muted-text">' + wins.length + ' of ' + closed.length + ' profitable · avg ' + _abFmtPct(avg) +
             ' per trade · thesis right ' + right + ' of ' + closed.length + '</p>' +
-            '<div class="ab-table-wrap"><table class="ab-table">' +
+            '<div class="ana-grid-wrap"><table class="ab-table">' +
             '<tr><th>Ticker</th><th>Entry</th><th>Exit</th><th title="Trading days from entry to exit — the same unit as the time stop">Days held</th><th>Ret</th><th>SPY</th><th>Reason</th><th>Thesis</th><th>Notes</th></tr>';
         closed.forEach(function(t) {
             var reasonBadge = t.closeReason === 'target' ? 'ab-badge-win' : (t.closeReason === 'stop' ? 'ab-badge-loss' : 'ab-badge-neutral');

@@ -482,7 +482,7 @@ async function _dmRender(forceRefresh) {
         html += '<p class="muted-text" style="max-width:560px">First signal logged. One row is added each month — ' +
             'over time this becomes the live track record that shows whether the strategy earns its keep.</p>';
     }
-    html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+    html += '<div class="ana-grid-wrap"><table class="dm-table"><thead><tr>' +
         '<th>Month</th><th>SPY</th><th>VEU</th><th>BIL</th><th>Verdict</th><th>Next month</th>' +
         '</tr></thead><tbody>';
     for (var i = log.length - 1; i >= 0; i--) {

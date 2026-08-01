@@ -254,7 +254,7 @@ async function _qvRender() {
             (ageDays != null ? ' (' + (ageDays < 45 ? ageDays + ' days' : Math.round(ageDays / 30) + ' months') + ' ago)' : '') + '</h3>' +
             '<p class="muted-text" style="max-width:560px">' + latest.ranked + ' of ' + latest.universeCount +
             ' companies had usable fundamentals (' + latest.skipped + ' skipped) · max ' + QV_SECTOR_CAP + ' per sector.</p>';
-        html += '<div class="qv-list-wrap"><table class="dm-table"><thead><tr>' +
+        html += '<div class="ana-grid-wrap"><table class="dm-table"><thead><tr>' +
             '<th>#</th><th>Ticker</th><th>Name</th><th>Sector</th><th>Earnings yield</th><th>Return on capital</th><th>Trap check</th>' +
             '</tr></thead><tbody>';
         for (var i = 0; i < latest.rows.length; i++) {
@@ -283,7 +283,7 @@ async function _qvRender() {
 
         // Screen history, graded from the price cache (never stored).
         html += '<h3 class="ana-section-title">🏁 Screen history</h3>';
-        html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+        html += '<div class="ana-grid-wrap"><table class="dm-table"><thead><tr>' +
             '<th>Screened</th><th>Top pick</th><th>List vs SPY since screen</th>' +
             '</tr></thead><tbody>';
         for (var si = screens.length - 1; si >= 0; si--) {

@@ -324,7 +324,7 @@ async function _smRender() {
         ' · SPY ' + (r.spy.above200 ? 'above' : 'below') + ' its 200-day average</p>';
 
     // Top-25 table
-    html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+    html += '<div class="ana-grid-wrap"><table class="dm-table"><thead><tr>' +
         '<th>#</th><th>Ticker</th><th>Name</th><th>12-1 return</th><th>Own 200d</th>' +
         '</tr></thead><tbody>';
     for (var i = 0; i < Math.min(SM_TOP_N, r.rows.length); i++) {
@@ -377,7 +377,7 @@ async function _smRender() {
                 'graded — the logged list\'s equal-weight return vs SPY over the following month — building the ' +
                 'live track record that shows whether the strategy earns its keep.</p>';
         }
-        html += '<div class="dm-history"><table class="dm-table"><thead><tr>' +
+        html += '<div class="ana-grid-wrap"><table class="dm-table"><thead><tr>' +
             '<th>Month</th><th>Top pick</th><th>±</th><th>List vs SPY (next month)</th>' +
             '</tr></thead><tbody>';
         for (var li = log.length - 1; li >= 0 && li >= log.length - 12; li--) {

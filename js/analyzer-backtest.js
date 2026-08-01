@@ -388,7 +388,7 @@ function _abRenderScorecard(run, container, opts) {
     if (!opts.hideSignals && run.signals && run.signals.length) {
         var rows = run.signals.slice(0, 200);
         html += '<h3 class="ana-section-title">Signals (' + run.signals.length + (run.signals.length > 200 ? ', first 200 shown' : '') + ')</h3>' +
-            '<div class="ab-table-wrap"><table class="ab-table">' +
+            '<div class="ana-grid-wrap"><table class="ab-table">' +
             '<tr><th>Friday</th><th>Ticker</th><th>Detector</th><th>Trigger</th><th>Entry</th><th>Outcome</th><th>Days</th><th>Ret</th><th>SPY</th></tr>';
         rows.forEach(function(s) {
             var badge = s.outcome === 'target' ? 'ab-badge-win' : (s.outcome === 'stop' ? 'ab-badge-loss' : 'ab-badge-neutral');
@@ -498,7 +498,7 @@ async function _abCompareSelected() {
     function detRow(run, det) {
         return run.results.perDetector.find(function(d) { return d.detectorId === det; }) || null;
     }
-    var html = '<div class="ab-table-wrap"><table class="ab-table">' +
+    var html = '<div class="ana-grid-wrap"><table class="ab-table">' +
         '<tr><th>Metric</th><th>Run A<br><span class="ab-dim">' + a.params.startDate + '→' + a.params.endDate + ' dip≥' + a.params.detectors.dipA.dropPct + '%</span></th>' +
         '<th>Run B<br><span class="ab-dim">' + b.params.startDate + '→' + b.params.endDate + ' dip≥' + b.params.detectors.dipA.dropPct + '%</span></th></tr>';
     ['dipA', 'springD'].forEach(function(det) {

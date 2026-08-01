@@ -18741,18 +18741,21 @@ a.legacy-fin-card:hover {
 /* Signal history table */
 .dm-history { overflow-x: auto; max-width: 560px; }
 
-/* Quality-Value ranked list: full-width on desktop with a frozen header row.
-   Own wrapper (not .dm-history) so the 560px cap doesn't apply — the table
-   fills the screen and all columns are visible without sideways scrolling.
-   The bounded height + sticky <th> keeps the header in view as the list scrolls. */
-.qv-list-wrap {
+/* Analyzer data grids: full-width on desktop with a frozen header row.
+   Shared opt-in wrapper (not the width-capped .dm-history / .ab-table-wrap) so
+   the table fills the screen — all columns visible without sideways scrolling —
+   while the bounded height + sticky header keeps the column labels in view as
+   the list scrolls. Narrow phones still scroll horizontally (min-width). */
+.ana-grid-wrap {
     overflow: auto;
     max-height: 70vh;
     -webkit-overflow-scrolling: touch;
     margin-bottom: 12px;
 }
-.qv-list-wrap .dm-table { width: 100%; min-width: 640px; }
-.qv-list-wrap thead th {
+.ana-grid-wrap table { width: 100%; min-width: 640px; }
+/* Header may be a real <thead> (dm-table) or a bare first <tr> (ab-table). */
+.ana-grid-wrap thead th,
+.ana-grid-wrap tr:first-child th {
     position: sticky;
     top: 0;
     z-index: 2;
