@@ -673,7 +673,14 @@ function _lpRenderDetailPage(page) {
                             <div id="lpLocSearchResults" style="border:1px solid #e2e8f0; border-radius:6px; max-height:160px; overflow-y:auto; display:none; margin-top:4px;"></div>
                         </div>
                         <div style="text-align:center; color:#999; font-size:0.85em;">— or create a new location —</div>
+                        <!-- Find a place (reuses the check-in picker; fills name/address/lat/lng, then LLM enrichment for phone/website) -->
+                        <div id="lpLocFindWrap">
+                            <button type="button" class="btn btn-small" onclick="_lpFindPlace()" style="width:100%; background:#6366f1; color:#fff; border:none;">🔍 Find a place</button>
+                            <div id="lpLocFindStatus" style="font-size:0.82em; color:#888; margin-top:4px; display:none;"></div>
+                        </div>
                         <!-- New location fields -->
+                        <input type="hidden" id="lpLocLat">
+                        <input type="hidden" id="lpLocLng">
                         <div>
                             <label class="form-label">Name *</label>
                             <input type="text" id="lpLocName" class="form-control" placeholder="e.g. Mammoth Hot Springs" style="width:100%; box-sizing:border-box;">
@@ -1329,6 +1336,60 @@ function _lpRenderLocations(body) {
 }
 
 /** Open the location modal — editId is the projectLocations doc id, null for new */
+/** Open the check-in place picker to fill the location form from a real place. */
+function _lpFindPlace() {
+    if (typeof openCheckIn !== 'function') {
+        alert('Place search is unavailable.');
+        return;
+    }
+    // The picker calls this callback with the chosen venue (or null for manual).
+    // It layers on top of the location modal (which stays open underneath).
+    _checkinPickerCallback = _lpApplyFoundPlace;
+    openCheckIn();
+}
+
+/**
+ * Callback for the check-in picker when used from the location modal.
+ * Fills name/address/lat/lng immediately, then runs a best-effort LLM
+ * enrichment pass to add phone + website. The user reviews before saving.
+ * @param {Object|null} venue — chosen venue, or null if the user chose manual entry.
+ */
+async function _lpApplyFoundPlace(venue) {
+    if (!venue) return; // "Enter Manually" — leave the form for manual entry
+
+    // Make sure the location modal is showing (picker closed itself)
+    openModal('lpLocationModal');
+
+    document.getElementById('lpLocName').value    = venue.name || '';
+    document.getElementById('lpLocAddress').value = venue.address || '';
+    document.getElementById('lpLocLat').value     = venue.lat != null ? venue.lat : '';
+    document.getElementById('lpLocLng').value     = venue.lng != null ? venue.lng : '';
+
+    // Best-effort phone/website via the shared LLM enrichment helper
+    const status = document.getElementById('lpLocFindStatus');
+    if (typeof placesFetchEnrichment !== 'function') return;
+    status.style.display = '';
+    status.textContent = '🔎 Looking up phone & website…';
+    try {
+        const enriched = await placesFetchEnrichment({
+            name: venue.name, address: venue.address,
+            category: venue.category, lat: venue.lat, lng: venue.lng
+        });
+        const clean = v => (v && typeof v === 'string' && v.trim() && v !== 'null') ? v.trim() : '';
+        if (enriched) {
+            const phoneEl = document.getElementById('lpLocPhone');
+            const webEl   = document.getElementById('lpLocWebsite');
+            if (!phoneEl.value && clean(enriched.phone))   phoneEl.value = clean(enriched.phone);
+            if (!webEl.value   && clean(enriched.website)) webEl.value   = clean(enriched.website);
+        }
+        status.textContent = '✓ Filled in — review and Save';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+    } catch (err) {
+        console.warn('Location enrichment failed:', err);
+        status.style.display = 'none';
+    }
+}
+
 function _lpOpenLocationModal(editId = null) {
     const loc = editId ? _lpLocations.find(l => l.id === editId) : null;
     document.getElementById('lpLocationModalTitle').textContent = loc ? 'Edit Location' : 'Add Location';
@@ -1338,15 +1399,23 @@ function _lpOpenLocationModal(editId = null) {
     document.getElementById('lpLocWebsite').value = loc ? (loc.website || '') : '';
     document.getElementById('lpLocContact').value = loc ? (loc.contact || '') : '';
     document.getElementById('lpLocNotes').value   = loc ? (loc.notes   || '') : '';
+    document.getElementById('lpLocLat').value      = loc && loc.lat != null ? loc.lat : '';
+    document.getElementById('lpLocLng').value      = loc && loc.lng != null ? loc.lng : '';
     document.getElementById('lpLocSearch').value  = '';
     document.getElementById('lpLocSearchResults').style.display = 'none';
     document.getElementById('lpLocSearchResults').innerHTML = '';
     document.getElementById('lpLocAddToPlanning').checked = false;
 
+    // Reset the "Find a place" status line
+    const findStatus = document.getElementById('lpLocFindStatus');
+    findStatus.style.display = 'none';
+    findStatus.textContent = '';
+
     // Hide "Add to Planning Board" checkbox when editing
     document.getElementById('lpLocAddToPlanningWrap').style.display = loc ? 'none' : '';
-    // Hide search when editing
+    // Hide search + "Find a place" when editing (they're for creating new locations)
     document.getElementById('lpLocSearchWrap').style.display = loc ? 'none' : '';
+    document.getElementById('lpLocFindWrap').style.display = loc ? 'none' : '';
 
     // Store edit id on the save button
     document.getElementById('lpLocationSaveBtn').dataset.editId = editId || '';
@@ -1426,13 +1495,17 @@ async function _lpSaveLocation() {
 
     const editId = document.getElementById('lpLocationSaveBtn').dataset.editId;
     let newProjLocId = null; // set below when creating a new location
+    const latRaw = document.getElementById('lpLocLat').value;
+    const lngRaw = document.getElementById('lpLocLng').value;
     const locData = {
         name,
         address: document.getElementById('lpLocAddress').value.trim(),
         phone:   document.getElementById('lpLocPhone').value.trim(),
         website: document.getElementById('lpLocWebsite').value.trim(),
         contact: document.getElementById('lpLocContact').value.trim(),
-        notes:   document.getElementById('lpLocNotes').value.trim()
+        notes:   document.getElementById('lpLocNotes').value.trim(),
+        lat:     latRaw !== '' && !isNaN(Number(latRaw)) ? Number(latRaw) : null,
+        lng:     lngRaw !== '' && !isNaN(Number(lngRaw)) ? Number(lngRaw) : null
     };
     const addToPlanning = !editId && document.getElementById('lpLocAddToPlanning').checked;
 

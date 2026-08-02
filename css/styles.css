@@ -887,8 +887,10 @@ button {
 }
 
 /* Facts modal and chemical picker can open on top of another modal */
+/* checkInPickerModal can open on top of the Life Projects location modal */
 #factModal,
-#chemicalPickerModal {
+#chemicalPickerModal,
+#checkInPickerModal {
     z-index: 1100;
 }
 

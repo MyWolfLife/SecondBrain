@@ -901,18 +901,24 @@ async function placesSaveNew(venueObj) {
  *
  * @param {string} placeId - Firestore places doc ID
  */
-async function placesEnrichWithLLM(placeId) {
+/**
+ * Ask the configured LLM for factual enrichment (website, phone, hours, etc.)
+ * for a place-like object. Returns the parsed object (keys: website, phone,
+ * hours, facebook, google_maps) or null. Does NOT read or write Firestore for
+ * the place itself — callers decide what to do with the result. The prompt is
+ * careful to prefer null over guessing, so fields are frequently null rather
+ * than fabricated. Reused by both saved-place enrichment and the Life Projects
+ * "find a place" location flow.
+ * @param {{name:string, address?:string, category?:string, lat?:number, lng?:number}} place
+ * @returns {Promise<Object|null>}
+ */
+async function placesFetchEnrichment(place) {
     try {
         // Load LLM config
         var cfgDoc = await userCol('settings').doc('llm').get();
-        if (!cfgDoc.exists) return;
+        if (!cfgDoc.exists) return null;
         var cfg = cfgDoc.data();
-        if (!cfg.provider || !cfg.apiKey) return;
-
-        // Load place data
-        var placeDoc = await userCol('places').doc(placeId).get();
-        if (!placeDoc.exists) return;
-        var place = placeDoc.data();
+        if (!cfg.provider || !cfg.apiKey) return null;
 
         // Build context string for the prompt
         var details = [];
@@ -920,7 +926,7 @@ async function placesEnrichWithLLM(placeId) {
         if (place.address)  details.push('Address: '  + place.address);
         if (place.category) details.push('Category: ' + place.category);
         if (place.lat && place.lng) {
-            details.push('Coordinates: ' + place.lat.toFixed(6) + ', ' + place.lng.toFixed(6));
+            details.push('Coordinates: ' + Number(place.lat).toFixed(6) + ', ' + Number(place.lng).toFixed(6));
         }
 
         var prompt =
@@ -960,27 +966,42 @@ async function placesEnrichWithLLM(placeId) {
         });
 
         if (!resp.ok) {
-            console.warn('placesEnrichWithLLM: LLM call failed', resp.status);
-            return;
+            console.warn('placesFetchEnrichment: LLM call failed', resp.status);
+            return null;
         }
 
         var data    = await resp.json();
         var content = data.choices && data.choices[0] &&
                       data.choices[0].message && data.choices[0].message.content;
-        if (!content) return;
+        if (!content) return null;
 
         // Strip markdown code fences if the LLM wrapped the JSON
         content = content.trim()
             .replace(/^```(?:json)?\s*/i, '')
             .replace(/\s*```$/, '');
 
-        var enriched;
         try {
-            enriched = JSON.parse(content);
+            return JSON.parse(content);
         } catch (e) {
-            console.warn('placesEnrichWithLLM: could not parse JSON', content);
-            return;
+            console.warn('placesFetchEnrichment: could not parse JSON', content);
+            return null;
         }
+    } catch (err) {
+        console.warn('placesFetchEnrichment error (non-fatal):', err);
+        return null;
+    }
+}
+
+async function placesEnrichWithLLM(placeId) {
+    try {
+        // Load place data
+        var placeDoc = await userCol('places').doc(placeId).get();
+        if (!placeDoc.exists) return;
+        var place = placeDoc.data();
+
+        // Ask the LLM for factual enrichment
+        var enriched = await placesFetchEnrichment(place);
+        if (!enriched) return;
 
         // Save non-null fields as Facts on the place
         var labelMap = {
