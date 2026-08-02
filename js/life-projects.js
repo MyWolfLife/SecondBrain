@@ -1473,11 +1473,18 @@ async function _lpSaveLocation() {
             const ctx = _lpPickerReturnCtx;
             _lpPickerReturnCtx = null;
             if (ctx.source === 'itemModal') {
-                // Re-populate the item modal's location dropdowns and pre-select the new location
-                // on the From dropdown; preserve any current To Location selection.
-                const curTo = document.getElementById('lpItToLocation')?.value || null;
-                _lpPopulateItemLocationSelect(newProjLocId || null);
-                _lpPopulateItemToLocationSelect(curTo);
+                // Re-populate both item-modal location dropdowns. Pre-select the new
+                // location on whichever dropdown triggered the add; preserve the other's
+                // current selection. (ctx.field is 'from' or 'to'; default to 'from'.)
+                const curFrom = document.getElementById('lpItLocation')?.value || null;
+                const curTo   = document.getElementById('lpItToLocation')?.value || null;
+                if (ctx.field === 'to') {
+                    _lpPopulateItemLocationSelect(curFrom);
+                    _lpPopulateItemToLocationSelect(newProjLocId || null);
+                } else {
+                    _lpPopulateItemLocationSelect(newProjLocId || null);
+                    _lpPopulateItemToLocationSelect(curTo);
+                }
             } else {
                 _lpPickLocation(ctx.type, ctx.parentId, ctx.itemId);
             }
@@ -3246,18 +3253,29 @@ function _lpPopulateItemLocationSelect(selectedId) {
     locSelect.onchange = function() {
         if (this.value !== '__add_new__') return;
         this.value = selectedId || ''; // revert selection while user fills out modal
-        _lpPickerReturnCtx = { source: 'itemModal' };
+        _lpPickerReturnCtx = { source: 'itemModal', field: 'from' };
         _lpOpenLocationModal();
     };
 }
 
 /** Populate the item modal's "To Location" dropdown (used for travel-type items).
- *  Kept simple — None + existing project locations, no "add new" option (add new
- *  locations from the From dropdown or the Locations accordion). */
+ *  None + existing project locations + an "add new location…" option (same flow
+ *  as the From dropdown). */
 function _lpPopulateItemToLocationSelect(selectedId) {
     const sel = document.getElementById('lpItToLocation');
     if (!sel) return;
-    sel.innerHTML = '<option value="">— None —</option>';
+    sel.innerHTML = '';
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— None —';
+    sel.appendChild(noneOpt);
+
+    const addOpt = document.createElement('option');
+    addOpt.value = '__add_new__';
+    addOpt.textContent = '＋ Add new location…';
+    sel.appendChild(addOpt);
+
     [..._lpLocations]
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(l => {
@@ -3267,6 +3285,14 @@ function _lpPopulateItemToLocationSelect(selectedId) {
             if (l.id === selectedId) opt.selected = true;
             sel.appendChild(opt);
         });
+
+    // Handler: if user picks "Add new location…", open the location modal and return here
+    sel.onchange = function() {
+        if (this.value !== '__add_new__') return;
+        this.value = selectedId || ''; // revert selection while user fills out modal
+        _lpPickerReturnCtx = { source: 'itemModal', field: 'to' };
+        _lpOpenLocationModal();
+    };
 }
 
 function _lpOpenItemModal(title, item, currentDayId) {
