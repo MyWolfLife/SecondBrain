@@ -2732,7 +2732,13 @@ function openCheckIn() {
                 }
             }, 800);
         };
-        biasEl.onfocus = function() { biasEl.style.borderColor = ''; };
+        biasEl.onfocus = function() {
+            biasEl.style.borderColor = '';
+            // Auto-select the contents (e.g. "Current location") so the user can
+            // type straight over it. Deferred past the click's mouseup, which would
+            // otherwise place the caret and clear the selection.
+            setTimeout(function() { biasEl.select(); }, 0);
+        };
     }
 
     // Wire name search input (debounced)
