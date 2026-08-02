@@ -1929,7 +1929,7 @@ This is your trip checklist -- stuff to get done before you leave, like "renew p
 
 ---
 
-**To-Do** (planning mode only): A checklist with done toggles, notes, and drag-to-reorder. The summary shows done/total. The Vacation template pre-fills ~10 starter items.
+**To-Do** (planning mode only): A checklist with done toggles, notes, and drag-to-reorder. **Adding and editing happen right in the list** -- **+ Add Item** opens a blank row, and **✏️ Edit** turns an item into an inline editor with a field for the task and a box for its note/description, plus **Save** and **Cancel** (pressing Enter in the task field also saves). The summary shows done/total. The Vacation template pre-fills ~10 starter items.
 
 ---
 

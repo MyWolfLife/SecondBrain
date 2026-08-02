@@ -1870,6 +1870,8 @@ async function _lpDeleteDistanceFromRow(distanceId) {
 // ============================================================
 
 let _lpTodos = [];
+let _lpTodoEditId = null;   // id of the to-do currently being edited inline (or null)
+let _lpTodoAdding = false;  // whether a blank inline draft row is showing
 
 async function _lpLoadTodos() {
     const body = document.getElementById('lpBody_todos');
@@ -1905,7 +1907,9 @@ function _lpRenderTodos(body) {
         }
     }
 
-    if (total === 0) {
+    const isEditing = _lpTodoEditId !== null || _lpTodoAdding;
+
+    if (total === 0 && !_lpTodoAdding) {
         body.innerHTML = `
             <p style="color:#999; font-size:0.9em;">No to-do items yet.</p>
             <button class="btn btn-small btn-primary" onclick="_lpAddTodo()">+ Add Item</button>
@@ -1913,15 +1917,17 @@ function _lpRenderTodos(body) {
         return;
     }
 
+    const rowsHtml = _lpTodos.map(t => t.id === _lpTodoEditId ? _lpTodoEditRow(t) : _lpTodoItem(t)).join('');
+    const draftHtml = _lpTodoAdding ? _lpTodoEditRow(null) : '';
+
     body.innerHTML = `
-        <div id="lpTodoList">
-            ${_lpTodos.map(t => _lpTodoItem(t)).join('')}
-        </div>
-        <button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="_lpAddTodo()">+ Add Item</button>
+        <div id="lpTodoList">${rowsHtml}</div>
+        ${draftHtml}
+        ${isEditing ? '' : `<button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="_lpAddTodo()">+ Add Item</button>`}
     `;
 
-    // Initialize SortableJS if available
-    if (typeof Sortable !== 'undefined') {
+    // Initialize SortableJS only when no row is being edited (avoids drag/input conflicts)
+    if (typeof Sortable !== 'undefined' && !isEditing) {
         const list = document.getElementById('lpTodoList');
         if (list) {
             Sortable.create(list, {
@@ -1931,6 +1937,38 @@ function _lpRenderTodos(body) {
             });
         }
     }
+
+    // Populate + focus the inline editor. Values are set here (not via HTML attributes)
+    // because _lpEsc doesn't escape double quotes, which would break a value="..." attr.
+    if (_lpTodoEditId) {
+        const t  = _lpTodos.find(x => x.id === _lpTodoEditId);
+        const ti = document.getElementById('lpTodoText_' + _lpTodoEditId);
+        const ni = document.getElementById('lpTodoNotes_' + _lpTodoEditId);
+        if (t && ti) ti.value = t.text || '';
+        if (t && ni) ni.value = t.notes || '';
+        if (ti) ti.focus();
+    } else if (_lpTodoAdding) {
+        const ti = document.getElementById('lpTodoText___new__');
+        if (ti) ti.focus();
+    }
+}
+
+/** Inline edit/add row for a to-do. Pass the todo to edit, or null for a new draft. */
+function _lpTodoEditRow(t) {
+    const isNew    = !t;
+    const id       = isNew ? '__new__' : t.id;
+    const saveCall = isNew ? '_lpSaveTodoNew()' : `_lpSaveTodoEdit('${id}')`;
+    return `
+        <div class="lp-todo-edit" data-id="${id}" style="display:flex; flex-direction:column; gap:6px; padding:8px 6px; margin-bottom:4px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc;">
+            <input type="text" id="lpTodoText_${id}" class="form-control" placeholder="To-do item"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault(); ${saveCall};}">
+            <textarea id="lpTodoNotes_${id}" class="form-control" rows="2" placeholder="Note / description (optional)" style="resize:vertical;"></textarea>
+            <div style="display:flex; gap:6px; justify-content:flex-end;">
+                <button class="btn btn-small" onclick="_lpCancelTodoEdit()">Cancel</button>
+                <button class="btn btn-small btn-primary" onclick="${saveCall}">Save</button>
+            </div>
+        </div>
+    `;
 }
 
 function _lpTodoItem(t) {
@@ -1950,25 +1988,43 @@ function _lpTodoItem(t) {
     `;
 }
 
-async function _lpAddTodo() {
-    const text = prompt('To-do item:');
-    if (!text || !text.trim()) return;
-    const notes = prompt('Notes (optional):') || '';
+/** Show a blank inline draft row to add a new to-do. */
+function _lpAddTodo() {
+    _lpTodoAdding = true;
+    _lpTodoEditId = null;
+    const body = document.getElementById('lpBody_todos');
+    if (body) _lpRenderTodos(body);
+}
+
+/** Save the inline draft row as a new to-do. */
+async function _lpSaveTodoNew() {
+    const text = (document.getElementById('lpTodoText___new__')?.value || '').trim();
+    if (!text) { alert('Enter a to-do item.'); return; }
+    const notes = (document.getElementById('lpTodoNotes___new__')?.value || '').trim();
 
     const maxOrder = _lpTodos.reduce((max, t) => Math.max(max, t.sortOrder || 0), -1);
 
     try {
         await lpSub(_lpCurrentProjectId, 'todoItems').add({
-            text: text.trim(),
+            text,
             done: false,
-            notes: notes.trim(),
+            notes,
             sortOrder: maxOrder + 1
         });
+        _lpTodoAdding = false;
         await _lpLoadTodos();
     } catch (err) {
         console.error('Error adding todo:', err);
         alert('Error adding to-do item.');
     }
+}
+
+/** Cancel the current inline add/edit and re-render in display mode. */
+function _lpCancelTodoEdit() {
+    _lpTodoEditId = null;
+    _lpTodoAdding = false;
+    const body = document.getElementById('lpBody_todos');
+    if (body) _lpRenderTodos(body);
 }
 
 async function _lpToggleTodo(todoId, done) {
@@ -1984,22 +2040,29 @@ async function _lpToggleTodo(todoId, done) {
     }
 }
 
-async function _lpEditTodo(todoId) {
+/** Switch a to-do row into the inline editor. */
+function _lpEditTodo(todoId) {
     const t = _lpTodos.find(t => t.id === todoId);
     if (!t) return;
+    _lpTodoEditId = todoId;
+    _lpTodoAdding = false;
+    const body = document.getElementById('lpBody_todos');
+    if (body) _lpRenderTodos(body);
+}
 
-    const text = prompt('To-do item:', t.text);
-    if (!text || !text.trim()) return;
-    const notes = prompt('Notes:', t.notes || '') || '';
+/** Save inline edits to an existing to-do. */
+async function _lpSaveTodoEdit(todoId) {
+    const text = (document.getElementById('lpTodoText_' + todoId)?.value || '').trim();
+    if (!text) { alert('Enter a to-do item.'); return; }
+    const notes = (document.getElementById('lpTodoNotes_' + todoId)?.value || '').trim();
 
     try {
-        await lpSub(_lpCurrentProjectId, 'todoItems').doc(todoId).update({
-            text: text.trim(),
-            notes: notes.trim()
-        });
+        await lpSub(_lpCurrentProjectId, 'todoItems').doc(todoId).update({ text, notes });
+        _lpTodoEditId = null;
         await _lpLoadTodos();
     } catch (err) {
         console.error('Error editing todo:', err);
+        alert('Error saving to-do item.');
     }
 }
 
