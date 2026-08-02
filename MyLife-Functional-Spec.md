@@ -2318,10 +2318,10 @@ Tracks real-world places the user visits. Places tie together journal check-ins,
 - **Proxy required**: Browser cannot call Foursquare directly (CORS OPTIONS returns 400). A Cloudflare Worker proxy handles auth and adds CORS headers. Worker URL stored in `userCol('settings').doc('places').workerUrl`.
 - **Auth**: Worker adds `Authorization: Bearer <key>` and `X-Places-Api-Version: 2025-06-17` headers — no auth headers sent from browser.
 - **Nearby search** (`placesNearby`): `GET /places/search?ll=lat,lng&limit=20&fields=fsq_place_id,name,categories,location,geocodes`
-- **Text search** (`placesSearchByName(query, biasLat, biasLng, nearText)`): `GET /places/search?query=...&limit=8&fields=...` plus a location anchor:
-  - When the user typed a location/area (`nearText`, e.g. "Little Rock, AR" or a ZIP) → `&near=<text>`. This is an **area** search: it returns venues anywhere in that area, including suburbs. A geocoded city-center used as an `ll` point sorts by distance and buries suburban venues past the result limit (this is why searching a downtown for a hotel a few miles out returned nothing).
-  - Otherwise, for a true GPS point ("Current location") → `&ll=lat,lng`.
-  - `near` and `ll` are mutually exclusive — never both.
+- **Text search** (`placesSearchByName(query, biasLat, biasLng, nearText)`): `GET /places/search?query=...&limit=8&fields=...` plus a location anchor. **When the user typed a location, it runs TWO searches and merges the results round-robin** (interleaved — near[0], ll[0], near[1], ll[1]… — so the strongest hit from each anchor surfaces near the top rather than one burying the other; deduped by `fsq_place_id`):
+  - `&near=<nearText>` — an **area** search: returns venues anywhere in that area, including suburbs. A geocoded city-center used as an `ll` point sorts by distance and buries suburban venues past the result limit (this is why searching a downtown for a hotel a few miles out returned nothing).
+  - `&ll=<biasLat,biasLng>` — a **point** search (from the geocoded location): surfaces big landmarks (e.g. a major airport) whose relevance the area search otherwise buries entirely (e.g. "hartsfield international airport" near Atlanta returned only junk under `near`, but the airport is the sole `ll` result).
+  - `near` and `ll` are mutually exclusive **within a single request** (Foursquare treats them as competing anchors), so the two anchors are run as separate calls and merged. With only a true GPS point ("Current location") and no typed location, a single `&ll=lat,lng` call is used.
 - **Response shape**: `fsq_place_id` (not `fsq_id`); coordinates in `geocodes.main.latitude/longitude`
 - Worker URL cached in memory for 5 minutes (`_placesWorkerUrlCache`)
 - **Distance label**: `placesDistanceLabel(lat1,lng1,lat2,lng2)` — Haversine formula, returns e.g. "0.3 mi" or "nearby"

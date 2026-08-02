@@ -810,27 +810,52 @@ async function placesSearchByName(query, biasLat, biasLng, nearText) {
         }
     });
 
-    // 2) Foursquare text search for anything not already found
+    // 2) Foursquare text search for anything not already found.
+    //    When the user typed a location, run BOTH an area search (`near`) AND a
+    //    point search (`ll`, from the geocoded location) and merge the results:
+    //    `near` reliably surfaces suburban venues, while `ll` surfaces big
+    //    landmarks (e.g. a major airport) that the area search's relevance
+    //    ranking otherwise buries entirely. Foursquare treats `near` and `ll` as
+    //    competing anchors in one request, so they must be separate calls.
     try {
         var workerUrl = await _placesGetWorkerUrl();
         if (workerUrl) {
-            var url = workerUrl + '/places/search?query=' + encodeURIComponent(query) + '&limit=8';
+            var baseUrl  = workerUrl + '/places/search?query=' + encodeURIComponent(query) + '&limit=8';
+            var near     = (typeof nearText === 'string') ? nearText.trim() : '';
+            var hasPoint = (biasLat != null && biasLng != null);
 
-            // Prefer an area search (`near`) for a typed location; fall back to a GPS point
-            // bias (`ll`). Never send both — Foursquare treats them as competing anchors.
-            var near = (typeof nearText === 'string') ? nearText.trim() : '';
+            // Build the anchored search URLs to run (area search + point search).
+            var urls = [];
             if (near) {
-                url += '&near=' + encodeURIComponent(near);
-            } else if (biasLat != null && biasLng != null) {
-                url += '&ll=' + biasLat + ',' + biasLng;
+                urls.push(baseUrl + '&near=' + encodeURIComponent(near));
+                if (hasPoint) urls.push(baseUrl + '&ll=' + biasLat + ',' + biasLng);
+            } else if (hasPoint) {
+                urls.push(baseUrl + '&ll=' + biasLat + ',' + biasLng);
+            } else {
+                urls.push(baseUrl);
             }
 
-            var resp = await fetch(url);
-            if (resp.ok) {
-                var data = await resp.json();
-                (data.results || []).forEach(function(item) {
-                    if (seenFsqIds[item.fsq_id]) return; // already from saved places
-                    if (item.fsq_id) seenFsqIds[item.fsq_id] = true;
+            // Run the searches in parallel.
+            var responses = await Promise.all(urls.map(function(u) {
+                return fetch(u)
+                    .then(function(resp) { return resp.ok ? resp.json() : { results: [] }; })
+                    .catch(function() { return { results: [] }; });
+            }));
+
+            // Merge round-robin across the anchor result sets so the strongest hit
+            // from EACH anchor surfaces near the top — the area search and the
+            // point-only landmarks interleave instead of one burying the other
+            // (e.g. the airport is the point search's #1 but is absent from the
+            // area search; round-robin lands it near the top instead of at #6+).
+            // Dedupe by fsq_place_id (also covers venues appearing in both sets).
+            var lists  = responses.map(function(data) { return data.results || []; });
+            var maxLen = lists.reduce(function(m, l) { return Math.max(m, l.length); }, 0);
+            for (var i = 0; i < maxLen; i++) {
+                lists.forEach(function(list) {
+                    var item = list[i];
+                    if (!item) return;
+                    if (seenFsqIds[item.fsq_place_id]) return;
+                    if (item.fsq_place_id) seenFsqIds[item.fsq_place_id] = true;
                     results.push(_placesMapFsqResult(item));
                 });
             }
