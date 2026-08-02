@@ -623,6 +623,17 @@ function _lpRenderDetailPage(page) {
                 </div>
             </div>
 
+            <!-- Per-accordion quick-help modal (opened by the ? icon on each section header) -->
+            <div class="modal-overlay" id="lpHelpModal">
+                <div class="modal" style="max-width:520px;">
+                    <h3 id="lpHelpModalTitle">Help</h3>
+                    <div id="lpHelpModalBody" class="lp-help-body" style="max-height:60vh; overflow-y:auto; font-size:0.92em; line-height:1.55;"></div>
+                    <div class="modal-actions" style="justify-content:flex-end;">
+                        <button class="btn btn-primary" onclick="closeModal('lpHelpModal')">Close</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Location picker modal (set location on an item) -->
             <div class="modal-overlay" id="lpLocPickerModal">
                 <div class="modal" style="max-width:500px; width:90%;">
@@ -860,6 +871,7 @@ function _lpAccordionSection(id, title, summary, expanded) {
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span class="lp-accordion-arrow" id="lpArrow_${id}" style="transition:transform 0.2s; display:inline-block; ${expanded ? 'transform:rotate(90deg);' : ''}"">▶</span>
                     <strong>${title}</strong>
+                    <span class="lp-acc-help" onclick="event.stopPropagation(); _lpShowAccordionHelp('${id}')" title="Quick help for this section" style="cursor:help; color:#2563eb; border:1px solid #93c5fd; border-radius:50%; width:17px; height:17px; min-width:17px; display:inline-flex; align-items:center; justify-content:center; font-size:0.72em; font-weight:700; line-height:1;">?</span>
                     ${summary ? `<span style="color:#888; font-size:0.85em; margin-left:4px;">${summary}</span>` : ''}
                 </div>
             </div>
@@ -868,6 +880,49 @@ function _lpAccordionSection(id, title, summary, expanded) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Maps each accordion id to its AppHelp.md sub-section key and a display title.
+ * Each `## screen:life-project-{key}` section is authored as: an ELI5 paragraph,
+ * a `---` divider, then the normal detailed help for that section.
+ */
+const LP_ACC_HELP = {
+    tripInfo:  { key: 'life-project-tripinfo',  title: 'Trip Info' },
+    itinerary: { key: 'life-project-itinerary', title: 'Itinerary' },
+    planning:  { key: 'life-project-planning',  title: 'Planning Board' },
+    notes:     { key: 'life-project-journal',   title: 'Journal' },
+    todos:     { key: 'life-project-todo',       title: 'To-Do' },
+    photos:    { key: 'life-project-photos',    title: 'Photos' },
+    links:     { key: 'life-project-links',     title: 'Links' },
+    bookings:  { key: 'life-project-bookings',  title: 'Bookings' },
+    packing:   { key: 'life-project-packing',   title: 'Packing' },
+    locations: { key: 'life-project-locations', title: 'Locations' },
+    distances: { key: 'life-project-distances', title: 'Distances' },
+    people:    { key: 'life-project-people',     title: 'People' }
+};
+
+/**
+ * Open the quick-help modal for one accordion. Pulls its sub-section from
+ * AppHelp.md and renders it (ELI5 + divider bar + normal help) using the shared
+ * help renderer, so this content stays in sync with the in-app Help system.
+ */
+async function _lpShowAccordionHelp(id) {
+    const cfg = LP_ACC_HELP[id];
+    if (!cfg) return;
+    document.getElementById('lpHelpModalTitle').textContent = 'Help: ' + cfg.title;
+    const bodyEl = document.getElementById('lpHelpModalBody');
+    bodyEl.innerHTML = '<p style="color:#999;">Loading…</p>';
+    openModal('lpHelpModal');
+    try {
+        const fullText = await _helpFetch();
+        let sectionText = _helpParseSection(fullText, cfg.key);
+        if (!sectionText) sectionText = '_No help is available for this section yet._';
+        bodyEl.innerHTML = _helpRenderContent(sectionText);
+    } catch (err) {
+        console.error('Error loading accordion help:', err);
+        bodyEl.innerHTML = '<p style="color:#c00;">Could not load help content.</p>';
+    }
 }
 
 /** Toggle an accordion section open/closed */
