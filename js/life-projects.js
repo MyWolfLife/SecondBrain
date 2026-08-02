@@ -591,8 +591,14 @@ function _lpRenderDetailPage(page) {
                             <div id="lpItFactsContainer" style="display:flex; flex-direction:column; gap:4px;"></div>
                         </div>
                         <div>
-                            <label class="form-label">Location</label>
+                            <label class="form-label" id="lpItLocationLabel">Location</label>
                             <select id="lpItLocation" class="form-control">
+                                <option value="">— None —</option>
+                            </select>
+                        </div>
+                        <div id="lpItToLocationWrap" style="display:none;">
+                            <label class="form-label">To Location</label>
+                            <select id="lpItToLocation" class="form-control">
                                 <option value="">— None —</option>
                             </select>
                         </div>
@@ -1467,8 +1473,11 @@ async function _lpSaveLocation() {
             const ctx = _lpPickerReturnCtx;
             _lpPickerReturnCtx = null;
             if (ctx.source === 'itemModal') {
-                // Re-populate the item modal's location dropdown and pre-select the new location
+                // Re-populate the item modal's location dropdowns and pre-select the new location
+                // on the From dropdown; preserve any current To Location selection.
+                const curTo = document.getElementById('lpItToLocation')?.value || null;
                 _lpPopulateItemLocationSelect(newProjLocId || null);
+                _lpPopulateItemToLocationSelect(curTo);
             } else {
                 _lpPickLocation(ctx.type, ctx.parentId, ctx.itemId);
             }
@@ -3242,6 +3251,24 @@ function _lpPopulateItemLocationSelect(selectedId) {
     };
 }
 
+/** Populate the item modal's "To Location" dropdown (used for travel-type items).
+ *  Kept simple — None + existing project locations, no "add new" option (add new
+ *  locations from the From dropdown or the Locations accordion). */
+function _lpPopulateItemToLocationSelect(selectedId) {
+    const sel = document.getElementById('lpItToLocation');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— None —</option>';
+    [..._lpLocations]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.id;
+            opt.textContent = l.name;
+            if (l.id === selectedId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+}
+
 function _lpOpenItemModal(title, item, currentDayId) {
     document.getElementById('lpItemModalTitle').textContent = title;
 
@@ -3268,6 +3295,8 @@ function _lpOpenItemModal(title, item, currentDayId) {
 
     // Location dropdown — sorted alphabetically, with "Add new" option
     _lpPopulateItemLocationSelect(item.locationId || null);
+    // To Location dropdown (shown only for travel types by _lpApplyItemTypeUI)
+    _lpPopulateItemToLocationSelect(item.toLocationId || null);
 
     // Booking dropdown
     const bkSelect = document.getElementById('lpItBooking');
@@ -3340,9 +3369,13 @@ function _lpOpenItemModal(title, item, currentDayId) {
  * currently selected item Type. Called on modal open and on Type change.
  *   - Cost / Cost Note / Confirmation / Contact: shown only for Flight and Activity
  *   - Leave-time label: "Arrival Time" for Drive/Flight/Travel, "Leave By" for None/Activity
+ *   - Location: for Drive/Flight/Travel the label becomes "From Location" and a
+ *     "To Location" row appears below it; otherwise the label is "Location" and
+ *     the To Location row is hidden.
  */
 function _lpApplyItemTypeUI() {
     const type = document.getElementById('lpItType').value || 'none';
+    const isTravelType = (type === 'drive' || type === 'flight' || type === 'travel');
 
     const showBookingFields = (type === 'flight' || type === 'activity');
     ['lpItCostWrap', 'lpItCostNoteWrap', 'lpItConfirmationWrap', 'lpItContactWrap'].forEach(id => {
@@ -3350,9 +3383,14 @@ function _lpApplyItemTypeUI() {
         if (el) el.style.display = showBookingFields ? '' : 'none';
     });
 
-    const useArrivalLabel = (type === 'drive' || type === 'flight' || type === 'travel');
     const lbl = document.getElementById('lpItLeaveTimeLabel');
-    if (lbl) lbl.textContent = useArrivalLabel ? 'Arrival Time' : 'Leave By';
+    if (lbl) lbl.textContent = isTravelType ? 'Arrival Time' : 'Leave By';
+
+    // From/To location: travel types get a From→To pair; others get a single "Location"
+    const locLabel = document.getElementById('lpItLocationLabel');
+    if (locLabel) locLabel.textContent = isTravelType ? 'From Location' : 'Location';
+    const toWrap = document.getElementById('lpItToLocationWrap');
+    if (toWrap) toWrap.style.display = isTravelType ? '' : 'none';
 }
 
 /** Save handler for the item modal */
@@ -3386,6 +3424,7 @@ async function _lpSaveItemModal() {
         notes: document.getElementById('lpItNotes').value.trim(),
         facts,
         locationId: document.getElementById('lpItLocation').value || null,
+        toLocationId: document.getElementById('lpItToLocation').value || null,
         bookingRef: document.getElementById('lpItBooking').value || null,
         showOnCalendar: document.getElementById('lpItCalendar').checked,
         leaveTime: document.getElementById('lpItLeaveTime').value.trim(),
