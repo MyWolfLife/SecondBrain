@@ -665,6 +665,17 @@ Sync your Yard and Life Calendar events to Google Calendar so you get reminders 
 
 **If a connection attempt fails or hangs:** Bishop shows a **Google Calendar Connection Problem** popup with 4 steps to check in Google Cloud Console (re-adding this app's web address under "Authorized JavaScript origins" for your OAuth Client ID). This is the most common cause of a Google "Access blocked: Authorization Error" (origin_mismatch) page, and typically happens after the app's URL changes.
 
+### Distance Routing (GraphHopper)
+
+The **🚗 Calculate** button on a Life Projects distance uses **GraphHopper** to fetch real road distance and travel time between two locations. It's free and needs only an API key — **no credit card, no proxy setup.**
+
+**How to configure:**
+1. Create a free account at [graphhopper.com](https://www.graphhopper.com) (no credit card)
+2. Create an API key in your GraphHopper dashboard
+3. In **Settings → General Settings → Distance Routing (GraphHopper)**, paste the key and tap **Save**
+
+**How it's used:** In a project's Distances section (or the 🛣️ button on an itinerary item), open a distance, pick a source and destination, and tap **🚗 Calculate** — it fills in the miles and time for you to review, then Save. It handles Drive/Walk/Bike; **Fly** has no road route. Both locations must have map coordinates, which the **🔍 Find a place** button captures when you add a location. Without a key (or for coordinate-less locations), just type the distance and time in by hand. The free tier (~500 lookups/day) is far more than a trip planner needs.
+
 ### Private Storage Setup
 
 The **Private Storage** accordion in General Settings activates an encrypted personal vault — visible as a **Private** tile on the Life screen once activated.
@@ -1989,7 +2000,7 @@ This shows how long it takes to get from one of your places to another -- like 2
 
 ---
 
-**Distances** (planning mode only, 🛣️): The reference list of travel times between project locations, shown as From → To | Time | Miles | Mode. Add one two ways: tap **+ Add Distance** in this section and pick both the **source** and **destination** from your project locations, or use the **🛣️** button on a planning or itinerary item that has a location (which fills in the "from" for you). In the popup you can either type the **Time** and **Miles** yourself or tap **🤖 Ask AI** to have the app estimate them from the two places' names and addresses -- review the estimate, then Save. You must pick a source and a destination (they have to be different) and enter at least a time or a distance. This is the data that clears "travel time needed" on the itinerary.
+**Distances** (planning mode only, 🛣️): The reference list of travel times between project locations, shown as From → To | Time | Miles | Mode. Add one two ways: tap **+ Add Distance** in this section and pick both the **source** and **destination** from your project locations, or use the **🛣️** button on a planning or itinerary item that has a location (which fills in the "from" for you). In the popup you can type the **Time** and **Miles** yourself, or tap **🚗 Calculate** to fetch the **real road distance and drive time** — this uses the free GraphHopper routing service and needs an API key set up once in **Settings → General Settings → Distance Routing (GraphHopper)**, plus both locations must have map coordinates (which the **🔍 Find a place** button captures). Calculate handles Drive/Walk/Bike; for **Fly**, or if a location has no coordinates, enter the numbers by hand. You must pick a source and a destination (they have to be different) and enter at least a time or a distance. This is the data that clears "travel time needed" on the itinerary.
 
 ---
 

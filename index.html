@@ -1074,6 +1074,25 @@
                 </div>
             </div>
 
+            <!-- Distance Routing (GraphHopper) -->
+            <div class="settings-card accordion-card">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>Distance Routing (GraphHopper)</span><span class="accordion-chevron">&#9658;</span>
+                </button>
+                <div class="accordion-body">
+                    <p class="accordion-desc">Life Projects distance lookups use the <strong>GraphHopper Directions API</strong> for real road distance and travel time. Free &mdash; no credit card. Sign up at <strong>graphhopper.com</strong>, create an API key, and paste it here.</p>
+                    <div class="form-group">
+                        <label for="graphhopperKey">GraphHopper API Key</label>
+                        <input type="text" id="graphhopperKey" placeholder="your GraphHopper API key" class="api-key-input">
+                        <small class="form-hint">Free key from graphhopper.com (no credit card). Used to calculate driving/walking/cycling distance between project locations that have coordinates.</small>
+                    </div>
+                    <div class="settings-save-row">
+                        <button class="btn btn-primary" id="graphhopperSaveBtn">Save</button>
+                        <span class="settings-saved-msg hidden" id="graphhopperSavedMsg">&#10003; Saved</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Google Calendar -->
             <div class="settings-card accordion-card">
                 <button class="accordion-header" onclick="toggleAccordion(this)">

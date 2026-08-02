@@ -264,6 +264,7 @@ async function loadSettingsGeneralPage() {
     loadFmpSettings();
     loadYahooWorkerSettings();
     loadFoursquareSettings();
+    loadGraphhopperSettings();
     loadGcalSettings();
 }
 
@@ -518,6 +519,45 @@ async function saveFoursquareKey() {
         setTimeout(function() { savedMsg.classList.add('hidden'); }, 3000);
     } catch (err) {
         console.error('Error saving Foursquare settings:', err);
+        alert('Error saving — please try again.');
+    }
+
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save';
+}
+
+// ---------- GraphHopper (distance routing) Settings ----------
+
+async function loadGraphhopperSettings() {
+    try {
+        var doc = await userCol('settings').doc('routing').get();
+        if (doc.exists && doc.data().graphhopperKey) {
+            document.getElementById('graphhopperKey').value = doc.data().graphhopperKey;
+        }
+    } catch (err) {
+        console.error('Error loading GraphHopper settings:', err);
+    }
+}
+
+/** Save the GraphHopper API key to Firestore (settings/routing). */
+async function saveGraphhopperKey() {
+    var key      = document.getElementById('graphhopperKey').value.trim();
+    var saveBtn  = document.getElementById('graphhopperSaveBtn');
+    var savedMsg = document.getElementById('graphhopperSavedMsg');
+
+    saveBtn.disabled    = true;
+    saveBtn.textContent = 'Saving…';
+    savedMsg.classList.add('hidden');
+
+    try {
+        await userCol('settings').doc('routing').set(
+            { graphhopperKey: key, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+        );
+        savedMsg.classList.remove('hidden');
+        setTimeout(function() { savedMsg.classList.add('hidden'); }, 3000);
+    } catch (err) {
+        console.error('Error saving GraphHopper settings:', err);
         alert('Error saving — please try again.');
     }
 
@@ -1752,6 +1792,7 @@ document.getElementById('finnhubApiKeyToggle').addEventListener('click', functio
 });
 document.getElementById('foursquareSaveBtn').addEventListener('click', saveFoursquareKey);
 document.getElementById('foursquareTestBtn').addEventListener('click', testFoursquareKey);
+document.getElementById('graphhopperSaveBtn').addEventListener('click', saveGraphhopperKey);
 document.getElementById('foursquareHelpBtn').addEventListener('click', function() {
     openModal('fsqHelpModal');
 });

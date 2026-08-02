@@ -764,7 +764,7 @@ function _lpRenderDetailPage(page) {
                         </div>
                     </div>
                     <div class="modal-actions" style="justify-content:space-between; margin-top:16px;">
-                        <button class="btn btn-small" id="lpDistAskAIBtn" onclick="_lpDistAskAI()" style="background:#6366f1; color:#fff; border:none;">🤖 Ask AI</button>
+                        <button class="btn btn-small" id="lpDistCalcBtn" onclick="_lpDistCalculate()" style="background:#6366f1; color:#fff; border:none;" title="Calculate real road distance + time via GraphHopper">🚗 Calculate</button>
                         <div style="display:flex; gap:8px;">
                             <button class="btn" onclick="closeModal('lpDistanceModal')">Cancel</button>
                             <button class="btn btn-primary" id="lpDistSaveBtn" onclick="_lpSaveDistance()">Save</button>
@@ -1878,106 +1878,87 @@ async function _lpSaveDistance() {
     }
 }
 
-/** Ask the configured LLM to estimate distance and drive time between the two locations */
-async function _lpDistAskAI() {
+/** Format a duration in minutes as "25 min" or "1 hr 15 min". */
+function _lpFormatMinutes(totalMin) {
+    totalMin = Math.max(0, Math.round(totalMin));
+    if (totalMin < 60) return totalMin + ' min';
+    const h = Math.floor(totalMin / 60), m = totalMin % 60;
+    return m ? (h + ' hr ' + m + ' min') : (h + ' hr');
+}
+
+/**
+ * Calculate real road distance + travel time between the two selected locations
+ * using the GraphHopper Directions API (key stored in settings/routing). Fills the
+ * Miles and Time fields for review. Requires both locations to have coordinates.
+ * No LLM fallback — on any failure the user enters the values manually.
+ */
+async function _lpDistCalculate() {
     const fromGlobalId = document.getElementById('lpDistFromHidden').value;
     const toGlobalId   = document.getElementById('lpDistTo').value;
     const mode         = document.getElementById('lpDistMode').value;
-    const leaveTime    = document.getElementById('lpDistLeaveTime').value;
 
-    if (!toGlobalId) { alert('Please select a destination first.'); return; }
+    if (!fromGlobalId) { alert('Please select a source first.'); return; }
+    if (!toGlobalId)   { alert('Please select a destination first.'); return; }
 
-    // Look up names and addresses
     const fromLoc = _lpLocations.find(l => l.locationId === fromGlobalId);
     const toLoc   = _lpLocations.find(l => l.locationId === toGlobalId);
-    if (!fromLoc || !toLoc) { alert('Could not find location details.'); return; }
+    if (!fromLoc || !toLoc) { alert('Could not find the selected locations.'); return; }
 
-    const btn = document.getElementById('lpDistAskAIBtn');
+    // Travel mode → GraphHopper profile. Fly has no road route.
+    const profileMap = { drive: 'car', walk: 'foot', bike: 'bike' };
+    const profile = profileMap[mode];
+    if (!profile) {
+        alert('Road routing isn’t available for “Fly”. Please enter the distance and time manually.');
+        return;
+    }
+
+    // Both locations must have coordinates (captured by "Find a place").
+    if (fromLoc.lat == null || fromLoc.lng == null || toLoc.lat == null || toLoc.lng == null) {
+        alert('One or both locations don’t have map coordinates yet.\n\nRe-add the location with the “🔍 Find a place” button (which captures coordinates), then try again — or enter the distance and time manually.');
+        return;
+    }
+
+    // Load the GraphHopper API key
+    let key = null;
+    try {
+        const doc = await userCol('settings').doc('routing').get();
+        if (doc.exists) key = doc.data().graphhopperKey;
+    } catch (e) { /* handled below */ }
+    if (!key) {
+        alert('No GraphHopper API key is set.\n\nAdd a free key in Settings → General Settings → Distance Routing (GraphHopper).');
+        return;
+    }
+
+    const btn = document.getElementById('lpDistCalcBtn');
+    const orig = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '⏳ Asking AI…';
+    btn.textContent = '⏳ Calculating…';
 
     try {
-        // Load LLM config
-        const settingsDoc = await userCol('settings').doc('llm').get();
-        if (!settingsDoc.exists) {
-            alert('LLM not configured. Go to Settings > AI.');
-            return;
-        }
-        const cfg = settingsDoc.data();
-        const provider = cfg.provider;
-        const apiKey   = cfg.apiKey;
-        const model    = cfg.model || '';
+        const url = 'https://graphhopper.com/api/1/route'
+            + '?point=' + fromLoc.lat + ',' + fromLoc.lng
+            + '&point=' + toLoc.lat + ',' + toLoc.lng
+            + '&profile=' + profile
+            + '&calc_points=false&locale=en&key=' + encodeURIComponent(key);
 
-        let endpoint, llmModel;
-        if (provider === 'openai') {
-            endpoint = 'https://api.openai.com/v1/chat/completions';
-            llmModel = model || 'gpt-4o';
-        } else if (provider === 'anthropic') {
-            endpoint = 'https://api.anthropic.com/v1/messages';
-            llmModel = model || 'claude-opus-4-6';
-        } else if (provider === 'openrouter') {
-            endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-            llmModel = model || 'openai/gpt-4o';
-        } else {
-            alert('Unknown LLM provider.'); return;
+        const resp = await fetch(url);
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.paths || !data.paths.length) {
+            const msg = (data && data.message) ? data.message : ('HTTP ' + resp.status);
+            throw new Error(msg);
         }
 
-        const modeLabel = mode === 'walk' ? 'walking' : mode === 'bike' ? 'biking' : mode === 'fly' ? 'flying' : 'driving';
-        const leaveStr  = leaveTime ? `\nDeparture time: ${leaveTime}` : '';
-        const prompt =
-            `Give me the exact ${modeLabel} distance and typical travel time between these two locations:\n\n` +
-            `From: ${fromLoc.name}${fromLoc.address ? ', ' + fromLoc.address : ''}\n` +
-            `To:   ${toLoc.name}${toLoc.address ? ', ' + toLoc.address : ''}` +
-            leaveStr + `\n\n` +
-            `Respond with ONLY a JSON object — no explanation, no markdown:\n` +
-            `{"miles": 18.5, "time": "25 min"}\n\n` +
-            `Rules:\n` +
-            `- miles: one-way distance as a single decimal number (not a range)\n` +
-            `- time: travel time as a short string like "25 min" or "1 hr 15 min" (not a range, just your best estimate)`;
-
-        const tokenParam = (provider === 'openai') ? 'max_completion_tokens' : 'max_tokens';
-        const reqBody = { model: llmModel, messages: [{ role: 'user', content: prompt }] };
-        reqBody[tokenParam] = 200;
-
-        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
-        if (provider === 'anthropic') {
-            headers['x-api-key'] = apiKey;
-            delete headers['Authorization'];
-            headers['anthropic-version'] = '2023-06-01';
-            reqBody.messages = [{ role: 'user', content: prompt }];
-            reqBody.system = 'You are a helpful assistant. Always respond with valid JSON only.';
-        }
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(reqBody)
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error('LLM error ' + response.status + ': ' + errText.slice(0, 200));
-        }
-
-        const data = await response.json();
-        const raw  = (data.choices && data.choices[0] && data.choices[0].message)
-            ? data.choices[0].message.content
-            : (data.content && data.content[0] ? data.content[0].text : '');
-
-        // Parse JSON out of the response (strip markdown fences if present)
-        const jsonMatch = raw.match(/\{[\s\S]*?\}/);
-        if (!jsonMatch) throw new Error('Could not parse AI response: ' + raw.slice(0, 100));
-        const result = JSON.parse(jsonMatch[0]);
-
-        if (result.miles != null) document.getElementById('lpDistMiles').value = result.miles;
-        if (result.time)          document.getElementById('lpDistTime').value  = result.time;
-
+        const path    = data.paths[0];
+        const miles   = path.distance / 1609.344;   // metres → miles
+        const minutes = path.time / 60000;          // ms → minutes
+        document.getElementById('lpDistMiles').value = miles.toFixed(1);
+        document.getElementById('lpDistTime').value  = _lpFormatMinutes(minutes);
     } catch (err) {
-        console.error('Ask AI error:', err);
-        alert('AI request failed: ' + err.message);
+        console.error('GraphHopper route error:', err);
+        alert('Could not calculate the route: ' + err.message + '\n\nYou can enter the distance and time manually.');
     } finally {
         btn.disabled = false;
-        btn.textContent = '🤖 Ask AI';
+        btn.textContent = orig;
     }
 }
 
