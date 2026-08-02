@@ -1832,6 +1832,76 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 ---
 
+## screen:life-projects
+
+### Quick Help
+- The **Projects** list -- every Life Project you've created, shown as cards. Breadcrumb: Life › Projects
+- Each card shows a template icon, title, date range, description, and a color-coded **status badge**
+- Tap a card to open the project. Use **+ New Project** to start one, or **📥 Import** to load one from a JSON file
+- **Show archived** reveals projects you've set aside. Archiving hides a project without deleting it
+- Each card also has **Edit** (change title/description/dates), **Archive/Unarchive**, and **Delete**
+
+### Details
+
+**What Life Projects are:** Rich, multi-part plans for big undertakings -- a vacation, a build, a general project. Unlike a simple Quick Task, a project has its own workspace with a day-by-day itinerary, bookings, packing list, to-do list, people, notes, and a cost rollup. Open a project card to work inside it (see the Project Detail help).
+
+**Templates:** Every project is created from a template that shapes which sections and starter content it gets. **Vacation** is the active template (auto-adds ~10 starter to-do items on creation and offers a default packing list). **Build** and **General** are planned but not yet enabled -- they appear grayed out in the picker. The template is locked once the project is created.
+
+**New Project flow:** Tap **+ New Project**, pick a template (only Vacation is selectable today), then enter a title, an optional description, and start/end dates. The dates drive the itinerary's day auto-generation and the "Coming Up" section on the Life home page.
+
+**Status badge:** Each project has a status -- **Planning**, **Active**, **On Hold**, or **Done** -- shown as a color-coded badge below the title. Change it from the Edit form.
+
+**Archive vs. Delete:** **Archive** tucks a finished or shelved project out of the default list while keeping all its data -- toggle **Show archived** to see and unarchive it. **Delete** permanently removes the project *and cascades* -- every day, booking, photo, to-do, packing item, note, planning group, and location link is deleted with it. Deletion cannot be undone.
+
+**Import from JSON:** **📥 Import** reads a `.json` file describing a full project (the project, its days and itinerary items, bookings, to-dos, packing items, notes, locations, and distances) and recreates it in your account. During import you're walked through a **people-linking** step -- for each person named in the file you can search your Contacts and link them, or choose **Don't Link** to skip. Locations already in your account are reused (matched by name) rather than duplicated. When it finishes, you land on the new project's detail page.
+
+---
+
+## screen:life-project
+
+### Quick Help
+- One project's full workspace -- **Trip Info, Itinerary, Bookings, Packing**, and more, each a collapsible section. Breadcrumb: Life › Projects › {title}
+- The **Planning ⇄ Travel mode** toggle in the header changes what's shown -- Planning shows everything; Travel strips it down to what you need on the trip
+- The **search box** at the top filters every section at once -- days, bookings, to-dos, packing, and notes
+- **Trip Info** shows a **cost rollup** totaling booking costs plus itinerary item costs
+- Most editing happens in a shared item modal -- Cancel/Save at the bottom, and **Delete lives inside the edit modal**
+
+### Details
+
+**Planning vs. Travel mode:** A toggle in the project header (stored on the project). **Planning mode** shows everything -- itinerary, planning board, journal, to-dos, locations, distances, costs. **Travel mode** is the on-the-trip view: it hides "maybe/idea/nope" items, hides cost fields, hides the To-Do, Planning Board, Journal, Locations, and Distances sections, auto-expands Itinerary and Bookings, and makes confirmed items more prominent.
+
+**Trip Info:** Dates, the description (edit it from the Projects list page), and the **cost rollup** -- a running total of all booking costs plus any costs entered on itinerary items.
+
+**Itinerary:** The day-by-day plan. Auto-generate days from the project's date range (optionally adding pre/post travel days). Each **day card** is collapsible (click the header chevron); a collapsed day shows an item count. Drag days to reorder, and drag items within a day (drag handles). Add or edit an item through the shared modal -- title, status (confirmed/maybe/idea/nope), time, duration, **leave by** (departure time), cost, confirmation, contact, notes, **facts** (label+value rows; URL values become clickable links), a **location**, a **booking link**, a show-on-calendar toggle, and a **move-to** dropdown to send the item to another day or to the planning board. If a day has journal entries within its date, a **📓** button appears on the day header and opens the Journal in a new tab for that date.
+
+**Official Timeline & travel rows:** Tick **"Part of official timeline"** on an item to give it a left time column (⏰ start / ⏱ duration / 🚀 leave-by). Between two consecutive timeline items the app inserts a **travel row** showing the departure time, the travel mode icon, the travel time and miles, and the route (From → To). If it doesn't yet have a saved travel time for that leg, the row shows **⚠️ travel time needed** -- a placeholder, not an error. To fill it: give both stops a **location** (📍), then use the **🛣️** button on an item to add or look up the travel time to the next stop. Once saved, the warning is replaced with the time/distance and an estimated arrival is computed from the depart time. If you don't want a travel row between two items, leave one of them off the official timeline.
+
+**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against.
+
+**Journal** (planning mode only): Short journal-style entries (title + text), newest first. Add/edit/delete.
+
+**To-Do** (planning mode only): A checklist with done toggles, notes, and drag-to-reorder. The summary shows done/total. The Vacation template pre-fills ~10 starter items.
+
+**Photos:** A project-level image gallery for screenshots, inspiration, and maps not tied to a booking. Add via **🖼️ Gallery** (multi-select), **📷 Camera**, or **📋 Paste**, with an optional caption. Thumbnails open a lightbox with edit-caption, delete, and close. Visible in both modes.
+
+**Links:** Reference links (videos, maps, research pages) not tied to any day or item. Each has a label and URL with clickable-open, copy, edit, and delete. Visible in both modes.
+
+**Bookings:** Full booking records -- name, type, dates/times, confirmation #, cost, payment status, contact, address, link, and notes -- with screenshot attachments. Booking badges on itinerary items scroll to the matching booking card. Drag to reorder.
+
+**Packing:** Items grouped by category (Clothes, Toiletries, Electronics, Documents, Gear/Other) with per-category packed counts. The Vacation template offers **Populate Default List** (~47 starter items). The summary shows packed/total.
+
+**Locations** (planning mode only, 📌): Real-world places linked to this project. Add by searching your existing locations or entering a new one (with an optional "Add to Planning Board"). Row actions: Edit, **Unlink** (removes it from this project but keeps the global record), and **Delete** (removes the global record).
+
+**Distances** (planning mode only, 🛣️): The reference list of travel times between project locations, shown as From → To | Time | Miles | Mode. There's no standalone Add button -- distances are created from the **🛣️** button on a planning or itinerary item that has a location set. This is the data that clears "travel time needed" on the itinerary.
+
+**People:** A chip-based contact picker -- type a partial name, press Enter to select. Chips link to the contact's detail page; Edit lets you add a note per person.
+
+**Item rows:** Click an item's **title** to expand/collapse its detail panel. On desktop the collapsed row shows the status badge, title, booking/location badges, and edit/location buttons; on mobile the collapsed row shows just the title and moves the badges and buttons into the expanded panel. **Delete an item from inside its edit modal.**
+
+**Search & delete:** The top search box hides non-matching content across every section in real time. Deleting the whole project (from the Projects list) cascades to all of its days, bookings, photos, to-dos, packing items, notes, planning groups, and location links.
+
+---
+
 ## screen:credentials
 
 ### Quick Help
