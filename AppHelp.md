@@ -1990,7 +1990,7 @@ This is your list of real places for the trip -- hotels, restaurants, parks, wha
 
 ---
 
-**Locations** (planning mode only, 📌): Real-world places linked to this project. Add by searching your existing locations, tapping **🔍 Find a place** to look one up (type a city/area, then the place name, and pick from the results — it fills in the name, address, and map coordinates for you, then tries to add the phone and website automatically for you to review), or entering a new one by hand (with an optional "Add to Planning Board"). Row actions: Edit, **Unlink** (removes it from this project but keeps the global record), and **Delete** (removes the global record).
+**Locations** (planning mode only, 📌): Real-world places linked to this project. Add by searching your existing locations, tapping **🔍 Find a place** to look one up (type a city/area, then the place name, and pick from the results — it fills in the name, address, and map coordinates for you, then tries to add the phone and website automatically for you to review), or entering a new one by hand (with an optional "Add to Planning Board"). Each location has **Coordinates (lat, lng)** fields with a **📍 Get lat/lng** button that looks the coordinates up from the address — handy for filling in coordinates on a location you added before (just Edit it, tap Get lat/lng, and Save; no need to delete and re-add). Coordinates are what let the **🚗 Calculate** button in Distances work. Row actions: Edit, **Unlink** (removes it from this project but keeps the global record), and **Delete** (removes the global record).
 
 ---
 

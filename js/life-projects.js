@@ -679,8 +679,6 @@ function _lpRenderDetailPage(page) {
                             <div id="lpLocFindStatus" style="font-size:0.82em; color:#888; margin-top:4px; display:none;"></div>
                         </div>
                         <!-- New location fields -->
-                        <input type="hidden" id="lpLocLat">
-                        <input type="hidden" id="lpLocLng">
                         <div>
                             <label class="form-label">Name *</label>
                             <input type="text" id="lpLocName" class="form-control" placeholder="e.g. Mammoth Hot Springs" style="width:100%; box-sizing:border-box;">
@@ -688,6 +686,18 @@ function _lpRenderDetailPage(page) {
                         <div>
                             <label class="form-label">Address</label>
                             <textarea id="lpLocAddress" class="form-control" rows="3" placeholder="Street, City, State ZIP" style="width:100%; box-sizing:border-box;"></textarea>
+                        </div>
+                        <!-- Coordinates (used for road-distance calculation) -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <label class="form-label" style="margin:0;">Coordinates (lat, lng)</label>
+                                <button type="button" class="btn btn-small" id="lpLocGeocodeBtn" onclick="_lpGetLocationCoords()" style="padding:2px 8px; font-size:0.8em;" title="Look up coordinates from the address">📍 Get lat/lng</button>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" id="lpLocLat" class="form-control" placeholder="latitude" style="flex:1;">
+                                <input type="text" id="lpLocLng" class="form-control" placeholder="longitude" style="flex:1;">
+                            </div>
+                            <div id="lpLocGeocodeStatus" style="font-size:0.82em; color:#888; margin-top:4px; display:none;"></div>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <div style="flex:1;">
@@ -1390,6 +1400,47 @@ async function _lpApplyFoundPlace(venue) {
     }
 }
 
+/**
+ * Geocode the location's address (falling back to its name) into lat/lng and
+ * fill the coordinate fields. Lets an existing location gain coordinates without
+ * being deleted and re-added. Uses the app's Nominatim geocoder (US-anchored).
+ */
+async function _lpGetLocationCoords() {
+    const address = document.getElementById('lpLocAddress').value.trim();
+    const name    = document.getElementById('lpLocName').value.trim();
+    const query   = address || name;
+    if (!query) { alert('Enter an address (or at least a name) first, then get coordinates.'); return; }
+
+    const btn    = document.getElementById('lpLocGeocodeBtn');
+    const status = document.getElementById('lpLocGeocodeStatus');
+    const orig   = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Locating…';
+    status.style.display = '';
+    status.textContent = 'Looking up coordinates…';
+
+    try {
+        let coords = null;
+        if (typeof placesGeocodeLocation === 'function') {
+            coords = await placesGeocodeLocation(query);
+        }
+        if (coords && coords.lat != null && coords.lng != null) {
+            document.getElementById('lpLocLat').value = coords.lat;
+            document.getElementById('lpLocLng').value = coords.lng;
+            status.textContent = '✓ Found — review and Save';
+            setTimeout(() => { status.style.display = 'none'; }, 3000);
+        } else {
+            status.textContent = 'Could not find coordinates for that address. Try a more complete address, or enter them manually.';
+        }
+    } catch (err) {
+        console.error('Geocode error:', err);
+        status.textContent = 'Lookup failed. Try again, or enter coordinates manually.';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
 function _lpOpenLocationModal(editId = null) {
     const loc = editId ? _lpLocations.find(l => l.id === editId) : null;
     document.getElementById('lpLocationModalTitle').textContent = loc ? 'Edit Location' : 'Add Location';
@@ -1410,6 +1461,11 @@ function _lpOpenLocationModal(editId = null) {
     const findStatus = document.getElementById('lpLocFindStatus');
     findStatus.style.display = 'none';
     findStatus.textContent = '';
+
+    // Reset the "Get lat/lng" status line
+    const geoStatus = document.getElementById('lpLocGeocodeStatus');
+    geoStatus.style.display = 'none';
+    geoStatus.textContent = '';
 
     // Hide "Add to Planning Board" checkbox when editing
     document.getElementById('lpLocAddToPlanningWrap').style.display = loc ? 'none' : '';
