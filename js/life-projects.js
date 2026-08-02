@@ -528,50 +528,54 @@ function _lpRenderDetailPage(page) {
                             <label class="form-label">Title *</label>
                             <input type="text" id="lpItTitle" class="form-control" placeholder="Item title">
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <div style="flex:1;">
-                                <label class="form-label">Status</label>
-                                <select id="lpItStatus" class="form-control">
-                                    <option value="confirmed">Confirmed</option>
-                                    <option value="maybe">Maybe</option>
-                                    <option value="idea">Idea</option>
-                                    <option value="nope">Nope</option>
-                                </select>
-                            </div>
-                            <div style="flex:1;">
-                                <label class="form-label">Time</label>
-                                <input type="text" id="lpItTime" class="form-control" placeholder="e.g. 8:30am">
-                            </div>
+                        <div>
+                            <label class="form-label">Status</label>
+                            <select id="lpItStatus" class="form-control">
+                                <option value="confirmed">Confirmed</option>
+                                <option value="maybe">Maybe</option>
+                                <option value="idea">Idea</option>
+                                <option value="nope">Nope</option>
+                            </select>
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <div style="flex:1;">
-                                <label class="form-label">Duration</label>
-                                <input type="text" id="lpItDuration" class="form-control" placeholder="e.g. 2 hours">
-                            </div>
-                            <div style="flex:1;">
-                                <label class="form-label">Leave By</label>
-                                <input type="text" id="lpItLeaveTime" class="form-control" placeholder="e.g. 11:30am">
-                            </div>
+                        <div>
+                            <label class="form-label">Type</label>
+                            <select id="lpItType" class="form-control" onchange="_lpApplyItemTypeUI()">
+                                <option value="none">None</option>
+                                <option value="drive">Drive</option>
+                                <option value="flight">Flight</option>
+                                <option value="travel">Travel</option>
+                                <option value="activity">Activity</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Start Time</label>
+                            <input type="text" id="lpItTime" class="form-control" placeholder="e.g. 8:30am">
+                        </div>
+                        <div>
+                            <label class="form-label">Duration</label>
+                            <input type="text" id="lpItDuration" class="form-control" placeholder="e.g. 2 hours">
+                        </div>
+                        <div>
+                            <label class="form-label" id="lpItLeaveTimeLabel">Leave By</label>
+                            <input type="text" id="lpItLeaveTime" class="form-control" placeholder="e.g. 11:30am">
                         </div>
                         <div style="display:flex; gap:8px; align-items:center;">
                             <input type="checkbox" id="lpItOnTimeline">
                             <label for="lpItOnTimeline" style="font-size:0.9em; margin:0; cursor:pointer;">Part of official timeline</label>
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <div style="flex:1;">
-                                <label class="form-label">Cost ($)</label>
-                                <input type="number" id="lpItCost" class="form-control" placeholder="blank = none" step="0.01" min="0">
-                            </div>
+                        <div id="lpItCostWrap">
+                            <label class="form-label">Cost ($)</label>
+                            <input type="number" id="lpItCost" class="form-control" placeholder="blank = none" step="0.01" min="0">
                         </div>
-                        <div>
+                        <div id="lpItCostNoteWrap">
                             <label class="form-label">Cost Note</label>
                             <input type="text" id="lpItCostNote" class="form-control" placeholder='e.g. "each", "for 2"'>
                         </div>
-                        <div>
+                        <div id="lpItConfirmationWrap">
                             <label class="form-label">Confirmation #</label>
                             <input type="text" id="lpItConfirmation" class="form-control">
                         </div>
-                        <div>
+                        <div id="lpItContactWrap">
                             <label class="form-label">Contact (phone/email)</label>
                             <input type="text" id="lpItContact" class="form-control">
                         </div>
@@ -609,10 +613,10 @@ function _lpRenderDetailPage(page) {
                             </select>
                         </div>
                     </div>
-                    <div class="modal-actions" style="justify-content:space-between;">
-                        <button class="btn btn-danger btn-small" onclick="_lpDeleteItemFromModal()" title="Delete this item">🗑️ Delete</button>
+                    <div class="modal-actions" style="justify-content:flex-end;">
                         <div style="display:flex; gap:8px;">
                             <button class="btn" onclick="closeModal('lpItemModal')">Cancel</button>
+                            <button class="btn btn-danger" onclick="_lpDeleteItemFromModal()" title="Delete this item">🗑️ Delete</button>
                             <button class="btn btn-primary" onclick="_lpSaveItemModal()">Save</button>
                         </div>
                     </div>
@@ -3072,6 +3076,7 @@ function _lpOpenItemModal(title, item, currentDayId) {
     // Basic fields
     document.getElementById('lpItTitle').value = item.title || '';
     document.getElementById('lpItStatus').value = item.status || 'idea';
+    document.getElementById('lpItType').value = item.type || 'none'; // null/legacy → None
     document.getElementById('lpItTime').value = item.time || '';
     document.getElementById('lpItDuration').value = item.duration || '';
     document.getElementById('lpItCost').value = item.cost != null ? item.cost : '';
@@ -3151,8 +3156,31 @@ function _lpOpenItemModal(title, item, currentDayId) {
         moveSelect.appendChild(dayGroup);
     }
 
+    // Apply Type-driven field visibility + leave-time label before showing
+    _lpApplyItemTypeUI();
+
     openModal('lpItemModal');
     setTimeout(() => document.getElementById('lpItTitle')?.focus(), 100);
+}
+
+/**
+ * Show/hide the booking-detail fields and set the leave-time label based on the
+ * currently selected item Type. Called on modal open and on Type change.
+ *   - Cost / Cost Note / Confirmation / Contact: shown only for Flight and Activity
+ *   - Leave-time label: "Arrival Time" for Drive/Flight/Travel, "Leave By" for None/Activity
+ */
+function _lpApplyItemTypeUI() {
+    const type = document.getElementById('lpItType').value || 'none';
+
+    const showBookingFields = (type === 'flight' || type === 'activity');
+    ['lpItCostWrap', 'lpItCostNoteWrap', 'lpItConfirmationWrap', 'lpItContactWrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = showBookingFields ? '' : 'none';
+    });
+
+    const useArrivalLabel = (type === 'drive' || type === 'flight' || type === 'travel');
+    const lbl = document.getElementById('lpItLeaveTimeLabel');
+    if (lbl) lbl.textContent = useArrivalLabel ? 'Arrival Time' : 'Leave By';
 }
 
 /** Save handler for the item modal */
@@ -3176,6 +3204,7 @@ async function _lpSaveItemModal() {
     const updatedItem = {
         title,
         status: document.getElementById('lpItStatus').value,
+        type: document.getElementById('lpItType').value || 'none',
         time: document.getElementById('lpItTime').value.trim(),
         duration: document.getElementById('lpItDuration').value.trim(),
         cost,
