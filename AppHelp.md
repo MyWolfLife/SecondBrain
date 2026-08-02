@@ -1989,7 +1989,7 @@ This shows how long it takes to get from one of your places to another -- like 2
 
 ---
 
-**Distances** (planning mode only, 🛣️): The reference list of travel times between project locations, shown as From → To | Time | Miles | Mode. There's no standalone Add button -- distances are created from the **🛣️** button on a planning or itinerary item that has a location set. This is the data that clears "travel time needed" on the itinerary.
+**Distances** (planning mode only, 🛣️): The reference list of travel times between project locations, shown as From → To | Time | Miles | Mode. Add one two ways: tap **+ Add Distance** in this section and pick both the **source** and **destination** from your project locations, or use the **🛣️** button on a planning or itinerary item that has a location (which fills in the "from" for you). In the popup you can either type the **Time** and **Miles** yourself or tap **🤖 Ask AI** to have the app estimate them from the two places' names and addresses -- review the estimate, then Save. You must pick a source and a destination (they have to be different) and enter at least a time or a distance. This is the data that clears "travel time needed" on the itinerary.
 
 ---
 

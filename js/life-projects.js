@@ -712,8 +712,11 @@ function _lpRenderDetailPage(page) {
                     <h3>Distance</h3>
                     <div style="display:flex; flex-direction:column; gap:10px;">
                         <div>
-                            <label class="form-label">From</label>
+                            <label class="form-label">From *</label>
                             <div id="lpDistFromLabel" style="font-weight:600; padding:6px 0; color:#1e40af;"></div>
+                            <select id="lpDistFrom" class="form-control" style="display:none;" onchange="_lpDistFromChanged()">
+                                <option value="">— Select source —</option>
+                            </select>
                             <input type="hidden" id="lpDistFromHidden">
                             <input type="hidden" id="lpDistLeaveTime">
                         </div>
@@ -1559,8 +1562,10 @@ async function _lpLoadDistances() {
 }
 
 function _lpRenderDistances(body) {
+    const addBtn = '<button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="_lpAddDistanceFromAccordion()">+ Add Distance</button>';
+
     if (_lpDistances.length === 0) {
-        body.innerHTML = '<p style="color:#999; font-size:0.9em;">No distances recorded yet. Use the 🛣️ button on a planning or itinerary item to add one.</p>';
+        body.innerHTML = `<p style="color:#999; font-size:0.9em;">No distances recorded yet. Add one below, or use the 🛣️ button on a planning or itinerary item.</p>${addBtn}`;
         return;
     }
 
@@ -1593,7 +1598,7 @@ function _lpRenderDistances(body) {
         </div>`;
     }).join('');
 
-    body.innerHTML = `<div>${rows}</div>`;
+    body.innerHTML = `<div>${rows}</div>${addBtn}`;
 }
 
 /** Open the Add/Edit Distance modal.
@@ -1653,22 +1658,13 @@ function _lpEditDistance(distanceId) {
     _lpOpenDistanceModal(distanceId, null);
 }
 
-function _lpOpenDistanceModal(distanceId, fromGlobalId, leaveTime = '', defaultToId = null) {
-    const existing = distanceId ? _lpDistances.find(d => d.id === distanceId) : null;
+/** Add a distance straight from the Distances accordion — both From and To are user-selectable. */
+function _lpAddDistanceFromAccordion() {
+    _lpOpenDistanceModal(null, null, '', null, true);
+}
 
-    // Resolve the from global location id
-    const fromId = existing ? existing.fromGlobalId || existing.fromLocationId : fromGlobalId;
-
-    // Build name map
-    const nameMap = {};
-    _lpLocations.forEach(l => { if (l.locationId) nameMap[l.locationId] = l.name; });
-
-    // From label
-    document.getElementById('lpDistFromLabel').textContent = nameMap[fromId] || fromId || '—';
-    document.getElementById('lpDistFromHidden').value = fromId || '';
-    document.getElementById('lpDistLeaveTime').value  = leaveTime || '';
-
-    // Populate To dropdown — all project locations except From, sorted alphabetically
+/** Populate the To dropdown with all project locations except `fromId`. */
+function _lpPopulateDistToSelect(fromId, selectedToId) {
     const toSel = document.getElementById('lpDistTo');
     toSel.innerHTML = '<option value="">— Select destination —</option>';
     [..._lpLocations]
@@ -1678,9 +1674,65 @@ function _lpOpenDistanceModal(distanceId, fromGlobalId, leaveTime = '', defaultT
             const opt = document.createElement('option');
             opt.value = l.locationId;
             opt.textContent = l.name;
-            if (existing ? existing.toLocationId === l.locationId : l.locationId === defaultToId) opt.selected = true;
+            if (l.locationId === selectedToId) opt.selected = true;
             toSel.appendChild(opt);
         });
+}
+
+/** Populate the From dropdown with all project locations (used when From is user-selectable). */
+function _lpPopulateDistFromSelect(selectedFromId) {
+    const fromSel = document.getElementById('lpDistFrom');
+    fromSel.innerHTML = '<option value="">— Select source —</option>';
+    [..._lpLocations]
+        .filter(l => l.locationId)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.locationId;
+            opt.textContent = l.name;
+            if (l.locationId === selectedFromId) opt.selected = true;
+            fromSel.appendChild(opt);
+        });
+}
+
+/** When the user changes the From dropdown, sync the hidden value and re-filter To. */
+function _lpDistFromChanged() {
+    const fromId = document.getElementById('lpDistFrom').value;
+    document.getElementById('lpDistFromHidden').value = fromId;
+    // Keep the current To selection unless it now collides with From
+    const toSel = document.getElementById('lpDistTo');
+    const currentTo = toSel.value === fromId ? '' : toSel.value;
+    _lpPopulateDistToSelect(fromId, currentTo);
+}
+
+function _lpOpenDistanceModal(distanceId, fromGlobalId, leaveTime = '', defaultToId = null, fromSelectable = false) {
+    const existing = distanceId ? _lpDistances.find(d => d.id === distanceId) : null;
+
+    // Resolve the from global location id
+    const fromId = existing ? existing.fromGlobalId || existing.fromLocationId : fromGlobalId;
+
+    // Build name map
+    const nameMap = {};
+    _lpLocations.forEach(l => { if (l.locationId) nameMap[l.locationId] = l.name; });
+
+    // From: a read-only label when fixed by the triggering item (or when editing),
+    // or a dropdown when adding from the Distances accordion.
+    const fromLabel = document.getElementById('lpDistFromLabel');
+    const fromSel   = document.getElementById('lpDistFrom');
+    if (fromSelectable) {
+        fromLabel.style.display = 'none';
+        fromSel.style.display = '';
+        _lpPopulateDistFromSelect(fromId || null);
+    } else {
+        fromSel.style.display = 'none';
+        fromLabel.style.display = '';
+        fromLabel.textContent = nameMap[fromId] || fromId || '—';
+    }
+    document.getElementById('lpDistFromHidden').value = fromId || '';
+    document.getElementById('lpDistLeaveTime').value  = leaveTime || '';
+
+    // Populate To dropdown — all project locations except From, sorted alphabetically
+    _lpPopulateDistToSelect(fromId, existing ? existing.toLocationId : defaultToId);
 
     // Fill fields
     document.getElementById('lpDistTime').value  = existing ? (existing.time  || '') : '';
@@ -1703,7 +1755,9 @@ async function _lpSaveDistance() {
     const notes  = document.getElementById('lpDistNotes').value.trim();
     const distanceId = document.getElementById('lpDistSaveBtn').dataset.distanceId;
 
+    if (!fromId) { alert('Please select a source.'); return; }
     if (!toId)   { alert('Please select a destination.'); return; }
+    if (fromId === toId) { alert('Source and destination must be different.'); return; }
     if (!time && !miles) { alert('Please enter at least a time or distance.'); return; }
 
     const data = {
