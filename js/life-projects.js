@@ -838,6 +838,39 @@ function _lpRenderDetailPage(page) {
                 </div>
             </div>
 
+            <!-- Import Locations modal -->
+            <div class="modal-overlay" id="lpImportModal">
+                <div class="modal" style="max-width:560px; width:92%;">
+                    <h3>Import Locations</h3>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <p style="font-size:0.85em; color:#666; margin:0;">
+                            Paste an exported list of places (e.g. a Google&nbsp;My&nbsp;Maps CSV) or load a file.
+                            AI reads whatever format it's in, an address is looked up for each point, and you
+                            confirm the list before anything is saved.
+                        </p>
+                        <textarea id="lpImportText" class="form-control" rows="7" placeholder="Paste CSV / list here…" style="width:100%; box-sizing:border-box; font-family:monospace; font-size:0.82em;"></textarea>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-small" onclick="document.getElementById('lpImportFile').click()">📄 Load file…</button>
+                            <input type="file" id="lpImportFile" accept=".csv,.txt,.tsv,.kml,text/*" style="display:none;" onchange="_lpImportLoadFile(this)">
+                            <button type="button" class="btn btn-primary btn-small" id="lpImportConvertBtn" onclick="_lpImportConvert()">✨ Convert with AI</button>
+                        </div>
+                        <div id="lpImportStatus" style="font-size:0.85em; color:#888; display:none;"></div>
+                        <div id="lpImportPreview" style="display:none;"></div>
+                        <div id="lpImportPlanningWrap" style="display:none; flex-direction:column; gap:6px; border-top:1px solid #eee; padding-top:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" id="lpImportAddToPlanning" onchange="_lpImportTogglePlanning()">
+                                <label for="lpImportAddToPlanning" style="font-size:0.9em; margin:0;">Add imported locations to the Planning Board</label>
+                            </div>
+                            <select id="lpImportGroupSelect" class="form-control" style="display:none;"></select>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="justify-content:flex-end;">
+                        <button class="btn" onclick="closeModal('lpImportModal')">Cancel</button>
+                        <button class="btn btn-primary" id="lpImportBtn" onclick="_lpImportSelected()" style="display:none;">Import selected</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Add/Edit Distance modal -->
             <div class="modal-overlay" id="lpDistanceModal">
                 <div class="modal" style="max-width:500px; width:90%;">
@@ -1426,8 +1459,9 @@ function _lpRenderLocations(body) {
             <div style="text-align:center; padding:16px; color:#999;">
                 No locations added yet.
             </div>
-            <div style="margin-top:8px;">
+            <div style="margin-top:8px; display:flex; gap:6px; justify-content:center;">
                 <button class="btn btn-primary btn-small" onclick="_lpOpenLocationModal()">+ Add Location</button>
+                <button class="btn btn-small" onclick="_lpOpenImportModal()">⬆ Import</button>
             </div>`;
         return;
     }
@@ -1449,8 +1483,9 @@ function _lpRenderLocations(body) {
 
     body.innerHTML = `
         <div>${rows}</div>
-        <div style="margin-top:10px;">
+        <div style="margin-top:10px; display:flex; gap:6px;">
             <button class="btn btn-primary btn-small" onclick="_lpOpenLocationModal()">+ Add Location</button>
+            <button class="btn btn-small" onclick="_lpOpenImportModal()">⬆ Import</button>
         </div>`;
 }
 
@@ -1742,10 +1777,19 @@ async function _lpSaveLocation() {
     }
 }
 
-/** Create a planning board item for a newly added location */
-async function _lpAddLocationToPlanningBoard(locationId, projectLocationId, name) {
-    // Find first planning group or create a default one
-    let group = _lpPlanningGroups[0];
+/**
+ * Create a planning board item for a location.
+ * @param {string} locationId         - global location doc id (currently unused, kept for signature symmetry)
+ * @param {string} projectLocationId  - projectLocations doc id (what item.locationId references)
+ * @param {string} name               - item title
+ * @param {object} [opts]             - { groupId?: string, type?: string }
+ *        groupId → target a specific planning group (default: first group, or a new "General");
+ *        type    → set item.type (e.g. 'activity'); omitted for legacy/manual adds (treated as None).
+ */
+async function _lpAddLocationToPlanningBoard(locationId, projectLocationId, name, opts) {
+    opts = opts || {};
+    // Target the requested group, else the first group, else create a default one.
+    let group = opts.groupId ? _lpPlanningGroups.find(g => g.id === opts.groupId) : _lpPlanningGroups[0];
     if (!group) {
         const ref = await lpSub(_lpCurrentProjectId, 'planningGroups').add({
             name: 'General',
@@ -1767,9 +1811,267 @@ async function _lpAddLocationToPlanningBoard(locationId, projectLocationId, name
         sortOrder: items.reduce((max, it) => Math.max(max, it.sortOrder || 0), -1) + 1,
         showOnCalendar: false
     };
+    if (opts.type) newItem.type = opts.type;
     items.push(newItem);
     await lpSub(_lpCurrentProjectId, 'planningGroups').doc(group.id).update({ items });
     group.items = items;
+}
+
+// ---------- Import Locations (from a pasted/loaded export) ----------
+
+// Parsed + reverse-geocoded rows awaiting confirmation.
+// Each: { name, lat, lng, notes, address, valid, dupe }
+let _lpImportRows = [];
+
+/** Open the import modal, resetting all fields. */
+function _lpOpenImportModal() {
+    _lpImportRows = [];
+    const set = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+    set('lpImportText',        el => el.value = '');
+    set('lpImportStatus',      el => { el.style.display = 'none'; el.textContent = ''; });
+    set('lpImportPreview',     el => { el.style.display = 'none'; el.innerHTML = ''; });
+    set('lpImportPlanningWrap', el => el.style.display = 'none');
+    set('lpImportAddToPlanning', el => el.checked = false);
+    set('lpImportGroupSelect', el => el.style.display = 'none');
+    set('lpImportBtn',         el => el.style.display = 'none');
+    set('lpImportConvertBtn',  el => { el.disabled = false; el.textContent = '✨ Convert with AI'; });
+    openModal('lpImportModal');
+}
+
+/** Read a chosen file's text into the paste box. */
+function _lpImportLoadFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('lpImportText').value = e.target.result || ''; };
+    reader.onerror = () => alert('Could not read that file.');
+    reader.readAsText(file);
+    input.value = ''; // allow re-selecting the same file later
+}
+
+/** Ask the LLM to normalize the raw pasted text into a strict JSON array. */
+async function _lpImportLLMConvert(rawText) {
+    const cfgDoc = await userCol('settings').doc('llm').get();
+    const cfg = cfgDoc.exists ? cfgDoc.data() : null;
+    if (!cfg || !cfg.provider || !cfg.apiKey) {
+        throw new Error('No AI provider is configured. Set one up in Settings → AI first.');
+    }
+
+    const prompt =
+        'You are converting an exported list of map places into structured JSON. ' +
+        'The input may be CSV, KML, tab-separated, or a freeform list, and may contain ' +
+        'headers, blank lines, or non-point rows.\n\n' +
+        'Return ONLY a JSON array. Each element is an object with exactly these keys:\n' +
+        '{ "name": string, "lat": number, "lng": number, "notes": string }\n\n' +
+        'Rules:\n' +
+        '- One element per single POINT/place only. Skip lines, routes, polygons, headers, and blank rows.\n' +
+        '- In WKT "POINT (X Y)", X is LONGITUDE and Y is LATITUDE. Do not swap them.\n' +
+        '- Latitude is between -90 and 90; longitude is between -180 and 180.\n' +
+        '- Copy the coordinate digits EXACTLY as given. Do NOT round, truncate, or change precision.\n' +
+        '- "notes" comes from any description/comment column; use "" when there is none.\n' +
+        '- Respond with ONLY the JSON array — no explanation, no markdown fences.\n\n' +
+        'Input:\n' + rawText;
+
+    const endpoint = (cfg.provider === 'openai')
+        ? 'https://api.openai.com/v1/chat/completions'
+        : 'https://api.x.ai/v1/chat/completions';
+    const model = (cfg.provider === 'openai') ? (cfg.model || 'gpt-4o-mini') : 'grok-3-mini';
+
+    const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            max_completion_tokens: 4000
+        })
+    });
+    if (!resp.ok) throw new Error('AI request failed (' + resp.status + ').');
+
+    const data = await resp.json();
+    let content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!content) throw new Error('AI returned no content.');
+    content = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.locations)) return parsed.locations;
+    if (parsed && Array.isArray(parsed.places)) return parsed.places;
+    throw new Error('AI response was not a JSON array.');
+}
+
+/** Convert the pasted text, validate, reverse-geocode, and render the preview. */
+async function _lpImportConvert() {
+    const raw = (document.getElementById('lpImportText').value || '').trim();
+    if (!raw) { alert('Paste some data or load a file first.'); return; }
+
+    const btn     = document.getElementById('lpImportConvertBtn');
+    const status  = document.getElementById('lpImportStatus');
+    const preview = document.getElementById('lpImportPreview');
+    btn.disabled = true;
+    status.style.display = 'block';
+    status.textContent = '✨ Reading your list with AI…';
+    preview.style.display = 'none';
+    document.getElementById('lpImportBtn').style.display = 'none';
+    document.getElementById('lpImportPlanningWrap').style.display = 'none';
+
+    let rows;
+    try {
+        rows = await _lpImportLLMConvert(raw);
+    } catch (err) {
+        console.error('Import convert error:', err);
+        status.textContent = '⚠️ ' + (err.message || 'Could not read that data.');
+        btn.disabled = false;
+        return;
+    }
+
+    // Validate + normalize each row.
+    const valid = [];
+    (rows || []).forEach(r => {
+        if (!r) return;
+        const name = (r.name != null ? String(r.name) : '').trim();
+        if (!name) return;
+        const lat = parseFloat(r.lat), lng = parseFloat(r.lng);
+        const inRange = isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+        valid.push({
+            name,
+            lat: inRange ? lat : null,
+            lng: inRange ? lng : null,
+            notes: (r.notes != null ? String(r.notes) : '').trim(),
+            address: '',
+            valid: inRange,
+            dupe: _lpLocations.some(l => (l.name || '').toLowerCase() === name.toLowerCase())
+        });
+    });
+
+    if (valid.length === 0) {
+        status.textContent = '⚠️ No usable point locations were found in that data.';
+        btn.disabled = false;
+        return;
+    }
+
+    _lpImportRows = valid;
+
+    // Reverse-geocode each valid point (throttled) to fill an address.
+    const geocodable = valid.filter(v => v.valid);
+    for (let i = 0; i < geocodable.length; i++) {
+        status.textContent = '🌎 Looking up addresses… ' + (i + 1) + '/' + geocodable.length;
+        try {
+            const addr = (typeof placesReverseGeocode === 'function')
+                ? await placesReverseGeocode(geocodable[i].lat, geocodable[i].lng)
+                : null;
+            if (addr) geocodable[i].address = addr;
+        } catch (e) { /* leave address blank on failure */ }
+    }
+
+    status.textContent = 'Found ' + valid.length + ' location' + (valid.length === 1 ? '' : 's') + '. Review and import below.';
+    _lpRenderImportPreview();
+    _lpPopulateImportGroupSelect();
+    document.getElementById('lpImportPlanningWrap').style.display = 'flex';
+    document.getElementById('lpImportBtn').style.display = 'inline-block';
+    btn.disabled = false;
+}
+
+/** Render the confirm list (checkbox per row, dupes/bad-coord rows flagged). */
+function _lpRenderImportPreview() {
+    const preview = document.getElementById('lpImportPreview');
+    let html = '<div style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">';
+    _lpImportRows.forEach((r, i) => {
+        const checked = (r.valid && !r.dupe) ? 'checked' : '';
+        let tag = '';
+        if (!r.valid) tag = '<span style="color:#b91c1c; font-size:0.75em; font-weight:600;"> ⚠ bad coordinates</span>';
+        else if (r.dupe) tag = '<span style="color:#b45309; font-size:0.75em; font-weight:600;"> • already in project</span>';
+        const coords = r.valid ? (r.lat.toFixed(5) + ', ' + r.lng.toFixed(5)) : 'missing / out of range';
+        html +=
+            '<label style="display:flex; gap:8px; align-items:flex-start; padding:8px 10px; border-bottom:1px solid #f0f0f0; cursor:pointer;">' +
+                '<input type="checkbox" class="lp-import-check" data-idx="' + i + '" ' + (r.valid ? '' : 'disabled ') + checked + ' style="margin-top:3px;">' +
+                '<span style="flex:1; min-width:0;">' +
+                    '<span style="font-weight:600;">' + _lpEsc(r.name) + '</span>' + tag +
+                    '<div style="font-size:0.78em; color:#64748b;">' + coords + '</div>' +
+                    (r.address
+                        ? '<div style="font-size:0.8em; color:#475569;">' + _lpEsc(r.address) + '</div>'
+                        : '<div style="font-size:0.8em; color:#cbd5e1;">no address found</div>') +
+                '</span>' +
+            '</label>';
+    });
+    html += '</div>';
+    preview.innerHTML = html;
+    preview.style.display = 'block';
+}
+
+/** Fill the planning-group dropdown (or offer a to-be-created General group). */
+function _lpPopulateImportGroupSelect() {
+    const sel = document.getElementById('lpImportGroupSelect');
+    if (!sel) return;
+    if (_lpPlanningGroups.length === 0) {
+        sel.innerHTML = '<option value="__new__">General (will be created)</option>';
+    } else {
+        sel.innerHTML = _lpPlanningGroups
+            .map(g => '<option value="' + g.id + '">' + _lpEsc(g.name) + '</option>')
+            .join('');
+    }
+}
+
+/** Show/hide the group dropdown when the "Add to Planning Board" box is toggled. */
+function _lpImportTogglePlanning() {
+    const cb = document.getElementById('lpImportAddToPlanning');
+    const sel = document.getElementById('lpImportGroupSelect');
+    if (sel) sel.style.display = cb.checked ? 'block' : 'none';
+}
+
+/** Import the checked rows as project locations (+ optional planning items). */
+async function _lpImportSelected() {
+    const checks = Array.from(document.querySelectorAll('.lp-import-check')).filter(c => c.checked);
+    if (checks.length === 0) { alert('Select at least one location to import.'); return; }
+
+    const addToPlanning = document.getElementById('lpImportAddToPlanning').checked;
+    const groupSelVal   = document.getElementById('lpImportGroupSelect').value;
+    // '__new__' → let _lpAddLocationToPlanningBoard create/use the default group.
+    const targetGroupId = (addToPlanning && groupSelVal && groupSelVal !== '__new__') ? groupSelVal : undefined;
+
+    const btn    = document.getElementById('lpImportBtn');
+    const status = document.getElementById('lpImportStatus');
+    btn.disabled = true;
+    status.style.display = 'block';
+
+    const total = checks.length;
+    let done = 0, failed = 0;
+
+    for (let i = 0; i < checks.length; i++) {
+        const r = _lpImportRows[parseInt(checks[i].dataset.idx, 10)];
+        if (!r) continue;
+        status.textContent = 'Importing… ' + (done + failed + 1) + '/' + total;
+        const locData = {
+            name: r.name,
+            address: r.address || '',
+            phone: '', website: '', contact: '',
+            notes: r.notes || '',
+            lat: r.lat, lng: r.lng
+        };
+        try {
+            const newLocRef = await lpLocationsCol().add({
+                ...locData,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            const projLocRef = await lpSub(_lpCurrentProjectId, 'projectLocations').add({
+                locationId: newLocRef.id,
+                ...locData,
+                addedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if (addToPlanning) {
+                await _lpAddLocationToPlanningBoard(newLocRef.id, projLocRef.id, r.name, { groupId: targetGroupId, type: 'activity' });
+            }
+            done++;
+        } catch (err) {
+            console.error('Import row failed:', r.name, err);
+            failed++;
+        }
+    }
+
+    closeModal('lpImportModal');
+    await _lpLoadLocations();
+    if (addToPlanning) await _lpLoadPlanningBoard();
+    alert('Imported ' + done + ' location' + (done === 1 ? '' : 's') + (failed ? (', ' + failed + ' failed') : '') + '.');
 }
 
 /** Remove a location link from this project (does NOT delete the global location) */

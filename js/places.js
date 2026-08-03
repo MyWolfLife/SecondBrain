@@ -772,6 +772,36 @@ async function placesGeocodeLocation(locationText) {
 }
 
 /**
+ * Reverse geocode a coordinate pair into a human-readable address string
+ * (Nominatim `reverse`). Returns the full `display_name` — a street address
+ * when one exists, otherwise a regional label like
+ * "Bow Lake, Improvement District No. 9, Alberta, Canada" — or null if nothing
+ * resolves. Rate-limited to Nominatim's ~1 request/second policy, so callers
+ * geocoding many points should expect ~1s per point.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {Promise<string|null>}
+ */
+async function placesReverseGeocode(lat, lng) {
+    if (lat == null || lng == null || !isFinite(lat) || !isFinite(lng)) return null;
+    try {
+        await _placesNominatimRateLimit();
+        var url = 'https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1' +
+                  '&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+        var resp = await fetch(url, {
+            headers: { 'Accept-Language': 'en', 'User-Agent': 'MyLifeApp/1.0' }
+        });
+        if (!resp.ok) return null;
+        var data = await resp.json();
+        return (data && data.display_name) ? data.display_name : null;
+    } catch (err) {
+        console.warn('Reverse geocode error:', err);
+        return null;
+    }
+}
+
+/**
  * Search for places by name.
  * Priority: saved places (Firestore) first, then Foursquare text search.
  *
