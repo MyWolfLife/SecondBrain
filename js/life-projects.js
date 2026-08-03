@@ -2445,7 +2445,10 @@ function _lpRenderPlanningBoard(body) {
                 Sortable.create(el, {
                     handle: '.lp-item-drag',
                     animation: 150,
-                    onEnd: () => _lpReorderPlanningItems(g.id)
+                    // Shared group name lets items be dragged BETWEEN groups
+                    // (both groups must be expanded to expose a drop target).
+                    group: 'lp-planning-items',
+                    onEnd: (evt) => _lpReorderPlanningItems(evt)
                 });
             }
         });
@@ -2474,7 +2477,7 @@ function _lpPlanningGroupCard(g) {
             </div>
             ${collapsed ? '' : `
             <div style="padding:8px 12px;">
-                <div id="lpPgItems_${g.id}">
+                <div id="lpPgItems_${g.id}" data-group-id="${g.id}">
                     ${items.map(item => _lpPlanningItemRow(g.id, item)).join('')}
                 </div>
                 ${items.length === 0 ? '<p style="color:#bbb; font-size:0.85em; margin:4px 0;">No items yet.</p>' : ''}
@@ -2659,25 +2662,47 @@ async function _lpDeletePlanningItem(groupId, itemId, confirmed = false) {
     }
 }
 
-async function _lpReorderPlanningItems(groupId) {
-    const group = _lpPlanningGroups.find(g => g.id === groupId);
-    if (!group) return;
+// Handles both in-group reorder and cross-group moves. SortableJS only moves
+// the DOM node between containers — the item data still lives in whatever group
+// it started in — so we resolve items by id across all groups, then rebuild the
+// source and destination groups from their DOM order.
+async function _lpReorderPlanningItems(evt) {
+    const fromGroupId = evt && evt.from ? evt.from.dataset.groupId : null;
+    const toGroupId   = evt && evt.to   ? evt.to.dataset.groupId   : null;
+    if (!fromGroupId || !toGroupId) return;
 
-    const container = document.getElementById(`lpPgItems_${groupId}`);
-    if (!container) return;
-    const els = container.querySelectorAll('.lp-planning-item');
-    const idOrder = Array.from(els).map(el => el.dataset.itemId);
-    const reordered = idOrder.map((id, i) => {
-        const item = group.items.find(it => it.id === id);
-        if (item) item.sortOrder = i;
-        return item;
-    }).filter(Boolean);
+    // Lookup of every item object across all groups (id -> item).
+    const itemById = {};
+    _lpPlanningGroups.forEach(g => (g.items || []).forEach(it => { itemById[it.id] = it; }));
 
-    group.items = reordered;
+    const groupIds = fromGroupId === toGroupId ? [toGroupId] : [fromGroupId, toGroupId];
+    const batch = firebase.firestore().batch();
+
+    groupIds.forEach(gid => {
+        const container = document.getElementById(`lpPgItems_${gid}`);
+        const group = _lpPlanningGroups.find(g => g.id === gid);
+        if (!container || !group) return;
+        const els = container.querySelectorAll('.lp-planning-item');
+        const reordered = Array.from(els).map((el, i) => {
+            const item = itemById[el.dataset.itemId];
+            if (item) item.sortOrder = i;
+            return item;
+        }).filter(Boolean);
+        group.items = reordered;
+        batch.update(lpSub(_lpCurrentProjectId, 'planningGroups').doc(gid), { items: reordered });
+    });
+
     try {
-        await lpSub(_lpCurrentProjectId, 'planningGroups').doc(groupId).update({ items: reordered });
+        await batch.commit();
     } catch (err) {
         console.error('Error reordering planning items:', err);
+    }
+
+    // A cross-group move changes each group's item count and leaves stale group
+    // references baked into the moved row's buttons/detail ids — re-render to fix.
+    if (fromGroupId !== toGroupId) {
+        const body = document.getElementById('lpBody_planning');
+        if (body) _lpRenderPlanningBoard(body);
     }
 }
 

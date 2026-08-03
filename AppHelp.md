@@ -1923,7 +1923,7 @@ The Planning Board is your idea board for before the trip is nailed down. You jo
 
 ---
 
-**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against. Items here use the same row controls as itinerary items -- click the title to expand, edit in the shared modal, and delete from inside that modal.
+**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against. Items here use the same row controls as itinerary items -- click the title to expand, edit in the shared modal, and delete from inside that modal. Drag an item by its **⠿** handle to reorder it within a group, or drag it into a **different group** to re-file it (both groups need to be expanded so there's somewhere to drop). Groups themselves can be reordered by their own handle.
 
 ---
 
