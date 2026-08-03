@@ -1408,8 +1408,14 @@ async function _lpApplyFoundPlace(venue) {
 async function _lpGetLocationCoords() {
     const address = document.getElementById('lpLocAddress').value.trim();
     const name    = document.getElementById('lpLocName').value.trim();
-    const query   = address || name;
-    if (!query) { alert('Enter an address (or at least a name) first, then get coordinates.'); return; }
+    if (!address && !name) { alert('Enter an address (or at least a name) first, then get coordinates.'); return; }
+
+    // Foursquare-style addresses embed a "(at Cross St)" cross-street note that the
+    // Nominatim geocoder can't parse, so strip parentheticals. Try the cleaned
+    // address first, then fall back to the location name (major places — airports,
+    // parks — geocode reliably by name even when their street address doesn't).
+    const cleanAddr = address.replace(/\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').replace(/\s+,/g, ',').trim();
+    const tries = [...new Set([cleanAddr || address, name].filter(Boolean))];
 
     const btn    = document.getElementById('lpLocGeocodeBtn');
     const status = document.getElementById('lpLocGeocodeStatus');
@@ -1421,8 +1427,9 @@ async function _lpGetLocationCoords() {
 
     try {
         let coords = null;
-        if (typeof placesGeocodeLocation === 'function') {
-            coords = await placesGeocodeLocation(query);
+        for (const q of tries) {
+            if (typeof placesGeocodeLocation === 'function') coords = await placesGeocodeLocation(q);
+            if (coords && coords.lat != null && coords.lng != null) break;
         }
         if (coords && coords.lat != null && coords.lng != null) {
             document.getElementById('lpLocLat').value = coords.lat;
@@ -1430,7 +1437,7 @@ async function _lpGetLocationCoords() {
             status.textContent = '✓ Found — review and Save';
             setTimeout(() => { status.style.display = 'none'; }, 3000);
         } else {
-            status.textContent = 'Could not find coordinates for that address. Try a more complete address, or enter them manually.';
+            status.textContent = 'Could not find coordinates. Try a more complete address, or enter them manually.';
         }
     } catch (err) {
         console.error('Geocode error:', err);
