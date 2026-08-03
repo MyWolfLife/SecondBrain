@@ -36,6 +36,52 @@ const LP_VACATION_TODO_STARTERS = [
     'Print confirmations'
 ];
 
+/**
+ * Load the user's editable "new vacation" to-do starter list (edited from the
+ * Projects page). Falls back to the built-in LP_VACATION_TODO_STARTERS default.
+ * Stored in userCol('settings').doc('lifeProjects').vacationTodos.
+ */
+async function _lpGetVacationTodos() {
+    try {
+        const doc = await userCol('settings').doc('lifeProjects').get();
+        if (doc.exists && Array.isArray(doc.data().vacationTodos)) {
+            const list = doc.data().vacationTodos.map(s => (s || '').trim()).filter(Boolean);
+            if (list.length) return list;
+        }
+    } catch (e) {
+        console.warn('Could not load vacation to-do template:', e);
+    }
+    return [...LP_VACATION_TODO_STARTERS];
+}
+
+/** Open the editor for the new-vacation to-do template (from the Projects page). */
+async function _lpOpenTodoTemplateModal() {
+    const list = await _lpGetVacationTodos();
+    document.getElementById('lpTodoTemplateText').value = list.join('\n');
+    openModal('lpTodoTemplateModal');
+}
+
+/** Reset the template editor to the built-in defaults (not saved until Save). */
+function _lpResetTodoTemplate() {
+    document.getElementById('lpTodoTemplateText').value = LP_VACATION_TODO_STARTERS.join('\n');
+}
+
+/** Save the edited new-vacation to-do template (one item per line). */
+async function _lpSaveTodoTemplate() {
+    const raw  = document.getElementById('lpTodoTemplateText').value;
+    const list = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    try {
+        await userCol('settings').doc('lifeProjects').set(
+            { vacationTodos: list, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+        );
+        closeModal('lpTodoTemplateModal');
+    } catch (e) {
+        console.error('Error saving to-do template:', e);
+        alert('Error saving the template. Please try again.');
+    }
+}
+
 // ---------- Collection helpers ----------
 
 /** Get reference to user-scoped lifeProjects collection */
@@ -84,7 +130,26 @@ async function loadLifeProjectsPage() {
                 <button class="btn btn-primary" style="flex:1;" onclick="openNewLifeProjectModal()">+ New Project</button>
                 <button class="btn" style="flex:0 0 auto;" onclick="document.getElementById('lpImportFileInput').click()">📥 Import</button>
             </div>
+            <div style="margin-top:12px;">
+                <a href="#" onclick="event.preventDefault(); _lpOpenTodoTemplateModal();" style="font-size:0.85em; color:#2563eb;">✏️ Edit new-vacation to-do template</a>
+            </div>
             <input type="file" id="lpImportFileInput" accept=".json" style="display:none;" onchange="_lpHandleImportFile(event)">
+
+            <!-- Edit Vacation To-Do Template Modal -->
+            <div class="modal-overlay" id="lpTodoTemplateModal">
+                <div class="modal" style="max-width:460px;">
+                    <h3 style="margin:0 0 8px;">New-Vacation To-Do Template</h3>
+                    <p style="font-size:0.85em; color:#666; margin:0 0 8px;">One to-do per line. These are added automatically when you create a new <strong>Vacation</strong> project. Editing here does not change projects you've already created.</p>
+                    <textarea id="lpTodoTemplateText" class="form-control" rows="12" style="width:100%; box-sizing:border-box; resize:vertical; font-size:0.9em;"></textarea>
+                    <div class="modal-actions" style="justify-content:space-between; align-items:center; margin-top:12px;">
+                        <button class="btn btn-small" onclick="_lpResetTodoTemplate()">Reset to defaults</button>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn" onclick="closeModal('lpTodoTemplateModal')">Cancel</button>
+                            <button class="btn btn-primary" onclick="_lpSaveTodoTemplate()">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Import People Linking Modal -->
@@ -352,10 +417,11 @@ async function saveLifeProject() {
 
             const ref = await lpCol().add(docData);
 
-            // Auto-populate vacation starter to-do items
+            // Auto-populate vacation starter to-do items (from the user's editable template)
             if (template === 'vacation') {
+                const starters = await _lpGetVacationTodos();
                 const batch = firebase.firestore().batch();
-                LP_VACATION_TODO_STARTERS.forEach((text, i) => {
+                starters.forEach((text, i) => {
                     const todoRef = lpSub(ref.id, 'todoItems').doc();
                     batch.set(todoRef, { text, done: false, notes: '', sortOrder: i });
                 });

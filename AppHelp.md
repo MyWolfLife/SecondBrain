@@ -1858,6 +1858,8 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **Templates:** Every project is created from a template that shapes which sections and starter content it gets. **Vacation** is the active template (auto-adds ~10 starter to-do items on creation and offers a default packing list). **Build** and **General** are planned but not yet enabled -- they appear grayed out in the picker. The template is locked once the project is created.
 
+**Editing the vacation to-do starter list:** The **✏️ Edit new-vacation to-do template** link (below the New Project / Import buttons) opens an editor where you can change the list of to-dos that get added to future new Vacation projects -- one to-do per line, with a **Reset to defaults** button. This only affects projects you create *afterward*; it doesn't touch existing projects (edit those in their own To-Do section).
+
 **New Project flow:** Tap **+ New Project**, pick a template (only Vacation is selectable today), then enter a title, an optional description, and start/end dates. The dates drive the itinerary's day auto-generation and the "Coming Up" section on the Life home page.
 
 **Status badge:** Each project has a status -- **Planning**, **Active**, **On Hold**, or **Done** -- shown as a color-coded badge below the title. Change it from the Edit form.
