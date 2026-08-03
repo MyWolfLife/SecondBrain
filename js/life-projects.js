@@ -221,10 +221,50 @@ async function renderLifeProjectsList() {
             return;
         }
 
+        // Manual order: projects with a sortOrder come in that order; projects
+        // without one (never reordered / newly created) float to the top by
+        // createdAt-desc. So new projects appear on top, and once you drag,
+        // everything gets an explicit sortOrder.
+        projects.sort((a, b) => {
+            const aHas = typeof a.sortOrder === 'number';
+            const bHas = typeof b.sortOrder === 'number';
+            if (aHas && bHas) return a.sortOrder - b.sortOrder;
+            if (!aHas && !bHas) return _lpProjCreatedMillis(b) - _lpProjCreatedMillis(a);
+            return aHas ? 1 : -1; // un-ordered (new) before ordered → top
+        });
+
         container.innerHTML = projects.map(p => _lpProjectCard(p)).join('');
+
+        // Drag-to-reorder (handle only, so tapping a card still opens it)
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(container, {
+                animation: 150,
+                handle: '.lp-drag-handle',
+                onEnd: _lpReorderProjects
+            });
+        }
     } catch (err) {
         console.error('Error loading life projects:', err);
         container.innerHTML = '<p style="color:red;">Error loading projects.</p>';
+    }
+}
+
+/** Milliseconds of a project's createdAt (0 if missing) — for createdAt-desc fallback. */
+function _lpProjCreatedMillis(p) {
+    return (p.createdAt && typeof p.createdAt.toMillis === 'function') ? p.createdAt.toMillis() : 0;
+}
+
+/** Persist the new project order after a drag: sortOrder = position for each card. */
+async function _lpReorderProjects() {
+    const ids = [...document.querySelectorAll('#lpProjectList .lp-project-card')].map(el => el.dataset.id);
+    if (!ids.length) return;
+    try {
+        const batch = firebase.firestore().batch();
+        ids.forEach((id, i) => batch.update(lpCol().doc(id), { sortOrder: i }));
+        await batch.commit();
+    } catch (err) {
+        console.error('Error saving project order:', err);
+        alert('Could not save the new order. Please try again.');
     }
 }
 
@@ -236,18 +276,21 @@ function _lpProjectCard(p) {
     const archivedBadge = p.archived ? '<span style="background:#e5e7eb;color:#6b7280;font-size:0.75em;padding:2px 8px;border-radius:12px;margin-left:6px;">Archived</span>' : '';
 
     return `
-        <div class="card" style="margin-bottom:12px; cursor:pointer; ${p.archived ? 'opacity:0.6;' : ''}"
-             onclick="location.hash='#life-project/${p.id}'">
-            <div>
-                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                    <span style="font-size:1.1em;">${tpl.icon}</span>
-                    <strong style="font-size:1.05em;">${_lpEsc(p.title)}</strong>
-                    ${archivedBadge}
-                </div>
-                ${p.description ? `<p style="color:#666; font-size:0.9em; margin:4px 0 0;">${_lpEsc(p.description)}</p>` : ''}
-                ${dateRange ? `<p style="color:#888; font-size:0.85em; margin:4px 0 0;">${dateRange}</p>` : ''}
-                <div style="margin-top:4px;">
-                    <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;white-space:nowrap;">${st.label}</span>
+        <div class="card lp-project-card" data-id="${p.id}" style="margin-bottom:12px; ${p.archived ? 'opacity:0.6;' : ''}">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+                <span class="lp-drag-handle" onclick="event.stopPropagation()" title="Drag to reorder"
+                      style="cursor:grab; color:#cbd5e1; padding:2px; font-size:1.15em; line-height:1; user-select:none; touch-action:none;">⠿</span>
+                <div style="flex:1; min-width:0; cursor:pointer;" onclick="location.hash='#life-project/${p.id}'">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:1.1em;">${tpl.icon}</span>
+                        <strong style="font-size:1.05em;">${_lpEsc(p.title)}</strong>
+                        ${archivedBadge}
+                    </div>
+                    ${p.description ? `<p style="color:#666; font-size:0.9em; margin:4px 0 0;">${_lpEsc(p.description)}</p>` : ''}
+                    ${dateRange ? `<p style="color:#888; font-size:0.85em; margin:4px 0 0;">${dateRange}</p>` : ''}
+                    <div style="margin-top:4px;">
+                        <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;white-space:nowrap;">${st.label}</span>
+                    </div>
                 </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:8px; justify-content:flex-end;" onclick="event.stopPropagation();">

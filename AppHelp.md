@@ -1850,6 +1850,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - Each card shows a template icon, title, date range, description, and a color-coded **status badge**
 - Tap a card to open the project. Use **+ New Project** to start one, or **📥 Import** to load one from a JSON file
 - **Show archived** reveals projects you've set aside. Archiving hides a project without deleting it
+- **Reorder** the cards by dragging the **⠿ handle** on the left of each card; new projects start at the top until you arrange them
 - Each card also has **Edit** (change title/description/dates), **Archive/Unarchive**, and **Delete**
 
 ### Details
