@@ -803,7 +803,7 @@ function _lpRenderDetailPage(page) {
                                 <button type="button" class="btn btn-small" id="lpLocGeocodeBtn" onclick="_lpGetLocationCoords()" style="padding:2px 8px; font-size:0.8em;" title="Look up coordinates from the address">📍 Get lat/lng</button>
                             </div>
                             <div style="display:flex; gap:8px;">
-                                <input type="text" id="lpLocLat" class="form-control" placeholder="latitude" style="flex:1;">
+                                <input type="text" id="lpLocLat" class="form-control" placeholder="latitude" style="flex:1;" oninput="_lpSplitCoordPaste()">
                                 <input type="text" id="lpLocLng" class="form-control" placeholder="longitude" style="flex:1;">
                             </div>
                             <div id="lpLocGeocodeStatus" style="font-size:0.82em; color:#888; margin-top:4px; display:none;"></div>
@@ -5934,6 +5934,22 @@ function _lpEsc(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+// When the user pastes a combined "lat, lng" pair (e.g. "51.16796, -115.56148")
+// into the latitude box, split it and move the longitude into its own box.
+// Only fires when a separator is present, so typing a plain latitude is untouched.
+function _lpSplitCoordPaste() {
+    const latEl = document.getElementById('lpLocLat');
+    const lngEl = document.getElementById('lpLocLng');
+    if (!latEl || !lngEl) return;
+    const val = latEl.value;
+    // Accept comma, whitespace, or a mix as the separator between the two numbers.
+    const m = val.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) {
+        latEl.value = m[1];
+        lngEl.value = m[2];
+    }
 }
 
 // Build a Google Maps URL for a location. Prefers exact stored coordinates
