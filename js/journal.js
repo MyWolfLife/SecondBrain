@@ -62,6 +62,7 @@ var _checkinPickerVenues = [];
 var _checkinPickerLat = null;
 var _checkinPickerLng = null;
 var _checkinPickerNearText = null;   // typed location text → Foursquare `near` area search
+var _checkinPickerSource = 'fsq';    // 'fsq' (Foursquare) or 'osm' (OpenStreetMap) — chosen via radio
 
 /**
  * When non-null, the check-in picker calls this function (venue) instead of
@@ -2667,6 +2668,10 @@ function openCheckIn() {
     _checkinPickerLng = null;
     _checkinPickerNearText = null;
     _checkinPickerVenues = [];
+    // Default the source back to Foursquare and sync the radio
+    _checkinPickerSource = 'fsq';
+    var fsqRadio = document.querySelector('input[name="checkInSource"][value="fsq"]');
+    if (fsqRadio) fsqRadio.checked = true;
 
     // Wire Cancel button
     var cancelBtn = document.getElementById('checkInPickerCancelBtn');
@@ -2711,20 +2716,27 @@ function openCheckIn() {
                     _checkinPickerLng = coords.lng;
                     _checkinPickerNearText = text;   // drive name search via Foursquare `near`
                     biasEl.style.borderColor = 'var(--success, #2e7d32)';
-                    // Re-run nearby search with the new location
                     var statusEl2 = document.getElementById('checkInPickerStatus');
-                    var resultsEl2 = document.getElementById('checkInPickerResults');
-                    if (statusEl2) statusEl2.textContent = '🔍 Finding nearby places...';
-                    if (resultsEl2) resultsEl2.innerHTML = '';
-                    try {
-                        var venues = await placesNearby(_checkinPickerLat, _checkinPickerLng);
-                        _checkinPickerVenues = venues;
-                        _checkinPickerShowResults(venues);
-                        if (statusEl2) statusEl2.textContent = venues.length
-                            ? 'Places near ' + text + ' — tap one to check in'
-                            : 'No named places found near ' + text + '. Try searching by name.';
-                    } catch (err) {
-                        if (statusEl2) statusEl2.textContent = 'Could not load places. Try searching by name.';
+                    if (_checkinPickerSource === 'osm') {
+                        // OSM is name-search only; the new coords just re-bias the current query.
+                        var q = document.getElementById('checkInPickerSearch').value.trim();
+                        if (q) { _checkinRunSearch(q); }
+                        else if (statusEl2) statusEl2.textContent = 'OpenStreetMap: type a trail, lake, or park name to search.';
+                    } else {
+                        // Foursquare: re-run the nearby search with the new location
+                        var resultsEl2 = document.getElementById('checkInPickerResults');
+                        if (statusEl2) statusEl2.textContent = '🔍 Finding nearby places...';
+                        if (resultsEl2) resultsEl2.innerHTML = '';
+                        try {
+                            var venues = await placesNearby(_checkinPickerLat, _checkinPickerLng);
+                            _checkinPickerVenues = venues;
+                            _checkinPickerShowResults(venues);
+                            if (statusEl2) statusEl2.textContent = venues.length
+                                ? 'Places near ' + text + ' — tap one to check in'
+                                : 'No named places found near ' + text + '. Try searching by name.';
+                        } catch (err) {
+                            if (statusEl2) statusEl2.textContent = 'Could not load places. Try searching by name.';
+                        }
                     }
                 } else {
                     _checkinPickerNearText = null;
@@ -2741,31 +2753,66 @@ function openCheckIn() {
         };
     }
 
-    // Wire name search input (debounced)
+    // Wire name search input (debounced) — routes to the selected source
     var _searchTimer = null;
     if (searchEl) {
         searchEl.oninput = function() {
             clearTimeout(_searchTimer);
             var q = searchEl.value.trim();
             if (!q) return;
-            _searchTimer = setTimeout(async function() {
-                if (statusEl) statusEl.textContent = '🔍 Searching...';
-                try {
-                    var results = await placesSearchByName(q, _checkinPickerLat, _checkinPickerLng, _checkinPickerNearText);
-                    _checkinPickerVenues = results;
-                    _checkinPickerShowResults(results);
-                    if (statusEl) statusEl.textContent = results.length
-                        ? results.length + ' result(s) found'
-                        : 'No places found for "' + q + '"';
-                } catch (err) {
-                    if (statusEl) statusEl.textContent = 'Search failed. Try again.';
-                }
-            }, 500);
+            _searchTimer = setTimeout(function() { _checkinRunSearch(q); }, 500);
         };
     }
 
-    // Fire GPS immediately
+    // Fire GPS immediately (Foursquare nearby; source always resets to fsq on open)
     _checkinPickerFetchNearby(false);
+}
+
+/**
+ * Run a check-in name search against the currently selected source
+ * (Foursquare or OpenStreetMap) and render the results.
+ */
+async function _checkinRunSearch(q) {
+    var statusEl = document.getElementById('checkInPickerStatus');
+    q = (q || '').trim();
+    if (!q) return;
+    if (statusEl) statusEl.textContent = '🔍 Searching...';
+    try {
+        var results;
+        if (_checkinPickerSource === 'osm') {
+            results = await placesSearchOSM(q, _checkinPickerLat, _checkinPickerLng);
+        } else {
+            results = await placesSearchByName(q, _checkinPickerLat, _checkinPickerLng, _checkinPickerNearText);
+        }
+        _checkinPickerVenues = results;
+        _checkinPickerShowResults(results);
+        if (statusEl) statusEl.textContent = results.length
+            ? results.length + ' result(s) found'
+            : 'No places found for "' + q + '"';
+    } catch (err) {
+        if (statusEl) statusEl.textContent = 'Search failed. Try again.';
+    }
+}
+
+/**
+ * Switch the check-in search source (Foursquare ⇄ OpenStreetMap). Re-runs the
+ * current search on the new source; with no query, Foursquare refreshes the
+ * nearby list while OpenStreetMap (name-search only) clears and prompts.
+ */
+function _checkinSetSource(src) {
+    _checkinPickerSource = (src === 'osm') ? 'osm' : 'fsq';
+    var q = (document.getElementById('checkInPickerSearch') || {}).value || '';
+    var statusEl = document.getElementById('checkInPickerStatus');
+    if (q.trim()) {
+        _checkinRunSearch(q);
+    } else if (_checkinPickerSource === 'osm') {
+        var resultsEl = document.getElementById('checkInPickerResults');
+        if (resultsEl) resultsEl.innerHTML = '';
+        _checkinPickerVenues = [];
+        if (statusEl) statusEl.textContent = 'OpenStreetMap: type a trail, lake, or park name to search.';
+    } else {
+        _checkinPickerFetchNearby(false);
+    }
 }
 
 /** Fetch GPS + nearby places. Called on open and by the Retry button.

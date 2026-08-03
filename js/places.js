@@ -872,6 +872,70 @@ async function placesSearchByName(query, biasLat, biasLng, nearText) {
 }
 
 // ============================================================
+// placesSearchOSM — OpenStreetMap (Nominatim) name search
+// ============================================================
+
+/**
+ * Map a Nominatim search result to the standard venue object shape.
+ * Uses namedetails for a clean name, the OSM feature `type` as the category
+ * (e.g. "River", "Reservoir", "Viewpoint"), and the tail of display_name as
+ * the address.
+ */
+function _placesMapOsmResult(item) {
+    var parts = (item.display_name || '').split(',').map(function (s) { return s.trim(); });
+    var name  = (item.namedetails && (item.namedetails.name || item.namedetails['name:en'])) || parts[0] || '(unnamed)';
+    var addr  = parts.slice(1).join(', ') || null;
+    var cat   = item.type ? item.type.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }) : null;
+    return {
+        name      : name,
+        address   : addr,
+        category  : cat,
+        fsqId     : null,
+        osmId     : (item.osm_type && item.osm_id) ? (item.osm_type + item.osm_id) : null,
+        lat       : parseFloat(item.lat),
+        lng       : parseFloat(item.lon),
+        existingId: null
+    };
+}
+
+/**
+ * Search OpenStreetMap by name for places Foursquare doesn't cover — trails,
+ * lakes, parks, and other natural features. Returns venue objects in the same
+ * shape as placesSearchByName.
+ *
+ * The area is applied as a soft `viewbox` bias (bounded=0 → prefer, don't
+ * restrict) rather than appended to the query text — appending the area to a
+ * Nominatim query hurts recall (e.g. "Johnston Canyon, Banff" returns nothing).
+ *
+ * @param {string} query    - feature name to search
+ * @param {number} [biasLat] - latitude to bias toward (from the location box)
+ * @param {number} [biasLng] - longitude to bias toward
+ * @returns {Promise<Array>} venue objects
+ */
+async function placesSearchOSM(query, biasLat, biasLng) {
+    query = (query || '').trim();
+    if (!query) return [];
+    try {
+        await _placesNominatimRateLimit();
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=10' +
+                  '&addressdetails=1&namedetails=1&q=' + encodeURIComponent(query);
+        // Soft area bias: a viewbox around the geocoded location, bounded=0.
+        if (biasLat != null && biasLng != null) {
+            var d  = 0.75; // ~50mi half-box
+            var vb = [biasLng - d, biasLat + d, biasLng + d, biasLat - d].join(',');
+            url += '&viewbox=' + vb + '&bounded=0';
+        }
+        var resp = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'MyLifeApp/1.0' } });
+        if (!resp.ok) return [];
+        var items = await resp.json();
+        return (items || []).map(_placesMapOsmResult);
+    } catch (err) {
+        console.warn('OSM search error:', err);
+        return [];
+    }
+}
+
+// ============================================================
 // placesSaveNew — dedup + write + enrichment trigger
 // ============================================================
 

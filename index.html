@@ -10519,6 +10519,14 @@ service firebase.storage {
             <div class="form-group">
                 <input type="text" id="checkInPickerSearch" placeholder="Search by name..." autocomplete="off">
             </div>
+            <div id="checkInPickerSourceRow" style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:-2px 0 8px; font-size:0.82em; color:#555;">
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="radio" name="checkInSource" value="fsq" checked onchange="_checkinSetSource('fsq')"> Foursquare <span style="color:#999;">(businesses)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="radio" name="checkInSource" value="osm" onchange="_checkinSetSource('osm')"> OpenStreetMap <span style="color:#999;">(trails, lakes, parks)</span>
+                </label>
+            </div>
             <div id="checkInPickerResults" class="checkin-picker-results"></div>
             <div class="modal-buttons">
                 <button class="btn btn-secondary" id="checkInPickerCancelBtn">Cancel</button>
