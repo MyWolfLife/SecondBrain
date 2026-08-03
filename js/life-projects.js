@@ -803,7 +803,7 @@ function _lpRenderDetailPage(page) {
                                 <button type="button" class="btn btn-small" id="lpLocGeocodeBtn" onclick="_lpGetLocationCoords()" style="padding:2px 8px; font-size:0.8em;" title="Look up coordinates from the address">📍 Get lat/lng</button>
                             </div>
                             <div style="display:flex; gap:8px;">
-                                <input type="text" id="lpLocLat" class="form-control" placeholder="latitude" style="flex:1;" oninput="_lpSplitCoordPaste()">
+                                <input type="text" id="lpLocLat" class="form-control" placeholder="latitude" style="flex:1;" oninput="_lpSplitCoordPaste()" onfocus="const el=this;setTimeout(function(){el.select();},0);">
                                 <input type="text" id="lpLocLng" class="form-control" placeholder="longitude" style="flex:1;">
                             </div>
                             <div id="lpLocGeocodeStatus" style="font-size:0.82em; color:#888; margin-top:4px; display:none;"></div>
