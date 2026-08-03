@@ -654,6 +654,7 @@ function _lpRenderDetailPage(page) {
                                 <option value="flight">Flight</option>
                                 <option value="travel">Travel</option>
                                 <option value="activity">Activity</option>
+                                <option value="hotel">Hotel</option>
                             </select>
                         </div>
                         <div>
@@ -4023,14 +4024,15 @@ function _lpApplyItemTypeUI() {
     const type = document.getElementById('lpItType').value || 'none';
     const isTravelType = (type === 'drive' || type === 'flight' || type === 'travel');
 
-    const showBookingFields = (type === 'flight' || type === 'activity');
+    // Hotel is a stay (like Activity): single location, booking fields shown.
+    const showBookingFields = (type === 'flight' || type === 'activity' || type === 'hotel');
     ['lpItCostWrap', 'lpItCostNoteWrap', 'lpItConfirmationWrap', 'lpItContactWrap'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = showBookingFields ? '' : 'none';
     });
 
     const lbl = document.getElementById('lpItLeaveTimeLabel');
-    if (lbl) lbl.textContent = isTravelType ? 'Arrival Time' : 'Leave By';
+    if (lbl) lbl.textContent = type === 'hotel' ? 'Check-in Time' : (isTravelType ? 'Arrival Time' : 'Leave By');
 
     // From/To location: travel types get a From→To pair; others get a single "Location"
     const locLabel = document.getElementById('lpItLocationLabel');
