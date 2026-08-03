@@ -2794,9 +2794,7 @@ function _lpPlanningItemRow(groupId, item) {
     const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
     const hasDetails = item.time || item.cost || item.duration || item.notes || item.confirmation || item.contact || (item.facts && item.facts.length) || (item.links && item.links.length);
     const loc = item.locationId ? _lpLocations.find(l => l.id === item.locationId) : null;
-    const locBadge = loc
-        ? `<span title="${_lpEsc(loc.name)}${loc.address ? '\n'+loc.address : ''}${loc.phone ? '\n'+loc.phone : ''}" style="font-size:0.75em; color:#2563eb; cursor:default; white-space:nowrap;">📍 ${_lpEsc(loc.name)}</span>`
-        : '';
+    const locBadge = _lpLocBadge(loc);
     const locBtn = !loc
         ? `<button class="btn btn-small" onclick="_lpPickLocation('planning','${groupId}','${item.id}')" title="Set location" style="padding:2px 6px;">📍</button>`
         : `<button class="btn btn-small" onclick="_lpOpenAddDistance('planning','${groupId}','${item.id}')" title="Add distance from here" style="padding:2px 6px;">🛣️</button>`;
@@ -3260,9 +3258,7 @@ function _lpItemRow(dayId, item) {
     const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
     const hasDetails = item.time || item.cost || item.duration || item.notes || item.confirmation || item.contact || (item.facts && item.facts.length) || (item.links && item.links.length);
     const loc = item.locationId ? _lpLocations.find(l => l.id === item.locationId) : null;
-    const locBadge = loc
-        ? `<span title="${_lpEsc(loc.name)}${loc.address ? '\n'+loc.address : ''}${loc.phone ? '\n'+loc.phone : ''}" style="font-size:0.75em; color:#2563eb; cursor:default; white-space:nowrap;">📍 ${_lpEsc(loc.name)}</span>`
-        : '';
+    const locBadge = _lpLocBadge(loc);
     const locBtn = !loc
         ? `<button class="btn btn-small" onclick="_lpPickLocation('itinerary','${dayId}','${item.id}')" title="Set location" style="padding:2px 6px;">📍</button>`
         : `<button class="btn btn-small" onclick="_lpOpenAddDistance('itinerary','${dayId}','${item.id}')" title="Add distance from here" style="padding:2px 6px;">🛣️</button>`;
@@ -6287,4 +6283,19 @@ function _lpMapsUrl(loc) {
         return 'https://maps.google.com/?q=' + encodeURIComponent(loc.lat + ',' + loc.lng);
     }
     return 'https://maps.google.com/?q=' + encodeURIComponent((loc && loc.address) || '');
+}
+
+// The 📍 location badge shown on a collapsed item row (planning + itinerary).
+// When the location has coordinates or an address it's a Google Maps link
+// (coordinate-preferring, same as the Locations list); otherwise a plain label.
+// stopPropagation keeps a click from toggling the item's detail panel.
+function _lpLocBadge(loc) {
+    if (!loc) return '';
+    const title = _lpEsc(loc.name) + (loc.address ? '\n' + loc.address : '') + (loc.phone ? '\n' + loc.phone : '');
+    const label = '📍 ' + _lpEsc(loc.name);
+    const hasCoords = loc.lat != null && loc.lng != null && loc.lat !== '' && loc.lng !== '';
+    if (!hasCoords && !loc.address) {
+        return `<span title="${title}" style="font-size:0.75em; color:#2563eb; cursor:default; white-space:nowrap;">${label}</span>`;
+    }
+    return `<a href="${_lpMapsUrl(loc)}" onclick="event.stopPropagation();window.open(this.href,'_blank');return false;" title="${title}\nOpen in Google Maps" style="font-size:0.75em; color:#2563eb; white-space:nowrap; text-decoration:underline;">${label}</a>`;
 }

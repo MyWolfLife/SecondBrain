@@ -1913,7 +1913,7 @@ Your itinerary is your day-by-day plan -- what you're doing on each day of the t
 
 **Official Timeline & travel rows:** Tick **"Part of official timeline"** on an item to give it a left time column (⏰ start / ⏱ duration / 🚀 leave-by). Between two consecutive timeline items the app inserts a **travel row** showing the departure time, the travel mode icon, the travel time and miles, and the route (From → To). If it doesn't yet have a saved travel time for that leg, the row shows **⚠️ travel time needed** -- a placeholder, not an error. To fill it: give both stops a **location** (📍), then use the **🛣️** button on an item to add or look up the travel time to the next stop. Once saved, the warning is replaced with the time/distance and an estimated arrival is computed from the depart time. If you don't want a travel row between two items, leave one of them off the official timeline.
 
-**Item rows:** Click an item's **title** to expand/collapse its detail panel. On desktop the collapsed row shows the status badge, title, booking/location badges, and edit/location buttons; on mobile the collapsed row shows just the title and moves the badges and buttons into the expanded panel. **Delete an item from inside its edit modal.**
+**Item rows:** Click an item's **title** to expand/collapse its detail panel. On desktop the collapsed row shows the status badge, title, booking/location badges, and edit/location buttons; on mobile the collapsed row shows just the title and moves the badges and buttons into the expanded panel. The **📍 location badge is a link** -- tap it to open that place in Google Maps (it uses the saved coordinates when it has them, so lakes and trailheads land in the right spot). **Delete an item from inside its edit modal.**
 
 ---
 
@@ -1923,7 +1923,7 @@ The Planning Board is your idea board for before the trip is nailed down. You jo
 
 ---
 
-**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against. Items here use the same row controls as itinerary items -- click the title to expand, edit in the shared modal, and delete from inside that modal. Drag an item by its **⠿** handle to reorder it within a group, or drag it into a **different group** to re-file it (both groups need to be expanded so there's somewhere to drop). Groups themselves can be reordered by their own handle.
+**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against. Items here use the same row controls as itinerary items -- click the title to expand, edit in the shared modal, and delete from inside that modal. Drag an item by its **⠿** handle to reorder it within a group, or drag it into a **different group** to re-file it (both groups need to be expanded so there's somewhere to drop). Groups themselves can be reordered by their own handle. The **📍 location badge on an item is a link** -- tap it to open that place in Google Maps (using its saved coordinates when available).
 
 ---
 
