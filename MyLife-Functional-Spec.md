@@ -2326,7 +2326,7 @@ Tracks real-world places the user visits. Places tie together journal check-ins,
 - Worker URL cached in memory for 5 minutes (`_placesWorkerUrlCache`)
 - **Distance label**: `placesDistanceLabel(lat1,lng1,lat2,lng2)` — Haversine formula, returns e.g. "0.3 mi" or "nearby"
 - **Nominatim reverse geocode**: `https://nominatim.openstreetmap.org/reverse` — converts lat/lng to address; rate-limited to 1 req/sec
-- **Nominatim forward geocode** (`placesGeocodeLocation`): converts a typed location/ZIP to lat/lng (for distance-label bias). Uses `&countrycodes=us` so a bare 5-digit ZIP anchors to the United States — without it "72205" geocodes to a same-numbered place abroad.
+- **Nominatim forward geocode** (`placesGeocodeLocation`): converts a typed location/ZIP to lat/lng (for distance-label bias). Applies `&countrycodes=us` **only for a bare 5-digit ZIP** (`^\d{5}(-\d{4})?$`) — without it "72205" geocodes to a same-numbered place abroad. Everything else (incl. international cities like "Calgary, Canada") geocodes globally, so non-US places resolve instead of being forced into a wrong US match.
 
 ### LLM Enrichment (`placesEnrichWithLLM()` / `placesFetchEnrichment()`)
 - `placesFetchEnrichment(place)` — pure helper: takes a place-like object ({name, address, category, lat, lng}), asks the LLM for `{website, phone, hours, facebook, google_maps}`, and returns the parsed object (or null). No Firestore reads/writes for the place. Prompt prefers null over guessing (avoids fabrication).

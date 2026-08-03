@@ -750,10 +750,14 @@ async function placesGeocodeLocation(locationText) {
     if (!locationText) return null;
     try {
         await _placesNominatimRateLimit();
-        // countrycodes=us anchors bare/ambiguous queries to the United States. Without it a
-        // 5-digit ZIP like "72205" geocodes to a same-numbered place abroad (e.g. Lithuania).
-        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=' +
-                  encodeURIComponent(locationText);
+        // Anchor ONLY a bare US ZIP to the US — without it "72205" geocodes to a
+        // same-numbered place abroad (e.g. Lithuania). Everything else geocodes
+        // globally so international places (e.g. "Calgary, Canada") resolve instead
+        // of being forced into a wrong US match.
+        var isBareZip = /^\d{5}(-\d{4})?$/.test(locationText);
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1' +
+                  (isBareZip ? '&countrycodes=us' : '') +
+                  '&q=' + encodeURIComponent(locationText);
         var resp = await fetch(url, {
             headers: { 'Accept-Language': 'en', 'User-Agent': 'MyLifeApp/1.0' }
         });
