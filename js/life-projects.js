@@ -1533,6 +1533,8 @@ async function _lpLinkExistingLocation(locationId) {
             website: locData.website || '',
             contact: locData.contact || '',
             notes:   locData.notes   || '',
+            lat:     locData.lat != null ? locData.lat : null,
+            lng:     locData.lng != null ? locData.lng : null,
             addedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
