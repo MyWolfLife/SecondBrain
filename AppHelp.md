@@ -1899,7 +1899,7 @@ Think of Trip Info as the front cover of your trip. It shows when the trip start
 
 ---
 
-**Trip Info:** Dates, the description (edit it from the Projects list page), and the **cost rollup** -- a running total of all booking costs plus any costs entered on itinerary items.
+**Trip Info:** Dates, the description (edit it from the Projects list page), and the **cost rollup** -- a running total of all booking costs plus any costs entered on itinerary items. The total is followed by a breakdown in parentheses that itemizes it: first **bookings**, then your itinerary costs split up **by item type** (hotel, flight, travel, drive, activity, and "other" for items with no type). A type only appears if it adds up to more than $0, so you won't see clutter for types you didn't spend on.
 
 ---
 

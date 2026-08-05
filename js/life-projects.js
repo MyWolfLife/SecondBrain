@@ -1165,12 +1165,13 @@ function _lpLoadTripInfo() {
     if (!body || !_lpCurrentProject) return;
     const p = _lpCurrentProject;
     const costRollup = _lpCalculateCostRollup();
+    const costBreakdown = _lpCostBreakdownText(costRollup);
 
     body.innerHTML = `
         <div style="display:grid; gap:8px;">
             ${p.startDate ? `<div><strong>Dates:</strong> ${_lpFormatDateRange(p.startDate, p.endDate)}</div>` : '<div style="color:#999;">No dates set</div>'}
             ${p.description ? `<div><strong>Description:</strong> ${_lpEsc(p.description)}</div>` : ''}
-            ${costRollup.total > 0 ? `<div style="font-size:1.05em;"><strong>Total Trip Cost:</strong> <span style="color:#16a34a; font-weight:700;">$${costRollup.total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span> <span style="color:#888; font-size:0.8em;">(bookings: $${costRollup.bookings.toFixed(2)}, activities: $${costRollup.items.toFixed(2)})</span></div>` : ''}
+            ${costRollup.total > 0 ? `<div style="font-size:1.05em;"><strong>Total Trip Cost:</strong> <span style="color:#16a34a; font-weight:700;">$${costRollup.total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>${costBreakdown ? ` <span style="color:#888; font-size:0.8em;">(${costBreakdown})</span>` : ''}</div>` : ''}
             <div style="margin-top:4px;">
                 <button class="btn btn-small" onclick="_lpOpenTripInfoEdit()">✏️ Edit Project Info</button>
             </div>
@@ -1253,9 +1254,32 @@ async function _lpSaveTripInfoEdit() {
 function _lpCalculateCostRollup() {
     let bookingTotal = 0;
     _lpBookings.forEach(b => { if (b.cost != null && !isNaN(b.cost)) bookingTotal += Number(b.cost); });
+
+    // Sum itinerary-item costs, broken out by item Type ('none'/legacy → 'other').
+    const byType = {};
     let itemTotal = 0;
-    _lpDays.forEach(d => (d.items || []).forEach(it => { if (it.cost != null && !isNaN(it.cost)) itemTotal += Number(it.cost); }));
-    return { bookings: bookingTotal, items: itemTotal, total: bookingTotal + itemTotal };
+    _lpDays.forEach(d => (d.items || []).forEach(it => {
+        if (it.cost != null && !isNaN(it.cost)) {
+            const c = Number(it.cost);
+            itemTotal += c;
+            const key = (it.type && it.type !== 'none') ? it.type : 'other';
+            byType[key] = (byType[key] || 0) + c;
+        }
+    }));
+
+    return { bookings: bookingTotal, items: itemTotal, byType, total: bookingTotal + itemTotal };
+}
+
+// Build the "(bookings: $X, hotel: $Y, …)" breakdown for the trip cost line.
+// bookings first, then item types in a fixed readable order, omitting any $0 bucket.
+function _lpCostBreakdownText(rollup) {
+    const parts = [];
+    if (rollup.bookings > 0) parts.push('bookings: $' + rollup.bookings.toFixed(2));
+    ['hotel', 'flight', 'travel', 'drive', 'activity', 'other'].forEach(key => {
+        const v = rollup.byType[key] || 0;
+        if (v > 0) parts.push(key + ': $' + v.toFixed(2));
+    });
+    return parts.join(', ');
 }
 
 // ============================================================
