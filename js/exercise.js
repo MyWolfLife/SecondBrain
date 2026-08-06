@@ -1838,6 +1838,7 @@ var _dmWeightChart        = null;   // Chart.js instance — must destroy before
 var _dmWeightChartShrink   = 1.0;   // width reduction factor (1 = full natural width); not sticky
 var _dmWeightChartNaturalW = 0;     // natural width at render time — basis for the Reduce Width control
 var _dmWeightChartProjected = false; // "Show Projected Weight" line (calorie-driven) — sticky, default off
+var _dmWeightChartShowMissing = false; // "Show Missing Days" — fill x-axis with every calendar day (no dot on gaps); sticky, default off
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmExistingDoc    = null;       // loaded doc data or null
 var _dmInitialSig     = null;       // signature of the form as first rendered (for dirty-check)
@@ -1898,6 +1899,7 @@ async function loadExerciseMetricsPage() {
     _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
+    _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
     _dmGoalsData = results[2].exists ? results[2].data() : null;
     _dmGoalsYear = new Date().getFullYear();
 
@@ -2323,6 +2325,9 @@ async function _dmApplyFilter() {
                         '<label class="dm-wc-projected-label" title="This is what the weight would be each day according to calorie +/-">' +
                             '<input type="checkbox" id="dmWeightChartProjectedChk"' + (_dmWeightChartProjected ? ' checked' : '') + '> Show Projected Weight' +
                         '</label>' +
+                        '<label class="dm-wc-projected-label" title="Include days with no weigh-in along the x-axis (no dot on those days)">' +
+                            '<input type="checkbox" id="dmWeightChartShowMissingChk"' + (_dmWeightChartShowMissing ? ' checked' : '') + '> Show Missing Days' +
+                        '</label>' +
                     '</div>' +
                     '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
                 '</div>' +
@@ -2569,6 +2574,15 @@ async function _dmApplyFilter() {
             wcProj.addEventListener('change', function() {
                 _dmWeightChartProjected = this.checked;
                 userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
+                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
+            });
+        }
+        // Show Missing Days — sticky toggle; re-renders to fill/skip empty x-axis slots
+        var wcMiss = document.getElementById('dmWeightChartShowMissingChk');
+        if (wcMiss) {
+            wcMiss.addEventListener('change', function() {
+                _dmWeightChartShowMissing = this.checked;
+                userCol('settings').doc('exercisePrefs').set({ dmWeightChartShowMissing: _dmWeightChartShowMissing }, { merge: true });
                 if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
             });
         }
@@ -3415,6 +3429,44 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
         var chartGoalArr = (goalArr && nextMonthPt) ? goalArr.concat([null]) : goalArr;
         var chartProjArr = (projArr && nextMonthPt) ? projArr.concat([null]) : projArr;
 
+        // ── Show Missing Days ────────────────────────────────────────────────
+        // Expand the axis to one slot per calendar day between the first and last
+        // plotted point. Days without a weigh-in get a null value (no dot); the
+        // lines bridge those gaps via spanGaps. Weigh-in days keep their exact
+        // values, so the daily/avg/goal/projected curves are unchanged — just
+        // stretched onto true date spacing.
+        if (_dmWeightChartShowMissing && chartPts.length > 1) {
+            function _wcParseD(ds) { var p = ds.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+            var byDate = {};
+            chartPts.forEach(function(p, i) {
+                byDate[p.date] = {
+                    pt:   p,
+                    w:    chartWArr[i],
+                    avg:  chartAvgArr[i],
+                    goal: chartGoalArr ? chartGoalArr[i] : null,
+                    proj: chartProjArr ? chartProjArr[i] : null
+                };
+            });
+            var fPts = [], fW = [], fAvg = [];
+            var fGoal = chartGoalArr ? [] : null;
+            var fProj = chartProjArr ? [] : null;
+            var curD = _wcParseD(chartPts[0].date);
+            var endD = _wcParseD(chartPts[chartPts.length - 1].date);
+            while (curD <= endD) {
+                var ds = _wcFmt(curD);
+                var rec = byDate[ds];
+                fPts.push(rec ? rec.pt : { date: ds, w: null });
+                fW.push(rec ? rec.w : null);
+                fAvg.push(rec ? rec.avg : null);
+                if (fGoal) fGoal.push(rec ? rec.goal : null);
+                if (fProj) fProj.push(rec ? rec.proj : null);
+                curD.setDate(curD.getDate() + 1);
+            }
+            chartPts = fPts; chartWArr = fW; chartAvgArr = fAvg;
+            if (fGoal) chartGoalArr = fGoal;
+            if (fProj) chartProjArr = fProj;
+        }
+
         // Auto-scale width: ~35px per data point, capped at full container width.
         // Treated as at least 7 points so early-month views (1-3 days in) don't
         // render as a razor-thin sliver — the chart holds a sensible minimum width
@@ -3450,6 +3502,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
                             pointRadius: pts.length > 60 ? 2 : 3,
                             tension: 0.25,
                             fill: true,
+                            spanGaps: true,   // bridge missing-day gaps (Show Missing Days)
                             order: 3
                         },
                         {
@@ -3462,6 +3515,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
                             pointHoverRadius: 0,
                             tension: 0.35,
                             fill: false,
+                            spanGaps: true,   // bridge missing-day gaps (Show Missing Days)
                             order: 2
                         }
                     ];
@@ -3477,6 +3531,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
                             pointHoverRadius: 0,
                             tension: 0.25,
                             fill: false,
+                            spanGaps: true,   // bridge missing-day gaps (Show Missing Days)
                             order: 2
                         });
                     }
@@ -3492,6 +3547,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
                             pointHoverRadius: 0,
                             tension: 0,    // straight line — no smoothing
                             fill: false,
+                            spanGaps: true,   // goal passes straight through missing days (Show Missing Days)
                             order: 1
                         });
                     }
@@ -3630,6 +3686,7 @@ async function loadExerciseSummaryPage() {
     _sumWeightChartOpen     = prefs.sumWeightChartOpen     === true;
     _sumWeightChartRange    = prefs.sumWeightChartRange    || 'selectedYear';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
+    _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
     _dmTypeRoleMap = {};
     results[2].forEach(function(doc) { _dmTypeRoleMap[doc.id] = doc.data().runWalkRole || null; });
 
@@ -3902,6 +3959,9 @@ async function _sumLoadAndRender() {
                     '<label class="dm-wc-projected-label" title="This is what the weight would be each day according to calorie +/-">' +
                         '<input type="checkbox" id="sumWeightChartProjectedChk"' + (_dmWeightChartProjected ? ' checked' : '') + '> Show Projected Weight' +
                     '</label>' +
+                    '<label class="dm-wc-projected-label" title="Include days with no weigh-in along the x-axis (no dot on those days)">' +
+                        '<input type="checkbox" id="sumWeightChartShowMissingChk"' + (_dmWeightChartShowMissing ? ' checked' : '') + '> Show Missing Days' +
+                    '</label>' +
                 '</div>' +
                 '<div class="dm-weight-chart-wrap" id="sumWeightChartWrap"></div>' +
             '</div>' +
@@ -3958,6 +4018,14 @@ async function _sumLoadAndRender() {
         wcProj.addEventListener('change', function() {
             _dmWeightChartProjected = this.checked;
             userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
+            if (_sumWeightChartOpen) _sumRenderChart();
+        });
+    }
+    var wcMiss = document.getElementById('sumWeightChartShowMissingChk');
+    if (wcMiss) {
+        wcMiss.addEventListener('change', function() {
+            _dmWeightChartShowMissing = this.checked;
+            userCol('settings').doc('exercisePrefs').set({ dmWeightChartShowMissing: _dmWeightChartShowMissing }, { merge: true });
             if (_sumWeightChartOpen) _sumRenderChart();
         });
     }
