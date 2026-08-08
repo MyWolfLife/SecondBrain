@@ -39,7 +39,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `HoldingsHealthPlan.md` | Life → Financial | **Goal 2 — ✅ COMPLETE (2026-07-19).** Forward-looking health check on stocks you already own. Per-holding verdict (✅ Healthy / 👀 Watch / ⚠️ Review exit) from flag-count of 5 exit checks (estimate deterioration [flagship, mirror of Detector C], trend vs 50/200d, analyst momentum, quality/falling-knife, earnings risk) + regime context. Its own tool on the Analyzer hub (💼 Portfolio) at `#analyzer/holdingshealth` with an About page. Tappable check/verdict chips explain themselves. Duration is deliberately never an input |
 | `DeathPlan.md` | Life → My Legacy | Legacy/estate planning section — what happens when user dies, final wishes, contacts |
 | `LifeCalendar.md` | Life → Calendar | Life-section calendar for personal events (separate from Yard calendar) |
-| `ChecklistBoardEnhancements.md` | Checklists | Active runs → manual 3-column board (2-D `boardCol`/`boardOrder` position, desktop-editable / phone read-only), collapsible cards, edit tags on a run, unique-tag AND filter (sidebar/accordion), drag reorder. Design agreed; not yet built |
+| `ChecklistBoardEnhancements.md` | Checklists | Active runs → manual 3-column board (2-D `boardCol`/`boardOrder` position, desktop-editable / phone read-only), drag reorder, star-bump-to-top, collapsible cards, edit tags on a run, unique-tag AND filter (sidebar/accordion). **ALL 5 PHASES COMPLETE** |
 
 ---
 

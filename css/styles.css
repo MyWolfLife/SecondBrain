@@ -4445,6 +4445,76 @@ button {
     margin: 2px 2px 8px;
 }
 
+/* ── Active area: tag-filter sidebar (accordion on phone) + the board ── */
+.cl-active-layout { display: flex; gap: 16px; align-items: flex-start; }
+.cl-active-main { flex: 1 1 auto; min-width: 0; }
+
+.cl-tag-sidebar {
+    flex: 0 0 180px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fafafa;
+    padding: 8px 10px;
+    box-sizing: border-box;
+}
+.cl-tag-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 2px 0;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #333;
+}
+.cl-tag-sidebar-title { flex: 1; text-align: left; }
+.cl-tag-sidebar-chevron { color: #888; }
+.cl-tag-filter-badge {
+    background: #1565c0;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    padding: 0 6px;
+    font-weight: 700;
+}
+.cl-tag-list { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.cl-tag-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #333;
+    cursor: pointer;
+    padding: 2px 0;
+}
+.cl-tag-filter-item input { cursor: pointer; flex-shrink: 0; }
+.cl-tag-clear-btn {
+    margin-top: 8px;
+    background: none;
+    border: none;
+    color: #1565c0;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+/* Desktop: the tag list is always visible; no accordion chevron. */
+@media (min-width: 880px) {
+    .cl-tag-sidebar-chevron { display: none; }
+}
+/* Phone/narrow: the sidebar becomes a full-width accordion above the board. */
+@media (max-width: 879.98px) {
+    .cl-active-layout { flex-direction: column; }
+    .cl-tag-sidebar { flex: none; width: 100%; }
+    .cl-tag-list { display: none; }
+    .cl-tag-sidebar--open .cl-tag-list { display: flex; }
+    .cl-tag-sidebar:not(.cl-tag-sidebar--open) .cl-tag-clear-btn { display: none; }
+}
+
 /* Collapse chevron + collapsed-card behavior. Collapsing hides everything but
    the title row; the item count is revealed in the header while collapsed. */
 .cl-collapse-btn {

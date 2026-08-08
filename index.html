@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=786">
+    <link rel="stylesheet" href="css/styles.css?v=787">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -3042,10 +3042,24 @@
                 <input type="text" id="clFilterInput" class="cl-filter-input" placeholder="Filter lists by name or tag…">
             </div>
             <p class="cl-board-hint hidden" id="clBoardReorderHint">Clear the filter to reorder lists.</p>
-            <div id="clActiveRunsContainer"></div>
-            <p class="empty-state hidden" id="clActiveRunsEmptyState">
-                No active checklists. Press <strong>▶ Start</strong> on a template below to begin one.
-            </p>
+            <!-- Active area: tag-filter sidebar (accordion on phone) + the board -->
+            <div class="cl-active-layout" id="clActiveLayout">
+                <aside class="cl-tag-sidebar hidden" id="clTagSidebar">
+                    <button type="button" class="cl-tag-sidebar-header" id="clTagSidebarToggle">
+                        <span class="cl-tag-sidebar-title">Filter by Tag</span>
+                        <span class="cl-tag-filter-badge hidden" id="clTagFilterBadge"></span>
+                        <span class="cl-tag-sidebar-chevron" id="clTagSidebarChevron">▸</span>
+                    </button>
+                    <div class="cl-tag-list" id="clTagList"></div>
+                    <button type="button" class="cl-tag-clear-btn hidden" id="clTagClearBtn">Clear tags</button>
+                </aside>
+                <div class="cl-active-main">
+                    <div id="clActiveRunsContainer"></div>
+                    <p class="empty-state hidden" id="clActiveRunsEmptyState">
+                        No active checklists. Press <strong>▶ Start</strong> on a template below to begin one.
+                    </p>
+                </div>
+            </div>
 
             <!-- Templates — reusable definitions -->
             <div class="section-header" style="margin-top:8px;">
@@ -11540,7 +11554,7 @@ export default {
     <script src="js/floorplanitem.js?v=393"></script>
     <script src="js/search.js?v=519"></script>
     <script src="js/activityreport.js?v=350"></script>
-    <script src="js/checklists.js?v=557"></script>
+    <script src="js/checklists.js?v=558"></script>
     <script src="js/bulkactivity.js?v=350"></script>
     <script src="js/vehicles.js?v=357"></script>
     <script src="js/garage.js?v=537"></script>

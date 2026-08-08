@@ -47,6 +47,10 @@ var CL_BOARD_MIN_WIDTH = 880;
  *  Rebuilt as runs/templates load; case-insensitive de-duplicated. */
 var _clTagUniverse = [];
 
+/** Lower-cased tags currently checked in the tag-filter sidebar. A run must
+ *  carry ALL of these to pass the filter (AND). Reset on page entry. */
+var clSelectedTags = new Set();
+
 // ---------- Page Entry Point ----------
 
 /**
@@ -129,6 +133,20 @@ async function loadChecklistsPage() {
             }, 250);
         });
 
+        // Tag-filter sidebar: header toggles the list open/closed (accordion on
+        // phone; always open on desktop via CSS). Clear button unchecks all tags.
+        var tagToggle = document.getElementById('clTagSidebarToggle');
+        if (tagToggle) {
+            tagToggle.addEventListener('click', function() {
+                var sidebar = document.getElementById('clTagSidebar');
+                var chevron = document.getElementById('clTagSidebarChevron');
+                var open = sidebar.classList.toggle('cl-tag-sidebar--open');
+                if (chevron) chevron.textContent = open ? '▾' : '▸';
+            });
+        }
+        var tagClear = document.getElementById('clTagClearBtn');
+        if (tagClear) tagClear.addEventListener('click', clClearTagFilter);
+
         // Re-render the active board when we cross the desktop/narrow breakpoint,
         // since the layout mode (3-column board vs single-column read-only) is
         // decided in JS, not CSS. Wired once; guarded on window to survive re-entry.
@@ -142,6 +160,7 @@ async function loadChecklistsPage() {
     toggle.checked = false;
     archiveToggle.checked = false;
     filterInput.value = '';
+    clSelectedTags.clear();  // tag filter starts empty for the new context
     document.getElementById('clCompletedContainer').classList.add('hidden');
     document.getElementById('clCompletedEmptyState').classList.add('hidden');
     document.getElementById('clArchivedContainer').classList.add('hidden');
@@ -327,10 +346,14 @@ async function clLoadActiveRuns() {
 
         var ctx = clCurrentContext || { type: 'yard' };
 
-        var runs = allActive
+        // Context set (before text/tag filtering) — drives the tag-filter sidebar
+        // so its checkboxes stay stable as you narrow the list.
+        var contextRuns = allActive
             .filter(function(run) { return clMatchesContext(run, ctx); })
-            .filter(function(run) { return !run.archived; })
-            .filter(clMatchesFilter);
+            .filter(function(run) { return !run.archived; });
+        clBuildTagSidebar(contextRuns);
+
+        var runs = contextRuns.filter(clMatchesFilter);
 
         container.innerHTML = '';
         container.classList.remove('cl-board-cols', 'cl-board-single');
@@ -453,10 +476,12 @@ function clBuildBoardCard(run) {
 }
 
 /** True when a filter is narrowing the active list (drag-reorder is then
- *  disabled — there's no full-collection context to order against). */
+ *  disabled — there's no full-collection context to order against). Covers
+ *  both the text filter and the tag-filter checkboxes. */
 function clHasActiveFilter() {
     var el = document.getElementById('clFilterInput');
-    return !!(el && el.value && el.value.trim());
+    var text = !!(el && el.value && el.value.trim());
+    return text || (clSelectedTags && clSelectedTags.size > 0);
 }
 
 /**
@@ -647,6 +672,93 @@ function clRefreshTagDatalist() {
         opt.value = t;
         dl.appendChild(opt);
     });
+}
+
+// ---------- Tag-filter sidebar / accordion ----------
+
+/**
+ * Builds the tag-filter checkbox list from the unique tags present on the
+ * current context's active runs (before any filtering, so the list stays stable
+ * as the user narrows). Checkbox state is restored from clSelectedTags. When the
+ * context has no tags at all, the sidebar is hidden and the board goes full width.
+ * @param {Array} contextRuns — Active runs matching the current context.
+ */
+function clBuildTagSidebar(contextRuns) {
+    var sidebar = document.getElementById('clTagSidebar');
+    var list    = document.getElementById('clTagList');
+    if (!sidebar || !list) return;
+
+    // Unique tags (case-insensitive), keeping first-seen display casing.
+    var seen = {};
+    contextRuns.forEach(function(run) {
+        (run.tags || []).forEach(function(t) {
+            var k = (t || '').toLowerCase();
+            if (t && !seen[k]) seen[k] = t;
+        });
+    });
+    var tags = Object.keys(seen).map(function(k) { return seen[k]; })
+        .sort(function(a, b) { return a.localeCompare(b); });
+
+    if (tags.length === 0) {
+        sidebar.classList.add('hidden');
+        list.innerHTML = '';
+        clUpdateTagFilterBadge();
+        return;
+    }
+    sidebar.classList.remove('hidden');
+
+    list.innerHTML = '';
+    tags.forEach(function(tag) {
+        var label = document.createElement('label');
+        label.className = 'cl-tag-filter-item';
+
+        var cb = document.createElement('input');
+        cb.type    = 'checkbox';
+        cb.checked = clSelectedTags.has(tag.toLowerCase());
+        cb.addEventListener('change', function() {
+            if (cb.checked) clSelectedTags.add(tag.toLowerCase());
+            else            clSelectedTags.delete(tag.toLowerCase());
+            clApplyTagFilter();
+        });
+
+        var span = document.createElement('span');
+        span.textContent = tag;
+
+        label.appendChild(cb);
+        label.appendChild(span);
+        list.appendChild(label);
+    });
+
+    clUpdateTagFilterBadge();
+}
+
+/** Re-renders the active board (and completed/archived if open) after a tag
+ *  checkbox changes, then refreshes the selected-count badge. */
+function clApplyTagFilter() {
+    clLoadActiveRuns();
+    var t = document.getElementById('clShowCompletedToggle');
+    if (t && t.checked) clLoadCompletedRuns();
+    var a = document.getElementById('clShowArchivedToggle');
+    if (a && a.checked) clLoadArchivedRuns();
+    clUpdateTagFilterBadge();
+}
+
+/** Clears all tag selections and re-renders. */
+function clClearTagFilter() {
+    clSelectedTags.clear();
+    clApplyTagFilter();
+}
+
+/** Updates the "(n)" badge on the sidebar header and shows/hides the Clear button. */
+function clUpdateTagFilterBadge() {
+    var badge = document.getElementById('clTagFilterBadge');
+    var clear = document.getElementById('clTagClearBtn');
+    var n = clSelectedTags.size;
+    if (badge) {
+        badge.textContent = n ? String(n) : '';
+        badge.classList.toggle('hidden', n === 0);
+    }
+    if (clear) clear.classList.toggle('hidden', n === 0);
 }
 
 /**
@@ -1979,6 +2091,16 @@ async function clArchiveRun(runId, archive) {
  * @returns {boolean}
  */
 function clMatchesFilter(run) {
+    // Tag filter (AND): the run must carry every selected tag.
+    if (clSelectedTags && clSelectedTags.size) {
+        var runTags = (run.tags || []).map(function(t) { return t.toLowerCase(); });
+        var hasAll = Array.from(clSelectedTags).every(function(sel) {
+            return runTags.indexOf(sel) !== -1;
+        });
+        if (!hasAll) return false;
+    }
+
+    // Text filter: name, tags, or item labels.
     var filterEl = document.getElementById('clFilterInput');
     var term = filterEl ? (filterEl.value || '').trim().toLowerCase() : '';
     if (!term) return true;

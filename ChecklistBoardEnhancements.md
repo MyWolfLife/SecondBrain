@@ -108,10 +108,15 @@ Collapse state: `localStorage` (proposed), not Firestore.
 - Autocomplete via shared `#clTagSuggestions` datalist built from all run + template tags (`_clTagUniverse` / `clAddTagsToUniverse`, populated in `clLoadActiveRuns` + `clLoadTemplates`).
 - Cache: `checklists.js?v=557`, `styles.css?v=786`, `sw.js` v557.
 
-**Phase 5 — Tag filter sidebar / accordion**
-- Desktop: left sidebar column of unique-tag checkboxes → page becomes `[tag sidebar | 3-col board]`.
-- Phone: collapsible accordion under the text filter.
-- AND logic, combined with the text filter; drives the reorder-disable rule from Phase 2.
+**Phase 5 — Tag filter sidebar / accordion — ✅ COMPLETE**
+- Active area is `[#clTagSidebar | .cl-active-main]`. Sidebar (`clBuildTagSidebar`) lists a checkbox per unique tag on the current context's active runs (derived pre-filter so it stays stable; hidden when no tags).
+- AND logic in `clMatchesFilter` (via `clSelectedTags`), combined with the text filter; count badge + Clear button; drives the reorder-disable rule (`clHasActiveFilter` now checks tags).
+- Responsive: desktop = left column (list always open); < 880px = full-width accordion above the board (`cl-tag-sidebar--open`, collapsed by default). `clApplyTagFilter` re-renders active + completed/archived when open.
+- Cache: `checklists.js?v=558`, `styles.css?v=787`, `sw.js` v558.
+
+---
+
+## ✅ All 5 phases complete.
 
 ---
 
