@@ -4097,17 +4097,53 @@ function _investPerfRow(label) {
     '</div>';
 }
 
-// Load the most recent snapshot of each type for a group (client-side filter, no composite index needed)
+// Load the baseline snapshot of each type for a group (client-side selection, no composite index needed).
+// Rule per type: if there are snapshots dated today, use the EARLIEST one captured today. This anchors
+// the "Day" +/- to the first snapshot of the day, so re-capturing later (e.g. after entering the week's
+// trades/deposits) keeps the day's delta visible instead of resetting it to ~$0. If there is no snapshot
+// today, fall back to the LATEST capture on the most recent prior date (that date's "close").
 async function _investLoadPeriodBaselines(groupId) {
     var snap = await _investSnapshotCol().orderBy('date', 'desc').limit(200).get();
-    var b    = { daily: null, weekly: null, monthly: null, yearly: null };
+    var todayStr = new Date().toISOString().split('T')[0];
+    var byType = { daily: [], weekly: [], monthly: [], yearly: [] };
     snap.forEach(function(doc) {
         var data = doc.data();
-        if (data.groupId === groupId && b[data.type] === null) {
-            b[data.type] = Object.assign({ id: doc.id }, data);
+        if (data.groupId === groupId && byType[data.type]) {
+            byType[data.type].push(Object.assign({ id: doc.id }, data));
         }
     });
+    var b = { daily: null, weekly: null, monthly: null, yearly: null };
+    Object.keys(byType).forEach(function(type) {
+        b[type] = _investPickBaseline(byType[type], todayStr);
+    });
     return b;
+}
+
+// Convert a snapshot's createdAt (Firestore Timestamp) to milliseconds for ordering same-date captures.
+// Returns 0 when createdAt is missing (older snapshots) or still pending a server value.
+function _investSnapMillis(s) {
+    var c = s && s.createdAt;
+    if (c && typeof c.toMillis === 'function') return c.toMillis();
+    if (c && typeof c.seconds === 'number') return c.seconds * 1000 + (c.nanoseconds || 0) / 1e6;
+    return 0;
+}
+
+// Pick the baseline from a list of same-type snapshots (see _investLoadPeriodBaselines for the rule).
+function _investPickBaseline(snaps, todayStr) {
+    if (!snaps || !snaps.length) return null;
+    var today = snaps.filter(function(s) { return s.date === todayStr; });
+    if (today.length) {
+        // Earliest capture today — anchors the day's delta to the first snapshot.
+        return today.reduce(function(earliest, s) {
+            return _investSnapMillis(s) < _investSnapMillis(earliest) ? s : earliest;
+        });
+    }
+    // No snapshot today: most recent prior date, latest capture on that date.
+    var maxDate = snaps.reduce(function(m, s) { return s.date > m ? s.date : m; }, '');
+    var onMax = snaps.filter(function(s) { return s.date === maxDate; });
+    return onMax.reduce(function(latest, s) {
+        return _investSnapMillis(s) > _investSnapMillis(latest) ? s : latest;
+    });
 }
 
 function _investPerfRowLive(label, snapshotType, baseline, currentNetWorth) {

@@ -2053,7 +2053,7 @@ This is the list of people going on the trip or helping with it. You can pick th
 ### Quick Help
 - The **Financial** hub shows **Net Worth** and **Invested** totals, then three collapsible accordions — **Performance**, **Retire Estimate**, and **All-Time Highs**
 - If you have more than one group, a **Group** selector appears at the top — switch groups to see a different portfolio view
-- **Performance** accordion: four cards (Day, Week, Month, YTD) showing $ gain and % vs. your most recent snapshot of each type. "—" means no snapshot of that type yet
+- **Performance** accordion: four cards (Day, Week, Month, YTD) showing $ gain and % vs. a baseline snapshot of each type — the first snapshot you captured today if there is one, otherwise your most recent earlier snapshot of that type (see the Summary page help for details). "—" means no snapshot of that type yet
 - **Retire Estimate** accordion: the same retirement income widget as the Summary page — estimated annual/monthly income, budget comparison, NW Shortfall, % of Target, and the ⚙ settings gear
 - **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
 - **All-Time Highs** accordion: four ATH cards (Daily / Weekly / Monthly / Yearly) plus a "vs Daily ATH" companion card showing how far above or below you are right now
@@ -2359,7 +2359,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
 - **All-Time Highs** section: four ATH cards plus a "vs Daily ATH" card — collapsible accordion; open/closed state is remembered
 - **Category Breakdown**: Roth, Pre-Tax, Brokerage, Cash, and Uninvested Cash totals with % of Net Worth
-- **Period Performance**: Day / Week / Month / YTD gain or loss vs the most recent snapshot of each type
+- **Period Performance**: Day / Week / Month / YTD gain or loss vs a baseline snapshot of each type (the first snapshot captured today if there is one, otherwise the most recent earlier snapshot)
 - **📡 Update All Prices**: fetches live Finnhub prices for every holding across all accounts in the group; last-updated time (e.g. "5/5 10:15am") is shown below the button
 
 ### Details
@@ -2396,7 +2396,7 @@ Tickers are **deduplicated** before fetching — if FXAIX appears in four differ
 
 Results are shown in a popup after the update completes. If any tickers failed and no Cloudflare Worker is configured, the popup includes a tip — consistent failures are often caused by a **network firewall or security tool (e.g. ZScaler on a work machine)** blocking the public proxy calls. The Cloudflare Worker bypasses this completely. Requires a Finnhub API key in Settings.
 
-**Period Performance**: Four rows — Day, Week, Month, YTD. Each row shows the gain or loss in dollars and percentage versus the most recent snapshot of the matching type (Daily/Weekly/Monthly/Yearly). Rows show "No [type] snapshot yet" until at least one snapshot of that type has been captured on the Snapshots page. Green = gain, red = loss.
+**Period Performance**: Four rows — Day, Week, Month, YTD. Each row shows the gain or loss in dollars and percentage versus a baseline snapshot of the matching type (Daily/Weekly/Monthly/Yearly). **Which snapshot is the baseline**: if you've captured one or more snapshots of that type **today**, the row measures against the **first (earliest) one you captured today** — so if you capture again later the same day (for example after entering the week's trades or a deposit), the day's change stays on screen instead of resetting to about $0. If you haven't captured one today, it measures against your **most recent earlier snapshot** of that type. Rows show "No [type] snapshot yet" until at least one snapshot of that type has been captured on the Snapshots page. Green = gain, red = loss.
 
 **All-Time Highs**: Orange cards showing the highest Net Worth ever recorded per snapshot type. Automatically updated whenever a new snapshot exceeds the stored high. Only appears once at least one snapshot has been captured.
 
