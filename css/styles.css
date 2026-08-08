@@ -4445,6 +4445,31 @@ button {
     margin: 2px 2px 8px;
 }
 
+/* Collapse chevron + collapsed-card behavior. Collapsing hides everything but
+   the title row; the item count is revealed in the header while collapsed. */
+.cl-collapse-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+.cl-collapse-btn:hover { color: #333; }
+
+.cl-run-count {
+    display: none;
+    color: #888;
+    font-size: 0.85rem;
+    font-weight: 400;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+.cl-run-card--collapsed .cl-run-count { display: inline; }
+.cl-run-card--collapsed > :not(.cl-run-title-row) { display: none; }
+
 .cl-run-card {
     display: block;
     width: 100%;

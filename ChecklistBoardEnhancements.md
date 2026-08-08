@@ -97,9 +97,11 @@ Collapse state: `localStorage` (proposed), not Firestore.
 - Star (`clToggleRunPin`) now bumps to top of column 1 on set; unstar only clears the flag.
 - Cache: `checklists.js?v=555`, `styles.css?v=784`, `sw.js` v555.
 
-**Phase 3 — Collapsible cards**
-- Chevron toggle per card; collapsed = header row + `· N items`.
-- Persist collapse state (localStorage).
+**Phase 3 — Collapsible cards — ✅ COMPLETE**
+- Chevron toggle per card (`.cl-collapse-btn`, ▾/▸); collapsed adds `cl-run-card--collapsed`, hiding all but the title row and revealing an "N items" count (`.cl-run-count`).
+- Collapsing only shortens the column (no reflow — independent stacks).
+- State persisted per-device in `localStorage.clCollapsedRuns` (`clIsRunCollapsed` / `clSetRunCollapsed`). Drag handle stays in the title row, so collapsed cards remain draggable.
+- Cache: `checklists.js?v=556`, `styles.css?v=785`, `sw.js` v556.
 
 **Phase 4 — Edit tags on a run**
 - In card ✏️ edit mode: existing tags shown as removable chips + an "add tag" input with autocomplete (datalist) of existing unique tags. Saves to `run.tags[]`.

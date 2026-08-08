@@ -590,6 +590,27 @@ function clMinBoardOrderVisible() {
     return isFinite(min) ? min : 0;
 }
 
+// ---------- Collapsed-card state (per-device, localStorage) ----------
+
+/** Reads the set of collapsed run ids from localStorage. Collapse is a view
+ *  preference, so it's stored per-device rather than synced to Firestore. */
+function clLoadCollapsedSet() {
+    try { return new Set(JSON.parse(localStorage.getItem('clCollapsedRuns') || '[]')); }
+    catch (e) { return new Set(); }
+}
+
+/** True if the given run is currently collapsed on this device. */
+function clIsRunCollapsed(runId) {
+    return clLoadCollapsedSet().has(runId);
+}
+
+/** Adds/removes a run from the collapsed set in localStorage. */
+function clSetRunCollapsed(runId, collapsed) {
+    var s = clLoadCollapsedSet();
+    if (collapsed) s.add(runId); else s.delete(runId);
+    try { localStorage.setItem('clCollapsedRuns', JSON.stringify(Array.from(s))); } catch (e) {}
+}
+
 /**
  * Builds a Google Keep-style inline card for one active run.
  * Items are shown directly on the card — no accordion.
@@ -605,7 +626,11 @@ function clBuildRunCard(run) {
 
     var items = run.items || [];
 
-    // ── Title (with drag handle + pin toggle) ───────────────────
+    // Restore the collapsed/expanded state saved for this run on this device.
+    var startCollapsed = clIsRunCollapsed(run.id);
+    if (startCollapsed) card.classList.add('cl-run-card--collapsed');
+
+    // ── Title (drag handle + collapse chevron + pin toggle + title + count) ──
     var titleRow = document.createElement('div');
     titleRow.className = 'cl-run-title-row';
 
@@ -616,6 +641,20 @@ function clBuildRunCard(run) {
     cardHandle.textContent = '⠿';
     cardHandle.title       = 'Drag to move this list';
     titleRow.appendChild(cardHandle);
+
+    // Collapse chevron — collapses the card to just this header row.
+    var collapseBtn = document.createElement('button');
+    collapseBtn.type      = 'button';
+    collapseBtn.className = 'cl-collapse-btn';
+    collapseBtn.textContent = startCollapsed ? '▸' : '▾';
+    collapseBtn.title       = startCollapsed ? 'Expand' : 'Collapse';
+    collapseBtn.addEventListener('click', function() {
+        var nowCollapsed = card.classList.toggle('cl-run-card--collapsed');
+        collapseBtn.textContent = nowCollapsed ? '▸' : '▾';
+        collapseBtn.title       = nowCollapsed ? 'Expand' : 'Collapse';
+        clSetRunCollapsed(run.id, nowCollapsed);
+    });
+    titleRow.appendChild(collapseBtn);
 
     var pinBtn = document.createElement('button');
     pinBtn.type      = 'button';
@@ -629,6 +668,12 @@ function clBuildRunCard(run) {
     title.className   = 'cl-run-title';
     title.textContent = run.templateName || 'Checklist';
     titleRow.appendChild(title);
+
+    // Item count — shown in the header only while collapsed (CSS-toggled).
+    var countSpan = document.createElement('span');
+    countSpan.className   = 'cl-run-count';
+    countSpan.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+    titleRow.appendChild(countSpan);
 
     card.appendChild(titleRow);
 
