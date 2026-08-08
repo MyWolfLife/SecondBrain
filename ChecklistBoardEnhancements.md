@@ -90,10 +90,12 @@ Collapse state: `localStorage` (proposed), not Firestore.
 - Retired the ⊞ 1/2-col toggle + `localStorage.clColumnLayout`.
 - Cache: `checklists.js?v=554`, `styles.css?v=783`, `sw.js` v554.
 
-**Phase 2 — Drag-and-drop reorder**
-- SortableJS shared group across the 3 columns.
-- On drop: set `boardCol` = target column; recompute `boardOrder` for the affected column(s) from DOM order; persist.
-- Enabled only in the 3-col editable view AND when no filter is active; otherwise hide handles + show a hint.
+**Phase 2 — Drag-and-drop reorder — ✅ COMPLETE**
+- SortableJS shared group (`group: 'cl-board'`) across the 3 columns; card-level ⠿ handle (`.cl-card-drag-handle`), shown only when `cl-board-draggable`.
+- On drop (`clOnBoardDrop`): fractional ordering — only the moved card is rewritten (`boardCol` = drop column, `boardOrder` = midpoint of new neighbors, or ±1 at an end). Neighbors and roll-up placement untouched. No-op drops write nothing.
+- Enabled only in the desktop board with no active filter (`clHasActiveFilter`); otherwise handles hidden, no SortableJS, and the `#clBoardReorderHint` note appears.
+- Star (`clToggleRunPin`) now bumps to top of column 1 on set; unstar only clears the flag.
+- Cache: `checklists.js?v=555`, `styles.css?v=784`, `sw.js` v555.
 
 **Phase 3 — Collapsible cards**
 - Chevron toggle per card; collapsed = header row + `· N items`.

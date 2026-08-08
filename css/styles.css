@@ -4437,6 +4437,14 @@ button {
 }
 #clActiveRunsContainer.cl-board-single { display: block; }
 
+/* Hint shown under the filter bar when a filter disables board reordering. */
+.cl-board-hint {
+    font-size: 0.85rem;
+    color: #888;
+    font-style: italic;
+    margin: 2px 2px 8px;
+}
+
 .cl-run-card {
     display: block;
     width: 100%;
@@ -4939,6 +4947,11 @@ button {
 /* Run-card drag handle: hidden by default, shown when card is in edit mode */
 .run-drag-handle { display: none; }
 .cl-run-card--editing .run-drag-handle { display: inline; }
+
+/* Card-level drag handle (reorder whole list on the board): hidden unless the
+   board is draggable — desktop multi-column view with no filter active. */
+.cl-card-drag-handle { display: none; padding: 0 4px 0 0; }
+#clActiveRunsContainer.cl-board-draggable .cl-card-drag-handle { display: inline; }
 
 /* Run-card indent button: hidden by default, shown when card is in edit mode */
 .cl-run-indent-btn { display: none; }

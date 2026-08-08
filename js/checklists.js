@@ -436,19 +436,40 @@ async function clBackfillBoardPositions(allActive) {
     }
 }
 
+/** Builds a run card and stamps its current board position onto the element,
+ *  so drag math (fractional reordering) and the star bump can read neighbors. */
+function clBuildBoardCard(run) {
+    var card = clBuildRunCard(run);
+    card.dataset.boardCol   = String(clBoardCol(run));
+    card.dataset.boardOrder = String(clBoardOrder(run));
+    return card;
+}
+
+/** True when a filter is narrowing the active list (drag-reorder is then
+ *  disabled — there's no full-collection context to order against). */
+function clHasActiveFilter() {
+    var el = document.getElementById('clFilterInput');
+    return !!(el && el.value && el.value.trim());
+}
+
 /**
  * Renders the active runs either as a multi-column board (desktop) or as a
- * single read-only column in row-major order (narrow/phone).
+ * single read-only column in row-major order (narrow/phone). On the desktop
+ * board, when no filter is active, wires drag-and-drop reordering.
  * @param {HTMLElement} container — #clActiveRunsContainer (already emptied).
  * @param {Array}       runs      — Runs for the current context (post-filter).
  */
 function clRenderActiveBoard(container, runs) {
+    clDestroyBoardSortables();
+    container.classList.remove('cl-board-draggable');
+
     if (clIsNarrowBoard()) {
         // Single column, read-only order: read the board row-major.
         container.classList.add('cl-board-single');
         runs.slice().sort(clBoardRowMajorCompare).forEach(function(run) {
-            container.appendChild(clBuildRunCard(run));
+            container.appendChild(clBuildBoardCard(run));
         });
+        clUpdateReorderHint(false);
         return;
     }
 
@@ -468,8 +489,105 @@ function clRenderActiveBoard(container, runs) {
 
     byCol.forEach(function(list, c) {
         list.sort(function(a, b) { return clBoardOrder(a) - clBoardOrder(b); });
-        list.forEach(function(run) { cols[c].appendChild(clBuildRunCard(run)); });
+        list.forEach(function(run) { cols[c].appendChild(clBuildBoardCard(run)); });
     });
+
+    // Reorder only when unfiltered (full collection visible). Otherwise show a hint.
+    var filtered = clHasActiveFilter();
+    if (!filtered) {
+        container.classList.add('cl-board-draggable');
+        clInitBoardSortables(cols);
+    }
+    clUpdateReorderHint(filtered);
+}
+
+/** Shows/hides the "clear the filter to reorder" hint under the filter bar. */
+function clUpdateReorderHint(show) {
+    var hint = document.getElementById('clBoardReorderHint');
+    if (hint) hint.classList.toggle('hidden', !show);
+}
+
+/** Tears down any live board SortableJS instances before a re-render. */
+function clDestroyBoardSortables() {
+    if (window._clBoardSortables) {
+        window._clBoardSortables.forEach(function(s) { try { s.destroy(); } catch (e) {} });
+    }
+    window._clBoardSortables = [];
+}
+
+/**
+ * Wires drag-and-drop on the board columns. All columns share one SortableJS
+ * group so cards can be dragged between them. On drop, only the moved card's
+ * position is rewritten (fractional order between its new neighbors), so other
+ * cards — and the same run's placement in a parent roll-up view — are untouched.
+ * @param {HTMLElement[]} cols — The three .cl-board-col elements.
+ */
+function clInitBoardSortables(cols) {
+    if (typeof Sortable === 'undefined') return;
+    window._clBoardSortables = cols.map(function(colEl) {
+        return Sortable.create(colEl, {
+            group: 'cl-board',
+            handle: '.cl-card-drag-handle',
+            draggable: '.cl-run-card',
+            animation: 150,
+            scroll: true,
+            forceAutoScrollFallback: true,
+            scrollSensitivity: 80,
+            scrollSpeed: 12,
+            bubbleScroll: true,
+            onEnd: clOnBoardDrop
+        });
+    });
+}
+
+/**
+ * Persists a card's new board position after a drag. Uses fractional ordering:
+ * the moved card gets a boardOrder between its new neighbors (or ±1 past the
+ * end), so only this one run is written — neighbors keep their values.
+ * @param {Object} evt — SortableJS onEnd event.
+ */
+async function clOnBoardDrop(evt) {
+    var card = evt.item;
+    // No-op drop (dropped back in the same slot) — nothing to persist.
+    if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+
+    var runId  = card.dataset.id;
+    var colEl  = card.parentElement;
+    var newCol = parseInt(colEl.dataset.col) || 0;
+
+    var prev = card.previousElementSibling;
+    var next = card.nextElementSibling;
+    var prevOrder = (prev && prev.dataset.boardOrder != null) ? parseFloat(prev.dataset.boardOrder) : null;
+    var nextOrder = (next && next.dataset.boardOrder != null) ? parseFloat(next.dataset.boardOrder) : null;
+
+    var newOrder;
+    if (prevOrder != null && nextOrder != null) newOrder = (prevOrder + nextOrder) / 2;
+    else if (nextOrder != null)                 newOrder = nextOrder - 1;
+    else if (prevOrder != null)                 newOrder = prevOrder + 1;
+    else                                        newOrder = 0;
+
+    // Reflect the new position on the element so later drops read correct neighbors.
+    card.dataset.boardCol   = String(newCol);
+    card.dataset.boardOrder = String(newOrder);
+
+    try {
+        await userCol('checklistRuns').doc(runId).update({ boardCol: newCol, boardOrder: newOrder });
+    } catch (err) {
+        console.error('Error saving board position:', err);
+        clLoadActiveRuns();  // reload to resync on failure
+    }
+}
+
+/** Smallest boardOrder among the currently rendered cards (for the star bump).
+ *  Returns 0 when nothing is rendered. */
+function clMinBoardOrderVisible() {
+    var cards = document.querySelectorAll('#clActiveRunsContainer .cl-run-card');
+    var min = Infinity;
+    cards.forEach(function(card) {
+        var o = parseFloat(card.dataset.boardOrder);
+        if (!isNaN(o) && o < min) min = o;
+    });
+    return isFinite(min) ? min : 0;
 }
 
 /**
@@ -487,9 +605,17 @@ function clBuildRunCard(run) {
 
     var items = run.items || [];
 
-    // ── Title (with pin toggle) ─────────────────────────────────
+    // ── Title (with drag handle + pin toggle) ───────────────────
     var titleRow = document.createElement('div');
     titleRow.className = 'cl-run-title-row';
+
+    // Card drag handle — reorders the whole list on the board. Visible only when
+    // the board is draggable (desktop, unfiltered); CSS-toggled via cl-board-draggable.
+    var cardHandle = document.createElement('span');
+    cardHandle.className   = 'drag-handle cl-card-drag-handle';
+    cardHandle.textContent = '⠿';
+    cardHandle.title       = 'Drag to move this list';
+    titleRow.appendChild(cardHandle);
 
     var pinBtn = document.createElement('button');
     pinBtn.type      = 'button';
@@ -1232,14 +1358,23 @@ async function clMarkRunComplete(runId) {
 }
 
 /**
- * Toggles the pinned flag on an active run. Pinned runs sort to the top
- * of the Active section, ahead of the normal newest-started-first order.
+ * Toggles the ★ flag on an active run. On a manual board the star is a
+ * highlight, and the *act of starring* also bumps the list to the top of
+ * column 1 (a one-time move). Unstarring only clears the flag — it does not
+ * move the list.
  * @param {string}  runId
  * @param {boolean} newPinned
  */
 async function clToggleRunPin(runId, newPinned) {
     try {
-        await userCol('checklistRuns').doc(runId).update({ pinned: newPinned });
+        var update = { pinned: newPinned };
+        if (newPinned) {
+            // Bump to the top of column 1: an order below the current minimum
+            // puts it above every visible card without renumbering the rest.
+            update.boardCol   = 0;
+            update.boardOrder = clMinBoardOrderVisible() - 1;
+        }
+        await userCol('checklistRuns').doc(runId).update(update);
         clLoadActiveRuns();
     } catch (err) {
         console.error('Error toggling checklist pin:', err);

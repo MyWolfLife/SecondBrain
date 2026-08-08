@@ -3223,6 +3223,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - **Edit mode** (tap ✏️): drag handles appear for reordering, ✕ buttons appear for removal, and an "Add item" row appears at the bottom. In edit mode, **tap any item's text to edit it inline** — tap away to save, Escape to cancel. Pressing **Enter** saves and inserts a new blank item directly below (same indent) for quick list building.
 - **Add a note to an item**: tap the 📝 icon to open a small text area below the item. Press Enter or tap away to save. Tap the note text (or 📝 again) to re-edit it.
 - **Layout**: on a computer the active lists are arranged as a **3-column board**, where each column is its own vertical stack — a short list no longer leaves a big gap under it. On a phone (or a narrow window) the lists show as a **single column**, read top-to-bottom across the board (row by row: the top list of column 1, then column 2, then column 3, then the second row, and so on).
+- **Reordering lists (computer only)**: grab the **⠿ handle** at the top-left of a list card and drag it anywhere on the board — up or down within a column, or over to another column. It stays exactly where you drop it. Reordering is only available on the computer board with no filter applied; while a filter is active you'll see a note that reordering is paused (clear the filter to reorder). The phone view is read-only.
+- **Star to bump to the top**: tapping the ☆ star marks a list and **jumps it to the top of column 1**. From there you can drag it wherever you like. Un-starring just removes the star — it leaves the list where it is.
 
 **Completing a run**: tap ✓ in the footer — the run moves to the Completed section (toggle "Show completed" to view it).
 
