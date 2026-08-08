@@ -4577,7 +4577,39 @@ button {
     min-height: 28px;
     gap: 6px;
 }
-.cl-run-footer-tags { flex: 1; min-width: 0; }
+.cl-run-footer-tags {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+/* Editable tag chips + add-tag input, revealed in run edit mode */
+.cl-tag-chip--editable { display: inline-flex; align-items: center; gap: 4px; }
+.cl-tag-remove {
+    display: none;
+    background: none;
+    border: none;
+    color: #1565c0;
+    cursor: pointer;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0;
+}
+.cl-run-card--editing .cl-tag-remove { display: inline; }
+.cl-tag-add-input {
+    display: none;
+    border: 1px dashed #bbb;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    width: 90px;
+    box-sizing: border-box;
+}
+.cl-run-card--editing .cl-tag-add-input { display: inline-block; }
 
 /* Action icon buttons — hover-reveal on desktop, always visible on touch */
 .cl-run-actions {

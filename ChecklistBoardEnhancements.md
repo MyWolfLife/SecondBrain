@@ -103,8 +103,10 @@ Collapse state: `localStorage` (proposed), not Firestore.
 - State persisted per-device in `localStorage.clCollapsedRuns` (`clIsRunCollapsed` / `clSetRunCollapsed`). Drag handle stays in the title row, so collapsed cards remain draggable.
 - Cache: `checklists.js?v=556`, `styles.css?v=785`, `sw.js` v556.
 
-**Phase 4 — Edit tags on a run**
-- In card ✏️ edit mode: existing tags shown as removable chips + an "add tag" input with autocomplete (datalist) of existing unique tags. Saves to `run.tags[]`.
+**Phase 4 — Edit tags on a run — ✅ COMPLETE**
+- In card ✏️ edit mode (`clBuildRunTagsEditor`): tags shown as chips with a ✕ remove + a "+ tag" input. Add (Enter) / remove writes to `run.tags[]` only — never the template. Case-insensitive de-dupe.
+- Autocomplete via shared `#clTagSuggestions` datalist built from all run + template tags (`_clTagUniverse` / `clAddTagsToUniverse`, populated in `clLoadActiveRuns` + `clLoadTemplates`).
+- Cache: `checklists.js?v=557`, `styles.css?v=786`, `sw.js` v557.
 
 **Phase 5 — Tag filter sidebar / accordion**
 - Desktop: left sidebar column of unique-tag checkboxes → page becomes `[tag sidebar | 3-col board]`.

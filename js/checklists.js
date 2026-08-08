@@ -43,6 +43,10 @@ var CL_BOARD_COLS = 3;
  *  active runs render as a single read-only column in row-major board order. */
 var CL_BOARD_MIN_WIDTH = 880;
 
+/** Known tags across runs/templates, feeding the add-tag autocomplete datalist.
+ *  Rebuilt as runs/templates load; case-insensitive de-duplicated. */
+var _clTagUniverse = [];
+
 // ---------- Page Entry Point ----------
 
 /**
@@ -313,6 +317,9 @@ async function clLoadActiveRuns() {
         var allActive = snap.docs.map(function(doc) {
             return Object.assign({ id: doc.id }, doc.data());
         });
+
+        // Feed the add-tag autocomplete from every active run's tags.
+        allActive.forEach(function(run) { clAddTagsToUniverse(run.tags); });
 
         // Assign board positions (boardCol/boardOrder) to any run missing them.
         // Mutates the in-memory objects and persists the new values to Firestore.
@@ -611,6 +618,37 @@ function clSetRunCollapsed(runId, collapsed) {
     try { localStorage.setItem('clCollapsedRuns', JSON.stringify(Array.from(s))); } catch (e) {}
 }
 
+// ---------- Tag autocomplete (shared datalist) ----------
+
+/** Merges tags into the known-tag universe (case-insensitive de-dupe) and
+ *  refreshes the shared <datalist> that feeds the add-tag autocomplete. */
+function clAddTagsToUniverse(tags) {
+    var seen = {};
+    _clTagUniverse.forEach(function(t) { seen[t.toLowerCase()] = true; });
+    (tags || []).forEach(function(t) {
+        var key = (t || '').toLowerCase();
+        if (t && !seen[key]) { seen[key] = true; _clTagUniverse.push(t); }
+    });
+    _clTagUniverse.sort(function(a, b) { return a.localeCompare(b); });
+    clRefreshTagDatalist();
+}
+
+/** Ensures the shared #clTagSuggestions datalist exists and mirrors the universe. */
+function clRefreshTagDatalist() {
+    var dl = document.getElementById('clTagSuggestions');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'clTagSuggestions';
+        document.body.appendChild(dl);
+    }
+    dl.innerHTML = '';
+    _clTagUniverse.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t;
+        dl.appendChild(opt);
+    });
+}
+
 /**
  * Builds a Google Keep-style inline card for one active run.
  * Items are shown directly on the card — no accordion.
@@ -701,12 +739,8 @@ function clBuildRunCard(run) {
     var footer = document.createElement('div');
     footer.className = 'cl-run-footer';
 
-    var tagsDiv = document.createElement('div');
-    tagsDiv.className = 'cl-run-footer-tags';
-    if (run.tags && run.tags.length) {
-        tagsDiv.appendChild(clBuildTagChips(run.tags));
-    }
-    footer.appendChild(tagsDiv);
+    // Tags: read-only chips normally; removable chips + add-input in edit mode.
+    footer.appendChild(clBuildRunTagsEditor(run, card));
 
     var actions = document.createElement('div');
     actions.className = 'cl-run-actions';
@@ -1482,6 +1516,9 @@ async function clLoadTemplates() {
                 return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
             });
 
+        // Feed the add-tag autocomplete from template tags too.
+        templates.forEach(function(t) { clAddTagsToUniverse(t.tags); });
+
         if (templates.length === 0) {
             emptyEl.classList.remove('hidden');
             return;
@@ -1965,6 +2002,81 @@ function clBuildTagChips(tags) {
         chip.textContent = tag;
         wrap.appendChild(chip);
     });
+    return wrap;
+}
+
+/**
+ * Builds the run-card tag area. Chips are read-only normally; in edit mode each
+ * chip shows a ✕ to remove it and an "+ tag" input (with autocomplete from the
+ * known-tag list) appears for adding. Edits save to the run's tags[] only — the
+ * source template is never touched. CSS reveals the ✕/input via cl-run-card--editing.
+ * @param {Object}      run  — Run data (its tags array is updated in place on edit).
+ * @param {HTMLElement} card
+ * @returns {HTMLElement}
+ */
+function clBuildRunTagsEditor(run, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'cl-run-footer-tags';
+
+    run.tags = run.tags || [];
+
+    // Persists the current tags array to Firestore (run only, not the template).
+    async function save() {
+        try {
+            await userCol('checklistRuns').doc(run.id).update({ tags: run.tags });
+            clAddTagsToUniverse(run.tags);
+        } catch (err) {
+            console.error('Error saving run tags:', err);
+        }
+    }
+
+    function render() {
+        wrap.innerHTML = '';
+
+        run.tags.forEach(function(tag, i) {
+            var chip = document.createElement('span');
+            chip.className   = 'cl-tag-chip cl-tag-chip--editable';
+            chip.textContent = tag;
+
+            var rm = document.createElement('button');
+            rm.type      = 'button';
+            rm.className = 'cl-tag-remove';
+            rm.title     = 'Remove tag';
+            rm.textContent = '✕';
+            rm.addEventListener('click', function() {
+                run.tags.splice(i, 1);
+                render();
+                save();
+            });
+            chip.appendChild(rm);
+            wrap.appendChild(chip);
+        });
+
+        // Add-tag input (visible only in edit mode via CSS).
+        var input = document.createElement('input');
+        input.type        = 'text';
+        input.className   = 'cl-tag-add-input';
+        input.placeholder = '+ tag';
+        input.setAttribute('list', 'clTagSuggestions');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                var val = input.value.trim();
+                if (val && run.tags.every(function(t) { return t.toLowerCase() !== val.toLowerCase(); })) {
+                    run.tags.push(val);
+                    render();            // rebuilds the row (new chip + fresh input)
+                    save();
+                    var newInput = wrap.querySelector('.cl-tag-add-input');
+                    if (newInput) newInput.focus();
+                } else {
+                    input.value = '';
+                }
+            }
+        });
+        wrap.appendChild(input);
+    }
+
+    render();
     return wrap;
 }
 
