@@ -3222,7 +3222,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - **Check an item**: tap the checkbox. A completion date is recorded and shown next to the label.
 - **Edit mode** (tap ✏️): drag handles appear for reordering, ✕ buttons appear for removal, and an "Add item" row appears at the bottom. In edit mode, **tap any item's text to edit it inline** — tap away to save, Escape to cancel. Pressing **Enter** saves and inserts a new blank item directly below (same indent) for quick list building.
 - **Add a note to an item**: tap the 📝 icon to open a small text area below the item. Press Enter or tap away to save. Tap the note text (or 📝 again) to re-edit it.
-- **Width on phone**: cards default to full-width (1-column) for readability. Use the ⊞ button to switch to a 2-column compact view. Your preference is saved.
+- **Layout**: on a computer the active lists are arranged as a **3-column board**, where each column is its own vertical stack — a short list no longer leaves a big gap under it. On a phone (or a narrow window) the lists show as a **single column**, read top-to-bottom across the board (row by row: the top list of column 1, then column 2, then column 3, then the second row, and so on).
 
 **Completing a run**: tap ✓ in the footer — the run moves to the Completed section (toggle "Show completed" to view it).
 

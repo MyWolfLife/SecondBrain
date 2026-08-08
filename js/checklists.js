@@ -35,6 +35,14 @@ var _clFocusRunId = null;
  *  Cleared as soon as the matching item is built. */
 var _clAutoEditItem = null;
 
+/** Number of columns in the desktop active-runs board. Each run stores a
+ *  boardCol (0..CL_BOARD_COLS-1) and boardOrder (position within that column). */
+var CL_BOARD_COLS = 3;
+
+/** Minimum viewport width (px) to show the multi-column board. Below this the
+ *  active runs render as a single read-only column in row-major board order. */
+var CL_BOARD_MIN_WIDTH = 880;
+
 // ---------- Page Entry Point ----------
 
 /**
@@ -117,20 +125,14 @@ async function loadChecklistsPage() {
             }, 250);
         });
 
-        // Phone column toggle: switches #clActiveRunsContainer between 1- and 2-column layout
-        var colToggleBtn = document.getElementById('clColumnToggleBtn');
-        if (colToggleBtn) {
-            colToggleBtn.addEventListener('click', function() {
-                var current = localStorage.getItem('clColumnLayout') || '1';
-                var next = current === '2' ? '1' : '2';
-                localStorage.setItem('clColumnLayout', next);
-                clApplyColumnLayout();
-            });
+        // Re-render the active board when we cross the desktop/narrow breakpoint,
+        // since the layout mode (3-column board vs single-column read-only) is
+        // decided in JS, not CSS. Wired once; guarded on window to survive re-entry.
+        if (!window._clBoardMQL) {
+            window._clBoardMQL = window.matchMedia('(max-width: ' + (CL_BOARD_MIN_WIDTH - 0.02) + 'px)');
+            window._clBoardMQL.addEventListener('change', function() { clLoadActiveRuns(); });
         }
     }
-
-    // Apply saved column layout preference on every page load
-    clApplyColumnLayout();
 
     // Reset sections when page is re-entered
     toggle.checked = false;
@@ -146,24 +148,6 @@ async function loadChecklistsPage() {
         clLoadActiveRuns(),
         clLoadTemplates(),
     ]);
-}
-
-/**
- * Reads the stored column layout preference (1 or 2) and applies
- * the appropriate CSS class to #clActiveRunsContainer.
- * The toggle button icon also updates to match.
- */
-function clApplyColumnLayout() {
-    var layout = localStorage.getItem('clColumnLayout') || '1';
-    var container = document.getElementById('clActiveRunsContainer');
-    var btn = document.getElementById('clColumnToggleBtn');
-    if (container) {
-        container.classList.toggle('cl-cols-2', layout === '2');
-    }
-    if (btn) {
-        btn.title = layout === '2' ? 'Switch to 1-column view' : 'Switch to 2-column view';
-        btn.textContent = layout === '2' ? '⊟' : '⊞';
-    }
 }
 
 // ============================================================
@@ -324,29 +308,32 @@ async function clLoadActiveRuns() {
             .where('completedAt', '==', null)
             .get();
 
+        // Full active set (all contexts) — used both for the board backfill and
+        // then filtered down to the current context for display.
+        var allActive = snap.docs.map(function(doc) {
+            return Object.assign({ id: doc.id }, doc.data());
+        });
+
+        // Assign board positions (boardCol/boardOrder) to any run missing them.
+        // Mutates the in-memory objects and persists the new values to Firestore.
+        await clBackfillBoardPositions(allActive);
+
         var ctx = clCurrentContext || { type: 'yard' };
 
-        var runs = snap.docs
-            .map(function(doc) { return Object.assign({ id: doc.id }, doc.data()); })
+        var runs = allActive
             .filter(function(run) { return clMatchesContext(run, ctx); })
             .filter(function(run) { return !run.archived; })
-            .filter(clMatchesFilter)
-            .sort(function(a, b) {
-                var pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
-                if (pinDiff !== 0) return pinDiff;
-                return (b.startedAt || '').localeCompare(a.startedAt || '');
-            });
+            .filter(clMatchesFilter);
 
         container.innerHTML = '';
+        container.classList.remove('cl-board-cols', 'cl-board-single');
 
         if (runs.length === 0) {
             emptyEl.classList.remove('hidden');
             return;
         }
 
-        runs.forEach(function(run) {
-            container.appendChild(clBuildRunCard(run));
-        });
+        clRenderActiveBoard(container, runs);
 
         // Scroll to and highlight the run from search (set by #checklist-focus route)
         if (_clFocusRunId) {
@@ -367,6 +354,122 @@ async function clLoadActiveRuns() {
         console.error('Error loading active runs:', err);
         container.innerHTML = '<p class="ar-summary" style="color:#c62828;">Error loading active checklists.</p>';
     }
+}
+
+// ---------- Board layout (manual columns) ----------
+
+/** Reads a run's stored board column, defaulting to 0 and clamping to the grid. */
+function clBoardCol(run) {
+    var c = parseInt(run.boardCol);
+    if (isNaN(c)) c = 0;
+    return Math.min(CL_BOARD_COLS - 1, Math.max(0, c));
+}
+
+/** Reads a run's stored board order (position within its column), default 0. */
+function clBoardOrder(run) {
+    var o = (typeof run.boardOrder === 'number') ? run.boardOrder : Number(run.boardOrder);
+    return isNaN(o) ? 0 : o;
+}
+
+/** True when the viewport is too narrow for the multi-column board, so the
+ *  active runs render as a single read-only column in row-major order. */
+function clIsNarrowBoard() {
+    if (window._clBoardMQL) return window._clBoardMQL.matches;
+    return window.matchMedia('(max-width: ' + (CL_BOARD_MIN_WIDTH - 0.02) + 'px)').matches;
+}
+
+/** Row-major comparator: order (row) first, then column left-to-right.
+ *  Defines the single-column reading order on phones/narrow screens. */
+function clBoardRowMajorCompare(a, b) {
+    return (clBoardOrder(a) - clBoardOrder(b)) || (clBoardCol(a) - clBoardCol(b));
+}
+
+/** Board position for a brand-new run: top of column 1. A negative, ever-
+ *  decreasing boardOrder places it above all migrated runs (which start at 0)
+ *  and above earlier new runs, without needing to read the current minimum. */
+function clNewBoardPosition() {
+    return { boardCol: 0, boardOrder: -Date.now() };
+}
+
+/**
+ * Assigns boardCol/boardOrder to any active run missing them and persists the
+ * new values. On a fresh migration (no run has a position yet) the whole set is
+ * distributed row-major across the columns, in the app's previous sort order
+ * (pinned first, then newest-started) — so the phone's row-major reading matches
+ * the order the user saw before this feature. Stragglers added later are appended
+ * below the existing rows.
+ * @param {Array} allActive — Every active run (all contexts), mutated in place.
+ */
+async function clBackfillBoardPositions(allActive) {
+    var missing = allActive.filter(function(r) { return typeof r.boardOrder !== 'number'; });
+    if (missing.length === 0) return;
+
+    var present = allActive.filter(function(r) { return typeof r.boardOrder === 'number'; });
+
+    // Order the un-positioned runs the way the old UI sorted them.
+    missing.sort(function(a, b) {
+        var pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+        if (pinDiff !== 0) return pinDiff;
+        return (b.startedAt || '').localeCompare(a.startedAt || '');
+    });
+
+    // Fresh migration starts at row 0; otherwise append below the last existing row.
+    var baseRow = 0;
+    if (present.length > 0) {
+        baseRow = present.reduce(function(mx, r) { return Math.max(mx, clBoardOrder(r)); }, 0) + 1;
+    }
+
+    var updates = [];
+    missing.forEach(function(run, k) {
+        run.boardCol   = k % CL_BOARD_COLS;
+        run.boardOrder = baseRow + Math.floor(k / CL_BOARD_COLS);
+        updates.push(
+            userCol('checklistRuns').doc(run.id)
+                .update({ boardCol: run.boardCol, boardOrder: run.boardOrder })
+        );
+    });
+
+    try {
+        await Promise.all(updates);
+    } catch (err) {
+        console.error('Error backfilling board positions:', err);
+    }
+}
+
+/**
+ * Renders the active runs either as a multi-column board (desktop) or as a
+ * single read-only column in row-major order (narrow/phone).
+ * @param {HTMLElement} container — #clActiveRunsContainer (already emptied).
+ * @param {Array}       runs      — Runs for the current context (post-filter).
+ */
+function clRenderActiveBoard(container, runs) {
+    if (clIsNarrowBoard()) {
+        // Single column, read-only order: read the board row-major.
+        container.classList.add('cl-board-single');
+        runs.slice().sort(clBoardRowMajorCompare).forEach(function(run) {
+            container.appendChild(clBuildRunCard(run));
+        });
+        return;
+    }
+
+    // Multi-column board: place each run in its column, stacked by boardOrder.
+    container.classList.add('cl-board-cols');
+    var cols = [];
+    for (var c = 0; c < CL_BOARD_COLS; c++) {
+        var colEl = document.createElement('div');
+        colEl.className = 'cl-board-col';
+        colEl.dataset.col = String(c);
+        cols.push(colEl);
+        container.appendChild(colEl);
+    }
+
+    var byCol = cols.map(function() { return []; });
+    runs.forEach(function(run) { byCol[clBoardCol(run)].push(run); });
+
+    byCol.forEach(function(list, c) {
+        list.sort(function(a, b) { return clBoardOrder(a) - clBoardOrder(b); });
+        list.forEach(function(run) { cols[c].appendChild(clBuildRunCard(run)); });
+    });
 }
 
 /**
@@ -1033,7 +1136,7 @@ async function clNewBlankList() {
     var ctx = clCurrentContext || { type: 'yard' };
 
     try {
-        await userCol('checklistRuns').add({
+        await userCol('checklistRuns').add(Object.assign({
             templateId:   null,
             templateName: name.trim(),
             targetType:   ctx.type || 'yard',
@@ -1043,7 +1146,7 @@ async function clNewBlankList() {
             completedAt:  null,
             items:        [],
             createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, clNewBoardPosition()));
 
         clLoadActiveRuns();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1306,7 +1409,7 @@ async function clStartRun(template) {
     }
 
     try {
-        await userCol('checklistRuns').add({
+        await userCol('checklistRuns').add(Object.assign({
             templateId:   template.id,
             templateName: template.name,
             tags:         tags,
@@ -1318,7 +1421,7 @@ async function clStartRun(template) {
             archived:     false,
             items:        items,
             createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, clNewBoardPosition()));
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
         clLoadActiveRuns();

@@ -4420,19 +4420,22 @@ button {
 
 /* ── Active Run Cards — Keep-style multi-column layout ─── */
 
-/* Container uses CSS grid so cards fill available width */
-#clActiveRunsContainer {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+/* Manual board layout. The mode class (cl-board-cols / cl-board-single) is set
+   in JS, not via CSS media queries, because the single-column order is row-major
+   and computed in JS. cl-board-cols = 3 stacked flex columns (desktop);
+   cl-board-single = one column, read-only order (narrow/phone). */
+#clActiveRunsContainer.cl-board-cols {
+    display: flex;
     gap: 12px;
-    align-items: start;
+    align-items: flex-start;
 }
-
-/* On phone, default to 1 column; cl-cols-2 switches to 2 equal columns */
-@media (max-width: 600px) {
-    #clActiveRunsContainer { grid-template-columns: 1fr; }
-    #clActiveRunsContainer.cl-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cl-board-col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
+#clActiveRunsContainer.cl-board-single { display: block; }
 
 .cl-run-card {
     display: block;
@@ -4450,24 +4453,6 @@ button {
 .cl-run-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 .cl-run-card--focused { outline: 2px solid #1976d2; }
 .cl-run-card--pinned { border-color: #f9d776; background: #fffdf3; }
-
-/* Column toggle button (phone only by default; visible always) */
-.cl-col-toggle-btn {
-    background: none;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 1.1rem;
-    padding: 2px 8px;
-    cursor: pointer;
-    color: #555;
-    line-height: 1.4;
-}
-.cl-col-toggle-btn:hover { background: #f0f0f0; }
-
-/* On desktop, hide the column toggle (columns always 4) */
-@media (min-width: 601px) {
-    .cl-col-toggle-btn { display: none; }
-}
 
 .cl-run-title-row {
     display: flex;
