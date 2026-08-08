@@ -1727,7 +1727,7 @@ Dashboard page showing totals for the selected group.
 
 **Category Breakdown table** (rows: Roth, Pre-Tax, Brokerage, Cash, Uninvested Cash, Net Worth total): value + % of Net Worth.
 - Roth/Pre-Tax/Brokerage buckets = **full account total** (holdings + cashBalance + pendingActivity) for accounts of that type
-- **Brokerage row** additionally shows a dimmed `taxable $X` note to the left of the total — `taxable = brokerage total − Σ(costBasis × shares)` across all brokerage holdings. Only shown when at least one brokerage holding has a cost basis recorded. Not shown in snapshot detail views (cost basis not stored in snapshots).
+- **Brokerage row** additionally shows a dimmed `unrealized gain $X` note to the left of the total — `unrealized gain = brokerage holdings market value − Σ(costBasis × shares)` across all brokerage holdings. Cash and pending are excluded (only holdings can gain/lose value). Only shown when at least one brokerage holding has a cost basis recorded. Not shown in snapshot detail views (cost basis not stored in snapshots).
 - Cash bucket = total balance of bank accounts (checking/savings/money market/CD)
 - Uninvested Cash = informational display only — sum of `cashBalance + pendingActivity` across all non-bank investment accounts; already baked into the category rows above, **not** added to Net Worth
 - `t.netWorth = t.roth + t.preTax + t.brokerage + t.cash` (no `+ t.invCash`)

@@ -2369,7 +2369,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 **Tax categories**:
 - **Roth** (green): Roth IRA, Roth 401k, HSA — full account total (holdings + uninvested cash + pending activity)
 - **Pre-Tax** (orange): Traditional IRA, Traditional 401k, Self-directed 401k, 403b, 529 — full account total
-- **Brokerage** (purple): Brokerage Individual, Brokerage Joint — full account total. When at least one brokerage holding has a cost basis recorded, a dimmed "taxable $X" note appears to the left of the total, showing the estimated taxable gain (brokerage total − Σ cost basis).
+- **Brokerage** (purple): Brokerage Individual, Brokerage Joint — full account total. When at least one brokerage holding has a cost basis recorded, a dimmed "unrealized gain $X" note appears to the left of the total, showing the paper gain on holdings only (brokerage holdings market value − Σ cost basis). Cash and pending are excluded, and nothing is actually taxed until you sell.
 - **Cash** (blue): Checking, Savings, Money Market, CD — the account's full balance
 - **Uninvested Cash**: informational row only — shows the combined idle cash and pending activity sitting inside your Roth/Pre-Tax/Brokerage accounts. Already included in those category totals above; **not** added to Net Worth a second time.
 

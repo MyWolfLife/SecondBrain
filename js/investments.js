@@ -4055,7 +4055,7 @@ async function _investRenderSummaryPage() {
             _investCategoryRow('Pre-Tax',         cats.preTax,    cats.netWorth, 'invest-badge--pretax') +
             _investCategoryRow('Brokerage',       cats.brokerage, cats.netWorth, 'invest-badge--brokerage',
                 cats.brokerageCostBasisKnown
-                    ? 'taxable ' + _investFmtCurrency(cats.brokerage - cats.brokerageCostBasisTotal)
+                    ? 'unrealized gain ' + _investFmtCurrency(cats.brokerageHoldingsValue - cats.brokerageCostBasisTotal)
                     : null) +
             _investCategoryRow('Cash',            cats.cash,      cats.netWorth, 'invest-badge--cash') +
             _investCategoryRow('Uninvested Cash', cats.invCash,   cats.netWorth, 'invest-badge--other') +
@@ -4212,7 +4212,7 @@ async function _investLoadGroupAccounts(group) {
 
 function _investComputeGroupTotals(accounts) {
     var t = { roth: 0, preTax: 0, brokerage: 0, cash: 0, invCash: 0,
-              brokerageCostBasisTotal: 0, brokerageCostBasisKnown: false };
+              brokerageHoldingsValue: 0, brokerageCostBasisTotal: 0, brokerageCostBasisKnown: false };
 
     accounts.forEach(function(acct) {
         var type   = acct.accountType || '';
@@ -4227,6 +4227,9 @@ function _investComputeGroupTotals(accounts) {
             else if (_INVEST_PRETAX_TYPES.indexOf(type) >= 0) t.preTax    += totals.total;
             else if (_INVEST_BROKER_TYPES.indexOf(type) >= 0) {
                 t.brokerage += totals.total;
+                // Track holdings market value separately so the unrealized-gain
+                // figure excludes cash/pending (only holdings can gain/lose value)
+                t.brokerageHoldingsValue += totals.holdings;
                 // Sum cost basis for brokerage holdings (costBasis is per-share)
                 (acct._holdings || []).forEach(function(h) {
                     if (h.costBasis != null && h.shares != null) {
