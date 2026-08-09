@@ -392,6 +392,10 @@ function showPage(page) {
     // on all other pages restore the full nav.
     document.body.classList.toggle('main-page', page === 'main');
 
+    // The Checklists board wants the full window width (not the 800px reading
+    // column other pages use), so it can spread its columns across the screen.
+    document.body.classList.toggle('checklists-page', page === 'checklists');
+
     // Close mobile nav if open
     closeMobileNav();
 

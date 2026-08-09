@@ -4445,6 +4445,10 @@ button {
     margin: 2px 2px 8px;
 }
 
+/* The Checklists page opts out of the global 800px reading column so its board
+   can use the full window width (other pages keep the narrower column). */
+body.checklists-page .app-main { max-width: none; }
+
 /* ── Active area: tag-filter sidebar (accordion on phone) + the board ── */
 .cl-active-layout { display: flex; gap: 16px; align-items: flex-start; }
 .cl-active-main { flex: 1 1 auto; min-width: 0; }
