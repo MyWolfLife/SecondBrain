@@ -98,7 +98,7 @@ Each activity type carries two behavior flags:
 | Treadmill | ✅ | ❌ |
 | Golf | ❌ | ❌ |
 | Mowing | ❌ | ❌ |
-| Yard Work | ❌ | ❌ |
+| Yard Work | ✅ | ❌ |
 | Weights | ❌ | ❌ |
 | Elliptical | ❌ | ❌ |
 | Row Machine | ❌ | ❌ |
