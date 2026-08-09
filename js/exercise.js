@@ -530,7 +530,7 @@ function _exBuildTable(activities, showStats) {
             } else {
                 var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
                 var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
-                var total  = _exIsSplitMilesType(type) ? (walked + run) : walked;
+                var total  = _exIsSplitMilesType(type) ? _exSumMiles(walked, run) : walked;
                 if (total > 0) {
                     distDisplay = total;
                     pace = a.durationMinutes ? exFmtPace(total, a.durationMinutes) : '';
@@ -601,7 +601,7 @@ function _exBuildCards(activities) {
             } else {
                 var walked = (a.miles    != null && a.miles    !== '') ? parseFloat(a.miles)    : 0;
                 var run    = (a.runMiles != null && a.runMiles !== '') ? parseFloat(a.runMiles) : 0;
-                var totalMi = _exIsSplitMilesType(type) ? (walked + run) : walked;
+                var totalMi = _exIsSplitMilesType(type) ? _exSumMiles(walked, run) : walked;
                 if (totalMi > 0) {
                     var pace = exFmtPace(totalMi, a.durationMinutes);
                     parts.push(totalMi + ' mi' + (pace ? ' @ ' + pace : ''));
@@ -706,6 +706,12 @@ function _exBuildSummary(activities) {
 function _exFmtMiles(v) {
     if (!v) return '';
     return (Math.round(v * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+// Sum walked + run miles without floating-point artifacts.
+// e.g. 1.53 + 2.5 === 4.029999999999999 in JS; rounding to the 0.01 input precision → 4.03
+function _exSumMiles(walked, run) {
+    return Math.round((walked + run) * 100) / 100;
 }
 
 function _exRenderSummaryCard(summary, periodLabel) {
