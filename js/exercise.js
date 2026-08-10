@@ -1841,8 +1841,9 @@ async function _exHandleFromPicture(files) {
 
 // ─── Module-level state ──────────────────────────────────────────────────────
 
-var _dmDefsAll        = [];         // non-archived metric defs, sorted by sortOrder (used by Manage Metrics)
-var _dmMetricDefs     = [];         // same data, used by list + entry form
+var _dmDefsAll        = [];         // ALL metric defs (incl. archived), sorted by sortOrder (used by Manage Metrics)
+var _dmShowArchivedDefs = false;    // Manage Metrics "Show archived" toggle — setup-list filter only
+var _dmMetricDefs     = [];         // same data (incl. archived), used by list + entry form; gated at render
 var _dmSelMonth       = -1;         // 0-11 = specific month, -1 = full year view; set on page load
 var _dmGoalsData      = null;       // exerciseGoals doc for _dmSelYear; drives color thresholds + miles card
 var _dmGoalsYear      = 0;          // which year _dmGoalsData was loaded for; 0 = not loaded
@@ -1861,6 +1862,7 @@ var _dmWeightChartNaturalW = 0;     // natural width at render time — basis fo
 var _dmWeightChartProjected = false; // "Show Projected Weight" line (calorie-driven) — sticky, default off
 var _dmWeightChartShowMissing = false; // "Show Missing Days" — fill x-axis with every calendar day (no dot on gaps); sticky, default off
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
+var _dmFormDefKey     = '';         // signature of in-window custom def ids the entry form was built with
 var _dmExistingDoc    = null;       // loaded doc data or null
 var _dmInitialSig     = null;       // signature of the form as first rendered (for dirty-check)
 
@@ -1909,9 +1911,10 @@ async function loadExerciseMetricsPage() {
         userCol('settings').doc('exercisePrefs').get(),
         userCol('exerciseGoals').doc(String(_dmSelYear)).get()
     ]);
+    // Include archived defs — their columns still render for the months they were active
+    // (per the overlap rule). Visibility is gated at render time by date range, not here.
     _dmMetricDefs = results[0].docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-        .filter(function(d) { return !d.archived; })
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     var prefs = results[1].exists ? results[1].data() : {};
     _dmLast7Expanded    = prefs.dmLast7Expanded    === true;
@@ -2008,6 +2011,64 @@ function _dmFmtYM(year, month) {
         start: year + '-' + mm + '-01',
         end:   year + '-' + mm + '-' + (lastDay < 10 ? '0' : '') + lastDay
     };
+}
+
+// ─── Custom-metric active-window helpers ─────────────────────────────────────
+// A custom metric is only "active" within its inclusive [startDate, endDate] window:
+//   startDate null → active from the beginning of time
+//   endDate   null → active / ongoing (not archived)
+//   endDate   set  → archived (stopped as of that day; endDate IS the archived state)
+// Legacy: some defs used a boolean `archived` flag with no endDate (the old soft-delete
+// "Delete" button). Those are folded into the endDate model here so reads stay correct
+// even before the one-time migration on the Manage Metrics screen runs.
+
+// Firestore Timestamp → 'YYYY-MM-DD' (local), or '' if not a timestamp.
+function _dmTsToDateStr(ts) {
+    if (!ts || typeof ts.toDate !== 'function') return '';
+    var d = ts.toDate();
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+
+// The effective end date for a def, accounting for the legacy `archived` flag.
+function _dmDefEndDate(def) {
+    if (def.endDate) return def.endDate;
+    if (def.archived === true) return _dmTsToDateStr(def.createdAt) || _dmTodayStr();
+    return null;
+}
+
+// Is this metric archived (has an effective end date)?
+function _dmDefIsArchived(def) {
+    return !!def.endDate || def.archived === true;
+}
+
+// True if the metric's active window overlaps the displayed [rangeStart, rangeEnd].
+// Used to decide whether a metric gets a COLUMN in a given month/range.
+function _dmDefOverlapsRange(def, rangeStart, rangeEnd) {
+    var s = def.startDate || null;
+    var e = _dmDefEndDate(def);
+    if (s && rangeEnd && s > rangeEnd) return false;      // starts after the range ends
+    if (e && rangeStart && e < rangeStart) return false;  // ended before the range begins
+    return true;
+}
+
+// True if the metric is active on a specific 'YYYY-MM-DD' day (inclusive on both ends).
+// Used to decide whether a given day's CELL / entry-form field is available.
+function _dmDefActiveOnDate(def, dateStr) {
+    if (!dateStr) return true;
+    var s = def.startDate || null;
+    var e = _dmDefEndDate(def);
+    if (s && dateStr < s) return false;
+    if (e && dateStr > e) return false;
+    return true;
+}
+
+// Stable signature of the custom-metric ids active on a given day. The entry form rebuilds
+// only when this changes across a date change, so typed input is preserved in the common
+// case (dates within the same active window → identical field set).
+function _dmInWindowKey(dateStr) {
+    return _dmMetricDefs.filter(function(def) { return _dmDefActiveOnDate(def, dateStr); })
+                        .map(function(def) { return def.id; }).join(',');
 }
 
 // ─── Miles summary card rendering ────────────────────────────────────────────
@@ -3051,8 +3112,9 @@ function _dmStatCells(records, summary, monthIdx, milesPerDate, typeDataPerDate,
 
 // Renders one stat <tr> (Goals / Averages / Totals / Last-7 / Summary line).
 // showMiles — include the 4 miles extra columns; trackedTypes — per-type columns.
-function _dmStatRowHtml(cls, cells, showMiles, trackedTypes) {
+function _dmStatRowHtml(cls, cells, showMiles, trackedTypes, visibleDefs) {
     trackedTypes = trackedTypes || [];
+    if (!visibleDefs) visibleDefs = _dmMetricDefs;   // caller may pass a range-filtered subset
     var row = '<tr class="' + cls + '">';
     row += '<td class="dm-row-label">' + cells.label + '</td>';
     row += '<td class="dm-col-num">' + cells.weight + '</td>';
@@ -3069,7 +3131,7 @@ function _dmStatRowHtml(cls, cells, showMiles, trackedTypes) {
     row += '<td class="dm-col-num">' + cells.foodCalories + '</td>';
     row += '<td class="dm-col-num">' + cells.diff + '</td>';
     cells.nutrition.forEach(function(v) { row += '<td class="dm-col-num dm-col-nutri">' + v + '</td>'; });
-    _dmMetricDefs.forEach(function(def) {
+    visibleDefs.forEach(function(def) {
         var cls2 = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         row += '<td' + cls2 + '>' + cells.custom(def) + '</td>';
     });
@@ -3086,6 +3148,12 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
     var postDiffCols  = [];
     var diffTooltip   = _DM_DIFF_TOOLTIP;
     var nutriCols     = _DM_NUTRI_COLS;   // toggled by the 🥗 Nutrition button
+
+    // Custom-metric columns: only those whose active window overlaps this month's range.
+    var _mRange = _dmFmtYM(_dmSelYear, monthIdx);
+    var visibleDefs = _dmMetricDefs.filter(function(def) {
+        return _dmDefOverlapsRange(def, _mRange.start, _mRange.end);
+    });
 
     // Compute the Goals / Averages / Totals cells for this month (shared logic)
     var _statCells = _dmStatCells(records, summary, monthIdx, milesPerDate, typeDataPerDate, trackedTypes);
@@ -3113,13 +3181,13 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
                               ? Math.round(l7.diffSum / l7.diffCount).toLocaleString() : '',
             nutrition:    [l7.protein, l7.carbs, l7.fiber, l7.fat, l7.water].map(_l7Avg),
             custom:       function(def) { var c = l7.custom[def.id]; return c == null ? '' : _exEsc(c); }
-        }, showMiles, trackedTypes);
+        }, showMiles, trackedTypes, visibleDefs);
     }
 
     // Goals / Averages / Totals rows (shared stat-cell logic)
-    thead += _dmStatRowHtml('dm-goals-row',    _statCells.goals,    showMiles, trackedTypes);
-    thead += _dmStatRowHtml('dm-averages-row', _statCells.averages, showMiles, trackedTypes);
-    thead += _dmStatRowHtml('dm-summary-row',  _statCells.totals,   showMiles, trackedTypes);
+    thead += _dmStatRowHtml('dm-goals-row',    _statCells.goals,    showMiles, trackedTypes, visibleDefs);
+    thead += _dmStatRowHtml('dm-averages-row', _statCells.averages, showMiles, trackedTypes, visibleDefs);
+    thead += _dmStatRowHtml('dm-summary-row',  _statCells.totals,   showMiles, trackedTypes, visibleDefs);
     // Column header row
     thead += '<tr class="dm-header-row"><th>Date</th>';
     preDiffCols.forEach(function(c) {
@@ -3146,7 +3214,7 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
         thead += '<th class="dm-col-nutri" title="' + _exEsc(c.tooltip) + '">' + c.label + '</th>';
     });
     postDiffCols.forEach(function(c) { thead += '<th>' + c.label + '</th>'; });
-    _dmMetricDefs.forEach(function(def) {
+    visibleDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
@@ -3217,20 +3285,24 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
             var note = r.notes && r.notes[c.key] ? r.notes[c.key] : '';
             tbody += '<td class="dm-col-num">' + _exEsc(String(v)) + _dmNoteIcon(note, true) + '</td>';
         });
-        _dmMetricDefs.forEach(function(def) {
+        visibleDefs.forEach(function(def) {
+            var baseCls = def.type === 'text' ? 'dm-col-text'
+                        : def.type === 'boolean' ? 'dm-col-bool' : 'dm-col-num-custom';
+            // Out-of-window day for this metric → blank cell (not active on this date)
+            if (!_dmDefActiveOnDate(def, r.date)) {
+                tbody += '<td class="' + baseCls + ' dm-cell-inactive"></td>';
+                return;
+            }
+            var cls = ' class="' + baseCls + '"';
             var cv = r.customValues && r.customValues[def.id];
             var display = '';
-            var cls = '';
             if (def.type === 'boolean') {
                 display = cv === true ? 'Y' : '—';
-                cls = ' class="dm-col-bool"';
             } else if (def.type === 'number') {
                 display = (cv !== null && cv !== undefined && cv !== '') ? String(cv) : '—';
-                cls = ' class="dm-col-num-custom"';
             } else {
                 // text — show full value, allow wrapping
                 display = cv ? _exEsc(String(cv)) : '—';
-                cls = ' class="dm-col-text"';
             }
             var note = r.notes && r.notes[def.id] ? r.notes[def.id] : '';
             tbody += '<td' + cls + '>' + display + _dmNoteIcon(note, true) + '</td>';
@@ -3695,9 +3767,9 @@ async function loadExerciseSummaryPage() {
         userCol('settings').doc('exercisePrefs').get(),
         userCol('exerciseTypes').get()
     ]);
+    // Include archived defs — gated at render time by date-range overlap (see helpers).
     _dmMetricDefs = results[0].docs
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-        .filter(function(d) { return !d.archived; })
         .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     var prefs = results[1].exists ? results[1].data() : {};
     _sumShowAvg             = prefs.sumShowAvg             === true;
@@ -3832,6 +3904,13 @@ async function _sumLoadAndRender() {
     var now = new Date();
     var nowY = now.getFullYear(), nowMo = now.getMonth();
 
+    // Custom-metric columns: only those active at some point during the selected year.
+    var _yStart = _sumSelYear + '-01-01';
+    var _yEnd   = _sumSelYear + '-12-31';
+    var visibleDefs = _dmMetricDefs.filter(function(def) {
+        return _dmDefOverlapsRange(def, _yStart, _yEnd);
+    });
+
     // ── Header row ────────────────────────────────────────────────────────────
     var thead = '<thead><tr class="dm-header-row"><th>Month</th>';
     _DM_PRE_DIFF_COLS.forEach(function(c) {
@@ -3853,7 +3932,7 @@ async function _sumLoadAndRender() {
     _DM_NUTRI_COLS.forEach(function(c) {
         thead += '<th class="dm-col-nutri" title="' + _exEsc(c.tooltip) + '">' + c.label + '</th>';
     });
-    _dmMetricDefs.forEach(function(def) {
+    visibleDefs.forEach(function(def) {
         var cls = def.type === 'text' ? ' class="dm-col-text"' : def.type === 'boolean' ? ' class="dm-col-bool"' : ' class="dm-col-num-custom"';
         var tip = def.tooltip ? ' title="' + _exEsc(def.tooltip) + '"' : '';
         thead += '<th' + cls + tip + '>' + _exEsc(def.name) + '</th>';
@@ -3928,17 +4007,17 @@ async function _sumLoadAndRender() {
         var rows;
         if (!hasData) {
             // Empty (or future) month → one cleanly blank line, no 0/0 or — clutter
-            rows = _dmStatRowHtml('sum-total-row', _sumBlankCells(monthLabel), true, trackedTypes);
+            rows = _dmStatRowHtml('sum-total-row', _sumBlankCells(monthLabel), true, trackedTypes, visibleDefs);
         } else {
             // Totals line always; Avg/Goal lines only when they have meaning (not future)
             var cells = _dmStatCells(monthRecords, summary, mo, milesPerDate, typeDataPerDate, trackedTypes);
             cells.totals.label = monthLabel;
-            rows = _dmStatRowHtml('sum-total-row', cells.totals, true, trackedTypes);
+            rows = _dmStatRowHtml('sum-total-row', cells.totals, true, trackedTypes, visibleDefs);
             if (!isFuture) {
                 cells.averages.label = '<span class="sum-sub">Avg</span>';
                 cells.goals.label    = '<span class="sum-sub">Goal</span>';
-                rows += _dmStatRowHtml('sum-avg-row dm-sum-avg-row',   cells.averages, true, trackedTypes);
-                rows += _dmStatRowHtml('sum-goal-row dm-sum-goal-row', cells.goals,    true, trackedTypes);
+                rows += _dmStatRowHtml('sum-avg-row dm-sum-avg-row',   cells.averages, true, trackedTypes, visibleDefs);
+                rows += _dmStatRowHtml('sum-goal-row dm-sum-goal-row', cells.goals,    true, trackedTypes, visibleDefs);
             }
         }
         tbodyHtml += '<tbody class="sum-month' + (isFuture ? ' sum-future' : '') + '">' + rows + '</tbody>';
@@ -4103,7 +4182,7 @@ function _dmBuildSummaryCardHtml(summary, title, opts) {
             '<span class="dm-card-metric"><span class="dm-card-label">Water</span> ' + summary.water + '</span>';
     }
 
-    var customRow = _dmMetricDefs.map(function(def) {
+    var customRow = (opts.visibleDefs || _dmMetricDefs).map(function(def) {
         var val = summary.custom[def.id];
         if (!val) return '';
         return '<span class="dm-card-metric"><span class="dm-card-label">' + _exEsc(def.name) + ':</span> ' + val + '</span>';
@@ -4128,8 +4207,18 @@ function _dmBuildCards(records, summary, nextMonthRec) {
         { key: 'foodCalories', label: 'Food' }
     ];
 
+    // Custom metrics relevant to this card set: those whose window overlaps the records'
+    // date span. Drives which custom lines appear on the Averages/Totals summary card.
+    var _spanStart = records.length ? records[records.length - 1].date : '';
+    var _spanEnd   = records.length ? records[0].date : '';
+    // records may be newest- or oldest-first; normalize the span endpoints
+    if (_spanStart && _spanEnd && _spanStart > _spanEnd) { var _t = _spanStart; _spanStart = _spanEnd; _spanEnd = _t; }
+    var summaryDefs = _dmMetricDefs.filter(function(def) {
+        return _dmDefOverlapsRange(def, _spanStart, _spanEnd);
+    });
+
     var summaryHtml = summary
-        ? _dmBuildSummaryCardHtml(summary, 'Averages / Totals (' + records.length + ' record' + (records.length === 1 ? '' : 's') + ')')
+        ? _dmBuildSummaryCardHtml(summary, 'Averages / Totals (' + records.length + ' record' + (records.length === 1 ? '' : 's') + ')', { visibleDefs: summaryDefs })
         : '';
 
     var cardsHtml = records.map(function(r) {
@@ -4179,8 +4268,9 @@ function _dmBuildCards(records, summary, nextMonthRec) {
         foodStyle = foodStyle ? ' style="' + foodStyle + '"' : '';
         stdLine2 += '<span class="dm-card-metric"' + foodStyle + '><span class="dm-card-label">Food</span> ' + _exEsc(String(foodV)) + _dmNoteIcon(foodNote, false) + '</span>';
 
-        // Custom metrics
+        // Custom metrics — only those active on this specific day (per-day window test)
         var customHtml = _dmMetricDefs.map(function(def) {
+            if (!_dmDefActiveOnDate(def, r.date)) return '';
             var cv = r.customValues && r.customValues[def.id];
             var display = '';
             if (def.type === 'boolean') {
@@ -4379,7 +4469,13 @@ function _dmBuildEntryForm(el) {
         '</div>';
     }
 
-    var customFields = _dmMetricDefs.map(customField).join('');
+    // Only show custom fields active on the entry's date. New entries (no date yet) use
+    // today, so currently-active metrics show; picking an older/different date rebuilds
+    // the form if the in-window set changes (see the date-change handler below).
+    var gateDate = _dmEditDate || _dmTodayStr();
+    var inWindowDefs = _dmMetricDefs.filter(function(def) { return _dmDefActiveOnDate(def, gateDate); });
+    _dmFormDefKey = _dmInWindowKey(gateDate);
+    var customFields = inWindowDefs.map(customField).join('');
 
     var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     function _dowLabel(ds) {
@@ -4430,7 +4526,7 @@ function _dmBuildEntryForm(el) {
             stdField('fat',     'Fat (g)',     'numeric', 'Total grams of fat for the day') +
             stdField('water',   'Water (oz)',  'numeric', 'Total ounces of water for the day') +
 
-            (_dmMetricDefs.length ? '<div class="dm-section-header">Habits &amp; Custom</div>' + customFields : '') +
+            (inWindowDefs.length ? '<div class="dm-section-header">Habits &amp; Custom</div>' + customFields : '') +
 
             '<div class="ex-form-actions">' + formActionBtns + '</div>' +   // bottom Save row
         '</div>';
@@ -4471,8 +4567,14 @@ function _dmBuildEntryForm(el) {
         if (docSnap.exists) {
             // Editing mode — load the existing record for the new date
             _dmBuildEntryForm(el);
+        } else if (_dmInWindowKey(newDate) !== _dmFormDefKey) {
+            // No record, but the set of in-window custom fields changed for this date →
+            // rebuild so the right fields show (typed input is discarded, as when landing
+            // on a date that already has a record).
+            _dmBuildEntryForm(el);
         } else {
-            // No record yet — keep whatever the user typed; just hide Delete if showing
+            // No record yet and the same field set — keep whatever the user typed; just
+            // hide Delete if showing and refresh the weekday label.
             var delBtn = document.getElementById('dmDeleteBtn');
             if (delBtn) delBtn.remove();
             var dowEl = document.getElementById('dmDateDow');
@@ -4534,11 +4636,13 @@ function _dmCollectFormData() {
         data[k] = v === '' ? null : parseFloat(v);
     });
 
-    // Custom values
-    var customValues = {};
+    // Custom values. Start from any existing values so out-of-window metrics (whose field
+    // isn't rendered for this date) are PRESERVED, not wiped. Only overwrite fields that
+    // are actually on the form (i.e. active on this date).
+    var customValues = Object.assign({}, (_dmExistingDoc && _dmExistingDoc.customValues) || {});
     _dmMetricDefs.forEach(function(def) {
         var el = document.getElementById('dmf-' + def.id);
-        if (!el) { customValues[def.id] = null; return; }
+        if (!el) return;   // not rendered → leave any existing value untouched
         if (def.type === 'boolean') {
             customValues[def.id] = el.checked;
         } else if (def.type === 'number') {
@@ -4557,6 +4661,13 @@ function _dmCollectFormData() {
         var area = ta.closest('.dm-note-area');
         var key  = area ? area.dataset.noteKey : null;
         if (key && ta.value.trim()) notesObj[key] = ta.value.trim();
+    });
+    // Preserve notes for out-of-window custom metrics (their note field isn't rendered here).
+    var existingNotes = (_dmExistingDoc && _dmExistingDoc.notes) || {};
+    _dmMetricDefs.forEach(function(def) {
+        if (!document.getElementById('dmf-' + def.id) && existingNotes[def.id]) {
+            notesObj[def.id] = existingNotes[def.id];
+        }
     });
     data.notes = notesObj;
 
@@ -4649,8 +4760,8 @@ async function loadExerciseMetricDefsPage() {
         var snap = await userCol('exerciseMetricDefs').get();
         _dmDefsAll = snap.docs
             .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-            .filter(function(d) { return !d.archived; })
             .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+        await _dmMigrateLegacyArchived();
         _dmRenderDefsList();
     } catch (err) {
         console.error('DailyMetrics: failed to load metric defs:', err);
@@ -4658,13 +4769,43 @@ async function loadExerciseMetricDefsPage() {
     }
 }
 
+// One-time migration: fold legacy soft-deletes (`archived: true` with no `endDate`)
+// into the endDate model, so `endDate` is the single source of truth going forward.
+// Idempotent — only touches docs that still carry the old flag.
+async function _dmMigrateLegacyArchived() {
+    var legacy = _dmDefsAll.filter(function(d) { return d.archived === true && !d.endDate; });
+    if (!legacy.length) return;
+    var batch = db.batch();
+    legacy.forEach(function(d) {
+        var end = _dmDefEndDate(d);   // createdAt-derived (fallback today)
+        d.endDate  = end;             // update in-memory copy
+        d.archived = false;
+        batch.update(userCol('exerciseMetricDefs').doc(d.id), {
+            endDate:  end,
+            archived: firebase.firestore.FieldValue.delete()
+        });
+    });
+    try { await batch.commit(); }
+    catch (e) { console.warn('DailyMetrics: legacy archived migration failed', e); }
+}
+
 function _dmRenderDefsList() {
     var el = document.getElementById('page-exercise-metric-defs');
     if (!el) return;
 
-    var rows = _dmDefsAll.map(function(def, idx) {
-        return _dmBuildDefRowHTML(def, idx);
+    // Active metrics always show; archived ones only when "Show archived" is checked.
+    var active   = _dmDefsAll.filter(function(d) { return !_dmDefIsArchived(d); });
+    var archived = _dmDefsAll.filter(function(d) { return  _dmDefIsArchived(d); });
+
+    var rows = active.map(function(def, idx) {
+        return _dmBuildDefRowHTML(def, idx, active.length, false);
     }).join('');
+    if (_dmShowArchivedDefs && archived.length) {
+        rows += '<div class="dm-defs-archived-hdr">Archived</div>';
+        rows += archived.map(function(def) {
+            return _dmBuildDefRowHTML(def, -1, active.length, true);
+        }).join('');
+    }
 
     el.innerHTML =
         '<div class="page-header">' +
@@ -4691,13 +4832,20 @@ function _dmRenderDefsList() {
             '<div class="dm-form-row">' +
                 '<input type="text" id="dmAddTooltip" class="dm-tooltip-input" placeholder="Tooltip / description (shown on hover over column header)" maxlength="200">' +
             '</div>' +
+            '<div class="dm-form-row dm-startdate-row">' +
+                '<label class="ex-label" for="dmAddStart">Start date</label>' +
+                '<input type="date" id="dmAddStart" class="dm-startdate-input" max="' + _dmTodayStr() + '" value="' + _dmTodayStr() + '">' +
+                '<span class="ex-hint">First day this metric applies. Set it back to log history; blank = from the beginning.</span>' +
+            '</div>' +
             '<div class="dm-form-btns">' +
                 '<button class="btn btn-primary btn-small" id="dmSaveNewBtn">Add Metric</button>' +
                 '<button class="btn btn-secondary btn-small" id="dmCancelNewBtn">Cancel</button>' +
             '</div>' +
         '</div>' +
 
-        '<p class="dm-defs-hint">These custom metrics appear after the standard metrics (Weight, Sleep, Steps, etc.) on the daily entry form. Standard metrics are always present and cannot be edited here.</p>' +
+        '<label class="dm-show-archived"><input type="checkbox" id="dmShowArchived"' + (_dmShowArchivedDefs ? ' checked' : '') + '> Show archived</label>' +
+
+        '<p class="dm-defs-hint">These custom metrics appear after the standard metrics (Weight, Sleep, Steps, etc.) on the daily entry form, during their active date range. Standard metrics are always present and cannot be edited here.</p>' +
 
         (rows
             ? '<div class="dm-defs-list" id="dmDefsList">' + rows + '</div>'
@@ -4721,25 +4869,34 @@ function _dmRenderDefsList() {
     document.getElementById('dmCancelNewBtn').addEventListener('click', function() {
         document.getElementById('dmAddForm').classList.add('hidden');
     });
+
+    // Wire "Show archived" toggle — re-renders the setup list only (no effect on the grid)
+    document.getElementById('dmShowArchived').addEventListener('change', function() {
+        _dmShowArchivedDefs = this.checked;
+        _dmRenderDefsList();
+    });
 }
 
-function _dmBuildDefRowHTML(def, idx) {
+// idx/count are the position/size within the ACTIVE list (for sort arrows).
+// Archived rows pass idx = -1 (no arrows) and isArchived = true.
+function _dmBuildDefRowHTML(def, idx, count, isArchived) {
     var typeLabel = def.type === 'boolean' ? 'Yes/No' : def.type === 'number' ? 'Number' : 'Text';
     var badge     = '<span class="dm-type-badge dm-type-badge--' + def.type + '">' + typeLabel + '</span>';
     var unit      = (def.type === 'number' && def.unitLabel)
                     ? ' <span class="dm-def-unit">(' + _exEsc(def.unitLabel) + ')</span>' : '';
-    var upBtn     = idx > 0
+    var arcBadge  = isArchived
+                    ? ' <span class="dm-def-archived-badge">Archived ' + _exEsc(_dmDefEndDate(def) || '') + '</span>' : '';
+    var upBtn     = (!isArchived && idx > 0)
                     ? '<button class="dm-sort-btn" onclick="_dmMoveDef(\'' + def.id + '\',-1)" title="Move up">↑</button>' : '';
-    var dnBtn     = idx < _dmDefsAll.length - 1
+    var dnBtn     = (!isArchived && idx > -1 && idx < count - 1)
                     ? '<button class="dm-sort-btn" onclick="_dmMoveDef(\'' + def.id + '\',1)" title="Move down">↓</button>' : '';
 
-    return '<div class="dm-def-row" id="dmDefRow-' + def.id + '">' +
+    return '<div class="dm-def-row' + (isArchived ? ' dm-def-row--archived' : '') + '" id="dmDefRow-' + def.id + '">' +
                '<span class="dm-def-name">' + _exEsc(def.name) + '</span>' +
-               badge + unit +
+               badge + unit + arcBadge +
                '<div class="dm-def-actions">' +
                    upBtn + dnBtn +
                    '<button class="btn btn-secondary btn-small" onclick="_dmStartEditDef(\'' + def.id + '\')">Edit</button>' +
-                   '<button class="btn btn-small dm-def-delete-btn" onclick="_dmDeleteDef(\'' + def.id + '\')">Delete</button>' +
                '</div>' +
            '</div>';
 }
@@ -4754,6 +4911,8 @@ async function _dmSaveNewDef() {
     var allowDecimal = type === 'number' && document.getElementById('dmAddDecimal').checked;
     var unitLabel    = type === 'number' ? (document.getElementById('dmAddUnit').value || '').trim() : '';
     var tooltip      = (document.getElementById('dmAddTooltip').value || '').trim();
+    var startDate    = (document.getElementById('dmAddStart').value || '').trim() || null;
+    if (startDate && startDate > _dmTodayStr()) { alert('Start date cannot be in the future.'); return; }
 
     var maxOrder = _dmDefsAll.reduce(function(m, d) { return Math.max(m, d.sortOrder || 0); }, -1);
 
@@ -4770,12 +4929,14 @@ async function _dmSaveNewDef() {
             unitLabel:    unitLabel,
             tooltip:      tooltip,
             sortOrder:    maxOrder + 1,
-            archived:     false,
+            startDate:    startDate,   // null = active from the beginning
+            endDate:      null,        // null = active / ongoing (endDate = archived state)
             createdAt:    firebase.firestore.FieldValue.serverTimestamp()
         });
 
         _dmDefsAll.push({ id: ref.id, name: name, type: type, allowDecimal: allowDecimal,
-                          unitLabel: unitLabel, tooltip: tooltip, sortOrder: maxOrder + 1, archived: false });
+                          unitLabel: unitLabel, tooltip: tooltip, sortOrder: maxOrder + 1,
+                          startDate: startDate, endDate: null });
         _dmRenderDefsList();
     } catch (err) {
         console.error('DailyMetrics: failed to save metric def:', err);
@@ -4805,12 +4966,33 @@ function _dmStartEditDef(defId) {
           '</div>'
         : '';
 
+    var isArchived = _dmDefIsArchived(def);
+
+    // Lifecycle button: Archive (active) or Re-activate (archived). Delete is always here.
+    var lifecycleBtn = isArchived
+        ? '<button class="btn btn-secondary btn-small" onclick="_dmReactivateDef(\'' + defId + '\')">Re-activate</button>'
+        : '<button class="btn btn-secondary btn-small" onclick="_dmArchiveDef(\'' + defId + '\')">Archive</button>';
+
     var actionBtns =
         '<button class="btn btn-primary btn-small" onclick="_dmSaveEditDef(\'' + defId + '\')">Save</button>' +
-        '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>';
+        '<button class="btn btn-secondary btn-small" onclick="_dmRenderDefsList()">Cancel</button>' +
+        lifecycleBtn +
+        '<button class="btn btn-small dm-def-delete-btn" onclick="_dmDeleteDef(\'' + defId + '\')">Delete</button>';
+
+    // Start date is editable; end date is set only by Archive (always today) — shown read-only.
+    var startRow =
+        '<div class="dm-form-row dm-startdate-row">' +
+            '<label class="ex-label" for="dmEditStart-' + defId + '">Start date</label>' +
+            '<input type="date" class="dm-startdate-input" id="dmEditStart-' + defId + '" ' +
+                'max="' + _dmTodayStr() + '" value="' + _exEsc(def.startDate || '') + '">' +
+            '<span class="ex-hint">Blank = from the beginning.</span>' +
+        '</div>' +
+        (isArchived
+            ? '<div class="dm-form-row"><span class="ex-hint">Archived (ended ' + _exEsc(_dmDefEndDate(def) || '') + '). Re-activate to resume.</span></div>'
+            : '');
 
     row.innerHTML =
-        '<div class="dm-def-actions">' + actionBtns + '</div>' +   // top Save button
+        '<div class="dm-def-actions">' + actionBtns + '</div>' +   // top action row
         '<div class="dm-form-row">' +
             '<input type="text" class="dm-name-input" id="dmEditName-' + defId + '" ' +
                 'value="' + _exEsc(def.name) + '" maxlength="60">' +
@@ -4822,7 +5004,8 @@ function _dmStartEditDef(defId) {
                 'placeholder="Tooltip / description (shown on hover over column header)" ' +
                 'value="' + _exEsc(def.tooltip || '') + '" maxlength="200">' +
         '</div>' +
-        '<div class="dm-def-actions">' + actionBtns + '</div>';   // bottom Save button
+        startRow +
+        '<div class="dm-def-actions">' + actionBtns + '</div>';   // bottom action row
 
     var nameInput = document.getElementById('dmEditName-' + defId);
     if (nameInput) { nameInput.focus(); nameInput.select(); }
@@ -4841,18 +5024,21 @@ async function _dmSaveEditDef(defId) {
     var unitLabel = def.type === 'number'
         ? ((document.getElementById('dmEditUnit-' + defId) || {}).value || '').trim() : '';
     var tooltip = ((document.getElementById('dmEditTooltip-' + defId) || {}).value || '').trim();
+    var startDate = ((document.getElementById('dmEditStart-' + defId) || {}).value || '').trim() || null;
+    if (startDate && startDate > _dmTodayStr()) { alert('Start date cannot be in the future.'); return; }
 
     var saveBtn = document.querySelector('#dmDefRow-' + defId + ' .btn-primary');
     if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
 
     try {
-        var updates = { name: newName, tooltip: tooltip };
+        var updates = { name: newName, tooltip: tooltip, startDate: startDate };
         if (def.type === 'number') { updates.allowDecimal = allowDecimal; updates.unitLabel = unitLabel; }
 
         await userCol('exerciseMetricDefs').doc(defId).update(updates);
 
         def.name = newName;
         def.tooltip = tooltip;
+        def.startDate = startDate;
         if (def.type === 'number') { def.allowDecimal = allowDecimal; def.unitLabel = unitLabel; }
 
         _dmRenderDefsList();
@@ -4866,12 +5052,15 @@ async function _dmSaveEditDef(defId) {
 // ─── Sort order ───────────────────────────────────────────────────────────────
 
 async function _dmMoveDef(defId, direction) {
-    var idx     = _dmDefsAll.findIndex(function(d) { return d.id === defId; });
+    // Reorder within the ACTIVE list only (archived metrics have no sort arrows).
+    var active  = _dmDefsAll.filter(function(d) { return !_dmDefIsArchived(d); })
+                            .sort(function(x, y) { return (x.sortOrder || 0) - (y.sortOrder || 0); });
+    var idx     = active.findIndex(function(d) { return d.id === defId; });
     var swapIdx = idx + direction;
-    if (idx === -1 || swapIdx < 0 || swapIdx >= _dmDefsAll.length) return;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= active.length) return;
 
-    var a = _dmDefsAll[idx];
-    var b = _dmDefsAll[swapIdx];
+    var a = active[idx];
+    var b = active[swapIdx];
 
     try {
         var batch = db.batch();
@@ -6429,13 +6618,63 @@ async function _egMobileCopyPrev(year, month) {
 
 // ─── Delete metric def ────────────────────────────────────────────────────────
 
+// Archive — stop the metric as of today. Its columns stay visible on the grid for the
+// months it was active (overlap rule); it just drops off the daily form going forward and
+// out of the active setup list. endDate IS the archived state.
+async function _dmArchiveDef(defId) {
+    var def = _dmDefsAll.find(function(d) { return d.id === defId; });
+    if (!def) return;
+    var today = _dmTodayStr();
+    if (!confirm('Archive "' + def.name + '"? It stops appearing on the daily form after ' + today +
+                 '. Its history stays visible on the grid, and you can re-activate it later.')) return;
+
+    try {
+        // Clear any legacy `archived` flag so endDate is the single source of truth.
+        await userCol('exerciseMetricDefs').doc(defId).update({
+            endDate:  today,
+            archived: firebase.firestore.FieldValue.delete()
+        });
+        def.endDate = today;
+        def.archived = false;
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to archive metric def:', err);
+        alert('Failed to archive. Please try again.');
+    }
+}
+
+// Re-activate — clear the end date so the metric is ongoing again. Non-destructive inverse
+// of Archive; all history was retained, so nothing needs rebuilding.
+async function _dmReactivateDef(defId) {
+    var def = _dmDefsAll.find(function(d) { return d.id === defId; });
+    if (!def) return;
+
+    try {
+        await userCol('exerciseMetricDefs').doc(defId).update({
+            endDate:  null,
+            archived: firebase.firestore.FieldValue.delete()
+        });
+        def.endDate = null;
+        def.archived = false;
+        _dmRenderDefsList();
+    } catch (err) {
+        console.error('DailyMetrics: failed to re-activate metric def:', err);
+        alert('Failed to re-activate. Please try again.');
+    }
+}
+
+// Delete — permanent, hard removal of the metric definition. This is the only action that
+// takes a column off the historical grid. Logged values in day records become harmless
+// orphans keyed by the (now-gone) id.
 async function _dmDeleteDef(defId) {
     var def = _dmDefsAll.find(function(d) { return d.id === defId; });
     if (!def) return;
-    if (!confirm('Delete "' + def.name + '"? It will be removed from the entry form. Your past data for this metric is preserved.')) return;
+    if (!confirm('Permanently delete "' + def.name + '"? This removes the metric and its column ' +
+                 'from the grid everywhere. This cannot be undone. (To just stop tracking it while ' +
+                 'keeping history, use Archive instead.)')) return;
 
     try {
-        await userCol('exerciseMetricDefs').doc(defId).update({ archived: true });
+        await userCol('exerciseMetricDefs').doc(defId).delete();
         _dmDefsAll = _dmDefsAll.filter(function(d) { return d.id !== defId; });
         _dmRenderDefsList();
     } catch (err) {

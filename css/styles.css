@@ -18613,6 +18613,64 @@ a.legacy-fin-card:hover {
     background: #ffebee;
 }
 
+/* Archived metric rows + badge (Manage Metrics "Show archived") */
+.dm-def-row--archived {
+    background: #fafafa;
+    border-style: dashed;
+    opacity: 0.85;
+}
+
+.dm-def-archived-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #eeeeee;
+    color: #757575;
+    white-space: nowrap;
+}
+
+.dm-defs-archived-hdr {
+    margin: 14px 0 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #999;
+}
+
+.dm-show-archived {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 10px;
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+}
+
+/* Start-date field on the add/edit metric forms */
+.dm-startdate-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dm-startdate-input {
+    padding: 5px 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.9rem;
+}
+
+/* Table cell for a day outside a custom metric's active window — blank, faintly hatched */
+.dm-cell-inactive {
+    background: repeating-linear-gradient(
+        135deg, #f7f7f7, #f7f7f7 4px, #efefef 4px, #efefef 8px
+    );
+}
+
 @media (max-width: 480px) {
     .dm-def-row {
         gap: 6px;

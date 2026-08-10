@@ -1074,4 +1074,135 @@ So at most each month renders 3 stacked lines. Numbers must match exactly what t
 - New route/screen → update `MyLife-Functional-Spec.md` (Exercise section).
 - New screen → author `## screen:exercise-summary` in `AppHelp.md`.
 - Touches JS/HTML/CSS → bump `CACHE_NAME` in `sw.js`.
+
+---
+
+# Section 4: Custom Metric Lifecycle — Date Ranges + Archive
+
+**✅ BUILT (2026-08-10).** Implemented in `js/exercise.js` + `css/styles.css`; spec + AppHelp updated. Verified in preview (helper unit tests + synthetic `_dmBuildTable` column/cell gating).
+
+## The problem this solves
+
+Today a custom metric, once added, is treated as if it has *always* existed and *always* will. It shows a column for every month and is fillable on every date — even before you created it or after you stopped caring about it. There is also no real distinction between "I stopped tracking this" and "I made a mistake, remove it entirely." Today's **Delete** button is actually a soft-archive (`archived: true`) mislabeled as a delete.
+
+We're introducing an **active date range** per metric so a metric only lives during the window it was actually relevant, plus a clean archive/reactivate/delete lifecycle.
+
+## Core model
+
+Each custom metric def gets two date fields:
+
+- **`startDate`** (`YYYY-MM-DD` or null) — the first day the metric is active. **null = active from the beginning of time** (backward compatible with existing metrics).
+- **`endDate`** (`YYYY-MM-DD` or null) — the last day the metric is active. **null = ongoing.**
+
+**`endDate` *is* the archived state.** There is no separate `archived` boolean.
+- `endDate === null` → **active**.
+- `endDate` set → **archived** (stopped as of that date).
+
+A metric's active window is the inclusive range `[startDate, endDate]`, with nulls meaning open-ended on that side.
+
+### Lifecycle actions
+
+| Action | Effect | Reversible |
+|---|---|---|
+| **Add** | `startDate` defaults to **today**; editable backward. `endDate` = null. | — |
+| **Edit start date** | Any date **≤ today** (rule-enforced). Blank = null = from the beginning. | yes |
+| **Archive** | Sets `endDate = today` (not editable via the archive action). | yes → Re-activate |
+| **Re-activate** | Clears `endDate` back to null. Fully ongoing again. | yes → Archive |
+| **Delete** | Hard-removes the def document. Only thing that takes a column off the historical grid. | no |
+
+`startDate` and `sortOrder` are **never touched** by archive/re-activate — archived metrics keep their real history and slot back into their old position on re-activate.
+
+## Two-layer visibility rule
+
+There are two independent questions, and they use the range differently.
+
+### 1. Column visibility (per displayed month/range) — **overlap test**
+
+Show a metric's column on the grid/table if its active window overlaps the displayed date range at all:
+
+```
+showColumn = (startDate == null || startDate <= rangeEnd)
+          && (endDate   == null || endDate   >= rangeStart)
+```
+
+This is a true interval-overlap test. It covers all three cases the user cares about:
+- metric that **starts** inside the range → show
+- metric that **ends** inside the range → show
+- metric that **spans across** the whole range (started before, still active/ended after) → show
+
+If the window doesn't overlap the displayed range at all, the column is omitted entirely for that view.
+
+**Archived metrics still show columns** for the months they were active (because `endDate = today` still overlaps past/current months). Archive does **not** hide history from the grid — only **Delete** does that.
+
+### 2. Cell / entry availability (per day) — **inclusive containment**
+
+Within a column that is shown, an individual day is fillable only if that day is inside `[startDate, endDate]` inclusive:
+
+```
+dayActive = (startDate == null || day >= startDate)
+         && (endDate   == null || day <= endDate)
+```
+
+- On the **daily entry form**: the field for the metric only renders when the viewed date is active. Days before `startDate` or after `endDate` don't offer the input.
+- On the **table/cards**: out-of-window day cells are blank (no value, no input).
+
+*Example:* metric started **March 15**, viewing **March** → the column shows (overlap), but the March 1–14 cells are blank and the entry form doesn't offer the field until the 15th. Archived today → today is still editable (inclusive); tomorrow is the first hidden day.
+
+## Manage Metrics screen changes (`#exercise-metric-defs`)
+
+- **Active list by default:** list shows only metrics with `endDate === null`, in sort order.
+- **"Show archived" checkbox** at the top of the screen: when checked, also lists archived metrics (`endDate` set) so they can be edited or re-activated. This is a **setup-list filter only** — it has no effect on the grid/table.
+- **Resting row:** name, type badge, unit label (if set), up/down sort arrows, and **Edit** only. (Archive/Delete move into edit mode.)
+- **Edit mode** (existing inline edit form) gains:
+  - a **Start date** input (`<input type="date">`, `max = today`, blank allowed = null).
+  - **Archive** and **Delete** buttons (alongside Save/Cancel). These are only visible in edit mode, per the user's request.
+  - For an already-archived metric shown via "Show archived", the edit form shows a **Re-activate** button (clears `endDate`) instead of / in addition to Archive, and may display the current end date read-only.
+- **Delete** = hard delete of the def doc (real removal). **Archive** = `endDate = today`.
+
+## Code touch points (from current `js/exercise.js`)
+
+- **`_dmMetricDefs` load** (~line 1912) and the summary-page load (~3694, 4259): currently `.filter(d => !d.archived)`. Change so the **grid/table/entry** consumers get all defs *not filtered by archived*, and instead apply the **overlap rule** at render time against the displayed range. (Archived metrics must be available so their historical columns render.)
+- **Table header + body column loops** (`_dmStatRowHtml` ~3072, header ~3149, and the body row builder below ~3158): gate each `_dmMetricDefs.forEach(def => …)` on the **overlap test** for the current view's `[rangeStart, rangeEnd]`. Within body rows, gate the individual cell on the **per-day containment test** for `r.date`.
+- **Mobile cards** (`_dmBuildCards` ~4183, summary card ~4106): same — only emit a metric line for a day when that day is in-window. (Cards are per-day, so the overlap layer collapses into the per-day test automatically.)
+- **Daily entry form** (`customField` map ~4382, and the custom-field collector ~4539): only render/collect a custom field when the form's date is in-window.
+- **Manage page render** (`_dmRenderDefsList` ~4662, `_dmBuildDefRowHTML` ~4726): add the "Show archived" checkbox + filter; move Delete into edit mode; add Start date input, Archive, and Re-activate to the edit form.
+- **Add** (`_dmSaveNewDef` ~4749): set `startDate = today`, `endDate: null`; stop writing `archived`.
+- **Edit save** (`_dmSaveEditDef` ~4831): persist `startDate` (validate ≤ today; blank → null).
+- **Archive**: new handler → `update({ endDate: <today> })`. **Re-activate**: new handler → `update({ endDate: null })`. **Delete** (`_dmDeleteDef` ~6438): change from `update({ archived: true })` to a real `.delete()` with a confirm.
+- Define one shared helper each for the two tests, e.g. `_dmDefOverlapsRange(def, rangeStart, rangeEnd)` and `_dmDefActiveOnDate(def, dateStr)`, and use them everywhere so the logic can't drift.
+
+## Data model changes
+
+**`exerciseMetricDefs`** — replace the `archived` field:
+
+| Field | Type | Notes |
+|---|---|---|
+| startDate | string or null | `YYYY-MM-DD`. null = active from the beginning. Rule: ≤ today. |
+| endDate | string or null | `YYYY-MM-DD`. null = active/ongoing. Set = archived (stopped that day). |
+| ~~archived~~ | ~~boolean~~ | **Removed** — superseded by `endDate` presence. |
+
+(Other fields — `name`, `type`, `allowDecimal`, `unitLabel`, `sortOrder`, `tooltip`, `createdAt` — unchanged.)
+
+### One-time migration (on load)
+
+Existing docs may have `archived: true` and no `endDate` (from the old soft-delete Delete button), or `archived: false`/absent with no dates. Normalize once, transparently:
+
+- `archived === true` and no `endDate` → set `endDate` = its `createdAt` date (or today if `createdAt` missing) so it stays archived and doesn't reappear as active. Then the `archived` field can be ignored/dropped.
+- otherwise (`archived` falsy) → treat as active: `startDate`/`endDate` stay null unless already set.
+
+Migration should be idempotent and can be a lazy write-back the first time each def is loaded on the manage screen (or a small batch pass). Reads must tolerate the old `archived` field until every doc is migrated — treat `endDate` as the source of truth, falling back to `archived === true` ⇒ archived when `endDate` is absent.
+
+## Concerns / decisions locked
+
+- **Inclusive ranges** — start and end days are both editable/visible. Archive-day (today) remains fillable.
+- **Re-activate just clears `endDate`** — no reconstruction needed because archive is non-destructive; all history was retained. This is why re-activate is nearly free to build.
+- **Delete is the only destructive action** and the only one that removes a column from historical views.
+- **"Show archived" is setup-only** — never affects the grid.
+
+## Required-behavior checklist for the build commit
+
+- **Spec:** update `MyLife-Functional-Spec.md` — Custom Metrics data model + lifecycle (start/end dates, archive = endDate, overlap vs per-day rules, delete = hard).
+- **Help:** update `## screen:exercise-metric-defs` (or `## concept:` for custom metrics) in `AppHelp.md` — Show archived checkbox, Archive/Re-activate/Delete semantics, start-date editing, date-range visibility.
+- **Backup:** `exerciseMetricDefs` already backed up — confirm `js/settings.js` needs no change (no new collection).
+- **Cache:** bump `CACHE_NAME` in `sw.js`.
 - No new Firestore collections (reads existing daily records / goals) → backup logic unaffected; confirm at build time.

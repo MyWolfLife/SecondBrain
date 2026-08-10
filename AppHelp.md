@@ -4489,7 +4489,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - Click or tap any row/card to open that day's entry form
 - **+ Entry** button: sits below the "Daily Metrics" heading — create a new entry for today (or any date)
 - **Monthly Goals** button: appears next to **+ Entry** when a specific month is selected — takes you to the Exercise Goals screen with a breadcrumb that returns you to Daily Metrics
-- **Manage Custom Metrics** link (top right): add, reorder, or remove your custom metric definitions
+- **Manage Custom Metrics** link (top right): add, reorder, archive, or delete your custom metric definitions, and set each metric's start date
 
 - **📏 Miles button** in the filter bar: click to show or hide the **Total Miles** column on the desktop table. Your choice is remembered between visits. The column shows daily walking + running miles pulled from your logged activities (only run/walk/split types count — bikes, golf, etc. are excluded).
 - **🥗 Nutrition button** in the filter bar: shows or hides the **Protein / Carbs / Fiber / Fat / Water** columns (grams for the macros, ounces for water). They appear after the +/- Diff column. Your choice is remembered between visits. Averages count only the days you logged; Totals are period sums; the Goals row is blank (no nutrition goals yet).
@@ -4530,19 +4530,25 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 
 ## screen:exercise-metric-defs
 
-**What this screen is for:** Create, reorder, and delete your custom daily metric definitions — the extra fields that appear on every daily entry form below the standard metrics.
+**What this screen is for:** Create, reorder, archive, and delete your custom daily metric definitions — the extra fields that appear on every daily entry form below the standard metrics.
 
 ### Quick Help
 - **Standard metrics** (Weight, Sleep Score, Body Battery, Daily Steps, Total Actual Burn, Food Calories, Protein, Carbs, Fiber, Fat, Water) are always present on the entry form and cannot be managed here
-- **+ Metric** button opens the add form at the top — fill in a name and pick a type, then Save
+- **+ Metric** button opens the add form at the top — fill in a name, pick a type, and set a **Start date** (defaults to today), then Save
 - **Types**: YES/NO (boolean checkbox), Number (optional unit label like "oz" or "cal"), Text (free-form)
 - **Number type**: check "Allow Decimals" if you need fractional values (e.g. 7.5 hours), and optionally add a unit label shown next to the field
 - **Type cannot be changed** after a metric is saved — this preserves the format of historical entries
-- **↑ / ↓ buttons**: change the display order of metrics on the entry form
-- **Edit**: rename the metric, update its unit label, or add/edit a **Tooltip** description — type stays fixed. The tooltip appears when you hover over that metric's column header in the desktop daily metrics table, and also when you hover over the field label on the daily entry form.
-- **Delete**: removes the metric from future entry forms (soft delete — historical data is preserved)
+- **Start date**: the first day the metric applies. Leave it at today, set it back to log history, or clear it to mean "from the beginning." A metric only appears on the daily form and grids on/after its start date. (Can't be set in the future.)
+- **↑ / ↓ buttons**: change the display order of active metrics on the entry form
+- **Edit**: opens the inline editor where you can rename the metric, change its unit label, edit the **Tooltip**, and adjust the **Start date**. Archive, Re-activate, and Delete also live here (they only show in edit mode). The tooltip appears when you hover over that metric's column header in the desktop table or its field label on the entry form.
+- **Archive**: stops the metric as of today. It disappears from the daily form going forward and from this list, but its **past columns and data stay visible on the grids**. Reversible — it moves under "Show archived."
+- **Show archived** checkbox: reveals archived metrics here so you can edit or bring them back. This only affects this setup list — it does not change the grids.
+- **Re-activate** (on an archived metric): clears the end date so the metric is active again, with all its history intact.
+- **Delete**: permanently removes the metric and its column from the grids everywhere. Use **Archive** instead if you just want to stop tracking it while keeping history. Delete cannot be undone.
 
 ### When to use this
 - You want to track a new daily habit or health stat not covered by the standard metrics
+- You started tracking something partway through — set its start date so it doesn't show on earlier days
+- You've stopped tracking a habit but want to keep the history — Archive it (don't Delete)
 - You want to reorder metrics so the most important ones appear first
 - You misspelled a metric name and need to fix it
