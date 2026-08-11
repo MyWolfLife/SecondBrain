@@ -708,6 +708,21 @@ function _exFmtMiles(v) {
     return (Math.round(v * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
+// Pounds-equivalent of calories burned (burn ÷ 3500), rounded to the nearest hundredth.
+// Blank when no calories. e.g. 500 cal → 0.14
+function _exFmtWeightFromCal(cal) {
+    if (!cal) return '';
+    return (Math.round((cal / 3500) * 100) / 100).toFixed(2);
+}
+
+// Calories burned per hour (cal ÷ hours), rounded to the nearest tenth.
+// Blank when calories or duration is missing. e.g. 500 cal over 3.4 h → 147.1
+function _exFmtCalPerHour(cal, durMin) {
+    if (!cal || !durMin) return '';
+    var perHour = cal / (durMin / 60);
+    return (Math.round(perHour * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 // Sum walked + run miles without floating-point artifacts.
 // e.g. 1.53 + 2.5 === 4.029999999999999 in JS; rounding to the 0.01 input precision → 4.03
 function _exSumMiles(walked, run) {
@@ -720,13 +735,14 @@ function _exRenderSummaryCard(summary, periodLabel) {
 
     if (!summary.rows.length) { el.innerHTML = ''; return; }
 
-    var cols = ['count', 'time', 'burned'];
+    var cols = ['count', 'time', 'burned', 'weight', 'calhr'];
     if (summary.anyWalked)   cols.push('walked');
     if (summary.anyRan)      cols.push('ran');
     if (summary.anyTotal)    cols.push('total');
     if (summary.anyDistance) cols.push('dist');
 
     var HEAD = { count: 'Times', time: 'Total Time', burned: 'Burned',
+                 weight: 'Weight', calhr: 'Cal/Hour',
                  walked: 'Walked', ran: 'Ran', total: 'Total', dist: 'Distance' };
 
     var head = '<th class="ex-sum-name">Activity</th>';
@@ -744,6 +760,8 @@ function _exRenderSummaryCard(summary, periodLabel) {
             count:  r.count,
             time:   exFmtDuration(r.durMin) || '',
             burned: r.cal ? Math.round(r.cal).toLocaleString() : '',
+            weight: _exFmtWeightFromCal(r.cal),
+            calhr:  _exFmtCalPerHour(r.cal, r.durMin),
             walked: _exFmtMiles(r.walked),
             ran:    _exFmtMiles(r.ran),
             total:  _exFmtMiles(r.total),
@@ -758,6 +776,10 @@ function _exRenderSummaryCard(summary, periodLabel) {
         count:  tot.count,
         time:   exFmtDuration(tot.durMin) || '',
         burned: tot.cal ? Math.round(tot.cal).toLocaleString() : '',
+        // Total row: NOT a sum of the per-row Weight/Cal-Hour cells — computed from the totals
+        // (total burn ÷ 3500, total burn ÷ total hours) so the ratio reflects the whole period.
+        weight: _exFmtWeightFromCal(tot.cal),
+        calhr:  _exFmtCalPerHour(tot.cal, tot.durMin),
         walked: _exFmtMiles(tot.walked),
         ran:    _exFmtMiles(tot.ran),
         // Total row: grand total of ALL walked + ran miles (not just split-type rows).
