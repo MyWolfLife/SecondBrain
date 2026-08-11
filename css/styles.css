@@ -20123,6 +20123,31 @@ a.legacy-fin-card:hover {
     font-weight: 600;
 }
 
+/* Miles card when it sits inside the collapsible accordion body — drop its own
+   box so it doesn't double up with the accordion border. */
+.dm-miles-card--inbody {
+    border: none;
+    background: transparent;
+    margin: 0;
+    padding: 2px 6px;
+}
+
+/* Summary accordion — weight-loss picture block + pills */
+.dm-summary-weightloss {
+    background: #f0f4ff;
+    border-color: #c7d6f5;
+    margin: 0 0 8px;
+}
+.dm-summary-note {
+    font-size: 0.72rem;
+    color: #6b7280;
+    margin-top: 7px;
+    line-height: 1.35;
+}
+.dm-lb-loss    { color: #16a34a; font-weight: 700; }
+.dm-lb-gain    { color: #dc2626; font-weight: 700; }
+.dm-lb-neutral { color: #6b7280; font-weight: 600; }
+
 /* ============================================================
    Stock Analyzer (js/analyzer.js)
    ============================================================ */

@@ -735,6 +735,24 @@ function _exRenderSummaryCard(summary, periodLabel) {
 
     if (!summary.rows.length) { el.innerHTML = ''; return; }
 
+    var collapsed = _exSummaryCollapsed ? ' collapsed' : '';
+    el.innerHTML =
+        '<div class="collapsible-section ex-summary-section' + collapsed + '" id="exSummarySection">' +
+            '<div class="collapsible-header" onclick="_exToggleSummary()">' +
+                '<span>Summary · ' + _exEsc(periodLabel) + '</span>' +
+                '<span class="collapsible-chevron">▾</span>' +
+            '</div>' +
+            '<div class="collapsible-body">' +
+                '<div class="ex-summary-wrap">' + _exSummaryTableHtml(summary) + '</div>' +
+            '</div>' +
+        '</div>';
+}
+
+// Builds the per-activity-type summary <table> (Times/Total Time/Burned/Weight/Cal-Hour + distance
+// columns) shared by the Activities page Summary card and the Daily Metrics Summary accordion.
+// The footer Weight/Cal-Hour are recomputed from the totals (not summed); the footer Total mileage
+// is the grand total of the Walked + Ran columns.
+function _exSummaryTableHtml(summary) {
     var cols = ['count', 'time', 'burned', 'weight', 'calhr'];
     if (summary.anyWalked)   cols.push('walked');
     if (summary.anyRan)      cols.push('ran');
@@ -791,23 +809,11 @@ function _exRenderSummaryCard(summary, periodLabel) {
     cols.forEach(function(c) { foot += '<td>' + footCells[c] + '</td>'; });
     foot += '</tr>';
 
-    var collapsed = _exSummaryCollapsed ? ' collapsed' : '';
-    el.innerHTML =
-        '<div class="collapsible-section ex-summary-section' + collapsed + '" id="exSummarySection">' +
-            '<div class="collapsible-header" onclick="_exToggleSummary()">' +
-                '<span>Summary · ' + _exEsc(periodLabel) + '</span>' +
-                '<span class="collapsible-chevron">▾</span>' +
-            '</div>' +
-            '<div class="collapsible-body">' +
-                '<div class="ex-summary-wrap">' +
-                    '<table class="ex-table ex-summary-table">' +
-                        '<thead><tr>' + head + '</tr></thead>' +
-                        '<tbody>' + body + '</tbody>' +
-                        '<tfoot>' + foot + '</tfoot>' +
-                    '</table>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
+    return '<table class="ex-table ex-summary-table">' +
+                '<thead><tr>' + head + '</tr></thead>' +
+                '<tbody>' + body + '</tbody>' +
+                '<tfoot>' + foot + '</tfoot>' +
+            '</table>';
 }
 
 function _exToggleSummary() {
@@ -1878,6 +1884,8 @@ var _dmSelYear        = 0;          // 4-digit year; set on page load
 var _dmLast7Expanded      = false;  // sticky accordion state — loaded from settings/exercisePrefs
 var _dmExtraColsOpen      = false;  // show/hide extra columns (Total Miles etc.) — sticky
 var _dmNutriColsOpen      = false;  // show/hide nutrition columns (Protein/Carbs/Fiber/Fat/Water) — sticky
+var _dmSummaryOpen        = false;  // Summary accordion (weight-loss picture + activities grid) — sticky
+var _dmMilesOpen          = false;  // Miles card accordion (now collapsible) — sticky
 var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
 var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
@@ -1944,6 +1952,8 @@ async function loadExerciseMetricsPage() {
     _dmLast7Expanded    = prefs.dmLast7Expanded    === true;
     _dmExtraColsOpen    = prefs.dmExtraColsOpen    === true;
     _dmNutriColsOpen    = prefs.dmNutriColsOpen    === true;
+    _dmSummaryOpen      = prefs.dmSummaryOpen      === true;
+    _dmMilesOpen        = prefs.dmMilesOpen        === true;
     _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
@@ -1983,6 +1993,7 @@ function _dmRenderMetricsPage(el) {
                 '<a href="#exercise-metric-defs" class="ex-link-btn">Manage Custom Metrics</a>' +
             '</div>' +
         '</div>' +
+        '<div id="dmSummaryCard"></div>' +  // weight-loss Summary accordion — populated by _dmApplyFilter (month view only)
         '<div id="dmMilesCard"></div>' +   // miles summary card — populated by _dmApplyFilter
         '<div class="dm-filter-bar">' +
             '<select id="dmMonthSelect" class="dm-filter-select">' + monthOpts + '</select>' +
@@ -2098,7 +2109,8 @@ function _dmInWindowKey(dateStr) {
 // ─── Miles summary card rendering ────────────────────────────────────────────
 
 function _dmRenderMilesCard(s, monthName, year, containerId) {
-    var el = document.getElementById(containerId || 'dmMilesCard');
+    var id = containerId || 'dmMilesCard';
+    var el = document.getElementById(id);
     if (!el) return;
 
     // Hide card in year-view or when no data at all
@@ -2139,19 +2151,158 @@ function _dmRenderMilesCard(s, monthName, year, containerId) {
         }
     }
 
+    var rowsHtml =
+        '<div class="dm-miles-row">' + row1 + '</div>' +
+        '<div class="dm-miles-row">' + row2 + '</div>' +
+        (row3 ? '<div class="dm-miles-row">' + row3 + '</div>' : '');
+
+    // Activities-page card ('exMilesCard') stays a plain boxed card. The Daily Metrics
+    // card ('dmMilesCard') is a sticky collapsible accordion matching the other DM sections.
+    if (id !== 'dmMilesCard') {
+        el.innerHTML =
+            '<div class="dm-miles-card">' +
+                '<div class="dm-miles-title">🏃 Miles — ' + monthName + ' ' + year + '</div>' +
+                rowsHtml +
+            '</div>';
+        return;
+    }
+
+    var open = _dmMilesOpen;
     el.innerHTML =
-        '<div class="dm-miles-card">' +
-            '<div class="dm-miles-title">🏃 Miles — ' + monthName + ' ' + year + '</div>' +
-            '<div class="dm-miles-row">' + row1 + '</div>' +
-            '<div class="dm-miles-row">' + row2 + '</div>' +
-            (row3 ? '<div class="dm-miles-row">' + row3 + '</div>' : '') +
+        '<div class="dm-accordion-section dm-miles-section">' +
+            '<button class="dm-accordion-hdr" id="dmMilesHdr" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+                '<span class="dm-accordion-title">🏃 Miles — ' + monthName + ' ' + year + '</span>' +
+                '<span class="dm-accordion-arrow">' + (open ? '▼' : '▶') + '</span>' +
+            '</button>' +
+            '<div class="dm-accordion-body" id="dmMilesBody" style="display:' + (open ? 'block' : 'none') + '">' +
+                '<div class="dm-miles-card dm-miles-card--inbody">' + rowsHtml + '</div>' +
+            '</div>' +
         '</div>';
+
+    var hdr = document.getElementById('dmMilesHdr');
+    if (hdr) {
+        hdr.addEventListener('click', function() {
+            _dmMilesOpen = !_dmMilesOpen;
+            var body = document.getElementById('dmMilesBody');
+            hdr.setAttribute('aria-expanded', _dmMilesOpen ? 'true' : 'false');
+            body.style.display = _dmMilesOpen ? 'block' : 'none';
+            hdr.querySelector('.dm-accordion-arrow').textContent = _dmMilesOpen ? '▼' : '▶';
+            userCol('settings').doc('exercisePrefs').set({ dmMilesOpen: _dmMilesOpen }, { merge: true });
+        });
+    }
 }
 
 function _dmMilesStat(label, value) {
     return '<span class="dm-miles-stat">' +
         '<span class="dm-miles-label">' + label + '</span> ' + value +
     '</span>';
+}
+
+// ─── Summary accordion (weight-loss picture + activities grid) ────────────────
+// Renders into #dmSummaryCard. Shown in single-month view whenever there are daily-metric
+// records OR exercise activities for the month. Cleared in year view / when both are empty.
+//
+// The calorie math uses each metric summed over its OWN logged days (user's choice):
+//   ExBurn    = Σ exercise-activity calories (= the grid's Burned total)
+//   TotalBurn = Σ Total Actual Burn over days with a burn value
+//   Food      = Σ Food Calories over days with a food value
+// Lines (pounds, calories ÷ 3500):
+//   From exercise   = ExBurn / 3500                     (always a loss)
+//   Diet alone      = (TotalBurn − ExBurn − Food) / 3500  (what diet alone would do; may be a gain)
+//   Projected total = (TotalBurn − Food) / 3500         (= the two combined)
+//   Actual so far   = oldest − latest weigh-in this month
+function _dmRenderSummaryCard(records, activities) {
+    var el = document.getElementById('dmSummaryCard');
+    if (!el) return;
+
+    var hasRecords = records && records.length;
+    var hasActs    = activities && activities.length;
+    if (!hasRecords && !hasActs) { el.innerHTML = ''; return; }
+
+    // Calorie sums + weight change from the daily-metric records
+    var s = _dmComputeSummary(records || []);
+    var totalBurn = (s.totals && s.totals.totalBurn    != null) ? s.totals.totalBurn    : null;
+    var food      = (s.totals && s.totals.foodCalories != null) ? s.totals.foodCalories : null;
+    var weightChange = s.weightChange;   // ending − oldest (negative = lost weight); null if <2 weigh-ins
+
+    // Exercise burn + the grid come from the shared activities-summary builder
+    var exSummary = _exBuildSummary(activities || []);
+    var exBurn = exSummary.rows.reduce(function(a, r) { return a + (r.cal || 0); }, 0);
+
+    // Weight lines. Positive = pounds LOST (deficit). null when inputs are missing.
+    var lostFromExercise = exBurn / 3500;
+    var projectedTotal   = (totalBurn != null && food != null) ? (totalBurn - food) / 3500 : null;
+    var dietAlone        = (totalBurn != null && food != null) ? (totalBurn - exBurn - food) / 3500 : null;
+    var actualLost       = (weightChange != null) ? -weightChange : null;   // flip: loss should read positive
+
+    var inputsRow =
+        _dmMilesStat('Burned',   _dmFmtCalSum(totalBurn)) +
+        _dmMilesStat('Exercise', _dmFmtCalSum(exBurn))    +
+        _dmMilesStat('Eaten',    _dmFmtCalSum(food));
+
+    var lbRow =
+        _dmMilesStat('From exercise',   _dmLbPill(lostFromExercise, 2)) +
+        _dmMilesStat('Diet alone',      _dmLbPill(dietAlone, 2))        +
+        _dmMilesStat('Projected total', _dmLbPill(projectedTotal, 2))   +
+        _dmMilesStat('Actual so far',   _dmLbPill(actualLost, 1));
+
+    var weightLossBlock =
+        '<div class="dm-miles-card dm-summary-weightloss">' +
+            '<div class="dm-miles-row">' + inputsRow + '</div>' +
+            '<div class="dm-miles-row">' + lbRow + '</div>' +
+            '<div class="dm-summary-note">Projected = calories ÷ 3500, each metric summed over its own logged days. ' +
+                'A day missing a food or burn entry can skew the net. ▼ green = loss, ▲ red = gain.</div>' +
+        '</div>';
+
+    var gridHtml = exSummary.rows.length
+        ? '<div class="ex-summary-wrap">' + _exSummaryTableHtml(exSummary) + '</div>'
+        : '<p class="ex-status dm-accordion-empty">No exercise activities logged this month.</p>';
+
+    var monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+    var titleMonth = (_dmSelMonth >= 0 && _dmSelMonth <= 11) ? (monthNames[_dmSelMonth] + ' ' + _dmSelYear) : '';
+    var open = _dmSummaryOpen;
+
+    el.innerHTML =
+        '<div class="dm-accordion-section dm-summary-section">' +
+            '<button class="dm-accordion-hdr" id="dmSummaryHdr" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+                '<span class="dm-accordion-title">📊 Summary — ' + titleMonth + '</span>' +
+                '<span class="dm-accordion-arrow">' + (open ? '▼' : '▶') + '</span>' +
+            '</button>' +
+            '<div class="dm-accordion-body" id="dmSummaryBody" style="display:' + (open ? 'block' : 'none') + '">' +
+                weightLossBlock + gridHtml +
+            '</div>' +
+        '</div>';
+
+    var hdr = document.getElementById('dmSummaryHdr');
+    if (hdr) {
+        hdr.addEventListener('click', function() {
+            _dmSummaryOpen = !_dmSummaryOpen;
+            var body = document.getElementById('dmSummaryBody');
+            hdr.setAttribute('aria-expanded', _dmSummaryOpen ? 'true' : 'false');
+            body.style.display = _dmSummaryOpen ? 'block' : 'none';
+            hdr.querySelector('.dm-accordion-arrow').textContent = _dmSummaryOpen ? '▼' : '▶';
+            userCol('settings').doc('exercisePrefs').set({ dmSummaryOpen: _dmSummaryOpen }, { merge: true });
+        });
+    }
+}
+
+// Formats a raw calorie sum for the Summary inputs row. null → '—'.
+function _dmFmtCalSum(v) {
+    if (v == null || isNaN(v)) return '—';
+    return Math.round(v).toLocaleString();
+}
+
+// Renders a pounds pill where a POSITIVE value means weight lost (deficit).
+// ▼ green = loss, ▲ red = gain, neutral for ~0 / missing. `dec` = decimal places.
+function _dmLbPill(v, dec) {
+    if (v == null || isNaN(v)) return '<span class="dm-lb-neutral">—</span>';
+    var f = Math.pow(10, dec);
+    var r = Math.round(v * f) / f;
+    var mag = Math.abs(r).toFixed(dec);
+    if (r > 0) return '<span class="dm-lb-loss">▼ ' + mag + ' lb</span>';
+    if (r < 0) return '<span class="dm-lb-gain">▲ ' + mag + ' lb</span>';
+    return '<span class="dm-lb-neutral">' + mag + ' lb</span>';
 }
 
 // ─── Miles summary card calculation ──────────────────────────────────────────
@@ -2299,7 +2450,9 @@ async function _dmApplyFilter() {
     if (_dmSelMonth !== -1) {
         var monthKey = _dmSelYear + '-' + (_dmSelMonth + 1);
         var needActs  = _dmMonthActivitiesKey !== monthKey;
-        var needTypes = _dmTypeRoleMap === null;
+        // Also (re)load full types when _exTypes is empty — the Summary accordion's grid builder
+        // (_exBuildSummary) reads the shared _exTypes map for names/roles/calories.
+        var needTypes = _dmTypeRoleMap === null || Object.keys(_exTypes).length === 0;
 
         if (needActs || needTypes) {
             try {
@@ -2321,8 +2474,11 @@ async function _dmApplyFilter() {
                 }
                 if (needTypes) {
                     _dmTypeRoleMap = {};
+                    _exTypes = {};   // populate the shared type map used by the Summary grid builder
                     fetched[fi++].forEach(function(doc) {
-                        _dmTypeRoleMap[doc.id] = doc.data().runWalkRole || null;
+                        var tdata = doc.data();
+                        _dmTypeRoleMap[doc.id] = tdata.runWalkRole || null;
+                        _exTypes[doc.id] = tdata;
                     });
                 }
             } catch (err) {
@@ -2347,8 +2503,11 @@ async function _dmApplyFilter() {
                          'July','August','September','October','November','December'];
         var milesSummary = _dmBuildMilesSummary(_dmMonthActivities, _dmTypeRoleMap, _dmSelMonth, _dmSelYear, goalMPD);
         _dmRenderMilesCard(milesSummary, _dmMNames[_dmSelMonth], _dmSelYear);
+        _dmRenderSummaryCard(records, _dmMonthActivities);
     } else {
         _dmRenderMilesCard(null);
+        var scEl = document.getElementById('dmSummaryCard');
+        if (scEl) scEl.innerHTML = '';   // hide Summary accordion in year view
     }
 
     var isDesktop = window.innerWidth >= 700;

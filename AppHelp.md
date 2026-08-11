@@ -4474,7 +4474,15 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 **What this screen is for:** Browse your daily health and habit journal entries. Filter by date range, see summary averages, and tap any record to view or edit it.
 
 ### Quick Help
-- **Miles Summary Card** (single-month view only): a green card above the filter shows your mileage totals for the selected month — Total Miles, Run, Walk, Dogs, Daily Avg, and Daily Goal. For the **current month** it also shows how many miles you still need today to stay on track (yellow = behind, green = ahead) and an estimated month-end total based on your current pace. For **past months** it shows whether you finished over or under your monthly goal.
+- **📊 Summary accordion** (single-month view only, above the filter): tap the header to expand a month-at-a-glance weight-loss picture plus your activities grid. Your open/closed choice is remembered between visits (starts collapsed).
+  - **Top numbers** — the calorie inputs (**Burned** = your total burn for the month, **Exercise** = calories from logged workouts, **Eaten** = food calories) followed by four pounds figures. **▼ green** means pounds lost, **▲ red** means gained:
+    - **From exercise** — pounds your workouts earned you (exercise calories ÷ 3,500). This matches the grid's Weight total below.
+    - **Diet alone** — what your weight would have done on diet alone, no exercise. Often shows red (a gain), which is exactly what your workouts are offsetting.
+    - **Projected total** — the two combined (total burn − food, ÷ 3,500): what the calories predict for the month.
+    - **Actual so far** — what the scale actually shows this month (oldest weigh-in vs. latest).
+  - Comparing **Projected total** to **Actual so far** shows how closely the calorie math is tracking reality. Note: each number is summed over the days you actually logged it, so a day where you forgot to log food (or burn) can skew the net — that's called out under the numbers.
+  - Below the numbers is the same **activities grid** as the Activities screen (Times / Total Time / Burned / Weight / Cal/Hour + distance columns), or "No exercise activities logged this month." if you logged none.
+- **🏃 Miles accordion** (single-month view only): your mileage totals for the selected month — Total Miles, Run, Walk, Dogs, Daily Avg, and Daily Goal — now behind a collapsible header (tap to expand/collapse; choice remembered, starts collapsed). For the **current month** it also shows how many miles you still need today to stay on track (yellow = behind, green = ahead) and an estimated month-end total based on your current pace. For **past months** it shows whether you finished over or under your monthly goal.
 - **Month combo**: choose a specific month (Jan–Dec) or **Year** to see the whole year at once
 - **Year combo**: pick any year from 2020 to 2070 — changing either combo reloads the list automatically
 - Defaults to the current month and current year when you first open the screen
