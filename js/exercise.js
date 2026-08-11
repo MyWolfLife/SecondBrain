@@ -760,7 +760,9 @@ function _exRenderSummaryCard(summary, periodLabel) {
         burned: tot.cal ? Math.round(tot.cal).toLocaleString() : '',
         walked: _exFmtMiles(tot.walked),
         ran:    _exFmtMiles(tot.ran),
-        total:  _exFmtMiles(tot.total),
+        // Total row: grand total of ALL walked + ran miles (not just split-type rows).
+        // Per-row 'total' stays empty for walk-only / run-only rows; only this footer sums both columns.
+        total:  _exFmtMiles(_exSumMiles(tot.walked, tot.ran)),
         dist:   ''  // mixed units across types — not meaningful to sum
     };
     var foot = '<tr class="ex-sum-totals"><td class="ex-sum-name">Total</td>';
