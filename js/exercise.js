@@ -2210,8 +2210,9 @@ function _dmMilesStat(label, value) {
 //   From exercise   = ExBurn / 3500                     (always a loss)
 //   Diet alone      = (TotalBurn − ExBurn − Food) / 3500  (what diet alone would do; may be a gain)
 //   Projected total = (TotalBurn − Food) / 3500         (= the two combined)
-//   Actual so far   = oldest − latest weigh-in this month
-function _dmRenderSummaryCard(records, activities) {
+//   Actual so far   = oldest − ending weigh-in (next month's 1st weigh-in for a past month,
+//                      else the latest weigh-in this month) — same basis as the Totals row.
+function _dmRenderSummaryCard(records, activities, nextMonthRec) {
     var el = document.getElementById('dmSummaryCard');
     if (!el) return;
 
@@ -2219,8 +2220,9 @@ function _dmRenderSummaryCard(records, activities) {
     var hasActs    = activities && activities.length;
     if (!hasRecords && !hasActs) { el.innerHTML = ''; return; }
 
-    // Calorie sums + weight change from the daily-metric records
-    var s = _dmComputeSummary(records || []);
+    // Calorie sums + weight change from the daily-metric records. Passing nextMonthRec makes
+    // weightChange span to the past month's true ending weight (consistent with the Totals row).
+    var s = _dmComputeSummary(records || [], undefined, nextMonthRec || null);
     var totalBurn = (s.totals && s.totals.totalBurn    != null) ? s.totals.totalBurn    : null;
     var food      = (s.totals && s.totals.foodCalories != null) ? s.totals.foodCalories : null;
     var weightChange = s.weightChange;   // ending − oldest (negative = lost weight); null if <2 weigh-ins
@@ -2503,7 +2505,7 @@ async function _dmApplyFilter() {
                          'July','August','September','October','November','December'];
         var milesSummary = _dmBuildMilesSummary(_dmMonthActivities, _dmTypeRoleMap, _dmSelMonth, _dmSelYear, goalMPD);
         _dmRenderMilesCard(milesSummary, _dmMNames[_dmSelMonth], _dmSelYear);
-        _dmRenderSummaryCard(records, _dmMonthActivities);
+        // Summary accordion is rendered later in the month branch (needs nextMonthRec).
     } else {
         _dmRenderMilesCard(null);
         var scEl = document.getElementById('dmSummaryCard');
@@ -2738,12 +2740,12 @@ async function _dmApplyFilter() {
 
         // Monthly content
         var monthlyHtml = '';
+        var nextMonthRec = null;   // past-month ending weight (1st weigh-in of next month), if any
         if (records.length === 0) {
             monthlyHtml = '<p class="ex-status">No entries for this period.</p>';
         } else {
             // For past months in single-month view, fetch the first weigh-in of the next month.
             // It becomes the "ending weight" so Totals/Averages reflect the full month.
-            var nextMonthRec = null;
             var today2 = new Date();
             var isPastMonthView = (_dmSelMonth !== -1) &&
                 (_dmSelYear < today2.getFullYear() ||
@@ -2776,11 +2778,15 @@ async function _dmApplyFilter() {
                 summary.weightDivisorDays = new Date(_dmSelYear, _dmSelMonth + 1, 0).getDate();
             }
             monthlyHtml = isDesktop
-                ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, null, last7Data)
+                ? _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, null, last7Data, nextMonthRec)
                 : _dmBuildCards(records, summary, nextMonthRec);
         }
 
         listEl.innerHTML = weightChartHtml + last7Html + monthlyHtml;
+
+        // Summary accordion — rendered here (not in the miles-card block) so it can use the
+        // same next-month ending weight the Totals row uses, keeping "Actual so far" consistent.
+        _dmRenderSummaryCard(records, _dmMonthActivities, nextMonthRec);
 
         // Restore extra-cols visibility after re-render
         if (_dmExtraColsOpen) {
@@ -3321,7 +3327,7 @@ function _dmStatRowHtml(cls, cells, showMiles, trackedTypes, visibleDefs) {
     return row + '</tr>';
 }
 
-function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, monthIdx, last7) {
+function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedTypes, monthIdx, last7, nextMonthRec) {
     typeDataPerDate = typeDataPerDate || {};
     trackedTypes    = trackedTypes    || [];
     if (monthIdx == null) monthIdx = _dmSelMonth;   // year-view passes its own month
@@ -3406,6 +3412,33 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
 
     // Body
     var tbody = '<tbody>';
+
+    // Past-month "Ending Weight" row — the 1st weigh-in of the next month (same reading the chart
+    // plots and the Totals row uses). Sits at the top since its date is the newest. Weight only;
+    // every other column blank. Clickable (data-date) like any row → opens that day's entry.
+    if (nextMonthRec) {
+        var ewCells = '';
+        preDiffCols.forEach(function(c) {
+            ewCells += (c.key === 'weight')
+                ? '<td class="dm-col-num">' + nextMonthRec.w + '</td>'
+                : '<td class="dm-col-num"></td>';
+        });
+        if (milesPerDate) { ewCells += '<td class="dm-col-num dm-col-extra"></td>'.repeat(4); }
+        trackedTypes.forEach(function() { ewCells += '<td class="dm-col-num dm-col-extra"></td>'; });
+        postMilesCols.forEach(function() { ewCells += '<td class="dm-col-num"></td>'; });
+        ewCells += '<td class="dm-col-num"></td>';   // +/- Diff
+        nutriCols.forEach(function() { ewCells += '<td class="dm-col-num dm-col-nutri"></td>'; });
+        postDiffCols.forEach(function() { ewCells += '<td class="dm-col-num"></td>'; });
+        visibleDefs.forEach(function(def) {
+            var baseCls = def.type === 'text' ? 'dm-col-text' : def.type === 'boolean' ? 'dm-col-bool' : 'dm-col-num-custom';
+            ewCells += '<td class="' + baseCls + '"></td>';
+        });
+        tbody += '<tr class="dm-data-row dm-ending-weight-row" data-date="' + _exEsc(nextMonthRec.date) + '">' +
+            '<td class="dm-date-cell">' + _exEsc(_dmFmtDate(nextMonthRec.date)) +
+                ' <span class="dm-ending-tag">ending wt</span></td>' +
+            ewCells + '</tr>';
+    }
+
     records.forEach(function(r) {
         var thresholds = _dmGetMonthThresholds(r.date);
 
@@ -4481,9 +4514,10 @@ function _dmBuildCards(records, summary, nextMonthRec) {
     if (nextMonthRec) {
         nextMonthCardHtml =
             '<div class="dm-card dm-card-next-month" data-date="' + _exEsc(nextMonthRec.date) + '">' +
-                '<div class="dm-card-date">' + _exEsc(_dmFmtDate(nextMonthRec.date)) + '</div>' +
+                '<div class="dm-card-date">' + _exEsc(_dmFmtDate(nextMonthRec.date)) +
+                    ' <span class="dm-ending-tag">ending wt</span></div>' +
                 '<div class="dm-card-row">' +
-                    '<span class="dm-card-metric"><span class="dm-card-label">Wt</span> ' + nextMonthRec.w + '</span>' +
+                    '<span class="dm-card-metric"><span class="dm-card-label">Ending Weight</span> ' + nextMonthRec.w + '</span>' +
                 '</div>' +
             '</div>';
     }

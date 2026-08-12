@@ -18158,6 +18158,23 @@ a.legacy-fin-card:hover {
     font-weight: 500;
     white-space: nowrap;
 }
+/* Past-month "Ending Weight" row (1st weigh-in of the next month) — dimmed, at the top */
+.dm-ending-weight-row td { background: #f5f5f5; color: #555; font-style: italic; }
+.dm-ending-weight-row:hover td { background: #eee; }
+.dm-ending-tag {
+    display: inline-block;
+    font-size: 0.66rem;
+    font-style: normal;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    background: #e5e7eb;
+    border-radius: 4px;
+    padding: 0 5px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
 /* Use higher-specificity selector (.dm-table td.dm-col-num) to beat .dm-table td */
 .dm-table td.dm-col-num,
 .dm-table th.dm-col-num {
