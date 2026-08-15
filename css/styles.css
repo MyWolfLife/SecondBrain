@@ -14140,8 +14140,13 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     align-items: center;
     gap: 10px;
     font-size: 0.85rem;
-    padding: 3px 0;
+    padding: 5px 4px;
     border-bottom: 1px solid var(--border, #eee);
+    cursor: pointer;
+    border-radius: 4px;
+}
+.cred-pmroll-row:hover {
+    background: var(--bg-subtle, #f4f4f5);
 }
 .cred-pmroll-name {
     flex: 1;

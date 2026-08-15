@@ -398,7 +398,8 @@ function _credPMRollHtml(item) {
                 ? ' (' + _credPersonName(cr.personId) + ')' : '';
             var amtStr = (typeof cr.paymentAmount === 'number') ? _credFormatCurrency(cr.paymentAmount) : '—';
             rows +=
-                '<div class="cred-pmroll-row">' +
+                '<div class="cred-pmroll-row" title="Edit this payment"' +
+                     ' onclick="_credGoEdit(\'' + escapeHtml(cr.id) + '\')">' +
                     '<span class="cred-pmroll-name">' + escapeHtml(name + suffix) + '</span>' +
                     '<span class="cred-pmroll-freq">' + escapeHtml(cr.paymentFrequency || '—') + '</span>' +
                     '<span class="cred-pmroll-amt">' + escapeHtml(amtStr) + '</span>' +
