@@ -3599,7 +3599,11 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
         var snap = await q.get();
 
         var allDocs = snap.docs.map(function(d) { return d.data(); });
-        var allWtDocs = allDocs.filter(function(r) { return r.weight != null && r.weight !== '' && r.date; });
+        // Require a *finite numeric* weight, not just non-empty. A stray non-numeric
+        // value (e.g. a typo'd letter or a whitespace-only string) parses to NaN, which
+        // poisons Math.min/Math.max → the y-axis min/max go NaN and Chart.js silently
+        // renders a blank chart. Dropping those rows keeps one bad entry from killing it.
+        var allWtDocs = allDocs.filter(function(r) { return r.date && r.weight != null && r.weight !== '' && isFinite(parseFloat(r.weight)); });
 
         // For past selected-month: split off the next-month first-day point (if fetched)
         var nextMonthPt = null;
