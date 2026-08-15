@@ -3943,6 +3943,8 @@ var _sumShowAvg          = false;   // "Show Avg line" toggle — sticky
 var _sumShowGoal         = false;   // "Show Goal line" toggle — sticky
 var _sumWeightChartOpen  = false;   // weight chart accordion open — sticky
 var _sumWeightChartRange = 'selectedYear'; // weight chart range — sticky (default: selected year)
+var _sumExGridOpen       = false;   // Exercise Summary accordion open — sticky
+var _sumExGridRange      = 'selectedYear'; // Exercise Summary range — sticky ('selectedYear' or month number '1'–'12')
 
 // Blank stat-cells for a month with no data — every value empty except the label.
 function _sumBlankCells(labelHtml) {
@@ -3998,10 +4000,19 @@ async function loadExerciseSummaryPage() {
     _dmNutriColsOpen        = prefs.dmNutriColsOpen        === true;
     _sumWeightChartOpen     = prefs.sumWeightChartOpen     === true;
     _sumWeightChartRange    = prefs.sumWeightChartRange    || 'selectedYear';
+    _sumExGridOpen          = prefs.sumExGridOpen          === true;
+    _sumExGridRange         = prefs.sumExGridRange         || 'selectedYear';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
     _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
+    // Populate both the role map AND the full type map — the Exercise Summary grid
+    // builder (_exBuildSummary) reads _exTypes for names/roles/mileage flags.
     _dmTypeRoleMap = {};
-    results[2].forEach(function(doc) { _dmTypeRoleMap[doc.id] = doc.data().runWalkRole || null; });
+    _exTypes = {};
+    results[2].forEach(function(doc) {
+        var tdata = doc.data();
+        _dmTypeRoleMap[doc.id] = tdata.runWalkRole || null;
+        _exTypes[doc.id] = tdata;
+    });
 
     await _sumRenderPage(el);
 }
@@ -4287,7 +4298,79 @@ async function _sumLoadAndRender() {
             '</div>' +
         '</div>';
 
-    listEl.innerHTML = weightChartHtml + tableHtml;
+    // ── Exercise Summary accordion (reuses the shared per-type grid builder) ───
+    // Range = the whole selected year, or a single month of it. Reads the already-
+    // loaded `allActs` (no extra query) and runs it through _exBuildSummary →
+    // _exSummaryTableHtml — the identical grid shown on the Daily Metrics Summary.
+    var exGridRangeOpts = '<option value="selectedYear"' + (_sumExGridRange === 'selectedYear' ? ' selected' : '') + '>Selected Year</option>';
+    monthNames.forEach(function(mn, idx) {
+        var mv = String(idx + 1);
+        exGridRangeOpts += '<option value="' + mv + '"' + (_sumExGridRange === mv ? ' selected' : '') + '>' + mn + '</option>';
+    });
+    var exGridOpen = _sumExGridOpen;
+    var exGridHtml =
+        '<div class="dm-accordion-section dm-exgrid-section">' +
+            '<button class="dm-accordion-hdr" id="sumExGridHdr" aria-expanded="' + (exGridOpen ? 'true' : 'false') + '">' +
+                '<span class="dm-accordion-title">📊 Exercise Summary</span>' +
+                '<span class="dm-accordion-arrow">' + (exGridOpen ? '▼' : '▶') + '</span>' +
+            '</button>' +
+            '<div class="dm-accordion-body" id="sumExGridBody" style="display:' + (exGridOpen ? 'block' : 'none') + '">' +
+                '<div class="dm-weight-chart-controls">' +
+                    '<select id="sumExGridRangeSelect" class="dm-filter-select">' + exGridRangeOpts + '</select>' +
+                '</div>' +
+                '<div class="sum-exgrid-wrap" id="sumExGridWrap"></div>' +
+            '</div>' +
+        '</div>';
+
+    listEl.innerHTML = weightChartHtml + exGridHtml + tableHtml;
+
+    // ── Wire the Exercise Summary accordion ─────────────────────────────────────
+    function _sumExGridActs() {
+        var startD, endD;
+        if (_sumExGridRange === 'selectedYear') {
+            startD = _sumSelYear + '-01-01'; endD = _sumSelYear + '-12-31';
+        } else {
+            var mo = parseInt(_sumExGridRange, 10);
+            var mm = (mo < 10 ? '0' : '') + mo;
+            startD = _sumSelYear + '-' + mm + '-01';
+            endD   = _sumSelYear + '-' + mm + '-31';
+        }
+        return allActs.filter(function(a) {
+            var ds = a.activityDate ? a.activityDate.substring(0, 10) : '';
+            return ds >= startD && ds <= endD;
+        });
+    }
+    function _sumRenderExGrid() {
+        var wrap = document.getElementById('sumExGridWrap');
+        if (!wrap) return;
+        var acts = _sumExGridActs();
+        if (acts.length === 0) {
+            wrap.innerHTML = '<p class="ex-status dm-accordion-empty">No exercise activities for this period.</p>';
+            return;
+        }
+        wrap.innerHTML = '<div class="ex-summary-wrap">' + _exSummaryTableHtml(_exBuildSummary(acts)) + '</div>';
+    }
+    var egHdr  = document.getElementById('sumExGridHdr');
+    var egBody = document.getElementById('sumExGridBody');
+    if (egHdr) {
+        egHdr.addEventListener('click', function() {
+            _sumExGridOpen = !_sumExGridOpen;
+            egHdr.setAttribute('aria-expanded', _sumExGridOpen ? 'true' : 'false');
+            egBody.style.display = _sumExGridOpen ? 'block' : 'none';
+            egHdr.querySelector('.dm-accordion-arrow').textContent = _sumExGridOpen ? '▼' : '▶';
+            userCol('settings').doc('exercisePrefs').set({ sumExGridOpen: _sumExGridOpen }, { merge: true });
+            if (_sumExGridOpen) _sumRenderExGrid();
+        });
+    }
+    var egRangeSel = document.getElementById('sumExGridRangeSelect');
+    if (egRangeSel) {
+        egRangeSel.addEventListener('change', function() {
+            _sumExGridRange = this.value;
+            userCol('settings').doc('exercisePrefs').set({ sumExGridRange: _sumExGridRange }, { merge: true });
+            if (_sumExGridOpen) _sumRenderExGrid();
+        });
+    }
+    if (_sumExGridOpen) _sumRenderExGrid();
 
     // ── Wire the weight chart accordion (uses _sum* state + unique element ids) ─
     function _sumRenderChart() {

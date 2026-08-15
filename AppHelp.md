@@ -4533,6 +4533,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 - **Weight** for the month is measured from your **first weigh-in of the month to the first weigh-in of the next month** — the same 1st-to-1st loss used on the Daily Metrics screen. (For December, the following January's first weigh-in is the ending weight.)
 - **📏 Exercise button**: show or hide the miles columns (Total / Walk / Run / Dogs) plus one column per tracked exercise. **🥗 Nutrition button**: show or hide Protein / Carbs / Fiber / Fat / Water. Both share the same show/hide setting as the Daily Metrics screen.
 - **⚖ Weight Chart accordion**: a chart of your weight for the whole year — tap to expand. It defaults to the **Selected Year** range (year-to-date for the current year, the full year for a past year); you can also switch to Last 30/90 Days, This Year, or All Time. The Reduce Width %, Show Projected Weight, and Show Missing Days controls work the same as on Daily Metrics.
+- **📊 Exercise Summary accordion**: the same per-exercise grid shown on the Daily Metrics Summary — one row per activity type with Times, Total Time, Burned, Weight (pound-equivalent of the calories), Cal/Hour, and distance columns, plus a Total row. Its dropdown lets you roll it up for the whole **Selected Year** or drill into any single month (January–December) of the selected year. Your open/closed state and chosen range are remembered between visits.
 - **Daily Metrics** link (top right): jump to the day-by-day screen.
 
 ### When to use this
