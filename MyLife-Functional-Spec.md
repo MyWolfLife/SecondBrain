@@ -1396,7 +1396,7 @@ Simple tile labeled **Credentials** (🔑) always visible on the Life page.
 ### Data Model
 | Collection | Key Fields |
 |---|---|
-| `credentials` | `personId` (null = "Me"), `categoryId` (null = Uncategorized), `name`, `url`, `username`, `credentialType`, `credentialValue`, `previousCredential`, `email`, `notes`, `secretQA`, `order`, `updatedAt`, `createdAt` |
+| `credentials` | `personId` (null = "Me"), `categoryId` (null = Uncategorized), `name`, `url`, `username`, `credentialType`, `credentialValue`, `previousCredential`, `email`, `notes`, `secretQA`, `payForService` (bool), `paymentFrequency` (Monthly/Yearly/One Time/Other), `paymentAmount` (raw number, null when not paid), `order`, `updatedAt`, `createdAt` |
 | `credentialCategories` | `name`, `order`, `createdAt` |
 | `settings/credentials` | `{ enrolledPersonIds: [contactId, …] }` |
 
@@ -1407,13 +1407,15 @@ Simple tile labeled **Credentials** (🔑) always visible on the Life page.
 - **Search box**: searches `name` and `url` fields client-side; hides non-matching categories; updates count badge to "N of M" while active
 - **Category accordions** (outer): shown in user-defined order; count badge reflects current person filter; empty categories always shown; each header has a **[+]** button to add a credential pre-filled with that category
 - **Credential accordions** (inner): show credential name in header; drag-to-reorder within or across categories; collapsed by default
-- **Expanded credential** shows: URL (clickable link), email, username + 📋 Copy, credential type + value (masked ••••••) + 👁 Reveal + 📋 Copy, last updated, previous credential (masked) + 👁, secret Q&A, notes, **[Edit]** and **[Delete]** buttons
+- **Expanded credential** shows: URL (clickable link), email, username + 📋 Copy, credential type + value (masked ••••••) + 👁 Reveal + 📋 Copy, **Payment** row (when `payForService` — e.g. "$100.00 / Monthly"), last updated, previous credential (masked) + 👁, secret Q&A, notes, **[Edit]** and **[Delete]** buttons
 - **Copy behavior**: button shows "Copied!" for 2 s; clipboard auto-cleared after 60 s
 - **Uncategorized** is a virtual category (credentials with `categoryId: null`) — always last, cannot be deleted
 - **[Manage ▾]** dropdown: Manage Categories → `#credentials/categories`; Manage People → modal
 
 ### Page: Add Credential (`#credentials/add`)
 Full-page form with all fields. No fields required. Person defaults to current page filter. Category can be picked from existing or a new one typed in line (creates on save). When navigated from a category's [+] button, that category is pre-filled.
+
+**Pay For Service**: A checkbox; when checked, reveals a **Frequency** dropdown (Monthly / Yearly / One Time / Other) and an **Amount** field. The amount is stored as a raw number and formatted to currency on blur (e.g. `100` → `$100.00`). Unchecking clears frequency and amount on save. (Roll-up totals across credentials are planned later.)
 
 ### Page: Edit Credential (`#credentials/edit/{id}`)
 Same form as Add, pre-filled. Credential value shown **unmasked** in the form. On save: if credential value changed → old value auto-moves to Previous Credential and `updatedAt` is set to today.

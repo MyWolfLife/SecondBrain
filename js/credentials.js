@@ -23,6 +23,24 @@ function _credTypeLabel(value) {
     return (t && t.value) ? t.label : 'Credential';
 }
 
+var CRED_PAY_FREQS = ['Monthly', 'Yearly', 'One Time', 'Other'];
+
+// Parse a user-entered amount (e.g. "$1,200.50") into a number, or null if empty/invalid.
+function _credParseAmount(str) {
+    if (str == null) return null;
+    var cleaned = String(str).replace(/[^0-9.\-]/g, '');
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+    var n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+}
+
+// Format a number as US currency, e.g. 100 -> "$100.00".
+function _credFormatCurrency(num) {
+    return '$' + Number(num).toLocaleString('en-US', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+}
+
 // ---------- Module State ----------
 
 var _credCategories  = [];      // [{id, name, order}] sorted by order
@@ -283,6 +301,13 @@ function _credItemBodyHtml(item) {
                 '<button class="cred-copy-btn btn btn-small" id="cc_v_' + escapeHtml(id) + '"' +
                         ' onclick="_credCopyVal(\'' + _credEscJs(item.credentialValue || '') + '\',\'cc_v_' + escapeHtml(id) + '\')">📋</button>' +
             '</span>');
+    }
+    if (item.payForService) {
+        var amtStr  = (typeof item.paymentAmount === 'number') ? _credFormatCurrency(item.paymentAmount) : '';
+        var freqStr = item.paymentFrequency || '';
+        var payStr  = amtStr;
+        if (freqStr) payStr += (amtStr ? ' / ' : '') + freqStr;
+        html += _credRow('Payment', escapeHtml(payStr || '—'));
     }
     if (item.updatedAt) {
         var d = item.updatedAt.toDate ? item.updatedAt.toDate() : new Date(item.updatedAt);
@@ -569,6 +594,15 @@ function _credRenderForm(cred, prefilledCatKey) {
             escapeHtml(t.label) + '</option>';
     });
 
+    // Payment options
+    var payFor   = !!c.payForService;
+    var freqOpts = '<option value="">— Select frequency —</option>';
+    CRED_PAY_FREQS.forEach(function(f) {
+        freqOpts += '<option' + ((c.paymentFrequency || '') === f ? ' selected' : '') + '>' +
+            escapeHtml(f) + '</option>';
+    });
+    var amtInit = (typeof c.paymentAmount === 'number') ? _credFormatCurrency(c.paymentAmount) : '';
+
     page.innerHTML =
         '<div class="page-header">' +
             '<h2>' + (isEdit ? 'Edit Credential' : 'Add Credential') + '</h2>' +
@@ -600,6 +634,18 @@ function _credRenderForm(cred, prefilledCatKey) {
                 '<textarea id="cfSecretQA" rows="4"' +
                           ' placeholder="Enter question/answer pairs however you like">' +
                     escapeHtml(c.secretQA || '') + '</textarea></div>' +
+            '<div class="form-group">' +
+                '<label class="cred-check-label">' +
+                    '<input type="checkbox" id="cfPayFor"' + (payFor ? ' checked' : '') +
+                          ' onchange="_credTogglePayFields()"> Pay For Service</label></div>' +
+            '<div id="cfPayDetails" style="' + (payFor ? '' : 'display:none') + '">' +
+                '<div class="form-group"><label>Frequency</label>' +
+                    '<select id="cfPayFreq">' + freqOpts + '</select></div>' +
+                '<div class="form-group"><label>Amount</label>' +
+                    '<input type="text" id="cfPayAmount" inputmode="decimal"' +
+                           ' value="' + escapeHtml(amtInit) + '" placeholder="$0.00"' +
+                           ' onblur="_credFormatAmount()"></div>' +
+            '</div>' +
             '<div class="form-group"><label>Person</label>' +
                 '<select id="cfPerson">' + personOpts + '</select></div>' +
             '<div class="form-group"><label>Category</label>' +
@@ -622,6 +668,20 @@ function _credOnCatChange() {
     if (sel.value === '__new__') inp.focus();
 }
 
+function _credTogglePayFields() {
+    var cb  = document.getElementById('cfPayFor');
+    var box = document.getElementById('cfPayDetails');
+    if (box) box.style.display = (cb && cb.checked) ? '' : 'none';
+}
+
+// On blur, normalize the amount input to currency (e.g. "100" -> "$100.00").
+function _credFormatAmount() {
+    var el = document.getElementById('cfPayAmount');
+    if (!el) return;
+    var num = _credParseAmount(el.value);
+    el.value = (num === null) ? '' : _credFormatCurrency(num);
+}
+
 async function _credSaveForm(existingId) {
     var name      = _fv('cfName');
     var url       = _fv('cfUrl');
@@ -635,6 +695,10 @@ async function _credSaveForm(existingId) {
     var personId  = _fv('cfPerson') || null;
     var catSel    = _fv('cfCategory');
     var newCatNm  = _fv('cfNewCat');
+    var payForEl  = document.getElementById('cfPayFor');
+    var payFor    = payForEl ? payForEl.checked : false;
+    var payFreq   = _fv('cfPayFreq');
+    var payAmount = _credParseAmount(_fv('cfPayAmount'));
 
     // Resolve category
     var categoryId = catSel === '' ? null : catSel;
@@ -667,7 +731,10 @@ async function _credSaveForm(existingId) {
         notes: notes.trim(), secretQA: secretQA.trim(),
         personId: personId, categoryId: categoryId,
         credentialValue: credValue,
-        previousCredential: (credValue !== oldValue && existingId) ? oldValue : prevCred
+        previousCredential: (credValue !== oldValue && existingId) ? oldValue : prevCred,
+        payForService: payFor,
+        paymentFrequency: payFor ? payFreq : '',
+        paymentAmount: payFor ? payAmount : null
     };
     if (credValue !== oldValue) data.updatedAt = now;
 

@@ -2038,6 +2038,8 @@ This is the list of people going on the trip or helping with it. You can pick th
 
 **Adding a credential**: Tap **+ Add** (top right) or the **+** button on any category header. All fields are optional. Pick a credential type (Password, API Key, Client Secret, Social Security Number, Code). You can create a new category on the fly from the Add form.
 
+**Pay For Service**: Check this box to track what you pay for the service. It reveals a **Frequency** dropdown (Monthly, Yearly, One Time, Other) and an **Amount** field. Type just the number — it formats to currency when you leave the field (e.g. `100` becomes `$100.00`). The payment shows in the credential's expanded detail (e.g. "$100.00 / Monthly").
+
 **Editing**: Tap **Edit** inside an expanded credential. The credential value is shown unmasked in the edit form. If you change the credential value and save, the old value automatically moves to the "Previous Credential" field and the Last Updated date is set to today.
 
 **Copy & reveal**: 📋 copies the value to clipboard and shows "Copied!" for 2 seconds. The clipboard is automatically cleared after 60 seconds. 👁 toggles the masked/revealed view for the credential value and previous credential.

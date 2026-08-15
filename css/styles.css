@@ -14106,6 +14106,18 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     max-width: 560px;
 }
 
+/* "Pay For Service" checkbox — checkbox + label inline, not stacked */
+.cred-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.cred-check-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
 /* Category management page */
 .cred-cat-mgmt-list {
     display: flex;
