@@ -100,6 +100,15 @@ async function _credLoadAll() {
         _credCategories.push(Object.assign({ id: doc.id }, doc.data()));
     });
 
+    // Ensure the protected "Payment Methods" system category exists.
+    // Identified by system:'paymentMethods' so it survives even if renamed in Firestore.
+    // Pinned to the top (order -1); cannot be renamed or deleted from the UI.
+    if (!_credCategories.some(function(c) { return c.system === 'paymentMethods'; })) {
+        var pmData = { name: 'Payment Methods', order: -1, system: 'paymentMethods', createdAt: new Date() };
+        var pmRef  = await userCol('credentialCategories').add(pmData);
+        _credCategories.unshift(Object.assign({ id: pmRef.id }, pmData));
+    }
+
     var credSnap = await userCol('credentials').get();
     _credentials = [];
     credSnap.forEach(function(doc) {
@@ -308,6 +317,10 @@ function _credItemBodyHtml(item) {
         var payStr  = amtStr;
         if (freqStr) payStr += (amtStr ? ' / ' : '') + freqStr;
         html += _credRow('Payment', escapeHtml(payStr || '—'));
+        if (item.paymentMethodId) {
+            var pmCr = _credentials.find(function(cr) { return cr.id === item.paymentMethodId; });
+            if (pmCr) html += _credRow('Paid With', escapeHtml(pmCr.name || '(unnamed)'));
+        }
     }
     if (item.updatedAt) {
         var d = item.updatedAt.toDate ? item.updatedAt.toDate() : new Date(item.updatedAt);
@@ -603,6 +616,27 @@ function _credRenderForm(cred, prefilledCatKey) {
     });
     var amtInit = (typeof c.paymentAmount === 'number') ? _credFormatCurrency(c.paymentAmount) : '';
 
+    // Payment-method dropdown: all credentials in the "Payment Methods" category (any person),
+    // excluding the credential being edited so it can't reference itself.
+    var pmCat   = _credCategories.find(function(x) { return x.system === 'paymentMethods'; });
+    var pmItems = pmCat ? _credentials.filter(function(cr) {
+        return cr.categoryId === pmCat.id && cr.id !== (c.id || '');
+    }) : [];
+    pmItems.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    var pmOpts = '<option value="">— None —</option>';
+    pmItems.forEach(function(cr) {
+        pmOpts += '<option value="' + escapeHtml(cr.id) + '"' +
+            ((c.paymentMethodId || '') === cr.id ? ' selected' : '') + '>' +
+            escapeHtml(cr.name || '(unnamed)') + '</option>';
+    });
+    // Preserve a selected method that is no longer in the category (moved/renamed away).
+    if (c.paymentMethodId && !pmItems.some(function(cr) { return cr.id === c.paymentMethodId; })) {
+        var refCr = _credentials.find(function(cr) { return cr.id === c.paymentMethodId; });
+        pmOpts += '<option value="' + escapeHtml(c.paymentMethodId) + '" selected>' +
+            escapeHtml(refCr ? (refCr.name || '(unnamed)') + ' (not in Payment Methods)' : '(unavailable)') +
+            '</option>';
+    }
+
     page.innerHTML =
         '<div class="page-header">' +
             '<h2>' + (isEdit ? 'Edit Credential' : 'Add Credential') + '</h2>' +
@@ -645,6 +679,12 @@ function _credRenderForm(cred, prefilledCatKey) {
                     '<input type="text" id="cfPayAmount" inputmode="decimal"' +
                            ' value="' + escapeHtml(amtInit) + '" placeholder="$0.00"' +
                            ' onblur="_credFormatAmount()"></div>' +
+                '<div class="form-group"><label>Payment Method</label>' +
+                    '<select id="cfPayMethod">' + pmOpts + '</select>' +
+                    (pmItems.length ? '' :
+                        '<small class="cred-hint">No payment methods yet — add credentials to the ' +
+                        '“Payment Methods” category to choose one here.</small>') +
+                '</div>' +
             '</div>' +
             '<div class="form-group"><label>Person</label>' +
                 '<select id="cfPerson">' + personOpts + '</select></div>' +
@@ -699,6 +739,7 @@ async function _credSaveForm(existingId) {
     var payFor    = payForEl ? payForEl.checked : false;
     var payFreq   = _fv('cfPayFreq');
     var payAmount = _credParseAmount(_fv('cfPayAmount'));
+    var payMethodId = _fv('cfPayMethod') || null;
 
     // Resolve category
     var categoryId = catSel === '' ? null : catSel;
@@ -734,7 +775,8 @@ async function _credSaveForm(existingId) {
         previousCredential: (credValue !== oldValue && existingId) ? oldValue : prevCred,
         payForService: payFor,
         paymentFrequency: payFor ? payFreq : '',
-        paymentAmount: payFor ? payAmount : null
+        paymentAmount: payFor ? payAmount : null,
+        paymentMethodId: payFor ? payMethodId : null
     };
     if (credValue !== oldValue) data.updatedAt = now;
 
@@ -778,10 +820,23 @@ function _credRenderCategoriesPage() {
     var page = document.getElementById('page-credentials-categories');
     if (!page) return;
 
-    var rowsHtml = _credCategories.map(_credCatMgmtRowHtml).join('');
+    var pm = _credCategories.find(function(c) { return c.system === 'paymentMethods'; });
+    var pmPinned = pm ?
+        '<div class="cred-cat-mgmt-pinned">' +
+            '<div class="cred-cat-mgmt-row">' +
+                '<span class="cred-drag-handle" style="visibility:hidden">≡</span>' +
+                '<span class="cred-cat-mgmt-name">' + escapeHtml(pm.name) + '</span>' +
+                '<span class="cred-cat-mgmt-system">System — cannot be renamed or deleted</span>' +
+            '</div>' +
+        '</div>' : '';
+
+    var rowsHtml = _credCategories
+        .filter(function(c) { return c.system !== 'paymentMethods'; })
+        .map(_credCatMgmtRowHtml).join('');
 
     page.innerHTML =
         '<div class="page-header"><h2>Manage Categories</h2></div>' +
+        pmPinned +
         '<div class="cred-cat-mgmt-list" id="credCatMgmtList">' + rowsHtml + '</div>' +
         '<div class="cred-cat-mgmt-add">' +
             '<input type="text" id="credNewCatInp" placeholder="New category name"' +
@@ -850,6 +905,8 @@ function _credCatKeyDown(e, catId) {
 }
 
 async function _credSaveRename(catId) {
+    var cat = _credCategories.find(function(c) { return c.id === catId; });
+    if (cat && cat.system) { alert('"' + cat.name + '" is a system category and cannot be renamed.'); return; }
     var inp  = document.getElementById('credCatInp_' + catId);
     var name = inp ? inp.value.trim() : '';
     if (!name) { alert('Category name cannot be empty.'); return; }
@@ -862,6 +919,8 @@ async function _credSaveRename(catId) {
 }
 
 async function _credDeleteCat(catId, catName) {
+    var cat = _credCategories.find(function(c) { return c.id === catId; });
+    if (cat && cat.system) { alert('"' + cat.name + '" is a system category and cannot be deleted.'); return; }
     var count = _credentials.filter(function(c) { return c.categoryId === catId; }).length;
     var msg = count > 0
         ? 'Move ' + count + ' credential(s) to Uncategorized and delete "' + catName + '"?'
@@ -1043,24 +1102,31 @@ async function _credCatDrop(e, targetId) {
     _credCatDragEnd();
     if (!sourceId || sourceId === targetId) return;
 
-    var si = _credCategories.findIndex(function(c) { return c.id === sourceId; });
-    var ti = _credCategories.findIndex(function(c) { return c.id === targetId; });
+    // Reorder only the user-managed (non-system) categories. The pinned
+    // "Payment Methods" system category is excluded and keeps its order (-1).
+    var subset = _credCategories.filter(function(c) { return c.system !== 'paymentMethods'; });
+    var si = subset.findIndex(function(c) { return c.id === sourceId; });
+    var ti = subset.findIndex(function(c) { return c.id === targetId; });
     if (si < 0 || ti < 0) return;
 
-    var moved = _credCategories.splice(si, 1)[0];
+    var moved = subset.splice(si, 1)[0];
     var ni    = before ? ti : ti + 1;
     if (ni > si) ni--;
-    _credCategories.splice(ni, 0, moved);
+    subset.splice(ni, 0, moved);
 
     var batch = db.batch();
-    _credCategories.forEach(function(cat, i) {
+    subset.forEach(function(cat, i) {
         cat.order = i;
         batch.update(userCol('credentialCategories').doc(cat.id), { order: i });
     });
     await batch.commit();
 
+    // Rebuild the master array: system categories first, then the reordered rest.
+    var systemCats = _credCategories.filter(function(c) { return c.system === 'paymentMethods'; });
+    _credCategories = systemCats.concat(subset);
+
     var list = document.getElementById('credCatMgmtList');
-    if (list) list.innerHTML = _credCategories.map(_credCatMgmtRowHtml).join('');
+    if (list) list.innerHTML = subset.map(_credCatMgmtRowHtml).join('');
 }
 
 function _credCatDragEnd() {

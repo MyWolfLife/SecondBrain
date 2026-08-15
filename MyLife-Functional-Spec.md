@@ -1396,11 +1396,13 @@ Simple tile labeled **Credentials** (🔑) always visible on the Life page.
 ### Data Model
 | Collection | Key Fields |
 |---|---|
-| `credentials` | `personId` (null = "Me"), `categoryId` (null = Uncategorized), `name`, `url`, `username`, `credentialType`, `credentialValue`, `previousCredential`, `email`, `notes`, `secretQA`, `payForService` (bool), `paymentFrequency` (Monthly/Yearly/One Time/Other), `paymentAmount` (raw number, null when not paid), `order`, `updatedAt`, `createdAt` |
-| `credentialCategories` | `name`, `order`, `createdAt` |
+| `credentials` | `personId` (null = "Me"), `categoryId` (null = Uncategorized), `name`, `url`, `username`, `credentialType`, `credentialValue`, `previousCredential`, `email`, `notes`, `secretQA`, `payForService` (bool), `paymentFrequency` (Monthly/Yearly/One Time/Other), `paymentAmount` (raw number, null when not paid), `paymentMethodId` (credential id of a Payment Methods item, or null), `order`, `updatedAt`, `createdAt` |
+| `credentialCategories` | `name`, `order`, `createdAt`, `system` (e.g. `'paymentMethods'` for the protected category) |
 | `settings/credentials` | `{ enrolledPersonIds: [contactId, …] }` |
 
 **Credential types**: Password, API Key, Client Secret, Social Security Number, Code.
+
+**Payment Methods (system category)**: A protected category (`system: 'paymentMethods'`) auto-seeded per account on first load, pinned to the top of the category list. It holds the user's cards/accounts and cannot be renamed, deleted, or drag-reordered. Otherwise it behaves like a normal category (holds credentials, has a [+] add button). Its items feed the "Payment Method" dropdown on the credential form (see below).
 
 ### Page: Credentials List (`#credentials`)
 - **Person filter** (dropdown at top): Me (default) + enrolled contacts; filters all categories/counts
@@ -1415,12 +1417,13 @@ Simple tile labeled **Credentials** (🔑) always visible on the Life page.
 ### Page: Add Credential (`#credentials/add`)
 Full-page form with all fields. No fields required. Person defaults to current page filter. Category can be picked from existing or a new one typed in line (creates on save). When navigated from a category's [+] button, that category is pre-filled.
 
-**Pay For Service**: A checkbox; when checked, reveals a **Frequency** dropdown (Monthly / Yearly / One Time / Other) and an **Amount** field. The amount is stored as a raw number and formatted to currency on blur (e.g. `100` → `$100.00`). Unchecking clears frequency and amount on save. (Roll-up totals across credentials are planned later.)
+**Pay For Service**: A checkbox; when checked, reveals a **Frequency** dropdown (Monthly / Yearly / One Time / Other), an **Amount** field, and a **Payment Method** dropdown. The amount is stored as a raw number and formatted to currency on blur (e.g. `100` → `$100.00`). The Payment Method dropdown lists **all** credentials in the Payment Methods category (any person), excluding the credential being edited; `— None —` is the default. A previously-selected method that has since left the category is preserved and labelled "(not in Payment Methods)". Unchecking clears frequency, amount, and payment method on save. The expanded credential shows a **Payment** row and, when a method is set, a **Paid With** row. (Roll-up totals across credentials are planned later.)
 
 ### Page: Edit Credential (`#credentials/edit/{id}`)
 Same form as Add, pre-filled. Credential value shown **unmasked** in the form. On save: if credential value changed → old value auto-moves to Previous Credential and `updatedAt` is set to today.
 
 ### Page: Category Management (`#credentials/categories`)
+- **Payment Methods** system category pinned at the **top** with a "System — cannot be renamed or deleted" label and no Rename/Delete/drag controls (rename/delete also hard-guarded in code)
 - Drag-to-reorder list of all real categories; order saved to Firestore as `order` field
 - Inline rename (Rename → input → Save/Cancel)
 - Delete: moves all credentials in that category to Uncategorized (with confirmation), then deletes

@@ -2034,11 +2034,13 @@ This is the list of people going on the trip or helping with it. You can pick th
 
 **Categories**: Organize credentials into groups (Financial, Streaming, etc.). Categories are shared across all people. Use **Manage → Manage Categories** to reorder (drag), rename, or delete categories. Deleting a category moves its credentials to Uncategorized.
 
+**Payment Methods (system category)**: A built-in category pinned at the top of the list. Store your cards and accounts here. It works like any other category (add credentials, drag them to reorder within it), but it **cannot be renamed, deleted, or moved**. Items in this category populate the **Payment Method** dropdown when you check "Pay For Service" on any credential.
+
 **Uncategorized**: A built-in virtual category for credentials with no category. Always shown last. Cannot be deleted.
 
 **Adding a credential**: Tap **+ Add** (top right) or the **+** button on any category header. All fields are optional. Pick a credential type (Password, API Key, Client Secret, Social Security Number, Code). You can create a new category on the fly from the Add form.
 
-**Pay For Service**: Check this box to track what you pay for the service. It reveals a **Frequency** dropdown (Monthly, Yearly, One Time, Other) and an **Amount** field. Type just the number — it formats to currency when you leave the field (e.g. `100` becomes `$100.00`). The payment shows in the credential's expanded detail (e.g. "$100.00 / Monthly").
+**Pay For Service**: Check this box to track what you pay for the service. It reveals a **Frequency** dropdown (Monthly, Yearly, One Time, Other), an **Amount** field, and a **Payment Method** dropdown. Type just the number for the amount — it formats to currency when you leave the field (e.g. `100` becomes `$100.00`). The **Payment Method** dropdown lists everything in your Payment Methods category (across all people) so you can record which card/account pays for it; leave it on "— None —" to skip. The payment shows in the credential's expanded detail (e.g. "$100.00 / Monthly") along with a "Paid With" line when a method is chosen.
 
 **Editing**: Tap **Edit** inside an expanded credential. The credential value is shown unmasked in the edit form. If you change the credential value and save, the old value automatically moves to the "Previous Credential" field and the Last Updated date is set to today.
 
