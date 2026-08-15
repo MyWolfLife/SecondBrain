@@ -25,6 +25,13 @@ function _credTypeLabel(value) {
 
 var CRED_PAY_FREQS = ['Monthly', 'Yearly', 'One Time', 'Other'];
 
+// Resolve a personId to a display name. null/'' = the owner ("Me").
+function _credPersonName(personId) {
+    if (!personId) return 'Me';
+    var p = _credPeople.find(function(x) { return x.id === personId; });
+    return p ? p.name : 'Unknown';
+}
+
 // Parse a user-entered amount (e.g. "$1,200.50") into a number, or null if empty/invalid.
 function _credParseAmount(str) {
     if (str == null) return null;
@@ -49,6 +56,7 @@ var _credPeople      = [];      // [{id, name}] enrolled contact refs
 var _credPersonFilter = null;   // null = "Me"; contact ID string otherwise
 var _credExpandedCats  = {};    // {catKeyStr: bool}
 var _credExpandedItems = {};    // {itemId: bool}
+var _credExpandedPMRoll = {};   // {paymentMethodItemId: bool} — Linked Payments accordion
 var _credSearchQuery  = '';
 var _credClipTimers   = {};     // {btnId: timerHandle}
 var _credDragItemId   = null;
@@ -351,7 +359,79 @@ function _credItemBodyHtml(item) {
             '<button class="btn btn-danger btn-small"' +
                     ' onclick="_credConfirmDelete(\'' + escapeHtml(id) + '\',\'' + _credEscJs(item.name || '') + '\')">Delete</button>' +
         '</div>';
+    html += _credPMRollHtml(item);
     return html;
+}
+
+// "Linked Payments" roll-up accordion — shown at the bottom of a Payment Methods
+// item, listing recurring (Monthly/Yearly) and Other charges tied to it. One Time
+// charges are excluded entirely. Header shows count + monthly/yearly totals.
+function _credPMRollHtml(item) {
+    var pmCat = _credCategories.find(function(x) { return x.system === 'paymentMethods'; });
+    if (!pmCat || item.categoryId !== pmCat.id) return '';
+
+    var linked = _credentials.filter(function(cr) {
+        return cr.payForService && cr.paymentMethodId === item.id &&
+               (cr.paymentFrequency || '') !== 'One Time';
+    });
+    linked.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+
+    var monthly = 0, yearly = 0;
+    linked.forEach(function(cr) {
+        var amt = (typeof cr.paymentAmount === 'number') ? cr.paymentAmount : 0;
+        var f   = cr.paymentFrequency || '';
+        if      (f === 'Monthly') { monthly += amt;      yearly += amt * 12; }
+        else if (f === 'Yearly')  { monthly += amt / 12; yearly += amt; }
+        // 'Other' (and blank): listed but not summed
+    });
+
+    var open = !!_credExpandedPMRoll[item.id];
+    var id   = escapeHtml(item.id);
+
+    var rows = '';
+    if (linked.length === 0) {
+        rows = '<div class="cred-pmroll-empty">No recurring payments linked yet.</div>';
+    } else {
+        linked.forEach(function(cr) {
+            var name   = cr.name || '(unnamed)';
+            var suffix = ((cr.personId || null) !== (item.personId || null))
+                ? ' (' + _credPersonName(cr.personId) + ')' : '';
+            var amtStr = (typeof cr.paymentAmount === 'number') ? _credFormatCurrency(cr.paymentAmount) : '—';
+            rows +=
+                '<div class="cred-pmroll-row">' +
+                    '<span class="cred-pmroll-name">' + escapeHtml(name + suffix) + '</span>' +
+                    '<span class="cred-pmroll-freq">' + escapeHtml(cr.paymentFrequency || '—') + '</span>' +
+                    '<span class="cred-pmroll-amt">' + escapeHtml(amtStr) + '</span>' +
+                '</div>';
+        });
+    }
+
+    var totals = (monthly > 0 || yearly > 0)
+        ? '<span class="cred-pmroll-totals">' +
+              escapeHtml(_credFormatCurrency(monthly)) + '/mo · ' +
+              escapeHtml(_credFormatCurrency(yearly)) + '/yr</span>'
+        : '';
+
+    return (
+        '<div class="cred-pmroll">' +
+            '<div class="cred-pmroll-header" onclick="_credTogglePMRoll(\'' + id + '\')">' +
+                '<span class="cred-chevron" id="cred_pmroll_chev_' + id + '">' + (open ? '▼' : '►') + '</span>' +
+                '<span class="cred-pmroll-title">Linked Payments</span>' +
+                '<span class="cred-pmroll-count">(' + linked.length + ')</span>' +
+                totals +
+            '</div>' +
+            '<div class="cred-pmroll-body" id="cred_pmroll_body_' + id + '"' +
+                 ' style="' + (open ? '' : 'display:none') + '">' + rows + '</div>' +
+        '</div>'
+    );
+}
+
+function _credTogglePMRoll(itemId) {
+    _credExpandedPMRoll[itemId] = !_credExpandedPMRoll[itemId];
+    var body = document.getElementById('cred_pmroll_body_' + itemId);
+    var chev = document.getElementById('cred_pmroll_chev_' + itemId);
+    if (body) body.style.display = _credExpandedPMRoll[itemId] ? '' : 'none';
+    if (chev) chev.textContent   = _credExpandedPMRoll[itemId] ? '▼' : '►';
 }
 
 function _credRow(label, valueHtml) {

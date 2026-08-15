@@ -14106,6 +14106,66 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     max-width: 560px;
 }
 
+/* "Linked Payments" roll-up accordion on a Payment Methods item */
+.cred-pmroll {
+    margin-top: 14px;
+    border-top: 1px solid var(--border, #ddd);
+    padding-top: 10px;
+}
+.cred-pmroll-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.cred-pmroll-count {
+    color: #888;
+    font-weight: 400;
+}
+.cred-pmroll-totals {
+    color: #666;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+.cred-pmroll-body {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cred-pmroll-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border, #eee);
+}
+.cred-pmroll-name {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+.cred-pmroll-freq {
+    color: #888;
+    font-size: 0.8rem;
+    min-width: 64px;
+    text-align: right;
+}
+.cred-pmroll-amt {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 74px;
+    text-align: right;
+}
+.cred-pmroll-empty {
+    color: #888;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
 /* "Pay For Service" checkbox — checkbox + label inline, not stacked */
 .cred-check-label {
     display: flex;

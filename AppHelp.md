@@ -2036,6 +2036,8 @@ This is the list of people going on the trip or helping with it. You can pick th
 
 **Payment Methods (system category)**: A built-in category pinned at the top of the list. Store your cards and accounts here. It works like any other category (add credentials, drag them to reorder within it), but it **cannot be renamed, deleted, or moved**. Items in this category populate the **Payment Method** dropdown when you check "Pay For Service" on any credential.
 
+**Linked Payments roll-up**: Expand a Payment Methods item and you'll see a **Linked Payments** accordion at the bottom. It lists every service (across all people) paid with that card/account — name, frequency, and amount — with the person's name shown when it belongs to someone else (e.g. "Apple TV (Danielle)"). The header shows how many are linked and the recurring totals **per month and per year**. One-time fees are left out; "Other"-frequency items are listed but not added to the totals.
+
 **Uncategorized**: A built-in virtual category for credentials with no category. Always shown last. Cannot be deleted.
 
 **Adding a credential**: Tap **+ Add** (top right) or the **+** button on any category header. All fields are optional. Pick a credential type (Password, API Key, Client Secret, Social Security Number, Code). You can create a new category on the fly from the Add form.
