@@ -1318,6 +1318,45 @@
             </div>
         </div>
 
+        <!-- Weight Chart Settings (shared by Daily Metrics + Summary weight charts) -->
+        <div class="modal-overlay" id="weightChartSettingsModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Weight Chart Settings</h3>
+                    <button class="modal-close" onclick="closeModal('weightChartSettingsModal')">&#x2715;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="wcSettingsRollDays">Rolling Average Days</label>
+                        <input type="number" id="wcSettingsRollDays" class="form-control" min="2" max="60" step="1" value="3" onchange="wcSettingsRollDaysChange(this.value)">
+                        <p class="form-hint">How many days the trailing average line covers — the &ldquo;N-Day Avg&rdquo; line on the chart. Default 3.</p>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" id="wcSettingsProjected" onchange="wcSettingsProjectedChange(this.checked)" style="width:auto;margin:0;">
+                            Show Projected Weight
+                        </label>
+                        <p class="form-hint">What your weight would be each day based on your calorie +/-.</p>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" id="wcSettingsMissing" onchange="wcSettingsMissingChange(this.checked)" style="width:auto;margin:0;">
+                            Show Missing Days
+                        </label>
+                        <p class="form-hint">Include days with no weigh-in along the x-axis (no dot on those days).</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="wcSettingsShrink">Reduce Width %</label>
+                        <input type="number" id="wcSettingsShrink" class="form-control" min="0" max="95" step="5" value="0" onchange="wcSettingsShrinkChange(this.value)">
+                        <p class="form-hint">Shrink the chart width by this percent (applies each time you enter a value). Change the date range to restore full width.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="closeModal('weightChartSettingsModal')">Done</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Page: Change Password -->
         <section class="page hidden" id="page-changepassword">
             <div class="page-header">

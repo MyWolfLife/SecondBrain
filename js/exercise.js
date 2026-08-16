@@ -1893,6 +1893,8 @@ var _dmWeightChartShrink   = 1.0;   // width reduction factor (1 = full natural 
 var _dmWeightChartNaturalW = 0;     // natural width at render time — basis for the Reduce Width control
 var _dmWeightChartProjected = false; // "Show Projected Weight" line (calorie-driven) — sticky, default off
 var _dmWeightChartShowMissing = false; // "Show Missing Days" — fill x-axis with every calendar day (no dot on gaps); sticky, default off
+var _dmWeightChartRollDays = 3;    // Daily Metrics "N-Day Avg" trailing window — sticky, default 3
+var _wcSettingsCtx        = 'dm';  // which chart the Weight Chart Settings popup is editing ('dm' | 'sum')
 var _dmEditDate       = null;       // null = new entry; 'YYYY-MM-DD' = editing existing
 var _dmFormDefKey     = '';         // signature of in-window custom def ids the entry form was built with
 var _dmExistingDoc    = null;       // loaded doc data or null
@@ -1958,6 +1960,7 @@ async function loadExerciseMetricsPage() {
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
     _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
+    _dmWeightChartRollDays = parseInt(prefs.dmWeightChartRollDays, 10) || 3;
     _dmGoalsData = results[2].exists ? results[2].data() : null;
     _dmGoalsYear = new Date().getFullYear();
 
@@ -2586,15 +2589,7 @@ async function _dmApplyFilter() {
                 '<div class="dm-accordion-body" id="dmWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
                     '<div class="dm-weight-chart-controls">' +
                         '<select id="dmWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
-                        '<label class="dm-wc-shrink-label" title="Type a percent to shrink the chart width; resets to 0 after each entry. Change the date range to restore full width.">Reduce Width %' +
-                            '<input type="number" id="dmWeightChartShrinkInput" class="dm-wc-shrink-input" min="0" max="95" step="5" value="0">' +
-                        '</label>' +
-                        '<label class="dm-wc-projected-label" title="This is what the weight would be each day according to calorie +/-">' +
-                            '<input type="checkbox" id="dmWeightChartProjectedChk"' + (_dmWeightChartProjected ? ' checked' : '') + '> Show Projected Weight' +
-                        '</label>' +
-                        '<label class="dm-wc-projected-label" title="Include days with no weigh-in along the x-axis (no dot on those days)">' +
-                            '<input type="checkbox" id="dmWeightChartShowMissingChk"' + (_dmWeightChartShowMissing ? ' checked' : '') + '> Show Missing Days' +
-                        '</label>' +
+                        '<button type="button" class="btn btn-secondary btn-small dm-wc-settings-btn" onclick="openWeightChartSettings(\'dm\')">⚙ Settings</button>' +
                     '</div>' +
                     '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
                 '</div>' +
@@ -2821,42 +2816,8 @@ async function _dmApplyFilter() {
                 if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
             });
         }
-        // Reduce Width % — cumulative shrink; field resets to 0 after each entry.
-        // Changing the date range (full re-render) restores natural width.
-        var wcShrink = document.getElementById('dmWeightChartShrinkInput');
-        if (wcShrink) {
-            wcShrink.addEventListener('change', function() {
-                var pct = parseFloat(this.value);
-                this.value = 0;   // reset the field each time
-                if (isNaN(pct) || pct <= 0) return;
-                if (pct > 95) pct = 95;
-                _dmWeightChartShrink *= (1 - pct / 100);
-                if (_dmWeightChartShrink < 0.1) _dmWeightChartShrink = 0.1;   // floor
-                var w = document.getElementById('dmWeightChartWrap');
-                if (w && _dmWeightChartNaturalW) {
-                    w.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
-                    if (_dmWeightChart) _dmWeightChart.resize();
-                }
-            });
-        }
-        // Show Projected Weight — sticky toggle; re-renders the chart to add/remove the line
-        var wcProj = document.getElementById('dmWeightChartProjectedChk');
-        if (wcProj) {
-            wcProj.addEventListener('change', function() {
-                _dmWeightChartProjected = this.checked;
-                userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
-                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
-            });
-        }
-        // Show Missing Days — sticky toggle; re-renders to fill/skip empty x-axis slots
-        var wcMiss = document.getElementById('dmWeightChartShowMissingChk');
-        if (wcMiss) {
-            wcMiss.addEventListener('change', function() {
-                _dmWeightChartShowMissing = this.checked;
-                userCol('settings').doc('exercisePrefs').set({ dmWeightChartShowMissing: _dmWeightChartShowMissing }, { merge: true });
-                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
-            });
-        }
+        // Reduce Width, Show Projected, Show Missing, and Rolling Days now live in the
+        // Weight Chart Settings popup (⚙ Settings button) — see openWeightChartSettings().
         if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
 
         // Wire Last 7 accordion toggle — persists state to Firestore
@@ -3535,9 +3496,14 @@ function _dmBuildTable(records, summary, milesPerDate, typeDataPerDate, trackedT
 
 // wrapId/shrinkId let a second page (the Summary screen) host its own chart with
 // unique element ids, avoiding duplicate-id collisions with the Daily Metrics chart.
-async function _dmRenderWeightChart(range, wrapId, shrinkId) {
+async function _dmRenderWeightChart(range, wrapId, shrinkId, rollDays) {
     wrapId   = wrapId   || 'dmWeightChartWrap';
     shrinkId = shrinkId || 'dmWeightChartShrinkInput';
+    // Trailing-average window (the "N-Day Avg" line). Per-chart: callers that omit it
+    // (Daily Metrics) fall back to the DM sticky value; the Summary passes its own.
+    if (rollDays == null) rollDays = _dmWeightChartRollDays;
+    rollDays = parseInt(rollDays, 10);
+    if (!rollDays || rollDays < 2) rollDays = 2;
     // Destroy any previous Chart.js instance before re-rendering
     if (_dmWeightChart) { _dmWeightChart.destroy(); _dmWeightChart = null; }
     _dmWeightChartShrink = 1.0;   // each fresh render (e.g. range change) starts at full width
@@ -3632,12 +3598,15 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
         var yMin = Math.floor(Math.min.apply(null, wArr) - yPad);
         var yMax = Math.ceil(Math.max.apply(null, wArr)  + yPad);
 
-        // Rolling 3-entry average: pt0=itself, pt1=avg(0,1), pt2+=avg(i-2,i-1,i)
+        // Rolling N-entry trailing average (window = rollDays). Early points use a
+        // partial window (e.g. pt0 = itself, pt1 = avg of first two), matching the
+        // original 3-day behavior generalized to any N.
         function r1(n) { return Math.round(n * 10) / 10; }
         var avgArr = wArr.map(function(w, i) {
-            if (i === 0) return r1(w);
-            if (i === 1) return r1((wArr[0] + wArr[1]) / 2);
-            return r1((wArr[i - 2] + wArr[i - 1] + wArr[i]) / 3);
+            var start = Math.max(0, i - rollDays + 1);
+            var sum = 0, n = 0;
+            for (var j = start; j <= i; j++) { sum += wArr[j]; n++; }
+            return r1(sum / n);
         });
 
         // ── Goal line (Selected Month only) ──────────────────────────────────
@@ -3819,7 +3788,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId) {
                             order: 3
                         },
                         {
-                            label: '3-Day Avg',
+                            label: rollDays + '-Day Avg',
                             data:  chartAvgArr,
                             borderColor: '#e65100',
                             backgroundColor: 'transparent',
@@ -3945,6 +3914,7 @@ var _sumWeightChartOpen  = false;   // weight chart accordion open — sticky
 var _sumWeightChartRange = 'selectedYear'; // weight chart range — sticky (default: selected year)
 var _sumExGridOpen       = false;   // Exercise Summary accordion open — sticky
 var _sumExGridRange      = 'selectedYear'; // Exercise Summary range — sticky ('selectedYear' or month number '1'–'12')
+var _sumWeightChartRollDays = 3;    // Summary "N-Day Avg" trailing window — sticky, default 3 (separate from Daily Metrics)
 
 // Blank stat-cells for a month with no data — every value empty except the label.
 function _sumBlankCells(labelHtml) {
@@ -4004,6 +3974,7 @@ async function loadExerciseSummaryPage() {
     _sumExGridRange         = prefs.sumExGridRange         || 'selectedYear';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
     _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
+    _sumWeightChartRollDays = parseInt(prefs.sumWeightChartRollDays, 10) || 3;
     // Populate both the role map AND the full type map — the Exercise Summary grid
     // builder (_exBuildSummary) reads _exTypes for names/roles/mileage flags.
     _dmTypeRoleMap = {};
@@ -4284,15 +4255,7 @@ async function _sumLoadAndRender() {
             '<div class="dm-accordion-body" id="sumWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
                 '<div class="dm-weight-chart-controls">' +
                     '<select id="sumWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
-                    '<label class="dm-wc-shrink-label" title="Type a percent to shrink the chart width; resets to 0 after each entry. Change the date range to restore full width.">Reduce Width %' +
-                        '<input type="number" id="sumWeightChartShrinkInput" class="dm-wc-shrink-input" min="0" max="95" step="5" value="0">' +
-                    '</label>' +
-                    '<label class="dm-wc-projected-label" title="This is what the weight would be each day according to calorie +/-">' +
-                        '<input type="checkbox" id="sumWeightChartProjectedChk"' + (_dmWeightChartProjected ? ' checked' : '') + '> Show Projected Weight' +
-                    '</label>' +
-                    '<label class="dm-wc-projected-label" title="Include days with no weigh-in along the x-axis (no dot on those days)">' +
-                        '<input type="checkbox" id="sumWeightChartShowMissingChk"' + (_dmWeightChartShowMissing ? ' checked' : '') + '> Show Missing Days' +
-                    '</label>' +
+                    '<button type="button" class="btn btn-secondary btn-small dm-wc-settings-btn" onclick="openWeightChartSettings(\'sum\')">⚙ Settings</button>' +
                 '</div>' +
                 '<div class="dm-weight-chart-wrap" id="sumWeightChartWrap"></div>' +
             '</div>' +
@@ -4374,7 +4337,7 @@ async function _sumLoadAndRender() {
 
     // ── Wire the weight chart accordion (uses _sum* state + unique element ids) ─
     function _sumRenderChart() {
-        _dmRenderWeightChart(_sumWeightChartRange, 'sumWeightChartWrap', 'sumWeightChartShrinkInput');
+        _dmRenderWeightChart(_sumWeightChartRange, 'sumWeightChartWrap', 'sumWeightChartShrinkInput', _sumWeightChartRollDays);
     }
     var wcHdr = document.getElementById('sumWeightChartHdr');
     var wcBody = document.getElementById('sumWeightChartBody');
@@ -4400,39 +4363,84 @@ async function _sumLoadAndRender() {
             if (_sumWeightChartOpen) _sumRenderChart();
         });
     }
-    var wcShrink = document.getElementById('sumWeightChartShrinkInput');
-    if (wcShrink) {
-        wcShrink.addEventListener('change', function() {
-            var pct = parseFloat(this.value);
-            this.value = 0;
-            if (isNaN(pct) || pct <= 0) return;
-            if (pct > 95) pct = 95;
-            _dmWeightChartShrink *= (1 - pct / 100);
-            if (_dmWeightChartShrink < 0.1) _dmWeightChartShrink = 0.1;
-            var w = document.getElementById('sumWeightChartWrap');
-            if (w && _dmWeightChartNaturalW) {
-                w.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
-                if (_dmWeightChart) _dmWeightChart.resize();
-            }
-        });
-    }
-    var wcProj = document.getElementById('sumWeightChartProjectedChk');
-    if (wcProj) {
-        wcProj.addEventListener('change', function() {
-            _dmWeightChartProjected = this.checked;
-            userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
-            if (_sumWeightChartOpen) _sumRenderChart();
-        });
-    }
-    var wcMiss = document.getElementById('sumWeightChartShowMissingChk');
-    if (wcMiss) {
-        wcMiss.addEventListener('change', function() {
-            _dmWeightChartShowMissing = this.checked;
-            userCol('settings').doc('exercisePrefs').set({ dmWeightChartShowMissing: _dmWeightChartShowMissing }, { merge: true });
-            if (_sumWeightChartOpen) _sumRenderChart();
-        });
-    }
+    // Reduce Width, Show Projected, Show Missing, and Rolling Days now live in the
+    // Weight Chart Settings popup (⚙ Settings button) — see openWeightChartSettings().
     if (_sumWeightChartOpen) _sumRenderChart();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Weight Chart Settings popup — shared by the Daily Metrics and Summary charts.
+// Reduce Width, Show Projected, and Show Missing are shared sticky prefs across
+// both screens; Rolling Days is per-chart (dm / sum). The popup edits whichever
+// chart is active (_wcSettingsCtx) and re-renders it after each change.
+// ═══════════════════════════════════════════════════════════════════════════════
+function openWeightChartSettings(ctx) {
+    _wcSettingsCtx = (ctx === 'sum') ? 'sum' : 'dm';
+    var rollDays = (_wcSettingsCtx === 'sum') ? _sumWeightChartRollDays : _dmWeightChartRollDays;
+    var rd = document.getElementById('wcSettingsRollDays');
+    var pr = document.getElementById('wcSettingsProjected');
+    var ms = document.getElementById('wcSettingsMissing');
+    var sh = document.getElementById('wcSettingsShrink');
+    if (rd) rd.value = rollDays;
+    if (pr) pr.checked = _dmWeightChartProjected;
+    if (ms) ms.checked = _dmWeightChartShowMissing;
+    if (sh) sh.value = 0;
+    openModal('weightChartSettingsModal');
+}
+
+// Re-render whichever chart the popup is currently editing.
+function _wcSettingsRerender() {
+    if (_wcSettingsCtx === 'sum') {
+        if (_sumWeightChartOpen) _dmRenderWeightChart(_sumWeightChartRange, 'sumWeightChartWrap', 'sumWeightChartShrinkInput', _sumWeightChartRollDays);
+    } else {
+        if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
+    }
+}
+
+function wcSettingsRollDaysChange(val) {
+    var n = parseInt(val, 10);
+    if (!n || n < 2) n = 2;
+    if (n > 60) n = 60;
+    var rd = document.getElementById('wcSettingsRollDays');
+    if (rd) rd.value = n;   // reflect the clamped value
+    if (_wcSettingsCtx === 'sum') {
+        _sumWeightChartRollDays = n;
+        userCol('settings').doc('exercisePrefs').set({ sumWeightChartRollDays: n }, { merge: true });
+    } else {
+        _dmWeightChartRollDays = n;
+        userCol('settings').doc('exercisePrefs').set({ dmWeightChartRollDays: n }, { merge: true });
+    }
+    _wcSettingsRerender();
+}
+
+function wcSettingsProjectedChange(checked) {
+    _dmWeightChartProjected = !!checked;
+    userCol('settings').doc('exercisePrefs').set({ dmWeightChartProjected: _dmWeightChartProjected }, { merge: true });
+    _wcSettingsRerender();
+}
+
+function wcSettingsMissingChange(checked) {
+    _dmWeightChartShowMissing = !!checked;
+    userCol('settings').doc('exercisePrefs').set({ dmWeightChartShowMissing: _dmWeightChartShowMissing }, { merge: true });
+    _wcSettingsRerender();
+}
+
+// Reduce Width % — cumulative shrink of the active chart; field resets to 0 after
+// each entry. Not sticky: changing the date range (full re-render) restores width.
+function wcSettingsShrinkChange(val) {
+    var pct = parseFloat(val);
+    var sh = document.getElementById('wcSettingsShrink');
+    if (sh) sh.value = 0;
+    if (isNaN(pct) || pct <= 0) return;
+    if (pct > 95) pct = 95;
+    _dmWeightChartShrink *= (1 - pct / 100);
+    if (_dmWeightChartShrink < 0.1) _dmWeightChartShrink = 0.1;
+    var wrapId = (_wcSettingsCtx === 'sum') ? 'sumWeightChartWrap' : 'dmWeightChartWrap';
+    var w = document.getElementById(wrapId);
+    if (w && _dmWeightChartNaturalW) {
+        w.style.maxWidth = Math.round(_dmWeightChartNaturalW * _dmWeightChartShrink) + 'px';
+        if (_dmWeightChart) _dmWeightChart.resize();
+    }
 }
 
 // Shared helper — renders a tinted summary card from a pre-computed summary object.
