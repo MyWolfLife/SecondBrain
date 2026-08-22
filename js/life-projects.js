@@ -673,6 +673,10 @@ function _lpRenderDetailPage(page) {
                             <input type="checkbox" id="lpItOnTimeline">
                             <label for="lpItOnTimeline" style="font-size:0.9em; margin:0; cursor:pointer;">Part of official timeline</label>
                         </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="checkbox" id="lpItNoTravelNeeded">
+                            <label for="lpItNoTravelNeeded" style="font-size:0.9em; margin:0; cursor:pointer;" title="Suppresses the &quot;travel time needed&quot; warning on the travel row after this item">No travel time needed</label>
+                        </div>
                         <div id="lpItCostWrap">
                             <label class="form-label">Cost ($)</label>
                             <input type="number" id="lpItCost" class="form-control" placeholder="blank = none" step="0.01" min="0">
@@ -2542,7 +2546,10 @@ function _lpRenderTodos(body) {
         return;
     }
 
-    const rowsHtml = _lpTodos.map(t => t.id === _lpTodoEditId ? _lpTodoEditRow(t) : _lpTodoItem(t)).join('');
+    // Completed items sink to the bottom; within each group the manual sort order is kept
+    // (Array.sort is stable, so unchecked and checked items each stay in their drag order).
+    const ordered = [..._lpTodos].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+    const rowsHtml = ordered.map(t => t.id === _lpTodoEditId ? _lpTodoEditRow(t) : _lpTodoItem(t)).join('');
     const draftHtml = _lpTodoAdding ? _lpTodoEditRow(null) : '';
 
     body.innerHTML = `
@@ -3426,13 +3433,17 @@ function _lpTravelRow(fromItem, toItem) {
                 <button class="btn btn-small" onclick="_lpEditDistance('${dist.id}')" title="Edit distance" style="padding:1px 5px; font-size:0.8em;">✏️</button>
                 <button class="btn btn-small btn-danger" onclick="_lpDeleteDistanceFromRow('${dist.id}')" title="Delete distance" style="padding:1px 5px; font-size:0.8em;">🗑️</button>
             </span>`;
-    } else {
+    } else if (!fromItem.noTravelNeeded) {
+        // No distance on file, and the user hasn't marked this leg as needing no travel time
         distHtml = '<span style="color:#f59e0b;">⚠️ travel time needed</span>';
     }
 
     const routeStr = (fromLoc && toLoc)
         ? `<span style="color:#bbb; margin-left:8px;">${_lpEsc(fromLoc.name)} → ${_lpEsc(toLoc.name)}</span>`
         : '';
+
+    // Warning suppressed and nothing else to show — skip the row entirely
+    if (!distHtml && !departStr && !routeStr) return '';
 
     return `
         <div style="padding:3px 0 3px 9px; border-bottom:1px solid #f0f0f0; border-left:3px solid #d1d5db; background:#f8fafc; font-size:0.76em; color:#6b7280; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
@@ -3957,6 +3968,7 @@ function _lpOpenItemModal(title, item, currentDayId) {
     document.getElementById('lpItCalendar').checked = !!item.showOnCalendar;
     document.getElementById('lpItLeaveTime').value = item.leaveTime || '';
     document.getElementById('lpItOnTimeline').checked = !!item.onTimeline;
+    document.getElementById('lpItNoTravelNeeded').checked = !!item.noTravelNeeded;
 
     // Facts — render rows
     const factsContainer = document.getElementById('lpItFactsContainer');
@@ -4100,7 +4112,8 @@ async function _lpSaveItemModal() {
         bookingRef: document.getElementById('lpItBooking').value || null,
         showOnCalendar: document.getElementById('lpItCalendar').checked,
         leaveTime: document.getElementById('lpItLeaveTime').value.trim(),
-        onTimeline: document.getElementById('lpItOnTimeline').checked
+        onTimeline: document.getElementById('lpItOnTimeline').checked,
+        noTravelNeeded: document.getElementById('lpItNoTravelNeeded').checked
     };
 
     closeModal('lpItemModal');
