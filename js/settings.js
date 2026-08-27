@@ -684,6 +684,7 @@ function updateHeaderTitle() {
  */
 function loadBackupPage() {
     backupLoadLastMsg();
+    backupLoadReminderMsg();
     // Show private backup card only when vault is activated
     var card = document.getElementById('private-backup-card');
     if (card) {
@@ -1183,6 +1184,59 @@ function backupLoadLastMsg() {
         : 'Last backup: never';
 }
 
+/**
+ * Show when the home page backup reminder will next appear.
+ *
+ * Three cases:
+ *   - Snoozed          -> the snooze expiry date
+ *   - Otherwise        -> lastBackupAt + 7 days (or "now" if that already passed)
+ *   - Never backed up  -> showing now
+ *
+ * Re-reads settings/main so a snooze taken on another device is reflected
+ * here, and refreshes the cached copy while it is at it.
+ */
+async function backupLoadReminderMsg() {
+    if (!document.getElementById('backupNextReminderMsg')) return;
+
+    try {
+        var doc = await userCol('settings').doc('main').get();
+        window._settingsMain = doc.exists ? doc.data() : {};
+    } catch (e) {
+        // Fall back to whatever is already cached
+    }
+
+    backupRenderReminderMsg();
+}
+
+/**
+ * Draw the "next reminder" line from the cached settings/main copy.
+ * Split out from backupLoadReminderMsg() so a backup or snooze can refresh
+ * the line immediately without paying for another Firestore read.
+ */
+function backupRenderReminderMsg() {
+    var el = document.getElementById('backupNextReminderMsg');
+    if (!el) return;
+
+    var cfg  = window._settingsMain || {};
+    var now  = Date.now();
+    var text;
+
+    var snoozeMs = cfg.backupSnoozeUntil ? new Date(cfg.backupSnoozeUntil).getTime() : 0;
+
+    if (snoozeMs > now) {
+        text = backupFormatDate(new Date(snoozeMs)) + ' (snoozed)';
+    } else if (!cfg.lastBackupAt) {
+        text = 'showing now (never backed up)';
+    } else {
+        var dueMs = new Date(cfg.lastBackupAt).getTime() + BACKUP_REMINDER_DAYS * 86400000;
+        text = (dueMs <= now)
+            ? 'showing now (backup overdue)'
+            : backupFormatDate(new Date(dueMs));
+    }
+
+    el.textContent = 'Next reminder: ' + text + ' · desktop home page only';
+}
+
 // ============================================================
 // Backup Reminder (home page banner)
 // ============================================================
@@ -1231,6 +1285,7 @@ async function backupRecordCompleted(when) {
     window._settingsMain.backupSnoozeUntil = null;
 
     backupReminderRender();
+    backupRenderReminderMsg();
 }
 
 /**
@@ -1302,7 +1357,8 @@ async function backupReminderSnooze() {
     window._settingsMain.backupSnoozeUntil = until;
     window._settingsMain.backupSnoozeDays  = days;
 
-    backupReminderRender();  // hides the banner immediately
+    backupReminderRender();      // hides the banner immediately
+    backupRenderReminderMsg();   // and updates the Backup page line if it is open
 
     try {
         await userCol('settings').doc('main').set({

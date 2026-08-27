@@ -4194,6 +4194,7 @@ Each thought is a living document -- you can update it over time with history pr
 ### Quick Help
 - **Download Backup** exports all your app data as a JSON file — do this monthly
 - **Last backup** is shown under the button. If it has been more than 7 days, a reminder banner appears on the home page (desktop only)
+- **Next reminder** below it tells you exactly when that banner will next appear — or that it is showing right now
 - **Backup Private Data** (shown only if Private Vault is activated) exports a password-protected zip of your decrypted private data — password is your vault passphrase
 - To open the private backup zip: use 7-Zip (free) or WinZip and enter your vault passphrase when prompted
 - Note: file and folder names inside the zip are visible without the password — only the file contents are protected
@@ -4227,6 +4228,15 @@ Downloads a JSON file of all your Firestore data (activities, plants, zones, hea
 
 **Last backup timestamp:**
 The date of your most recent backup is shown beneath the Download Backup button. It is recorded both in this browser and on your account, so a backup taken on another computer still shows here. When the last backup is more than 7 days old — or you have never backed up — a reminder banner appears on the home page on desktop. See the Main screen help for how to snooze it.
+
+**Next reminder:**
+Directly under the last-backup line, this tells you when the home page reminder banner will next appear:
+- **A date** — the banner appears then. Normally that is 7 days after your last backup
+- **A date marked "(snoozed)"** — you snoozed the banner and it stays hidden until that date
+- **"showing now (never backed up)"** — the banner is up right now because you have never run a backup
+- **"showing now (backup overdue)"** — the banner is up right now because your last backup is more than 7 days old
+
+This line reflects your account, not just this device, so it accounts for a snooze you set on another computer. It updates live when you run a backup or snooze the banner.
 
 **Restore:**
 Replaces all current data with a previously downloaded backup file. Data and photos restore independently. This is permanent and cannot be undone.

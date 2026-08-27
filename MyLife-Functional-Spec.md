@@ -2771,7 +2771,8 @@ Two separate backup files — **data** (all Firestore collections) and **photos*
 - **Banner contents**: warning text ("You have never backed up your data." / "Your last backup was N days ago."), a **Back Up Now** link to `#backup`, and a snooze control — a number input (default `BACKUP_SNOOZE_DEFAULT` = 3, clamped 1–365) plus a **Snooze** button. `backupReminderSnooze()` writes both `backupSnoozeUntil` and `backupSnoozeDays`, so the number entered becomes the new default.
 - Running a backup clears `backupSnoozeUntil` (the countdown restarts).
 - **Last backup display** on the Backup page prefers the per-browser localStorage string, falling back to `lastBackupAt` from Firestore when localStorage is empty (fresh browser / cleared cache), so a backup taken on another machine still shows.
-- **Key functions** (all in `js/settings.js`): `backupFormatDate()`, `backupRecordCompleted()`, `backupDaysSince()`, `backupReminderRender()`, `backupReminderSnooze()`.
+- **Next reminder line** on the Backup page (`#backupNextReminderMsg`, directly under the last-backup line) states when the banner will next appear: the snooze expiry marked `(snoozed)`, `lastBackupAt + 7 days`, or `showing now (never backed up)` / `showing now (backup overdue)` when it is already up. `backupLoadReminderMsg()` re-reads `settings/main` on page load (so a snooze set on another device is reflected) and refreshes the cache; `backupRenderReminderMsg()` draws from the cache alone and is called after a backup or snooze so the line updates live without another read.
+- **Key functions** (all in `js/settings.js`): `backupFormatDate()`, `backupRecordCompleted()`, `backupDaysSince()`, `backupReminderRender()`, `backupReminderSnooze()`, `backupLoadReminderMsg()`, `backupRenderReminderMsg()`.
 
 ### Chat (`chat.js`)
 Simple conversational AI interface.
