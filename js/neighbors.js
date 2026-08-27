@@ -906,6 +906,10 @@ async function _nbSaveNewNeighbor() {
             email:         email || '',
             quickMention:  false,
             isMe:          false,
+            // Must be an explicit null, not omitted - the Contacts list queries
+            // where('parentPersonId','==',null), and Firestore equality filters
+            // never match a document that is missing the field.
+            parentPersonId: null,
             createdAt:     firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('neighborHouseResidents').add({

@@ -1908,6 +1908,8 @@ async function _sbWrite(action, payload) {
             if (!personId || personId === '__new__') {
                 var newPersonDoc = {
                     name:      payload.personName || 'Unknown Person',
+                    // Explicit null so the record shows up in the Contacts list
+                    parentPersonId: null,
                     createdAt: ts
                 };
                 // Optional enrichment fields from the confirm screen
@@ -1985,6 +1987,8 @@ async function _sbWrite(action, payload) {
             if (!personId || personId === '__new__') {
                 var newPersonDoc = {
                     name:      payload.personName || 'Unknown Person',
+                    // Explicit null so the record shows up in the Contacts list
+                    parentPersonId: null,
                     createdAt: ts
                 };
                 // Optional enrichment fields from the confirm screen

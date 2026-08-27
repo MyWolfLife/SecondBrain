@@ -3108,6 +3108,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **What contacts are:** A unified address book for every person, provider, and organization you interact with. Contacts power @mentions in the journal, provider pickers in health appointments and visits, facility pickers, and the Coming Up section on the Life home page.
 
+**Everything lands here.** A person added anywhere in the app is a contact and shows in this list — a neighbor created with **+ New Person** on a house page, or someone QuickLog invents when you say something like "had lunch with Jake". There is no separate neighbor list; neighbors are Personal contacts with a personal type of Neighbor. The only people hidden from this list are sub-contacts (family members, facility staff), which appear under their parent contact instead.
+
 **Contact categories:**
 - **Personal** -- friends, family, neighbors, coworkers, acquaintances. Shows a personal type (Friend / Family / Neighbor / etc.). Personal types are user-customizable in Settings > Contact Types.
 - **Medical Professional** -- doctors, specialists, therapists, nurses, dentists. Shows specialty (free text with ~35 built-in options). Appears in the health appointment and visit provider pickers.
@@ -3198,7 +3200,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Tap **Full Profile** to open their full Contact page
 - Tap **×** to remove them from this house (does not delete their contact record)
 - **+ From Contacts**: search your existing contacts by name, pick one, assign a role, and add them
-- **+ New Person**: create a brand-new contact (saved as a Personal / Neighbor contact) and link them in one step
+- **+ New Person**: create a brand-new contact (saved as a Personal / Neighbor contact) and link them in one step. They are a normal contact — they appear in your Contacts list under the Personal category, same as anyone you add from the Contacts screen
 
 **House Notes section:**
 - Free-form observations about the property itself — e.g., "Their landscaper is Green Thumb Co", "Ring doorbell on left side"

@@ -3545,6 +3545,8 @@ async function _investCreateMeContactWithBirthday(month, day, year) {
         }
         var meRef = await userCol('people').add({
             name: 'Me', isMe: true, quickMention: false, category: 'Personal',
+            // Explicit null so the record shows up in the Contacts list
+            parentPersonId: null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await userCol('peopleImportantDates').add({

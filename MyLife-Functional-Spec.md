@@ -1450,6 +1450,15 @@ Same form as Add, pre-filled. Credential value shown **unmasked** in the form. O
 ### Backup
 `credentials` and `credentialCategories` included in `BACKUP_DATA_COLLECTIONS`.
 
+### `people.parentPersonId` — REQUIRED on every write
+The Contacts list, the `#people` list, and the unfiltered contact picker all select top-level contacts with `where('parentPersonId', '==', null)`.
+
+**Firestore equality filters never match a document that is missing the field.** A person doc written without `parentPersonId` is therefore invisible in all three places, even though its `#contact/{id}` profile opens fine from elsewhere. Every creator must write an explicit `null` for a top-level person — omitting the field is a silent bug, not a default.
+
+Creation sites (all now compliant): `contacts.js` `ensureMeContact()` / `savePerson()` / the facility-staff path, `people.js` `savePerson()`, `neighbors.js` `_nbSaveNewNeighbor()`, `investments.js` (auto-created "Me"), and both QuickLog new-person paths in `secondbrain.js`.
+
+**One-time repair**: `backfillPeopleParentId()` in `contacts.js`, called fire-and-forget from `initApp()` after `initAppName()` resolves. Reads the `people` collection (the broken docs cannot be found by query — a filter on the field is what they fall out of), filters client-side for `parentPersonId === undefined`, and batch-writes `null` in chunks of 400. Guarded by `peopleParentBackfillDone` in `settings/main`, set only after a successful pass so a failure retries next session. Docs with a real parent ID are untouched.
+
 ---
 
 ## Part 8c: Investments

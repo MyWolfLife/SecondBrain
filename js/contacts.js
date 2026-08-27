@@ -346,6 +346,60 @@ async function ensureMeContact() {
 }
 
 // ============================================================
+// PARENT-ID BACKFILL  (one-time repair)
+// ============================================================
+// The Contacts list queries where('parentPersonId','==',null). Firestore
+// equality filters never match a document that is MISSING the field, so any
+// person created without it was invisible on the Contacts page even though
+// their profile opened fine from elsewhere (e.g. a neighbor house).
+//
+// Four creators used to omit the field - the neighbor "Add Person" flow, both
+// QuickLog new-person paths, and the auto-created "Me" record. Those are fixed
+// at the source now; this repairs the records they already wrote.
+//
+// Runs once per account, guarded by peopleParentBackfillDone in settings/main.
+// The flag is only set after a successful pass, so a failure retries next
+// session rather than leaving records stranded.
+
+async function backfillPeopleParentId() {
+    var cfg = window._settingsMain || {};
+    if (cfg.peopleParentBackfillDone) return;
+
+    try {
+        // The broken docs cannot be found with a query - a filter on the field
+        // is exactly what they fall out of - so read the collection and check
+        // each doc client-side. Contact lists are small, so this is cheap.
+        var snap = await userCol('people').get();
+
+        var broken = snap.docs.filter(function(doc) {
+            return doc.data().parentPersonId === undefined;
+        });
+
+        if (broken.length) {
+            // Chunk into batches - Firestore caps a write batch at 500 ops.
+            for (var i = 0; i < broken.length; i += 400) {
+                var batch = db.batch();
+                broken.slice(i, i + 400).forEach(function(doc) {
+                    batch.update(doc.ref, { parentPersonId: null });
+                });
+                await batch.commit();
+            }
+            console.log('Backfilled parentPersonId on ' + broken.length + ' contact(s).');
+        }
+
+        await userCol('settings').doc('main').set(
+            { peopleParentBackfillDone: true }, { merge: true }
+        );
+        window._settingsMain = window._settingsMain || {};
+        window._settingsMain.peopleParentBackfillDone = true;
+
+    } catch (err) {
+        // Leave the flag unset so the next session tries again.
+        console.error('backfillPeopleParentId error:', err);
+    }
+}
+
+// ============================================================
 // CONTACTS LIST PAGE  (#contacts)
 // ============================================================
 

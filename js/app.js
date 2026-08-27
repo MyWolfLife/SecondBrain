@@ -1253,6 +1253,10 @@ window.addEventListener('popstate', function() {
 function initApp() {
     initAppName().then(function() {
         handleRoute();
+        // One-time repair of contacts missing parentPersonId (see contacts.js).
+        // Runs after initAppName so window._settingsMain (which holds the
+        // completion flag) is populated. Fire-and-forget - never blocks routing.
+        if (typeof backfillPeopleParentId === 'function') backfillPeopleParentId();
     });
     // Check Private vault activation state (shows/hides Life tile)
     if (typeof privateCheckActivated === 'function') privateCheckActivated();
