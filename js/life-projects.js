@@ -712,6 +712,17 @@ function _lpRenderDetailPage(page) {
                             <div id="lpItFactsContainer" style="display:flex; flex-direction:column; gap:4px;"></div>
                         </div>
                         <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                                <label class="form-label" style="margin:0;">Photos</label>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="btn btn-small" type="button" onclick="_lpItemModalPhotoPaste()" title="Paste an image from the clipboard" style="padding:2px 8px; font-size:0.8em;">📋 Paste</button>
+                                    <button class="btn btn-small" type="button" onclick="_lpItemModalPhotoFile()" title="Choose an image file" style="padding:2px 8px; font-size:0.8em;">🖼️ Choose File</button>
+                                </div>
+                            </div>
+                            <div id="lpItPhotosContainer" style="display:flex; flex-direction:column; gap:2px; font-size:0.9em;"></div>
+                            <div style="color:#999; font-size:0.78em; margin-top:3px;">Photos save as soon as you add them — Cancel won't undo them.</div>
+                        </div>
+                        <div>
                             <label class="form-label" id="lpItLocationLabel">Location</label>
                             <select id="lpItLocation" class="form-control">
                                 <option value="">— None —</option>
@@ -3313,6 +3324,19 @@ function _lpDayCard(d) {
 // on a phone still offers "Take Photo"; that is the platform's, not ours.
 // ============================================================
 
+/** The modal's Paste / Choose File buttons act on whichever item the modal is editing.
+ *  Photos are their own documents, so a photo added here is written immediately - it does
+ *  not wait for Save, and Cancel does not roll it back. */
+function _lpItemModalPhotoPaste() {
+    const id = _lpItemModalCtx && _lpItemModalCtx.itemId;
+    if (id) _lpItemPhotoPaste(id);
+}
+
+function _lpItemModalPhotoFile() {
+    const id = _lpItemModalCtx && _lpItemModalCtx.itemId;
+    if (id) _lpItemPhotoChooseFile(id);
+}
+
 /** Item photos keep more detail than plant photos - a trail map is dense. */
 const LP_ITEM_PHOTO_OPTS = { maxDimension: 1600, maxBase64: 360000 };
 
@@ -4382,6 +4406,14 @@ function _lpOpenItemModal(title, item, currentDayId) {
     factsContainer.innerHTML = '';
     const facts = item.facts || [];
     facts.forEach(f => _lpAddFactRow(f.label || '', f.value || ''));
+
+    // Photos — the same clickable name list the detail panel shows. Giving the box the
+    // lp-item-photo-list class means _lpItemPhotoSectionHtml's refresh keeps the modal,
+    // the row badge, and the detail panel in step without any extra wiring.
+    const photoBox = document.getElementById('lpItPhotosContainer');
+    photoBox.className = 'lp-item-photo-list';
+    photoBox.dataset.itemId = item.id;
+    photoBox.innerHTML = _lpItemPhotoListHtml(item.id);
 
     // Location dropdown — sorted alphabetically, with "Add new" option
     _lpPopulateItemLocationSelect(item.locationId || null);
@@ -5808,6 +5840,9 @@ function _lpTextPrompt(opts) {
             modal = document.createElement('div');
             modal.id = 'lpProjCaptionModal';
             modal.className = 'modal-overlay';
+            // Above the item modal (z-index 1000/1100), since naming a photo can be
+            // triggered from inside it
+            modal.style.zIndex = '1300';
             modal.innerHTML = `
                 <div class="modal" style="max-width:360px;">
                     <h3 style="margin:0 0 12px;" id="lpProjCaptionTitle"></h3>
