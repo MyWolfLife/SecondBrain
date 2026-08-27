@@ -1913,6 +1913,8 @@ Your itinerary is your day-by-day plan -- what you're doing on each day of the t
 
 **Official Timeline & travel rows:** Tick **"Part of official timeline"** on an item to give it a left time column (⏰ start / ⏱ duration / 🚀 leave-by). Between two consecutive timeline items the app inserts a **travel row** showing the departure time, the travel mode icon, the travel time and miles, and the route (From → To). If it doesn't yet have a saved travel time for that leg, the row shows **⚠️ travel time needed** -- a placeholder, not an error. To fill it: give both stops a **location** (📍), then use the **🛣️** button on an item to add or look up the travel time to the next stop. Once saved, the warning is replaced with the time/distance and an estimated arrival is computed from the depart time. **If there genuinely is no travel between two items** (you're already there, or the next thing happens in the same spot), tick **"No travel time needed"** on the **upper item — the one you're departing from** — and the ⚠️ disappears for that leg; the row still shows the depart time and route, and vanishes entirely if there's nothing left to show. If you don't want a travel row between two items at all, leave one of them off the official timeline.
 
+**Facts on an item:** Use **+ Add Fact** to attach a labelled detail — a trail map link, a confirmation code, an elevation, anything. A new fact starts as two boxes (Label and Value); press **✓** (or Enter) to accept it and it becomes a tidy chip. Tap **✏️** on a chip to open it back up for editing, or **✕** to remove it. If the value is a **web address**, the chip becomes a 🔗 clickable link that opens in a new tab — and it shows your label instead of the long URL, so give it a short name like "Trail map". If you type a fact and hit Save without pressing ✓, it is still saved. Facts also appear in the item's expanded detail panel, **including in Travel mode**, so your links are with you on the trip.
+
 **Item rows:** Click an item's **title** to expand/collapse its detail panel. On desktop the collapsed row shows the status badge, title, booking/location badges, and edit/location buttons; on mobile the collapsed row shows just the title and moves the badges and buttons into the expanded panel. The **📍 location badge is a link** -- tap it to open that place in Google Maps (it uses the saved coordinates when it has them, so lakes and trailheads land in the right spot). **Delete an item from inside its edit modal.**
 
 ---
@@ -1933,7 +1935,7 @@ This is a little diary for planning your trip. Write short notes to yourself -- 
 
 ---
 
-**Journal** (planning mode only): Short journal-style entries (title + text), newest first. Add/edit/delete.
+**Journal** (planning mode only): Short journal-style entries (title + text), newest first. Add/edit/delete. Entries can also carry **facts** — labelled details added with **+ Add**, using the same accept-to-chip rows as itinerary items: fill in Label and Value, press **✓** to turn it into a chip, **✏️** to reopen it, **✕** to remove it. A fact whose value is a web address becomes a 🔗 clickable link labelled with your label text.
 
 ---
 

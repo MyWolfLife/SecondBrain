@@ -3536,18 +3536,19 @@ function _lpItemDetailsContent(item, ctx) {
         parts.push(`<div${travel ? ' style="font-size:1.05em;"' : ''}><strong>Contact:</strong> ${contactHtml}</div>`);
     }
     if (!travel && item.notes) parts.push(`<div><strong>Notes:</strong> ${_lpEsc(item.notes)}</div>`);
-    // Facts (new) — show label: value, with URLs as clickable links
-    if (!travel && item.facts && item.facts.length) {
+    // Facts — show label: value, with URLs as clickable links.
+    // Shown in travel mode too: a booking link or trail map is most useful on the trip.
+    if (item.facts && item.facts.length) {
         item.facts.forEach(f => {
             const isUrl = /^https?:\/\//i.test(f.value);
             const valHtml = isUrl
-                ? `<a href="${_lpEsc(f.value)}" onclick="event.stopPropagation();window.open(this.href,'_blank');return false;" style="color:#2563eb;cursor:pointer;">${_lpEsc(f.value)}</a>`
+                ? `<a href="${_lpEscAttr(f.value)}" onclick="event.stopPropagation();window.open(this.href,'_blank');return false;" style="color:#2563eb;cursor:pointer;">${_lpEsc(f.value)}</a>`
                 : _lpEsc(f.value);
-            parts.push(`<div><strong>${_lpEsc(f.label || 'Fact')}:</strong> ${valHtml}</div>`);
+            parts.push(`<div${travel ? ' style="font-size:1.05em;"' : ''}><strong>${_lpEsc(f.label || 'Fact')}:</strong> ${valHtml}</div>`);
         });
     }
-    // Legacy links support (old data)
-    if (!travel && item.links && item.links.length) {
+    // Legacy links support (old data) — same reasoning, shown in travel mode too
+    if (item.links && item.links.length) {
         item.links.forEach(l => {
             if (!l.url) return;
             parts.push(`<div><a href="${_lpEsc(l.url)}" onclick="event.stopPropagation();window.open(this.href,'_blank');return false;" style="color:#2563eb;cursor:pointer;">${_lpEsc(l.label || l.url)}</a></div>`);
@@ -3866,18 +3867,120 @@ function _lpEditItem(dayId, itemId) {
 }
 
 /** Open the shared item edit modal and populate fields */
-/** Add a fact row (label + value) to the facts container in the item modal */
-function _lpAddFactRow(label = '', value = '') {
-    const container = document.getElementById('lpItFactsContainer');
+// ============================================================
+// Fact rows - shared by the item modal and the journal-note modal
+//
+// A fact row has two states:
+//   - edit: Label + Value inputs, ACCEPT to commit, DELETE to remove
+//   - chip: read-only "Label: value"; URL values render as clickable links
+//
+// The committed values live in the row's dataset, NOT in the inputs, because a
+// chip row has no inputs left to read from. _lpCollectFacts reads the dataset for
+// chip rows and the live inputs for any row still open in edit mode - so a fact
+// the user typed but never accepted is still saved instead of silently lost.
+// ============================================================
+
+/** Escape a string for use inside a double-quoted HTML attribute.
+ *  (_lpEsc alone is not enough - it doesn't escape quotes.) */
+function _lpEscAttr(str) {
+    return _lpEsc(str).replace(/"/g, '&quot;');
+}
+
+/** Build a fact row and append it to the given container. */
+function _lpAppendFactRow(containerId, label, value, startInEdit) {
+    const container = document.getElementById(containerId);
     if (!container) return;
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; gap:6px; align-items:center;';
-    row.innerHTML = `
-        <input type="text" class="form-control lp-fact-label" placeholder="Label" value="${_lpEsc(label)}" style="flex:0 0 38%; min-width:0;">
-        <input type="text" class="form-control lp-fact-value" placeholder="Value or URL" value="${_lpEsc(value)}" style="flex:1; min-width:0;">
-        <button class="btn btn-small btn-danger" type="button" onclick="this.parentElement.remove()" style="padding:2px 6px; flex-shrink:0;">✕</button>
-    `;
+    row.className = 'lp-fact-row';
+    row.dataset.label = label || '';
+    row.dataset.value = value || '';
+    row.dataset.editing = startInEdit ? '1' : '';
     container.appendChild(row);
+    _lpPaintFactRow(row);
+    if (startInEdit) row.querySelector('.lp-fact-input-label')?.focus();
+}
+
+/** Render a fact row in whichever state its dataset says it is in. */
+function _lpPaintFactRow(row) {
+    const label = row.dataset.label || '';
+    const value = row.dataset.value || '';
+
+    if (row.dataset.editing) {
+        row.style.cssText = 'display:flex; gap:6px; align-items:center;';
+        row.innerHTML = `
+            <input type="text" class="form-control lp-fact-input-label" placeholder="Label" style="flex:0 0 38%; min-width:0;">
+            <input type="text" class="form-control lp-fact-input-value" placeholder="Value or URL" style="flex:1; min-width:0;">
+            <button class="btn btn-small btn-primary" type="button" onclick="_lpAcceptFactRow(this)" title="Accept" style="padding:2px 8px; flex-shrink:0;">✓</button>
+            <button class="btn btn-small btn-danger" type="button" onclick="this.closest('.lp-fact-row').remove()" title="Delete" style="padding:2px 6px; flex-shrink:0;">✕</button>
+        `;
+        // Values are assigned here rather than as value="..." attributes because
+        // _lpEsc doesn't escape double quotes, which would break the attribute.
+        const li = row.querySelector('.lp-fact-input-label');
+        const vi = row.querySelector('.lp-fact-input-value');
+        li.value = label;
+        vi.value = value;
+        const onEnter = e => { if (e.key === 'Enter') { e.preventDefault(); _lpAcceptFactRow(li); } };
+        li.addEventListener('keydown', onEnter);
+        vi.addEventListener('keydown', onEnter);
+        return;
+    }
+
+    // Chip state - a URL value links out, using the label as the link text when there
+    // is one (a raw booking URL would otherwise blow out the modal width).
+    const isUrl = /^https?:\/\//i.test(value);
+    const valHtml = isUrl
+        ? `<a href="${_lpEscAttr(value)}" target="_blank" rel="noopener" style="color:#2563eb;">🔗 ${_lpEsc(label || value)}</a>`
+        : _lpEsc(value);
+    const labelHtml = (label && !isUrl) ? `<strong>${_lpEsc(label)}:</strong> ` : '';
+    row.style.cssText = 'display:flex; gap:6px; align-items:center; padding:4px 6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;';
+    row.innerHTML = `
+        <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9em;">${labelHtml}${valHtml}</span>
+        <button class="btn btn-small" type="button" onclick="_lpEditFactRow(this)" title="Edit" style="padding:2px 6px; flex-shrink:0;">✏️</button>
+        <button class="btn btn-small btn-danger" type="button" onclick="this.closest('.lp-fact-row').remove()" title="Delete" style="padding:2px 6px; flex-shrink:0;">✕</button>
+    `;
+}
+
+/** Commit a row's inputs into its dataset and switch it to chip state. */
+function _lpAcceptFactRow(el) {
+    const row = el.closest('.lp-fact-row');
+    if (!row) return;
+    const label = (row.querySelector('.lp-fact-input-label')?.value || '').trim();
+    const value = (row.querySelector('.lp-fact-input-value')?.value || '').trim();
+    if (!label && !value) { row.remove(); return; }  // accepting a blank row discards it
+    row.dataset.label = label;
+    row.dataset.value = value;
+    row.dataset.editing = '';
+    _lpPaintFactRow(row);
+}
+
+/** Switch a chip row back into its inputs. */
+function _lpEditFactRow(el) {
+    const row = el.closest('.lp-fact-row');
+    if (!row) return;
+    row.dataset.editing = '1';
+    _lpPaintFactRow(row);
+    row.querySelector('.lp-fact-input-value')?.focus();
+}
+
+/** Read every fact row in a container back out as [{label, value}]. */
+function _lpCollectFacts(containerId) {
+    const facts = [];
+    document.querySelectorAll(`#${containerId} > .lp-fact-row`).forEach(row => {
+        const editing = !!row.dataset.editing;
+        const label = editing
+            ? (row.querySelector('.lp-fact-input-label')?.value || '').trim()
+            : (row.dataset.label || '').trim();
+        const value = editing
+            ? (row.querySelector('.lp-fact-input-value')?.value || '').trim()
+            : (row.dataset.value || '').trim();
+        if (label || value) facts.push({ label, value });
+    });
+    return facts;
+}
+
+/** Add a fact row to the item modal. A brand-new row opens in edit mode. */
+function _lpAddFactRow(label = '', value = '') {
+    _lpAppendFactRow('lpItFactsContainer', label, value, !label && !value);
 }
 
 /** Populate (or re-populate) the location select in the item edit modal */
@@ -4085,13 +4188,8 @@ async function _lpSaveItemModal() {
     const costRaw = document.getElementById('lpItCost').value;
     const cost = costRaw && !isNaN(Number(costRaw)) ? Number(costRaw) : null;
 
-    // Collect facts from dynamic rows
-    const facts = [];
-    document.querySelectorAll('#lpItFactsContainer > div').forEach(row => {
-        const label = (row.querySelector('.lp-fact-label')?.value || '').trim();
-        const value = (row.querySelector('.lp-fact-value')?.value || '').trim();
-        if (label || value) facts.push({ label, value });
-    });
+    // Collect facts from the dynamic rows (rows still open in edit mode are committed too)
+    const facts = _lpCollectFacts('lpItFactsContainer');
 
     const moveVal = document.getElementById('lpItMoveTo').value;
 
@@ -5585,17 +5683,9 @@ function _lpNoteCard(n) {
 }
 
 /** Add a fact/link row to the note modal */
+/** Add a fact row to the journal-note modal. A brand-new row opens in edit mode. */
 function _lpAddNoteFactRow(label = '', value = '') {
-    const container = document.getElementById('lpNoteFactsContainer');
-    if (!container) return;
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex; gap:6px; align-items:center;';
-    row.innerHTML = `
-        <input type="text" class="form-control lp-note-fact-label" placeholder="Label (e.g. Map, Website)" value="${_lpEsc(label)}" style="flex:0 0 38%; min-width:0;">
-        <input type="text" class="form-control lp-note-fact-value" placeholder="Value or URL" value="${_lpEsc(value)}" style="flex:1; min-width:0;">
-        <button class="btn btn-small btn-danger" type="button" onclick="this.parentElement.remove()" style="padding:2px 6px; flex-shrink:0;">✕</button>
-    `;
-    container.appendChild(row);
+    _lpAppendFactRow('lpNoteFactsContainer', label, value, !label && !value);
 }
 
 function _lpAddNote() {
@@ -5627,12 +5717,7 @@ async function _lpSaveNoteModal() {
     const text   = document.getElementById('lpNoteText').value.trim();
     const editId = document.getElementById('lpNoteSaveBtn').dataset.editId;
 
-    const facts = [];
-    document.querySelectorAll('#lpNoteFactsContainer > div').forEach(row => {
-        const label = (row.querySelector('.lp-note-fact-label')?.value || '').trim();
-        const value = (row.querySelector('.lp-note-fact-value')?.value || '').trim();
-        if (label || value) facts.push({ label, value });
-    });
+    const facts = _lpCollectFacts('lpNoteFactsContainer');
 
     closeModal('lpNoteModal');
     try {
