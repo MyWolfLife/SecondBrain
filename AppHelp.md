@@ -1923,11 +1923,23 @@ Your itinerary is your day-by-day plan -- what you're doing on each day of the t
 
 ## screen:life-project-planning
 
-The Planning Board is your idea board for before the trip is nailed down. You jot down places and things you might want to do, grouped however you like, then move the good ones onto a real day later -- and the leftovers are just things you decided to skip.
+The Planning Board is your idea board for before the trip is nailed down. You jot down places and things you might want to do, grouped however you like, then move the good ones onto a real day later -- and the leftovers are just things you decided to skip. An idea here can hold everything a real plan holds: notes, a location, links, and pictures. Nothing is lost when you promote it to a day.
 
 ---
 
-**Planning Board** (planning mode only): A research/brainstorm area organized into freeform groups (e.g. "Old Faithful area", "Day trips"). Group cards are collapsible; items use the same fields as itinerary items and can be moved to a specific day (or itinerary items moved back to a group). Leftover items at the end represent things you decided against. Items here use the same row controls as itinerary items -- click the title to expand, edit in the shared modal, and delete from inside that modal. Drag an item by its **⠿** handle to reorder it within a group, or drag it into a **different group** to re-file it (both groups need to be expanded so there's somewhere to drop). Groups themselves can be reordered by their own handle. The **📍 location badge on an item is a link** -- tap it to open that place in Google Maps (using its saved coordinates when available). Planning items carry the same **facts** and **photos** as itinerary items — see the Itinerary help for both.
+**Planning Board** (planning mode only): A research and brainstorming area organized into freeform groups — "Old Faithful area", "Day trips", "Maybe if it rains". It is where an idea lives before it earns a spot on a real day. The section is hidden in Travel mode.
+
+**Groups:** Create as many as you like and name them however you think. Group cards **collapse** — click the header to fold one away — and reorder by their own drag handle. Deleting a group warns you first and takes **its items with it** (and their photos).
+
+**Items:** Each item has the same fields as an itinerary item, because it opens the **same edit form**: title, status (confirmed / maybe / idea / nope), type, times, duration, cost, confirmation, contact, notes, facts, location, and a booking link. Click an item's **title** to expand its detail panel; **✏️** opens the edit form, and **Delete** lives inside that form. Two fields in the form do nothing on the board: **"Part of official timeline"** and **"No travel time needed"** only take effect once the item is on a day, since travel rows are built between the items of a single day.
+
+**Moving items:** Drag an item by its **⠿** handle to reorder it within a group, or drag it into a **different group** to re-file it — both groups have to be **expanded** so there is somewhere to drop. To promote an idea onto the trip, open its edit form and use the **Move to** dropdown, which lists every day and every other group. Itinerary items can be sent **back** to a group the same way. Whatever is still sitting on the board when the trip starts is simply what you decided against.
+
+**Location:** Set one with the **📍** button. Once an item has a location, the **📍 badge becomes a link** — tap it to open the place in Google Maps (using its saved coordinates when it has them, so lakes and trailheads land in the right spot) — and the button turns into **🛣️**, for recording the travel time from there to somewhere else.
+
+**Facts:** Attach labelled details in the edit form with **+ Add Fact** — a park website, a ticket price, a phone number. Fill in Label and Value, press **✓** (or Enter) to accept it, and it becomes a chip; **✏️** reopens it, **✕** removes it. A fact whose value is a **web address** turns into a 🔗 clickable link labelled with your label text, so "AllTrails" beats a hundred-character URL. Typing a fact and hitting Save without pressing ✓ still saves it.
+
+**Photos:** Planning items hold pictures exactly like itinerary items do — which is usually where a trail map or a screenshot first lands, while the hike is still just an idea. Expand the item and use **📋 Paste** (copy an image anywhere, then click it) or **🖼️ Choose File**; there is no camera button. Name it — the name is pre-filled, so you can just accept it. The item lists the **names**, and the picture downloads only when you click one, which is what keeps a board full of research quick to open. A **📷 3** badge on the collapsed row shows the count. Clicking a name opens the picture full-screen with **Rename** and **Delete**. Because photos are tied to the item itself, they **travel with it** — promote the hike to Day 5 and the trail map goes along, and again if you shuffle it to another day. Deleting the item, or its whole group, deletes its pictures too.
 
 ---
 
