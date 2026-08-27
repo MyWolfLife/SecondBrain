@@ -531,7 +531,7 @@ async function confirmDeleteLifeProject() {
 
     try {
         // Delete all subcollections
-        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
+        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'itemPhotos', 'itemPhotoData', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
         for (const sub of subs) {
             const snap = await lpSub(projectId, sub).get();
             if (!snap.empty) {
@@ -562,6 +562,13 @@ let _lpLocations = [];
 
 /** Distances for this project [{id, fromLocationId, toLocationId, miles, time, mode, notes}] — global collection filtered to project's locations */
 let _lpDistances = [];
+// Item photos are split across two subcollections on purpose:
+//   itemPhotos     - {itemId, name, sortOrder, createdAt}  (light; loaded for the whole project)
+//   itemPhotoData  - {imageData}                           (heavy; fetched only when a name is clicked)
+// Firestore has no field projection in the client SDK, so keeping the Base64 in the
+// same doc would mean listing names downloaded every image.
+let _lpItemPhotos = [];
+const _lpItemPhotoDataCache = {};  // photoId -> Base64, so re-opening a photo is free
 
 /** When "Add new location first" is clicked inside the picker, we stash the item context here
  *  so we can re-open the picker and auto-select the new location after saving. */
@@ -1010,12 +1017,13 @@ function _lpRenderDetailPage(page) {
 async function _lpLoadInitialData() {
     if (!_lpCurrentProjectId) return;
     try {
-        const [daySnap, bookingSnap, pgSnap, plSnap, distSnap] = await Promise.all([
+        const [daySnap, bookingSnap, pgSnap, plSnap, distSnap, itemPhotoSnap] = await Promise.all([
             lpSub(_lpCurrentProjectId, 'days').orderBy('sortOrder').get(),
             lpSub(_lpCurrentProjectId, 'bookings').orderBy('sortOrder').get(),
             lpSub(_lpCurrentProjectId, 'planningGroups').orderBy('sortOrder').get(),
             lpSub(_lpCurrentProjectId, 'projectLocations').get(),
-            lpDistancesCol().get()
+            lpDistancesCol().get(),
+            lpSub(_lpCurrentProjectId, 'itemPhotos').get()
         ]);
         _lpDays = [];
         daySnap.forEach(doc => _lpDays.push({ id: doc.id, ...doc.data() }));
@@ -1031,6 +1039,10 @@ async function _lpLoadInitialData() {
         // Pre-load all distances so itinerary travel rows work without opening Distances accordion
         _lpDistances = [];
         distSnap.forEach(doc => _lpDistances.push({ id: doc.id, ...doc.data() }));
+
+        // Item photo index - names and counts only, no image data (see _lpItemPhotos)
+        _lpItemPhotos = [];
+        itemPhotoSnap.forEach(doc => _lpItemPhotos.push({ id: doc.id, ...doc.data() }));
     } catch (err) {
         console.error('Error pre-loading data:', err);
     }
@@ -2837,6 +2849,7 @@ function _lpPlanningItemRow(groupId, item) {
                 <span class="lp-item-drag" style="cursor:grab; color:#ccc; font-size:0.8em;">⠿</span>
                 <span class="lp-desktop-only" style="background:${st.bg};color:${st.color};font-size:0.7em;padding:1px 8px;border-radius:10px;font-weight:600;">${st.label}</span>
                 <span style="flex:1; min-width:0; font-weight:500; cursor:pointer;" onclick="_lpTogglePlanningItemDetails('${groupId}','${item.id}')">${_lpEsc(item.title)}</span>
+                <span class="lp-item-photo-badge" data-item-id="${item.id}">${_lpItemPhotoBadgeInner(item.id)}</span>
                 <span class="lp-desktop-only">${locBadge}</span>
                 <div class="lp-desktop-only" style="display:flex; gap:2px; flex-shrink:0;">
                     <button class="btn btn-small" onclick="_lpEditPlanningItem('${groupId}','${item.id}')" title="Edit item" style="padding:2px 6px;">✏️</button>
@@ -2903,6 +2916,7 @@ async function _lpDeletePlanningGroup(groupId) {
     if (!confirm(msg)) return;
 
     try {
+        await _lpDeletePhotosForItems((group?.items || []).map(it => it.id));
         await lpSub(_lpCurrentProjectId, 'planningGroups').doc(groupId).delete();
         await _lpLoadPlanningBoard();
     } catch (err) {
@@ -2985,6 +2999,7 @@ async function _lpDeletePlanningItem(groupId, itemId, confirmed = false) {
     const items = (group.items || []).filter(it => it.id !== itemId);
 
     try {
+        await _lpDeletePhotosForItems([itemId]);
         await lpSub(_lpCurrentProjectId, 'planningGroups').doc(groupId).update({ items });
         group.items = items;
         const body = document.getElementById('lpBody_planning');
@@ -3284,6 +3299,290 @@ function _lpDayCard(d) {
     `;
 }
 
+
+// ============================================================
+// Item Photos - pictures attached to an itinerary or planning item
+//
+// Storage is split so that expanding an item is cheap:
+//   itemPhotos/{id}     {itemId, name, sortOrder, createdAt}   loaded for the whole project up front
+//   itemPhotoData/{id}  {imageData}                            fetched only when a name is clicked
+// (The client SDK cannot project fields, so a single collection would mean
+// listing names pulled every Base64 blob with it.)
+//
+// Capture is paste or file-pick only - no camera button. Note the OS file picker
+// on a phone still offers "Take Photo"; that is the platform's, not ours.
+// ============================================================
+
+/** Item photos keep more detail than plant photos - a trail map is dense. */
+const LP_ITEM_PHOTO_OPTS = { maxDimension: 1600, maxBase64: 360000 };
+
+/** All photos for one item, in display order. */
+function _lpItemPhotosFor(itemId) {
+    return _lpItemPhotos
+        .filter(p => p.itemId === itemId)
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+
+/** The clickable name list shown inside an item's detail panel. */
+function _lpItemPhotoListHtml(itemId) {
+    const photos = _lpItemPhotosFor(itemId);
+    if (!photos.length) return '<span style="color:#bbb;">No photos yet.</span>';
+    return photos.map(p => `
+        <div style="padding:1px 0;">
+            <a onclick="event.stopPropagation(); _lpOpenItemPhoto('${p.id}');" style="color:#2563eb; cursor:pointer;">🖼️ ${_lpEsc(p.name || 'Photo')}</a>
+        </div>`).join('');
+}
+
+/** Inner HTML for the collapsed-row count badge (empty when the item has no photos). */
+function _lpItemPhotoBadgeInner(itemId) {
+    const n = _lpItemPhotosFor(itemId).length;
+    return n ? `<span title="${n} photo${n === 1 ? '' : 's'}" style="font-size:0.75em; color:#666;">📷 ${n}</span>` : '';
+}
+
+/** The whole Photos block for an item's detail panel. */
+function _lpItemPhotoSectionHtml(itemId) {
+    return `
+        <div style="margin-top:6px; padding-top:6px; border-top:1px solid #f0f0f0;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
+                <strong>Photos</strong>
+                <button class="btn btn-small" type="button" onclick="event.stopPropagation(); _lpItemPhotoPaste('${itemId}')" title="Paste an image from the clipboard" style="padding:1px 6px; font-size:0.8em;">📋 Paste</button>
+                <button class="btn btn-small" type="button" onclick="event.stopPropagation(); _lpItemPhotoChooseFile('${itemId}')" title="Choose an image file" style="padding:1px 6px; font-size:0.8em;">🖼️ Choose File</button>
+            </div>
+            <div class="lp-item-photo-list" data-item-id="${itemId}">${_lpItemPhotoListHtml(itemId)}</div>
+        </div>`;
+}
+
+/** Repaint every name list and count badge for one item, in place.
+ *  Avoids re-rendering (and re-collapsing) the whole itinerary after each change. */
+function _lpRefreshItemPhotoUI(itemId) {
+    document.querySelectorAll(`.lp-item-photo-list[data-item-id="${itemId}"]`)
+        .forEach(el => { el.innerHTML = _lpItemPhotoListHtml(itemId); });
+    document.querySelectorAll(`.lp-item-photo-badge[data-item-id="${itemId}"]`)
+        .forEach(el => { el.innerHTML = _lpItemPhotoBadgeInner(itemId); });
+}
+
+// ---- Adding ----
+
+async function _lpItemPhotoPaste(itemId) {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+        alert('Clipboard paste is not supported in this browser. Use Choose File instead.');
+        return;
+    }
+    try {
+        const clipItems = await navigator.clipboard.read();
+        let imageBlob = null;
+        for (const ci of clipItems) {
+            const imageType = ci.types.find(t => t.startsWith('image/'));
+            if (imageType) { imageBlob = await ci.getType(imageType); break; }
+        }
+        if (!imageBlob) {
+            alert('No image on the clipboard.\n\nRight-click an image and choose "Copy image", then click Paste.');
+            return;
+        }
+        const ext = imageBlob.type === 'image/png' ? '.png' : '.jpg';
+        const file = new File([imageBlob], 'pasted-image' + ext, { type: imageBlob.type });
+        const imageData = await compressImage(file, LP_ITEM_PHOTO_OPTS);
+        await _lpSaveItemPhoto(itemId, imageData, 'Pasted image');
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            alert('Clipboard access was denied. Click "Allow" when the browser asks, then try again.');
+        } else {
+            console.error('Item photo paste error:', err);
+            alert('Could not read clipboard. Try Choose File instead.');
+        }
+    }
+}
+
+function _lpItemPhotoChooseFile(itemId) {
+    // Built on demand and thrown away - no camera capture attribute is set.
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    input.onchange = async () => {
+        const file = input.files && input.files[0];
+        input.remove();
+        if (!file) return;
+        try {
+            const imageData = await compressImage(file, LP_ITEM_PHOTO_OPTS);
+            // Default the name to the filename without its extension
+            const defaultName = (file.name || 'Photo').replace(/\.[^.]+$/, '');
+            await _lpSaveItemPhoto(itemId, imageData, defaultName);
+        } catch (err) {
+            console.error('Item photo file error:', err);
+            alert('Error processing photo.');
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+}
+
+/** Write the light index doc and the heavy data doc together. */
+async function _lpSaveItemPhoto(itemId, imageData, defaultName) {
+    const typed = await _lpTextPrompt({
+        title: 'Name This Photo',
+        placeholder: 'e.g. Trail map',
+        value: defaultName || '',
+        okText: 'Save Photo'
+    });
+    if (typed === null) return;  // cancelled
+    const name = (typed || '').trim() || defaultName || 'Photo';
+
+    try {
+        const ref = lpSub(_lpCurrentProjectId, 'itemPhotos').doc();
+        const sortOrder = _lpItemPhotosFor(itemId).length;
+        const batch = firebase.firestore().batch();
+        batch.set(ref, {
+            itemId, name, sortOrder,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        batch.set(lpSub(_lpCurrentProjectId, 'itemPhotoData').doc(ref.id), { imageData });
+        await batch.commit();
+
+        _lpItemPhotos.push({ id: ref.id, itemId, name, sortOrder });
+        _lpItemPhotoDataCache[ref.id] = imageData;
+        _lpRefreshItemPhotoUI(itemId);
+    } catch (err) {
+        console.error('Error saving item photo:', err);
+        alert('Error saving photo.');
+    }
+}
+
+// ---- Viewing ----
+
+/** Open one photo, fetching its image data only now (and only once). */
+async function _lpOpenItemPhoto(photoId) {
+    const meta = _lpItemPhotos.find(p => p.id === photoId);
+    if (!meta) return;
+
+    let data = _lpItemPhotoDataCache[photoId];
+    if (!data) {
+        _lpRenderItemPhotoLightbox(meta, null);   // show the frame while the blob loads
+        try {
+            const doc = await lpSub(_lpCurrentProjectId, 'itemPhotoData').doc(photoId).get();
+            data = doc.exists ? doc.data().imageData : null;
+            if (data) _lpItemPhotoDataCache[photoId] = data;
+        } catch (err) {
+            console.error('Error loading photo:', err);
+        }
+    }
+    _lpRenderItemPhotoLightbox(meta, data);
+}
+
+function _lpRenderItemPhotoLightbox(meta, data) {
+    let lb = document.getElementById('lpItemPhotoLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'lpItemPhotoLightbox';
+        document.body.appendChild(lb);
+    }
+
+    const body = data
+        ? `<img src="${data}" style="max-width:92vw; max-height:74vh; object-fit:contain; border-radius:6px; display:block;" alt="${_lpEscAttr(meta.name || 'Photo')}">`
+        : `<div style="color:#e2e8f0; padding:40px 20px;">Loading…</div>`;
+
+    lb.innerHTML = `
+        <div onclick="_lpCloseItemPhoto()" style="position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; box-sizing:border-box; cursor:pointer;">
+            <div onclick="event.stopPropagation()" style="position:relative; max-width:92vw; max-height:82vh; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:default;">
+                ${body}
+                <div style="color:#e2e8f0; font-size:0.9em; text-align:center;">${_lpEsc(meta.name || 'Photo')}</div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    <button class="btn btn-small" onclick="_lpRenameItemPhoto('${meta.id}')" style="background:#475569; color:#fff; border:none;">✏️ Rename</button>
+                    <button class="btn btn-small btn-danger" onclick="_lpDeleteItemPhoto('${meta.id}')">🗑️ Delete</button>
+                    <button class="btn btn-small" onclick="_lpCloseItemPhoto()" style="background:#475569; color:#fff; border:none;">✕ Close</button>
+                </div>
+            </div>
+        </div>`;
+
+    lb.style.display = 'block';
+    if (!lb._escHandler) {
+        lb._escHandler = (e) => { if (e.key === 'Escape') _lpCloseItemPhoto(); };
+        document.addEventListener('keydown', lb._escHandler);
+    }
+}
+
+function _lpCloseItemPhoto() {
+    const lb = document.getElementById('lpItemPhotoLightbox');
+    if (!lb) return;
+    lb.style.display = 'none';
+    lb.innerHTML = '';                       // drop the Base64 out of the DOM
+    if (lb._escHandler) { document.removeEventListener('keydown', lb._escHandler); lb._escHandler = null; }
+}
+
+// ---- Rename / delete ----
+
+async function _lpRenameItemPhoto(photoId) {
+    const meta = _lpItemPhotos.find(p => p.id === photoId);
+    if (!meta) return;
+    const typed = await _lpTextPrompt({
+        title: 'Rename Photo',
+        placeholder: 'Photo name',
+        value: meta.name || '',
+        okText: 'Save'
+    });
+    if (typed === null) return;
+    const name = (typed || '').trim();
+    if (!name) return;
+
+    try {
+        await lpSub(_lpCurrentProjectId, 'itemPhotos').doc(photoId).update({ name });
+        meta.name = name;
+        _lpRefreshItemPhotoUI(meta.itemId);
+        _lpRenderItemPhotoLightbox(meta, _lpItemPhotoDataCache[photoId] || null);
+    } catch (err) {
+        console.error('Error renaming photo:', err);
+        alert('Error renaming photo.');
+    }
+}
+
+async function _lpDeleteItemPhoto(photoId) {
+    const meta = _lpItemPhotos.find(p => p.id === photoId);
+    if (!meta) return;
+    if (!confirm(`Delete "${meta.name || 'this photo'}"? This cannot be undone.`)) return;
+
+    try {
+        const batch = firebase.firestore().batch();
+        batch.delete(lpSub(_lpCurrentProjectId, 'itemPhotos').doc(photoId));
+        batch.delete(lpSub(_lpCurrentProjectId, 'itemPhotoData').doc(photoId));
+        await batch.commit();
+
+        _lpItemPhotos = _lpItemPhotos.filter(p => p.id !== photoId);
+        delete _lpItemPhotoDataCache[photoId];
+        _lpCloseItemPhoto();
+        _lpRefreshItemPhotoUI(meta.itemId);
+    } catch (err) {
+        console.error('Error deleting photo:', err);
+        alert('Error deleting photo.');
+    }
+}
+
+/** Cascade: drop every photo belonging to any of these item ids.
+ *  Called when an item, a day, or a planning group is deleted - orphaned Base64
+ *  is invisible in the UI and would cost quota forever. */
+async function _lpDeletePhotosForItems(itemIds) {
+    if (!itemIds || !itemIds.length) return;
+    const ids = new Set(itemIds);
+    const doomed = _lpItemPhotos.filter(p => ids.has(p.itemId));
+    if (!doomed.length) return;
+
+    try {
+        // Two writes per photo, and a batch caps at 500 operations
+        for (let i = 0; i < doomed.length; i += 200) {
+            const chunk = doomed.slice(i, i + 200);
+            const batch = firebase.firestore().batch();
+            chunk.forEach(p => {
+                batch.delete(lpSub(_lpCurrentProjectId, 'itemPhotos').doc(p.id));
+                batch.delete(lpSub(_lpCurrentProjectId, 'itemPhotoData').doc(p.id));
+            });
+            await batch.commit();
+        }
+        _lpItemPhotos = _lpItemPhotos.filter(p => !ids.has(p.itemId));
+        doomed.forEach(p => delete _lpItemPhotoDataCache[p.id]);
+    } catch (err) {
+        console.error('Error deleting item photos:', err);
+    }
+}
+
 // ---------- Day item rendering ----------
 
 function _lpItemRow(dayId, item) {
@@ -3320,6 +3619,7 @@ function _lpItemRow(dayId, item) {
                         <span style="flex:1; min-width:0; font-weight:500; cursor:pointer;" onclick="_lpToggleItemDetails('${dayId}','${item.id}')">${_lpEsc(item.title)}</span>
                         <span class="lp-desktop-only">${_lpBookingBadge(item.bookingRef)}</span>
                         ${item.showOnCalendar ? '<span title="On calendar" style="font-size:0.75em;">📅</span>' : ''}
+                        <span class="lp-item-photo-badge" data-item-id="${item.id}">${_lpItemPhotoBadgeInner(item.id)}</span>
                         <span class="lp-desktop-only">${locBadge}</span>
                         <div class="lp-desktop-only" style="display:flex; gap:2px; flex-shrink:0;">
                             <button class="btn btn-small" onclick="_lpEditItem('${dayId}','${item.id}')" title="Edit item" style="padding:2px 6px;">✏️</button>
@@ -3547,6 +3847,9 @@ function _lpItemDetailsContent(item, ctx) {
             parts.push(`<div${travel ? ' style="font-size:1.05em;"' : ''}><strong>${_lpEsc(f.label || 'Fact')}:</strong> ${valHtml}</div>`);
         });
     }
+    // Photos - names only; the image is fetched when a name is clicked.
+    // Shown in travel mode too: a trail map matters most at the trailhead.
+    parts.push(_lpItemPhotoSectionHtml(item.id));
     // Legacy links support (old data) — same reasoning, shown in travel mode too
     if (item.links && item.links.length) {
         item.links.forEach(l => {
@@ -3785,6 +4088,7 @@ async function _lpDeleteDay(dayId) {
     if (!confirm(msg)) return;
 
     try {
+        await _lpDeletePhotosForItems((day?.items || []).map(it => it.id));
         await lpSub(_lpCurrentProjectId, 'days').doc(dayId).delete();
         await _lpLoadItinerary();
     } catch (err) {
@@ -4431,6 +4735,7 @@ async function _lpDeleteItem(dayId, itemId, confirmed = false) {
     const items = (day.items || []).filter(it => it.id !== itemId);
 
     try {
+        await _lpDeletePhotosForItems([itemId]);
         await lpSub(_lpCurrentProjectId, 'days').doc(dayId).update({ items });
         day.items = items;
         const body = document.getElementById('lpBody_itinerary');
@@ -5488,9 +5793,16 @@ async function _lpProjSavePhoto(imageData) {
  * Show a small inline caption prompt modal.
  * Returns the caption string (may be empty), or null if cancelled.
  */
+/** Caption prompt for project photos - a thin wrapper over _lpTextPrompt. */
 function _lpProjCaptionPrompt() {
+    return _lpTextPrompt({ title: 'Add Caption', placeholder: 'Caption (optional)', value: '', okText: 'Save Photo' });
+}
+
+/** Small one-field modal. Resolves with the typed string, or null if cancelled. */
+function _lpTextPrompt(opts) {
+    opts = opts || {};
     return new Promise(resolve => {
-        // Build or reuse a lightweight caption modal
+        // Build or reuse a lightweight single-input modal
         let modal = document.getElementById('lpProjCaptionModal');
         if (!modal) {
             modal = document.createElement('div');
@@ -5498,11 +5810,11 @@ function _lpProjCaptionPrompt() {
             modal.className = 'modal-overlay';
             modal.innerHTML = `
                 <div class="modal" style="max-width:360px;">
-                    <h3 style="margin:0 0 12px;">Add Caption</h3>
-                    <input type="text" id="lpProjCaptionInput" class="form-control" placeholder="Caption (optional)" style="width:100%; box-sizing:border-box;">
+                    <h3 style="margin:0 0 12px;" id="lpProjCaptionTitle"></h3>
+                    <input type="text" id="lpProjCaptionInput" class="form-control" style="width:100%; box-sizing:border-box;">
                     <div class="modal-actions" style="margin-top:12px;">
                         <button class="btn" id="lpProjCaptionCancel">Cancel</button>
-                        <button class="btn btn-primary" id="lpProjCaptionOk">Save Photo</button>
+                        <button class="btn btn-primary" id="lpProjCaptionOk">Save</button>
                     </div>
                 </div>`;
             document.getElementById('page-life-project').appendChild(modal);
@@ -5512,7 +5824,10 @@ function _lpProjCaptionPrompt() {
         const okBtn = document.getElementById('lpProjCaptionOk');
         const cancelBtn = document.getElementById('lpProjCaptionCancel');
 
-        input.value = '';
+        document.getElementById('lpProjCaptionTitle').textContent = opts.title || 'Enter a value';
+        input.placeholder = opts.placeholder || '';
+        input.value = opts.value || '';
+        okBtn.textContent = opts.okText || 'Save';
 
         const cleanup = () => { modal.classList.remove('open'); okBtn.onclick = null; cancelBtn.onclick = null; };
 
@@ -5523,7 +5838,7 @@ function _lpProjCaptionPrompt() {
         input.onkeydown = (e) => { if (e.key === 'Enter') okBtn.click(); };
 
         modal.classList.add('open');
-        setTimeout(() => input.focus(), 50);
+        setTimeout(() => { input.focus(); input.select(); }, 50);
     });
 }
 

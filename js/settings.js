@@ -936,9 +936,10 @@ var BUDGET_SUBCOLLECTIONS = ['categories', 'lineItems', 'incomeItems', 'nonMonth
 
 // Subcollections nested under each lifeProjects document
 var LP_SUBCOLLECTIONS = [
-    'bookingPhotos', 'bookings', 'days', 'packingItems',
-    'planningGroups', 'projectLocations', 'projectNotes',
-    'projectPhotos', 'todoItems'
+    'bookingPhotos', 'bookings', 'days', 'itemPhotoData',
+    'itemPhotos', 'packingItems', 'planningGroups',
+    'projectLocations', 'projectNotes', 'projectPhotos',
+    'todoItems'
 ];
 
 /**

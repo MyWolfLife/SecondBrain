@@ -648,7 +648,12 @@ async function handlePhotoFile(file, targetType, targetId) {
  * @param {File} file - The image file to compress.
  * @returns {Promise<string>} The base64-encoded JPEG data URL.
  */
-function compressImage(file) {
+function compressImage(file, opts) {
+    // opts.maxDimension / opts.maxBase64 let a caller keep more detail than the
+    // plant-photo defaults - a map or trail screenshot is dense text and contour
+    // lines, and goes unreadable at the default 1200px.
+    opts = opts || {};
+    var maxBase64 = opts.maxBase64 || 270000;
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
 
@@ -656,8 +661,8 @@ function compressImage(file) {
             var img = new Image();
 
             img.onload = function() {
-                // Determine target dimensions (max 1200px on longest side)
-                var maxDimension = 1200;
+                // Determine target dimensions (default max 1200px on longest side)
+                var maxDimension = opts.maxDimension || 1200;
                 var width = img.width;
                 var height = img.height;
 
@@ -683,7 +688,7 @@ function compressImage(file) {
                 var quality = 0.7;
                 var dataUrl = canvas.toDataURL('image/jpeg', quality);
 
-                while (dataUrl.length > 270000 && quality > 0.3) {
+                while (dataUrl.length > maxBase64 && quality > 0.3) {
                     quality -= 0.1;
                     dataUrl = canvas.toDataURL('image/jpeg', quality);
                 }
