@@ -104,7 +104,60 @@ var HELP_SECTION_MAP = {
     'legacy-letters'                 : 'legacy-letters',
     'legacy-letter'                  : 'legacy-letter',         // trailing id stripped
     'legacy-intro'                   : 'legacy',
-    'legacy-message'                 : 'legacy-message'
+    'legacy-message'                 : 'legacy-message',
+
+    // ── Detail routes that reuse their list screen's section ────
+    // The ? button strips the entity id, so #contact/{id} resolves to
+    // 'contact' - singular, and the section is 'contacts'. Without these the
+    // lookup misses and the user gets generic Getting Started content.
+    'contact'                        : 'contacts',
+    'vehicle'                        : 'vehicles',
+    'note'                           : 'notes',
+    'notebook'                       : 'notes',
+    'view'                           : 'views',
+    'view-history'                   : 'views',
+    'views-categories'               : 'views',
+    'tag'                            : 'tags',
+    'collection'                     : 'collections',
+    'collectionitem'                 : 'collections',
+    'devnote'                        : 'devnotes',
+    'things'                         : 'thing',
+    'rooms'                          : 'room',
+    'item'                           : 'thing',
+    'structure'                      : 'structures',
+    'structurething'                 : 'structures',
+    'structuresubthing'              : 'structures',
+    'garageroom'                     : 'garage',
+    'garagething'                    : 'garage',
+    'garagesubthing'                 : 'garage',
+    'panel'                          : 'house',
+    'house-calendar-events'          : 'house',
+    'journal-entry'                  : 'journal',
+    'journal-categories'             : 'journal',
+    'journal-tracking'               : 'journal',
+    'life-event'                     : 'life',
+    'health-visit'                   : 'health-visits',
+    'health-visit-step2'             : 'health-visits',
+    'settings-general'               : 'settings',
+    'settings-contact-lists'         : 'settings',
+    'top10list-create'               : 'top10lists',
+    'top10list-edit'                 : 'top10lists',
+    'memory-create'                  : 'memories',
+    'memory-edit'                    : 'memories',
+    'checklist-focus'                : 'checklists',
+    // people.js renders a parallel address book to contacts.js against the same
+    // collection. #people is an orphan route; #person/{id} is live (journal
+    // @mentions, life calendar, life projects). Both are the Contacts screen.
+    'people'                         : 'contacts',
+    'person'                         : 'contacts',
+
+    // ── Neighbors sub-routes ────────────────────────────────────
+    // screen:neighbors documents the map, pins, house detail, residents,
+    // notes and archive, but the neighborhood/house/archive pages have their
+    // own sections now for screen-specific detail.
+    'neighborhood'                   : 'neighborhood',
+    'neighborhouse'                  : 'neighborhouse',
+    'neighborarchive'                : 'neighborarchive'
 };
 
 // Topic index — shown on #help/main as a clickable hub
@@ -220,6 +273,16 @@ var HELP_TOPIC_MAP = [
 // Human-readable labels for screen names used in the page title
 var HELP_SCREEN_LABELS = {
     'main'          : 'Getting Started',
+    'neighborhood'    : 'Neighborhood Map',
+    'neighborhouse'   : 'House Detail',
+    'neighborarchive' : 'Previous Family',
+    'contact'         : 'Contacts',
+    'person'          : 'Contacts',
+    'people'          : 'Contacts',
+    'place'           : 'Place Detail',
+    'places'          : 'Places',
+    'sb-issues'       : 'QuickLog Issues',
+    'changepassword'  : 'Change Password',
     'zones'         : 'Yard — Zones',
     'zone'          : 'Zone Detail',
     'plant'         : 'Plant Detail',
@@ -389,15 +452,21 @@ async function loadHelpPage(screenName) {
         var fullText    = await _helpFetch();
         var sectionText = _helpParseSection(fullText, sectionKey);
 
-        // Fall back to main if no content found for this screen.
-        // Topics pages are synthetic indexes with no AppHelp.md section of their own
-        // (rendered entirely by _helpRenderSectionTopics below), so they're exempt —
-        // otherwise this fallback would stomp the "Topics: X" title already set above.
+        // No section for this screen. Say so plainly rather than silently
+        // swapping in Getting Started - a quiet fallback looks like working
+        // help for the wrong screen, which is how 46 routes went unnoticed.
+        // Topics pages are synthetic indexes with no AppHelp.md section of
+        // their own (rendered entirely by _helpRenderSectionTopics below),
+        // so they're exempt.
         if (!sectionText && !HELP_TOPICS_SECTIONS[screenName]) {
-            sectionText = _helpParseSection(fullText, 'main');
-            if (sectionText && titleEl) titleEl.textContent = 'Help: Getting Started';
+            console.warn('Help: no AppHelp.md section for "' + sectionKey +
+                         '" (screen "' + screenName + '") - add "## screen:' +
+                         sectionKey + '" or map it in HELP_SECTION_MAP.');
+            sectionText =
+                '_No help has been written for this screen yet._' + '\n\n' +
+                'Try **Ask AI** below, or browse **All Topics** for a related screen.';
+            if (titleEl) titleEl.textContent = 'Help: ' + label;
         }
-        if (!sectionText) sectionText = '_No help content is available for this screen yet._';
 
         var renderedContent;
         if (HELP_TOPICS_SECTIONS[screenName]) {

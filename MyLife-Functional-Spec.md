@@ -3234,6 +3234,16 @@ The app has three navigation contexts, each with its own nav bar:
 
 **Concept aliases:** `HELP_SECTION_MAP` maps URL-safe keys (e.g., `concept-activities`) to AppHelp.md section keys (e.g., `concept:activities`).
 
+**Route resolution (the `?` button):** `openHelpForCurrentScreen()` reads the current hash and does a longest-prefix match, joining segments with dashes and shortening until a `HELP_SECTION_MAP` entry matches or one segment remains. This strips entity ids: `#investments/snapshots` keeps its mapped sub-route key, while `#contact/{id}` collapses to `contact`.
+
+**Detail routes need an explicit map entry.** The collapsed key is often the singular of the section that documents it — route `#contact/{id}` resolves to `contact`, but the section is `## screen:contacts`. Without a `HELP_SECTION_MAP` entry the lookup misses. `HELP_SECTION_MAP` therefore carries a block of detail-route aliases (`contact`→`contacts`, `vehicle`→`vehicles`, `garageroom`→`garage`, `journal-entry`→`journal`, and so on). **When adding a route, add its map entry or its own `## screen:` section.**
+
+**Misses are visible, not silent.** A screen with no matching section renders "_No help has been written for this screen yet._" under its own title and logs a `console.warn` naming the missing key. It previously fell back to `## screen:main` retitled "Getting Started", which looked like working help for the wrong screen — that silent fallback hid missing sections on 46 of 128 routes until a 2026-08-27 audit. Topics pages (`HELP_TOPICS_SECTIONS`) are exempt, since they are synthetic indexes with no AppHelp.md section of their own.
+
+**Screen labels:** `HELP_SCREEN_LABELS` supplies the page title; without an entry the key is title-cased, which produces things like "Neighborhouse". Detail routes with awkward keys should get a label (`neighborhouse` → "House Detail", `neighborarchive` → "Previous Family").
+
+**People routes:** `people.js` renders a parallel address book against the same `people` collection. `#people` redirects to `#contacts`; `#person/{id}` is live (journal @mentions, life calendar, life projects). Both map to the `contacts` section rather than duplicating content.
+
 **Maintenance Rule:** Before every commit that touches JS, HTML, or CSS, evaluate whether the change affects a screen with help content. If it does, update the relevant `## screen:X` section in `AppHelp.md` in the same commit. This is not optional — stale help content produces wrong AI answers.
 
 ---

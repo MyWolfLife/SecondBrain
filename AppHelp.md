@@ -3228,6 +3228,110 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 ---
 
+## screen:neighborhood
+
+### Quick Help
+- The map view for one neighborhood — your uploaded image with a pin per house
+- **Pin colors** show interaction recency: green = within 60 days, amber = 61 days to 1 year, gray = never or over a year
+- Tap a pin to open that house; drag a pin to reposition it
+- **+ Add House** puts you in placement mode — tap the map where the house sits
+- Pan and zoom are remembered per neighborhood
+
+### Details
+
+**Getting here:** Contacts → 🏘 Neighbors → tap a neighborhood card.
+
+**The map:** Your uploaded screenshot fills the screen as a pannable, zoomable map. It is an image, not a real street map — pins are positioned relative to the picture, so the same image must stay in place for pins to keep meaning. Replacing the image (via ✏️ Edit) keeps existing pins at their stored positions, which may no longer line up.
+
+**Pin colors** are driven by the most recent logged interaction with anyone living at that house:
+- **Green** — within the last 60 days
+- **Amber** — 61 days to 1 year ago
+- **Gray** — never interacted, or more than a year ago
+
+Log an interaction from a resident's contact page and the pin recolors automatically.
+
+**Adding a house:**
+1. Tap **+ Add House** — the button hides and the map enters placement mode
+2. Tap the map at the house's location
+3. Enter a nickname (required) and street address (optional)
+4. Save — the pin appears
+
+**Moving a pin:** Drag it. The new position saves automatically, no confirmation needed.
+
+**Editing the neighborhood:** The ✏️ button by the name reopens the neighborhood form to change its name, notes, or map image.
+
+**Saved view:** However you leave the map panned and zoomed becomes the default view next time you open this neighborhood. There is no button for this — it saves on its own.
+
+**Hover a pin** to see the house nickname as a tooltip (tap on mobile).
+
+### See Also
+- [Neighbors](#help/neighbors)
+- [House Detail](#help/neighborhouse)
+- [Contacts](#help/contacts)
+
+---
+
+## screen:neighborhouse
+
+### Quick Help
+- Everything about one house: who lives there, notes on the property, and past occupants
+- **+ From Contacts** links someone you already have; **+ New Person** creates a contact and links them in one step
+- **▼ Intel** on a resident card shows their last 2 facts and last 2 interactions without leaving the page
+- **Full Profile** opens their full contact page
+- House notes describe the *property*; person details belong on the contact
+
+### Details
+
+**Getting here:** tap any pin on a neighborhood map.
+
+**Residents section:** Each card shows name, role (Owner, Spouse, Kid, etc.), and last interaction date.
+- **▼ Intel** expands a quick panel — their 2 most recent facts and 2 most recent interactions
+- **Full Profile** opens their contact page, where you log interactions
+- **×** unlinks them from this house. This does *not* delete their contact record
+- **+ From Contacts** — search your existing contacts, pick one, assign a role
+- **+ New Person** — create a brand-new contact (saved as Personal / Neighbor) and link it in one step. They become a normal contact and appear in your Contacts list
+
+**House Notes section:** Free-form observations about the property itself — "Their landscaper is Green Thumb Co", "Ring doorbell on left side". Tap **+ Add Note** to log one with a date; notes can be edited or deleted. Keep person-specific detail on the contact instead, so it survives the family moving out.
+
+**Journal Mentions:** If a current resident has been @-mentioned in a journal entry, a Journal Mentions section appears with the 20 most recent entries mentioning anyone in the house. Tap one to open the full entry. Hidden when there are no residents or no mentions.
+
+**Previous Families:** Appears once a family has been archived. Each entry links to a snapshot of who lived there and when they left.
+
+**When a family moves out — Archive vs. Hard Delete.** Both live behind the delete button, and they are very different:
+- **Archive** keeps the house pin and its notes. Current residents are snapshotted into a Previous Families entry, unlinked from the house, and the pin resets to gray. You can add a note about where they went. Their contact records are untouched. This is what you want when new people move into the same house.
+- **Hard Delete** permanently removes the pin, every house note, every resident link, and all archived family history. Contact records themselves are not affected. Use this only when the pin was a mistake.
+
+### See Also
+- [Neighborhood Map](#help/neighborhood)
+- [Previous Family](#help/neighborarchive)
+- [Contacts](#help/contacts)
+
+---
+
+## screen:neighborarchive
+
+### Quick Help
+- A snapshot of one family who used to live at a house
+- Shows who they were, their roles, and when they were archived
+- **View Contact** opens a person's contact record — those still exist in full
+- Read-only; archiving is done from the house page
+
+### Details
+
+**Getting here:** house detail page → **Previous Families** → tap an entry.
+
+**What it shows:** a banner with the archive date ("This family no longer lives here — archived March 3, 2026"), the move-out note if you wrote one, and a card per person with their role at the time.
+
+**Their contacts are not deleted.** Archiving only unlinks people from the house and snapshots the grouping. Every person here is still a full contact with their photos, facts, and interaction history — **View Contact** opens it. That is the point of archiving rather than deleting: you keep the history of who lived where.
+
+**To create one:** on the house detail page, use the delete button and choose **Archive** rather than Hard Delete. See [House Detail](#help/neighborhouse) for the difference.
+
+### See Also
+- [House Detail](#help/neighborhouse)
+- [Neighbors](#help/neighbors)
+
+---
+
 ## screen:checklists
 
 ### Quick Help
@@ -3264,6 +3368,162 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 **Completing a run**: tap ✓ in the footer — the run moves to the Completed section (toggle "Show completed" to view it).
 
 **Archiving**: tap 📦 to archive a run without marking it complete. Toggle "Show archived" to see archived runs.
+
+---
+
+## screen:places
+
+### Quick Help
+- Your saved places — restaurants, shops, parks, anywhere you want to remember
+- Search box filters the list as you type
+- **+ Add** saves a place manually, or search for a real venue to pull in its address and coordinates
+- Tap a place to open its detail page with a map, photos, facts, and activities
+- Places power the **📍 Check In** button on the home screen
+
+### Details
+
+**The list:** all active places, sorted A–Z. Each row shows the name with category and address beneath it. The search box filters by name as you type.
+
+**Adding a place:** **+ Add** opens the form. You can type everything by hand, or search for a real venue — matches come back with name, address, category, and coordinates already filled in. Venue search needs a Foursquare key configured in Settings; without one you can still add places manually.
+
+**Check-ins:** the **📍 Check In** button on the home screen finds places near you by GPS and logs that you were there. Check-ins are recorded as journal entries.
+
+**Deleting:** places are soft-deleted — removed from the list but the record is retained, so anything already referencing the place keeps working.
+
+### See Also
+- [Place Detail](#help/place)
+- [Journal](#help/journal)
+- [Settings](#help/settings)
+
+---
+
+## screen:place
+
+### Quick Help
+- Everything about one saved place
+- Info table shows category, address, and coordinates
+- A map appears when the place has coordinates
+- Supports photos, facts, and activities like any other entity
+- **Edit** changes the name, category, or address; **Back** returns where you came from
+
+### Details
+
+**Info table:** shows whichever of category, address, and coordinates are filled in. Rows for empty fields are omitted rather than shown blank.
+
+**Map:** rendered only when the place has latitude and longitude — a place added by hand without a venue search will not have them, so no map appears. Re-saving it through venue search fills them in.
+
+**Photos, Facts, Activities:** a place behaves like a plant, zone, or room. Attach photos, record facts ("closes at 9 on Sundays", "parking is behind the building"), and log activities against it.
+
+**Back button:** returns to wherever you opened the place from — the Places list, a search result, or a journal entry — rather than always going to the list.
+
+### See Also
+- [Places](#help/places)
+- [Photos](#help/concept-photos)
+- [Facts](#help/concept-facts)
+
+---
+
+## screen:search
+
+### Quick Help
+- Searches across nearly everything in the app from one box
+- Type at least **2 characters** — results appear as you type
+- Results are grouped by type with an icon and count per group
+- Tap any result to jump straight to that record
+- Journal entries are **excluded by default** — tick the checkbox to include them
+
+### Details
+
+**What it searches:** plants, zones, weeds, chemicals, rooms, things and sub-things, structures, garage areas, vehicles, collections and their items, contacts, notebooks, places, life projects, memories, views, Top 10 lists, activities, and checklist templates and runs. Matching is on the name or title of each record.
+
+**Checklists** match more broadly than the rest — a checklist template also matches on its tags and on the text of its individual items, not just its name.
+
+**Journal entries:** off by default because they are the largest and slowest collection to scan. Tick **Include Journal Entries** to add them; expect the search to take noticeably longer.
+
+**Minimum length:** nothing runs until you have typed 2 characters, and there is a short pause after you stop typing before the search fires — so a long query does not trigger a search on every keystroke.
+
+**On desktop** the box focuses automatically when the page opens. On phones it does not, so the keyboard does not cover the screen before you are ready.
+
+### See Also
+- [QuickLog](#help/secondbrain)
+
+---
+
+## screen:chat
+
+### Quick Help
+- Ask an AI a free-form question — plant ID, yard advice, general questions
+- Attach up to **4 images** per question
+- Requires an LLM provider and API key configured in Settings
+- **Nothing is saved** — each question stands alone and the conversation is not kept
+
+### Details
+
+**What it is for:** one-off questions where you want an answer, not a record. Identifying a plant or bug from a photo, asking when to prune something, checking whether two chemicals can be mixed.
+
+**It has no memory.** Each question is sent on its own with no history, so follow-ups like "what about the other one?" will not work — the AI has no idea what you asked before. Put the whole question in each message. Nothing is written to Firestore.
+
+**Images:** attach up to 4 per question. Useful for identification — photograph the weed or the leaf damage and ask what it is.
+
+**Setup:** needs an API key saved in Settings. Supported providers are OpenAI (ChatGPT) and xAI (Grok). Without a key the page tells you so and links to Settings.
+
+**Chat vs. QuickLog:** Chat answers questions and saves nothing. QuickLog *records* things — it interprets what you say and writes it into the app. Use QuickLog to log, Chat to ask.
+
+### See Also
+- [QuickLog](#help/secondbrain)
+- [Settings](#help/settings)
+
+---
+
+## screen:changepassword
+
+### Quick Help
+- Changes the password for your login
+- Enter your current password, then the new one twice
+- New password must be at least **6 characters**
+- Reached from Settings
+
+### Details
+
+**Why the current password:** re-entering it proves the session is really you before the change goes through. If it is wrong, the update is rejected and nothing changes.
+
+**Requirements:** at least 6 characters, and the two new-password fields must match. Errors appear above the button; on success you get a confirmation line.
+
+**Staying signed in:** changing your password does not sign you out here, but other devices already signed in may be asked to sign in again with the new password.
+
+**If you have forgotten your current password**, you cannot change it here — sign out and use **Forgot password?** on the login screen to get a reset email.
+
+### See Also
+- [Settings](#help/settings)
+
+---
+
+## screen:sb-issues
+
+### Quick Help
+- A debugging log of QuickLog commands that did not parse correctly
+- Each entry shows what you typed and exactly what the AI sent back
+- **📋 Copy** puts the whole entry on the clipboard for reporting
+- **Delete** removes an entry; entries are newest first
+
+### Details
+
+**What lands here:** when QuickLog cannot turn what you said into a valid action, it records the attempt instead of discarding it. This is a developer diagnostic, not something you need to act on.
+
+**Each card shows:**
+- Timestamp, the action QuickLog *thought* you wanted, and whether photos were attached
+- **Prompt** — the exact text sent to the AI
+- **Raw LLM Response** — exactly what came back, unparsed
+
+**Why the raw response matters:** almost every QuickLog failure is visible in it — a missing field, a wrapped or malformed reply, an action name that does not exist. The pair of prompt and response is usually enough to diagnose the problem without reproducing it.
+
+**📋 Copy** copies the metadata, prompt, and response as plain text — paste it into a dev note or bug report.
+
+**Housekeeping:** nothing is cleaned up automatically. Delete entries once they are resolved.
+
+### See Also
+- [QuickLog](#help/secondbrain)
+- [Dev Notes](#help/devnotes)
 
 ---
 
