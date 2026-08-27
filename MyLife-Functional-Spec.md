@@ -2759,6 +2759,20 @@ Two separate backup files — **data** (all Firestore collections) and **photos*
 
 **Photos backup** is a separate file (can be large) — downloads just the `photos` collection.
 
+**Backup reminder (home page banner)** — nags on the desktop home page (`#main`) when backups get stale.
+
+- **State** lives in `settings/main` so it is consistent across every device on the account:
+  - `lastBackupAt` — ISO string, stamped by `backupRecordCompleted()` at the end of `runBackup()`
+  - `backupSnoozeUntil` — ISO string; the banner stays hidden until this moment passes
+  - `backupSnoozeDays` — the snooze length the user last chose, re-used as the pre-filled default
+- The `settings/main` doc is cached in `window._settingsMain` by `initAppName()` at startup, so the per-visit check costs no extra Firestore read. The cache is updated in place on backup/snooze so the banner reacts without a reload.
+- **Trigger**: `backupReminderRender()` runs from the `#main` route handler in `app.js` on every home page visit. The banner shows when `lastBackupAt` is missing (never backed up → shows immediately) or older than `BACKUP_REMINDER_DAYS` (7, hardcoded), **and** `backupSnoozeUntil` is in the past.
+- **Desktop only** — suppressed below `BACKUP_DESKTOP_MIN_PX` (768), since a backup downloads a file.
+- **Banner contents**: warning text ("You have never backed up your data." / "Your last backup was N days ago."), a **Back Up Now** link to `#backup`, and a snooze control — a number input (default `BACKUP_SNOOZE_DEFAULT` = 3, clamped 1–365) plus a **Snooze** button. `backupReminderSnooze()` writes both `backupSnoozeUntil` and `backupSnoozeDays`, so the number entered becomes the new default.
+- Running a backup clears `backupSnoozeUntil` (the countdown restarts).
+- **Last backup display** on the Backup page prefers the per-browser localStorage string, falling back to `lastBackupAt` from Firestore when localStorage is empty (fresh browser / cleared cache), so a backup taken on another machine still shows.
+- **Key functions** (all in `js/settings.js`): `backupFormatDate()`, `backupRecordCompleted()`, `backupDaysSince()`, `backupReminderRender()`, `backupReminderSnooze()`.
+
 ### Chat (`chat.js`)
 Simple conversational AI interface.
 

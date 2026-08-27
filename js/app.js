@@ -453,6 +453,7 @@ function handleRoute() {
         window.clLastEntityType = null;
         showPage('main');
         if (typeof favRenderHomeSection === 'function') favRenderHomeSection();
+        if (typeof backupReminderRender === 'function') backupReminderRender();
     } else if (page === 'weeds') {
         showPage('weeds');
         loadWeedsList();

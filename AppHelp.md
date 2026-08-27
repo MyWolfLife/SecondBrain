@@ -24,6 +24,14 @@ It is used by the in-app AI assistant to answer your questions.
 - **⚡ QuickLog** — AI assistant. Type or speak anything in plain English — log activities, add tasks, record problems, log exercise, track health metrics, add plants or weeds, move items, set reminders, and more. 25 commands total. See the QuickLog help screen (tap ?) for the full list.
 - **📍 Check In** — GPS-based location check-in. Records where you are right now.
 
+**Backup reminder banner:**
+- A yellow warning banner appears at the top of this screen when it has been **more than 7 days** since your last backup — or if you have never backed up at all
+- **Desktop only.** It never appears on a phone-width layout (under 768px), because backups download a file
+- **Back Up Now** takes you to the Backup & Restore screen
+- **Remind me in [N] days → Snooze** hides the banner for that many days. The default is 3, but you can type any number from 1 to 365 — whatever you enter becomes your new default the next time the banner appears
+- The reminder is tied to your account, not your device: back up (or snooze) on one computer and every other computer stays quiet too
+- Running a backup resets the 7-day countdown and clears any active snooze
+
 ---
 
 ## screen:secondbrain
@@ -4185,6 +4193,7 @@ Each thought is a living document -- you can update it over time with history pr
 
 ### Quick Help
 - **Download Backup** exports all your app data as a JSON file — do this monthly
+- **Last backup** is shown under the button. If it has been more than 7 days, a reminder banner appears on the home page (desktop only)
 - **Backup Private Data** (shown only if Private Vault is activated) exports a password-protected zip of your decrypted private data — password is your vault passphrase
 - To open the private backup zip: use 7-Zip (free) or WinZip and enter your vault passphrase when prompted
 - Note: file and folder names inside the zip are visible without the password — only the file contents are protected
@@ -4215,6 +4224,9 @@ Downloads a JSON file of all your Firestore data (activities, plants, zones, hea
 - **Important limitation:** The ZIP format stores folder and file names in plaintext even when the zip is encrypted — anyone who has the zip file can see the names. Only the file contents are protected by the password. This is a limitation of the ZIP format, not the app.
 - Treat the backup zip like sensitive data — store it somewhere secure (external drive, encrypted cloud storage, etc.)
 - To open: use 7-Zip (free at 7-zip.org) or WinZip. Double-click the zip, enter your vault passphrase when prompted, then extract normally.
+
+**Last backup timestamp:**
+The date of your most recent backup is shown beneath the Download Backup button. It is recorded both in this browser and on your account, so a backup taken on another computer still shows here. When the last backup is more than 7 days old — or you have never backed up — a reminder banner appears on the home page on desktop. See the Main screen help for how to snooze it.
 
 **Restore:**
 Replaces all current data with a previously downloaded backup file. Data and photos restore independently. This is permanent and cannot be undone.

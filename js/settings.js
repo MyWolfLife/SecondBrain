@@ -647,10 +647,12 @@ async function saveSettings() {
 async function initAppName() {
     try {
         var doc = await userCol('settings').doc('main').get();
-        window.appName = (doc.exists && doc.data().appName)
-            ? doc.data().appName
-            : 'My House';
+        // Cache the whole document so other features (e.g. the backup reminder)
+        // can read settings/main without paying for another Firestore read.
+        window._settingsMain = doc.exists ? doc.data() : {};
+        window.appName = window._settingsMain.appName || 'My House';
     } catch (e) {
+        window._settingsMain = {};
         window.appName = 'My House';
     }
     updateHeaderTitle();
@@ -1139,14 +1141,15 @@ async function runBackup() {
             ? '\u2713 Data and photos files downloaded'
             : '\u2713 Data file downloaded';
 
-        // Record last backup time in localStorage
-        var lastBackupStr = new Date().toLocaleString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: 'numeric', minute: '2-digit'
-        });
+        // Record last backup time in localStorage (per-device display string)
+        var now          = new Date();
+        var lastBackupStr = backupFormatDate(now);
         localStorage.setItem('lastBackup', lastBackupStr);
         document.getElementById('backupLastMsg').textContent =
             'Last backup: ' + lastBackupStr;
+
+        // Also record it in Firestore so the reminder works across devices
+        await backupRecordCompleted(now);
 
     } catch (err) {
         console.error('Backup error:', err);
@@ -1159,14 +1162,155 @@ async function runBackup() {
 }
 
 /**
- * Show the last backup timestamp from localStorage when the settings
- * page loads.
+ * Show the last backup timestamp when the Backup page loads.
+ * Prefers the localStorage string (written by this browser). If this is a
+ * fresh browser / cleared cache, falls back to the Firestore lastBackupAt
+ * timestamp so a backup taken on another machine still shows up.
  */
 function backupLoadLastMsg() {
+    var el = document.getElementById('backupLastMsg');
+    if (!el) return;
+
     var last = localStorage.getItem('lastBackup');
-    var el   = document.getElementById('backupLastMsg');
-    if (el) {
-        el.textContent = last ? 'Last backup: ' + last : 'Last backup: never';
+    if (last) {
+        el.textContent = 'Last backup: ' + last;
+        return;
+    }
+
+    var iso = (window._settingsMain || {}).lastBackupAt;
+    el.textContent = iso
+        ? 'Last backup: ' + backupFormatDate(new Date(iso))
+        : 'Last backup: never';
+}
+
+// ============================================================
+// Backup Reminder (home page banner)
+// ============================================================
+// Nags on the desktop home page when it has been too long since the last
+// backup. Backups download a file, which is awkward on a phone, so this is
+// deliberately desktop-only.
+//
+// State lives in Firestore settings/main so it is consistent across every
+// machine on the account:
+//   lastBackupAt      ISO string - when a backup was last downloaded
+//   backupSnoozeUntil ISO string - suppress the banner until this moment
+//   backupSnoozeDays  number     - the snooze length the user last chose
+// ============================================================
+
+var BACKUP_REMINDER_DAYS   = 7;    // warn once the last backup is this old
+var BACKUP_SNOOZE_DEFAULT  = 3;    // default snooze length in days
+var BACKUP_DESKTOP_MIN_PX  = 768;  // below this we treat it as a phone layout
+
+/**
+ * Format a Date the same way the Backup page shows it.
+ */
+function backupFormatDate(d) {
+    return d.toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+    });
+}
+
+/**
+ * Record a completed backup: stamp lastBackupAt and clear any active snooze
+ * (you just backed up, so the countdown starts over).
+ */
+async function backupRecordCompleted(when) {
+    var iso = (when || new Date()).toISOString();
+    try {
+        await userCol('settings').doc('main').set({
+            lastBackupAt     : iso,
+            backupSnoozeUntil: null
+        }, { merge: true });
+    } catch (e) {
+        console.error('Error recording backup timestamp:', e);
+    }
+    // Keep the cached copy in sync so the banner updates without a reload
+    window._settingsMain = window._settingsMain || {};
+    window._settingsMain.lastBackupAt      = iso;
+    window._settingsMain.backupSnoozeUntil = null;
+
+    backupReminderRender();
+}
+
+/**
+ * Whole-days elapsed between an ISO timestamp and now.
+ */
+function backupDaysSince(iso) {
+    var then = new Date(iso).getTime();
+    if (isNaN(then)) return null;
+    return Math.floor((Date.now() - then) / 86400000);
+}
+
+/**
+ * Called from the #main route handler on every home page visit.
+ * Decides whether the reminder banner should be showing and draws it.
+ */
+function backupReminderRender() {
+    var el = document.getElementById('backupReminder');
+    if (!el) return;
+    el.innerHTML = '';
+
+    // Phone layout - skip entirely
+    if (window.innerWidth < BACKUP_DESKTOP_MIN_PX) return;
+
+    var cfg = window._settingsMain || {};
+
+    // Snoozed? Stay quiet until the snooze expires.
+    if (cfg.backupSnoozeUntil && new Date(cfg.backupSnoozeUntil).getTime() > Date.now()) return;
+
+    // Work out how overdue we are. No backup ever = show immediately.
+    var days = cfg.lastBackupAt ? backupDaysSince(cfg.lastBackupAt) : null;
+    if (days !== null && days < BACKUP_REMINDER_DAYS) return;
+
+    var msg = (days === null)
+        ? 'You have never backed up your data.'
+        : (days === 0
+            ? 'Your last backup was today.'
+            : 'Your last backup was ' + days + ' day' + (days === 1 ? '' : 's') + ' ago.');
+
+    var snoozeDays = cfg.backupSnoozeDays || BACKUP_SNOOZE_DEFAULT;
+
+    el.innerHTML =
+        '<div class="backup-reminder">' +
+            '<span class="backup-reminder-icon">&#9888;</span>' +
+            '<span class="backup-reminder-text">' + escapeHtml(msg) + '</span>' +
+            '<a href="#backup" class="btn btn-primary backup-reminder-btn">Back Up Now</a>' +
+            '<span class="backup-reminder-snooze">' +
+                'Remind me in ' +
+                '<input type="number" id="backupSnoozeDays" min="1" max="365" ' +
+                       'value="' + snoozeDays + '" class="backup-reminder-days"> days ' +
+                '<button type="button" class="btn btn-secondary backup-reminder-btn" ' +
+                        'onclick="backupReminderSnooze()">Snooze</button>' +
+            '</span>' +
+        '</div>';
+}
+
+/**
+ * Snooze the reminder. The number the user typed becomes their new default,
+ * so next time the box is pre-filled with the same value.
+ */
+async function backupReminderSnooze() {
+    var input = document.getElementById('backupSnoozeDays');
+    var days  = parseInt(input && input.value, 10);
+    if (isNaN(days) || days < 1)   days = BACKUP_SNOOZE_DEFAULT;
+    if (days > 365)                days = 365;
+
+    var until = new Date(Date.now() + days * 86400000).toISOString();
+
+    window._settingsMain = window._settingsMain || {};
+    window._settingsMain.backupSnoozeUntil = until;
+    window._settingsMain.backupSnoozeDays  = days;
+
+    backupReminderRender();  // hides the banner immediately
+
+    try {
+        await userCol('settings').doc('main').set({
+            backupSnoozeUntil: until,
+            backupSnoozeDays : days
+        }, { merge: true });
+    } catch (e) {
+        console.error('Error saving backup snooze:', e);
     }
 }
 
