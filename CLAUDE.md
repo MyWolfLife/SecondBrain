@@ -277,12 +277,22 @@ Bishop/
 - If no data exists in the test account for the feature being tested, verify by injecting mock state via `preview_eval` (e.g., populating `photoViewerState` to render the photo viewer)
 - Never skip verification for changes that are observable in the browser
 
-## Service Worker Cache — REQUIRED BEHAVIOR
-**IMPORTANT: Every time a commit touches JS, HTML, or CSS files, bump `CACHE_NAME` in `sw.js`.**
+## Cache Busting — REQUIRED BEHAVIOR
+**There are TWO caches. Every commit that touches JS, HTML, or CSS must bust BOTH. Neither substitutes for the other.**
+
+### 1. Service worker cache — bump `CACHE_NAME` in `sw.js`
 - Current pattern: `'bishop-v2'` → `'bishop-v3'` → `'bishop-v4'` etc.
-- If you forget, users (including the developer) will get stale cached files after a deploy.
-- Do this in the same commit as the code change — not a separate commit.
-- This applies to every deploy, no exceptions.
+- One bump per commit, regardless of how many files changed.
+
+### 2. Browser HTTP cache — bump the `?v=` on each changed script tag in `index.html`
+- Every `<script>` tag carries its own version, e.g. `<script src="js/contacts.js?v=549"></script>`
+- Bump the number for **each JS file the commit changes** — `?v=549` → `?v=550`
+- Find them with: `grep -nE "js/(fileA|fileB)\.js\?v=" index.html`
+- The numbers are per-file and independent; they do not need to match each other.
+
+**Both, in the same commit as the code change — not a separate commit. Every deploy, no exceptions.**
+
+**Why both:** the service worker cache and the browser's HTTP cache are separate layers. Bumping only `CACHE_NAME` leaves browsers serving the old `js/foo.js?v=NNN` from the HTTP cache, so the change silently never reaches users — including the developer. This has actually happened: two commits shipped without the `?v=` bump and were stale until caught later. The tell-off symptom in the preview server is a newly-added function reading as `undefined` even though it is present in the file the server returns.
 
 ## /fixbishop Command — REQUIRED BEHAVIOR
 **IMPORTANT: When the user types `/fixbishop {id}` or says "fix {id}", "please fix {id}", "do {id}", or any similar phrasing where `{id}` looks like a Firestore document ID (long alphanumeric string), follow the `/fixbishop` skill defined in `.claude/skills/fixbishop/SKILL.md`.**
