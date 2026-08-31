@@ -2849,7 +2849,7 @@ function _lpPlanningItemRow(groupId, item) {
     const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
     const hasDetails = item.time || item.cost || item.duration || item.notes || item.confirmation || item.contact || (item.facts && item.facts.length) || (item.links && item.links.length);
     const loc = item.locationId ? _lpLocations.find(l => l.id === item.locationId) : null;
-    const locBadge = _lpLocBadge(loc);
+    const locBadge = _lpItemLocBadges(item);
     const locBtn = !loc
         ? `<button class="btn btn-small" onclick="_lpPickLocation('planning','${groupId}','${item.id}')" title="Set location" style="padding:2px 6px;">📍</button>`
         : `<button class="btn btn-small" onclick="_lpOpenAddDistance('planning','${groupId}','${item.id}')" title="Add distance from here" style="padding:2px 6px;">🛣️</button>`;
@@ -3609,11 +3609,24 @@ async function _lpDeletePhotosForItems(itemIds) {
 
 // ---------- Day item rendering ----------
 
+/** Build the location badge(s) for an item row. Travel items that have both a From
+ *  and a To location stack them (From on top of To); everything else shows a single
+ *  badge. Each badge is independently clickable (via _lpLocBadge) when it has coords
+ *  or an address. */
+function _lpItemLocBadges(item) {
+    const fromLoc = item.locationId   ? _lpLocations.find(l => l.id === item.locationId)   : null;
+    const toLoc   = item.toLocationId ? _lpLocations.find(l => l.id === item.toLocationId) : null;
+    if (fromLoc && toLoc) {
+        return `<div style="display:flex; flex-direction:column; align-items:flex-end; gap:1px;">${_lpLocBadge(fromLoc)}${_lpLocBadge(toLoc)}</div>`;
+    }
+    return _lpLocBadge(fromLoc || toLoc);
+}
+
 function _lpItemRow(dayId, item) {
     const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
     const hasDetails = item.time || item.cost || item.duration || item.notes || item.confirmation || item.contact || (item.facts && item.facts.length) || (item.links && item.links.length);
     const loc = item.locationId ? _lpLocations.find(l => l.id === item.locationId) : null;
-    const locBadge = _lpLocBadge(loc);
+    const locBadge = _lpItemLocBadges(item);
     const locBtn = !loc
         ? `<button class="btn btn-small" onclick="_lpPickLocation('itinerary','${dayId}','${item.id}')" title="Set location" style="padding:2px 6px;">📍</button>`
         : `<button class="btn btn-small" onclick="_lpOpenAddDistance('itinerary','${dayId}','${item.id}')" title="Add distance from here" style="padding:2px 6px;">🛣️</button>`;
@@ -3805,9 +3818,7 @@ function _lpItemDetailsContent(item, ctx) {
     {
         const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
         const mLoc = item.locationId ? _lpLocations.find(l => l.id === item.locationId) : null;
-        const mLocBadge = mLoc
-            ? `<span title="${_lpEsc(mLoc.name)}${mLoc.address ? '\n'+mLoc.address : ''}${mLoc.phone ? '\n'+mLoc.phone : ''}" style="font-size:0.75em; color:#2563eb; white-space:nowrap;">📍 ${_lpEsc(mLoc.name)}</span>`
-            : '';
+        const mLocBadge = _lpItemLocBadges(item);
         const mBookingBadge = _lpBookingBadge(item.bookingRef);
         const parentId = ctx.type === 'itinerary' ? ctx.dayId : ctx.groupId;
         const mEditBtn = ctx.type === 'itinerary'
