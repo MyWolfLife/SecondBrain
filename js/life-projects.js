@@ -1534,11 +1534,11 @@ function _lpRenderLocations(body) {
     `).join('');
 
     body.innerHTML = `
-        <div>${rows}</div>
-        <div style="margin-top:10px; display:flex; gap:6px;">
+        <div style="margin-bottom:10px; display:flex; gap:6px;">
             <button class="btn btn-primary btn-small" onclick="_lpOpenLocationModal()">+ Add Location</button>
             <button class="btn btn-small" onclick="_lpOpenImportModal()">⬆ Import</button>
-        </div>`;
+        </div>
+        <div>${rows}</div>`;
 }
 
 /** Open the location modal — editId is the projectLocations doc id, null for new */
