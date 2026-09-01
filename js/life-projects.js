@@ -19,6 +19,9 @@ const LP_STATUSES = {
     done:     { label: 'Done',     color: '#6b7280' }
 };
 
+/** Bump when the export JSON shape changes in a way that affects import. */
+const LP_EXPORT_VERSION = 1;
+
 const LP_DEFAULT_BOOKING_TYPES = [
     'Lodging', 'Flight', 'Car Rental', 'Excursion', 'Sports Event'
 ];
@@ -126,14 +129,16 @@ async function loadLifeProjectsPage() {
                 </label>
             </div>
             <div id="lpProjectList"></div>
-            <div style="display:flex; gap:8px; margin-top:16px;">
-                <button class="btn btn-primary" style="flex:1;" onclick="openNewLifeProjectModal()">+ New Project</button>
-                <button class="btn" style="flex:0 0 auto;" onclick="document.getElementById('lpImportFileInput').click()">📥 Import</button>
+            <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+                <button class="btn btn-primary" style="flex:1; min-width:140px;" onclick="openNewLifeProjectModal()">+ New Project</button>
+                <button class="btn" style="flex:0 0 auto;" onclick="document.getElementById('lpFullImportFileInput').click()" title="Import a project previously exported from this app — full round-trip with itinerary, bookings, photos, etc.">📥 Import</button>
+                <button class="btn" style="flex:0 0 auto;" onclick="document.getElementById('lpImportFileInput').click()" title="Import a hand-written or AI-converted trip JSON file — a simpler starting point, not a full round-trip">📥 Import External</button>
             </div>
             <div style="margin-top:12px;">
                 <a href="#" onclick="event.preventDefault(); _lpOpenTodoTemplateModal();" style="font-size:0.85em; color:#2563eb;">✏️ Edit new-vacation to-do template</a>
             </div>
             <input type="file" id="lpImportFileInput" accept=".json" style="display:none;" onchange="_lpHandleImportFile(event)">
+            <input type="file" id="lpFullImportFileInput" accept=".json" style="display:none;" onchange="_lpHandleFullImportFile(event)">
 
             <!-- Edit Vacation To-Do Template Modal -->
             <div class="modal-overlay" id="lpTodoTemplateModal">
@@ -617,6 +622,7 @@ function _lpRenderDetailPage(page) {
             <h2 style="flex:1; min-width:0;">${tpl.icon} ${_lpEsc(p.title)}</h2>
             <div style="display:flex; gap:6px; align-items:center;">
                 <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;">${st.label}</span>
+                <button class="btn btn-small" onclick="_lpOpenExportModal()" title="Export this project to a JSON file you can share">⬇️ Export</button>
                 <button class="btn btn-small" onclick="_lpToggleMode()" id="lpModeToggle" title="Switch mode">
                     ${p.mode === 'travel' ? '🧳 Travel' : '📝 Planning'}
                 </button>
@@ -791,6 +797,33 @@ function _lpRenderDetailPage(page) {
                     <div id="lpHelpModalBody" class="lp-help-body" style="max-height:60vh; overflow-y:auto; font-size:0.92em; line-height:1.55;"></div>
                     <div class="modal-actions" style="justify-content:flex-end;">
                         <button class="btn btn-primary" onclick="closeModal('lpHelpModal')">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export options modal -->
+            <div class="modal-overlay" id="lpExportModal">
+                <div class="modal" style="max-width:420px;">
+                    <h3>Export Project</h3>
+                    <p style="font-size:0.9em; color:#666; margin:0 0 10px;">Downloads a JSON file with everything in this project — itinerary, bookings, locations, distances, to-dos, packing list, notes, and links — so it can be imported into another Bishop account. People are not included.</p>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="lpExportIncludePhotos" checked>
+                        <label for="lpExportIncludePhotos" style="font-size:0.9em; margin:0; cursor:pointer;">Include photos</label>
+                    </div>
+                    <p style="font-size:0.8em; color:#999; margin:4px 0 0;">Each photo is roughly 100–350KB, so a photo-heavy trip can make for a large file. Uncheck this for a smaller, text-only export.</p>
+                    <div class="modal-actions">
+                        <button class="btn" onclick="closeModal('lpExportModal')">Cancel</button>
+                        <button class="btn btn-primary" onclick="_lpRunExport()">Export</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export progress modal -->
+            <div class="modal-overlay" id="lpExportProgressModal">
+                <div class="modal">
+                    <h3>Exporting Project…</h3>
+                    <div id="lpExportProgressBody" style="padding:12px 0;">
+                        <p style="color:#666;">Gathering project data…</p>
                     </div>
                 </div>
             </div>
@@ -6848,6 +6881,588 @@ async function _lpExecuteImport() {
 
     } catch (err) {
         console.error('Import error:', err);
+        prog.innerHTML = `<p style="color:red;">Error: ${err.message}</p>
+            <button class="btn" style="margin-top:12px;" onclick="closeModal('lpImportProgressModal')">Close</button>`;
+    }
+}
+
+// ============================================================
+// Export / Full Round-Trip Import
+//
+// A full-fidelity export of a single project — everything the app knows about
+// it except `people` (per-user contacts don't carry over between accounts).
+// Distinct from "Import External" above: that one reads a simplified,
+// hand/AI-authored trip file (see imports/yellowstone-2024.json) and has never
+// had a matching Export. This pair is a true round trip — Export here always
+// produces a file this app's own Import can read back losslessly, including
+// cross-references (item → location, item → booking, photo → item) and photos.
+// ============================================================
+
+function _lpOpenExportModal() {
+    document.getElementById('lpExportIncludePhotos').checked = true;
+    openModal('lpExportModal');
+}
+
+async function _lpRunExport() {
+    const includePhotos = document.getElementById('lpExportIncludePhotos').checked;
+    closeModal('lpExportModal');
+    openModal('lpExportProgressModal');
+    const prog = document.getElementById('lpExportProgressBody');
+    prog.innerHTML = '<p>Starting export…</p>';
+
+    try {
+        const data = await _lpBuildExportData(includePhotos, msg => {
+            prog.innerHTML = `<p>${_lpEsc(msg)}</p>`;
+        });
+        const json = JSON.stringify(data, null, 2);
+        const sizeKb = json.length / 1024;
+        const sizeLabel = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : Math.round(sizeKb) + ' KB';
+        const filename = _lpSlugify(_lpCurrentProject.title) + '-export.json';
+        _lpDownloadJson(filename, json);
+        prog.innerHTML = `<p>✅ Downloaded <strong>${_lpEsc(filename)}</strong> (${sizeLabel}).</p>
+            <button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal('lpExportProgressModal')">Done</button>`;
+    } catch (err) {
+        console.error('Export error:', err);
+        prog.innerHTML = `<p style="color:red;">Error building export: ${_lpEsc(err.message)}</p>
+            <button class="btn" style="margin-top:12px;" onclick="closeModal('lpExportProgressModal')">Close</button>`;
+    }
+}
+
+/** Read every part of the current project fresh from Firestore (not the page's
+ *  cached globals, which may not be loaded yet for lazy accordion sections) and
+ *  assemble the export object. `onProgress(message)` is called with short status
+ *  updates as each section is read. */
+async function _lpBuildExportData(includePhotos, onProgress) {
+    const projectId = _lpCurrentProjectId;
+    const p = _lpCurrentProject;
+
+    onProgress('Reading project data…');
+    const [daySnap, pgSnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap] = await Promise.all([
+        lpSub(projectId, 'days').orderBy('sortOrder').get(),
+        lpSub(projectId, 'planningGroups').orderBy('sortOrder').get(),
+        lpSub(projectId, 'bookings').orderBy('sortOrder').get(),
+        lpSub(projectId, 'projectLocations').get(),
+        lpSub(projectId, 'todoItems').orderBy('sortOrder').get(),
+        lpSub(projectId, 'packingItems').get(),
+        lpSub(projectId, 'projectNotes').get(),
+        lpSub(projectId, 'itemPhotos').get()
+    ]);
+
+    // Locations — assign portable export IDs, keyed by the projectLocations doc id
+    // (that's what items' locationId/toLocationId actually reference).
+    const locExportIdByProjLocId = {};
+    const globalIdByExportId = {};
+    const locations = [];
+    let locCounter = 0;
+    plSnap.forEach(doc => {
+        const d = doc.data();
+        const exportId = 'loc_' + (locCounter++);
+        locExportIdByProjLocId[doc.id] = exportId;
+        if (d.locationId) globalIdByExportId[exportId] = d.locationId;
+        locations.push({
+            exportId,
+            name: d.name || '', address: d.address || '', phone: d.phone || '',
+            website: d.website || '', contact: d.contact || '', notes: d.notes || '',
+            lat: d.lat != null ? d.lat : null, lng: d.lng != null ? d.lng : null
+        });
+    });
+
+    // Distances between this project's locations — global collection, filtered client-side
+    // (same approach the Distances accordion itself uses).
+    onProgress('Reading distances…');
+    const globalIdToExportId = {};
+    Object.entries(globalIdByExportId).forEach(([exportId, globalId]) => { globalIdToExportId[globalId] = exportId; });
+    const globalIds = new Set(Object.keys(globalIdToExportId));
+    const distances = [];
+    if (globalIds.size >= 2) {
+        const distSnap = await lpDistancesCol().get();
+        distSnap.forEach(doc => {
+            const d = doc.data();
+            if (globalIds.has(d.fromLocationId) && globalIds.has(d.toLocationId)) {
+                distances.push({
+                    fromLocationId: globalIdToExportId[d.fromLocationId],
+                    toLocationId: globalIdToExportId[d.toLocationId],
+                    time: d.time || '', miles: d.miles != null ? d.miles : null,
+                    mode: d.mode || 'drive', notes: d.notes || ''
+                });
+            }
+        });
+    }
+
+    // Bookings — assign portable export IDs
+    onProgress('Reading bookings…');
+    const bookingExportIdByDocId = {};
+    const bookingDocIdByExportId = {};
+    const bookings = [];
+    let bkCounter = 0;
+    bookingSnap.forEach(doc => {
+        const d = doc.data();
+        const exportId = 'bk_' + (bkCounter++);
+        bookingExportIdByDocId[doc.id] = exportId;
+        bookingDocIdByExportId[exportId] = doc.id;
+        bookings.push({
+            exportId,
+            name: d.name || '', type: d.type || '',
+            startDate: d.startDate || '', multiDay: !!d.multiDay, endDate: d.endDate || '',
+            startTime: d.startTime || '', endTime: d.endTime || '',
+            confirmation: d.confirmation || '', cost: d.cost != null ? d.cost : null, costNote: d.costNote || '',
+            paymentStatus: d.paymentStatus || '', contact: d.contact || '', address: d.address || '',
+            link: d.link || '', notes: d.notes || '', sortOrder: d.sortOrder || 0,
+            photos: []
+        });
+    });
+
+    if (includePhotos && bookings.length) {
+        onProgress('Reading booking screenshots…');
+        const bpSnap = await lpSub(projectId, 'bookingPhotos').get();
+        const byBooking = {};
+        bpSnap.forEach(doc => {
+            const d = doc.data();
+            (byBooking[d.bookingId] = byBooking[d.bookingId] || []).push({ imageData: d.imageData || '', caption: d.caption || '' });
+        });
+        bookings.forEach(b => { b.photos = byBooking[bookingDocIdByExportId[b.exportId]] || []; });
+    }
+
+    // Item photos index, grouped by the item's own internal id (not a Firestore doc id —
+    // items live embedded in a day/planningGroup doc's items[] array).
+    const itemPhotosByItemId = {};
+    itemPhotoSnap.forEach(doc => {
+        const d = doc.data();
+        (itemPhotosByItemId[d.itemId] = itemPhotosByItemId[d.itemId] || []).push({ photoDocId: doc.id, name: d.name || '' });
+    });
+
+    // Fetch the actual image bytes one doc at a time — itemPhotoData is deliberately
+    // split from itemPhotos so browsing the itinerary never has to download every image.
+    const itemPhotoDataCache = {};
+    if (includePhotos) {
+        const allPhotoIds = [];
+        Object.values(itemPhotosByItemId).forEach(list => list.forEach(ph => allPhotoIds.push(ph.photoDocId)));
+        for (let i = 0; i < allPhotoIds.length; i++) {
+            onProgress(`Reading item photos (${i + 1}/${allPhotoIds.length})…`);
+            const pid = allPhotoIds[i];
+            const dataDoc = await lpSub(projectId, 'itemPhotoData').doc(pid).get();
+            itemPhotoDataCache[pid] = dataDoc.exists ? (dataDoc.data().imageData || '') : '';
+        }
+    }
+
+    // Shared mapper for itinerary and planning-board items — same shape either way.
+    function mapItem(item) {
+        const photos = includePhotos
+            ? (itemPhotosByItemId[item.id] || []).map(ph => ({ name: ph.name, imageData: itemPhotoDataCache[ph.photoDocId] || '' }))
+            : [];
+        return {
+            title: item.title || '',
+            status: item.status || 'idea',
+            type: item.type || 'none',
+            activitySubType: item.activitySubType || 'other',
+            itemDownloaded: !!item.itemDownloaded,
+            time: item.time || '',
+            duration: item.duration || '',
+            leaveTime: item.leaveTime || '',
+            onTimeline: !!item.onTimeline,
+            noTravelNeeded: !!item.noTravelNeeded,
+            cost: item.cost != null ? item.cost : null,
+            costNote: item.costNote || '',
+            confirmation: item.confirmation || '',
+            contact: item.contact || '',
+            notes: item.notes || '',
+            facts: item.facts || [],
+            links: item.links || [], // legacy per-item links (old data)
+            locationId: (item.locationId && locExportIdByProjLocId[item.locationId]) || null,
+            toLocationId: (item.toLocationId && locExportIdByProjLocId[item.toLocationId]) || null,
+            bookingRef: (item.bookingRef && bookingExportIdByDocId[item.bookingRef]) || null,
+            showOnCalendar: !!item.showOnCalendar,
+            sortOrder: item.sortOrder || 0,
+            photos
+        };
+    }
+
+    onProgress('Reading itinerary…');
+    const days = [];
+    daySnap.forEach(doc => {
+        const d = doc.data();
+        days.push({
+            date: d.date || '', label: d.label || '', location: d.location || '',
+            sortOrder: d.sortOrder || 0,
+            items: (d.items || []).map(mapItem)
+        });
+    });
+
+    onProgress('Reading planning board…');
+    const planningGroups = [];
+    pgSnap.forEach(doc => {
+        const d = doc.data();
+        planningGroups.push({
+            name: d.name || '', sortOrder: d.sortOrder || 0,
+            items: (d.items || []).map(mapItem)
+        });
+    });
+
+    const todoItems = [];
+    todoSnap.forEach(doc => {
+        const d = doc.data();
+        todoItems.push({ text: d.text || '', done: !!d.done, notes: d.notes || '', sortOrder: d.sortOrder || 0 });
+    });
+
+    const packingItems = [];
+    packingSnap.forEach(doc => {
+        const d = doc.data();
+        packingItems.push({ text: d.text || '', done: !!d.done, notes: d.notes || '', category: d.category || 'Gear / Other', sortOrder: d.sortOrder || 0 });
+    });
+
+    const projectNotes = [];
+    noteSnap.forEach(doc => {
+        const d = doc.data();
+        projectNotes.push({ title: d.title || '', text: d.text || '', facts: d.facts || [], sortOrder: d.sortOrder || 0 });
+    });
+
+    let projectPhotos = [];
+    if (includePhotos) {
+        onProgress('Reading project gallery…');
+        const ppSnap = await lpSub(projectId, 'projectPhotos').get();
+        ppSnap.forEach(doc => {
+            const d = doc.data();
+            projectPhotos.push({ imageData: d.imageData || '', caption: d.caption || '' });
+        });
+    }
+
+    return {
+        exportVersion: LP_EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        sourceApp: 'Bishop',
+        includesPhotos: includePhotos,
+        project: {
+            title: p.title || '', description: p.description || '', template: p.template || 'vacation',
+            status: p.status || 'planning', mode: p.mode || 'planning', archived: !!p.archived,
+            startDate: p.startDate || null, endDate: p.endDate || null,
+            bookingTypes: p.bookingTypes || [...LP_DEFAULT_BOOKING_TYPES],
+            links: p.links || []
+            // people intentionally omitted — contacts don't carry over between accounts
+        },
+        locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos
+    };
+}
+
+/** Lowercase, hyphenated filename stem from a project title. */
+function _lpSlugify(str) {
+    return (str || 'project').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'project';
+}
+
+/** Trigger a browser download of a JSON string as a named file. */
+function _lpDownloadJson(filename, jsonString) {
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Handle file selection for the round-trip "Import" button (list page). */
+function _lpHandleFullImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; // reset so the same file can be re-selected
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        let data;
+        try {
+            data = JSON.parse(e.target.result);
+        } catch (err) {
+            alert('Error reading file: ' + err.message);
+            return;
+        }
+        if (!data.exportVersion || !data.project || !data.project.title) {
+            alert('This doesn\'t look like a project exported from this app (missing exportVersion/project data).\n\nIf this is a hand-written or AI-converted trip file, use "Import External" instead.');
+            return;
+        }
+        if (data.exportVersion > LP_EXPORT_VERSION) {
+            if (!confirm('This file was exported by a newer version of the app and may not import correctly here. Continue anyway?')) return;
+        }
+        _lpExecuteFullImport(data);
+    };
+    reader.readAsText(file);
+}
+
+/** Create a brand-new project from a full round-trip export. No people-linking step —
+ *  people are never part of this export format. Reuses the same progress modal as
+ *  "Import External" since only one import flow can run at a time. */
+async function _lpExecuteFullImport(d) {
+    openModal('lpImportProgressModal');
+    const prog = document.getElementById('lpImportProgressBody');
+
+    try {
+        const p = d.project || {};
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+
+        prog.innerHTML = '<p>Creating project…</p>';
+        const projectDoc = {
+            title: p.title || 'Imported Project',
+            description: p.description || '',
+            template: p.template || 'vacation',
+            status: p.status || 'planning',
+            mode: p.mode || 'planning',
+            archived: !!p.archived,
+            startDate: p.startDate || null,
+            endDate: p.endDate || null,
+            targetType: 'life',
+            targetId: null,
+            people: [], // not part of a round-trip export
+            bookingTypes: (p.bookingTypes && p.bookingTypes.length) ? p.bookingTypes : [...LP_DEFAULT_BOOKING_TYPES],
+            links: (p.links || []).map(l => ({ id: _lpItemId(), label: l.label || '', url: l.url || '' })),
+            createdAt: now,
+            updatedAt: now
+        };
+        const projectRef = await lpCol().add(projectDoc);
+        const projectId = projectRef.id;
+
+        // Locations — dedup by name against this account's existing location library,
+        // same behavior as "Import External" above.
+        const locationIdMap = {}; // exportId → { projLocId, globalId }
+        if (d.locations && d.locations.length) {
+            prog.innerHTML = `<p>Importing ${d.locations.length} locations…</p>`;
+
+            const existingSnap = await lpLocationsCol().get();
+            const existingByName = {};
+            existingSnap.forEach(doc => {
+                const n = (doc.data().name || '').trim().toLowerCase();
+                if (n) existingByName[n] = { id: doc.id, ...doc.data() };
+            });
+
+            const projLocBatch = firebase.firestore().batch();
+            for (const loc of d.locations) {
+                const nameKey = (loc.name || '').trim().toLowerCase();
+                let firestoreId;
+                let locData = {
+                    name: loc.name || '', address: loc.address || '', phone: loc.phone || '',
+                    website: loc.website || '', contact: loc.contact || '', notes: loc.notes || '',
+                    lat: loc.lat != null ? loc.lat : null, lng: loc.lng != null ? loc.lng : null
+                };
+
+                if (existingByName[nameKey]) {
+                    firestoreId = existingByName[nameKey].id;
+                    locData = { ...existingByName[nameKey], id: undefined };
+                } else {
+                    const newRef = await lpLocationsCol().add({ ...locData, createdAt: now });
+                    firestoreId = newRef.id;
+                    existingByName[nameKey] = { id: firestoreId, ...locData };
+                }
+
+                const projLocRef = lpSub(projectId, 'projectLocations').doc();
+                projLocBatch.set(projLocRef, {
+                    locationId: firestoreId,
+                    name: locData.name || '', address: locData.address || '', phone: locData.phone || '',
+                    website: locData.website || '', contact: locData.contact || '', notes: locData.notes || '',
+                    lat: locData.lat != null ? locData.lat : null, lng: locData.lng != null ? locData.lng : null,
+                    addedAt: now
+                });
+                locationIdMap[loc.exportId] = { projLocId: projLocRef.id, globalId: firestoreId };
+            }
+            await projLocBatch.commit();
+        }
+
+        // Distances
+        if (d.distances && d.distances.length) {
+            prog.innerHTML = `<p>Importing ${d.distances.length} distances…</p>`;
+            const existingDistSnap = await lpDistancesCol().get();
+            const existingPairs = new Set();
+            existingDistSnap.forEach(doc => {
+                const { fromLocationId, toLocationId } = doc.data();
+                if (fromLocationId && toLocationId) existingPairs.add(`${fromLocationId}|${toLocationId}`);
+            });
+
+            const distBatch = firebase.firestore().batch();
+            for (const dist of d.distances) {
+                const fromEntry = locationIdMap[dist.fromLocationId];
+                const toEntry = locationIdMap[dist.toLocationId];
+                if (!fromEntry || !toEntry) continue;
+                const pairKey = `${fromEntry.globalId}|${toEntry.globalId}`;
+                if (existingPairs.has(pairKey)) continue;
+                const distRef = lpDistancesCol().doc();
+                distBatch.set(distRef, {
+                    fromLocationId: fromEntry.globalId, toLocationId: toEntry.globalId,
+                    time: dist.time || '', miles: dist.miles != null ? dist.miles : null,
+                    mode: dist.mode || 'drive', notes: dist.notes || '', createdAt: now
+                });
+                existingPairs.add(pairKey);
+            }
+            await distBatch.commit();
+        }
+
+        // Bookings
+        const bookingIdMap = {}; // exportId → new Firestore doc id
+        if (d.bookings && d.bookings.length) {
+            prog.innerHTML = `<p>Creating ${d.bookings.length} bookings…</p>`;
+            const batch = firebase.firestore().batch();
+            d.bookings.forEach(b => {
+                const ref = lpSub(projectId, 'bookings').doc();
+                batch.set(ref, {
+                    name: b.name || '', type: b.type || '',
+                    startDate: b.startDate || '', multiDay: !!b.multiDay, endDate: b.endDate || '',
+                    startTime: b.startTime || '', endTime: b.endTime || '',
+                    confirmation: b.confirmation || '', cost: b.cost != null ? b.cost : null, costNote: b.costNote || '',
+                    paymentStatus: b.paymentStatus || '', contact: b.contact || '', address: b.address || '',
+                    link: b.link || '', notes: b.notes || '', sortOrder: b.sortOrder || 0
+                });
+                bookingIdMap[b.exportId] = ref.id;
+            });
+            await batch.commit();
+
+            // Booking screenshots — each doc carries its own imageData inline, so keep
+            // write batches small (payload size, not just op count, is the real cap here).
+            const bkPhotos = [];
+            d.bookings.forEach(b => {
+                (b.photos || []).forEach(ph => {
+                    if (ph.imageData) bkPhotos.push({ bookingId: bookingIdMap[b.exportId], imageData: ph.imageData, caption: ph.caption || '' });
+                });
+            });
+            if (bkPhotos.length) {
+                prog.innerHTML = `<p>Importing ${bkPhotos.length} booking screenshots…</p>`;
+                for (let i = 0; i < bkPhotos.length; i += 30) {
+                    const chunk = bkPhotos.slice(i, i + 30);
+                    const batch2 = firebase.firestore().batch();
+                    chunk.forEach(ph => batch2.set(lpSub(projectId, 'bookingPhotos').doc(), { ...ph, createdAt: now }));
+                    await batch2.commit();
+                }
+            }
+        }
+
+        // Days + planning groups (+ collect item photos to write after, since items are
+        // embedded arrays and each item needs a freshly-generated internal id first)
+        const itemPhotoWrites = []; // { itemId, name, imageData }
+        function mapImportItem(item) {
+            const id = _lpItemId();
+            (item.photos || []).forEach(ph => {
+                if (ph.imageData) itemPhotoWrites.push({ itemId: id, name: ph.name || '', imageData: ph.imageData });
+            });
+            const fromEntry = item.locationId ? locationIdMap[item.locationId] : null;
+            const toEntry = item.toLocationId ? locationIdMap[item.toLocationId] : null;
+            return {
+                id,
+                title: item.title || '',
+                status: item.status || 'idea',
+                type: item.type || 'none',
+                activitySubType: item.activitySubType || 'other',
+                itemDownloaded: !!item.itemDownloaded,
+                time: item.time || '',
+                duration: item.duration || '',
+                leaveTime: item.leaveTime || '',
+                onTimeline: !!item.onTimeline,
+                noTravelNeeded: !!item.noTravelNeeded,
+                cost: item.cost != null ? item.cost : null,
+                costNote: item.costNote || '',
+                confirmation: item.confirmation || '',
+                contact: item.contact || '',
+                notes: item.notes || '',
+                facts: item.facts || [],
+                links: item.links || [],
+                locationId: fromEntry ? fromEntry.projLocId : null,
+                toLocationId: toEntry ? toEntry.projLocId : null,
+                bookingRef: (item.bookingRef && bookingIdMap[item.bookingRef]) || null,
+                showOnCalendar: !!item.showOnCalendar,
+                sortOrder: item.sortOrder || 0
+            };
+        }
+
+        if (d.days && d.days.length) {
+            prog.innerHTML = `<p>Creating ${d.days.length} days with itinerary…</p>`;
+            const batch = firebase.firestore().batch();
+            d.days.forEach(day => {
+                const ref = lpSub(projectId, 'days').doc();
+                batch.set(ref, {
+                    date: day.date || '', label: day.label || '', location: day.location || '',
+                    sortOrder: day.sortOrder || 0,
+                    items: (day.items || []).map(mapImportItem)
+                });
+            });
+            await batch.commit();
+        }
+
+        if (d.planningGroups && d.planningGroups.length) {
+            prog.innerHTML = `<p>Creating ${d.planningGroups.length} planning groups…</p>`;
+            const batch = firebase.firestore().batch();
+            d.planningGroups.forEach(g => {
+                const ref = lpSub(projectId, 'planningGroups').doc();
+                batch.set(ref, {
+                    name: g.name || '', sortOrder: g.sortOrder || 0,
+                    items: (g.items || []).map(mapImportItem)
+                });
+            });
+            await batch.commit();
+        }
+
+        // Item photos — two docs each (index + data), small chunks for the same
+        // payload-size reason as booking screenshots above.
+        if (itemPhotoWrites.length) {
+            prog.innerHTML = `<p>Importing ${itemPhotoWrites.length} item photos…</p>`;
+            for (let i = 0; i < itemPhotoWrites.length; i += 15) {
+                const chunk = itemPhotoWrites.slice(i, i + 15);
+                const batch = firebase.firestore().batch();
+                chunk.forEach(ph => {
+                    const ref = lpSub(projectId, 'itemPhotos').doc();
+                    batch.set(ref, { itemId: ph.itemId, name: ph.name, sortOrder: 0, createdAt: now });
+                    batch.set(lpSub(projectId, 'itemPhotoData').doc(ref.id), { imageData: ph.imageData });
+                });
+                await batch.commit();
+            }
+        }
+
+        // To-dos
+        if (d.todoItems && d.todoItems.length) {
+            prog.innerHTML = `<p>Creating ${d.todoItems.length} to-do items…</p>`;
+            const batch = firebase.firestore().batch();
+            d.todoItems.forEach(t => {
+                const ref = lpSub(projectId, 'todoItems').doc();
+                batch.set(ref, { text: t.text || '', done: !!t.done, notes: t.notes || '', sortOrder: t.sortOrder || 0 });
+            });
+            await batch.commit();
+        }
+
+        // Packing items
+        if (d.packingItems && d.packingItems.length) {
+            prog.innerHTML = `<p>Creating ${d.packingItems.length} packing items…</p>`;
+            const batch = firebase.firestore().batch();
+            d.packingItems.forEach(item => {
+                const ref = lpSub(projectId, 'packingItems').doc();
+                batch.set(ref, { text: item.text || '', done: !!item.done, notes: item.notes || '', category: item.category || 'Gear / Other', sortOrder: item.sortOrder || 0 });
+            });
+            await batch.commit();
+        }
+
+        // Notes
+        if (d.projectNotes && d.projectNotes.length) {
+            prog.innerHTML = `<p>Creating ${d.projectNotes.length} notes…</p>`;
+            const batch = firebase.firestore().batch();
+            d.projectNotes.forEach(n => {
+                const ref = lpSub(projectId, 'projectNotes').doc();
+                batch.set(ref, { title: n.title || '', text: n.text || '', facts: n.facts || [], createdAt: now, sortOrder: n.sortOrder || 0 });
+            });
+            await batch.commit();
+        }
+
+        // Project gallery photos — inline imageData, small chunks
+        if (d.projectPhotos && d.projectPhotos.length) {
+            const validPhotos = d.projectPhotos.filter(ph => ph.imageData);
+            if (validPhotos.length) {
+                prog.innerHTML = `<p>Importing ${validPhotos.length} gallery photos…</p>`;
+                for (let i = 0; i < validPhotos.length; i += 30) {
+                    const chunk = validPhotos.slice(i, i + 30);
+                    const batch = firebase.firestore().batch();
+                    chunk.forEach(ph => batch.set(lpSub(projectId, 'projectPhotos').doc(), { imageData: ph.imageData, caption: ph.caption || '', createdAt: now }));
+                    await batch.commit();
+                }
+            }
+        }
+
+        closeModal('lpImportProgressModal');
+        location.hash = '#life-project/' + projectId;
+
+    } catch (err) {
+        console.error('Full import error:', err);
         prog.innerHTML = `<p style="color:red;">Error: ${err.message}</p>
             <button class="btn" style="margin-top:12px;" onclick="closeModal('lpImportProgressModal')">Close</button>`;
     }

@@ -1856,7 +1856,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ### Quick Help
 - The **Projects** list -- every Life Project you've created, shown as cards. Breadcrumb: Life › Projects
 - Each card shows a template icon, title, date range, description, and a color-coded **status badge**
-- Tap a card to open the project. Use **+ New Project** to start one, or **📥 Import** to load one from a JSON file
+- Tap a card to open the project. Use **+ New Project** to start one, **📥 Import** to load a project someone exported from this app, or **📥 Import External** to load a hand-written or AI-converted trip file
 - **Show archived** reveals projects you've set aside. Archiving hides a project without deleting it
 - **Reorder** the cards by dragging the **⠿ handle** on the left of each card; new projects start at the top until you arrange them
 - Each card also has **Edit** (change title/description/dates), **Archive/Unarchive**, and **Delete**
@@ -1875,7 +1875,11 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **Archive vs. Delete:** **Archive** tucks a finished or shelved project out of the default list while keeping all its data -- toggle **Show archived** to see and unarchive it. **Delete** permanently removes the project *and cascades* -- every day, booking, photo, to-do, packing item, note, planning group, and location link is deleted with it. Deletion cannot be undone.
 
-**Import from JSON:** **📥 Import** reads a `.json` file describing a full project (the project, its days and itinerary items, bookings, to-dos, packing items, notes, locations, and distances) and recreates it in your account. During import you're walked through a **people-linking** step -- for each person named in the file you can search your Contacts and link them, or choose **Don't Link** to skip. Locations already in your account are reused (matched by name) rather than duplicated. When it finishes, you land on the new project's detail page.
+**Two Import buttons, two different jobs:**
+- **📥 Import** is the other half of **⬇️ Export** (found inside a project, see Project Detail help) -- it reads a `.json` file that this app itself produced and recreates the project **exactly**, including item types, sub types, downloaded checkboxes, both ends of a Drive/Flight/Travel item's route, and photos if the export included them. This is how you hand a whole trip to someone else, or back one up. There's no people-linking step -- people aren't part of an export, since your contacts don't exist in the other person's account.
+- **📥 Import External** reads a simpler `.json` file -- a hand-written or AI-converted trip file, not something exported from this app (it predates the Export feature and doesn't carry photos, item types, or a few of the newer fields). During import you're walked through a **people-linking** step -- for each person named in the file you can search your Contacts and link them, or choose **Don't Link** to skip.
+
+Both reuse locations already in your account (matched by name) rather than duplicating them, and both land you on the new project's detail page when they finish.
 
 ---
 
@@ -1884,6 +1888,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ### Quick Help
 - One project's full workspace -- **Trip Info, Itinerary, Bookings, Packing**, and more, each a collapsible section. Breadcrumb: Life › Projects › {title}
 - The **Planning ⇄ Travel mode** toggle in the header changes what's shown -- Planning shows everything; Travel strips it down to what you need on the trip
+- **⬇️ Export** in the header downloads this project as a `.json` file, so it can be handed to someone else or kept as a backup -- see **Export** below
 - The **search box** at the top filters every section at once -- days, bookings, to-dos, packing, and notes
 - **Trip Info** shows a **cost rollup** totaling booking costs plus itinerary item costs
 - Most editing happens in a shared item modal -- Cancel/Save at the bottom, and **Delete lives inside the edit modal**
@@ -1898,6 +1903,8 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 **Search:** The search box at the top of the page hides non-matching content across every section in real time -- day cards, bookings, to-dos, packing items, and notes.
 
 **Deleting the project:** Deleting the whole project (from the Projects list) cascades to all of its days, bookings, photos, to-dos, packing items, notes, planning groups, and location links.
+
+**Export:** **⬇️ Export** in the header downloads everything in this project as one `.json` file -- itinerary, bookings, locations, distances, to-dos, packing list, notes, and links -- so another person can **📥 Import** it into their own Bishop account, or so you have a backup. Only **people** are left out, since contacts are specific to your account and wouldn't mean anything on the other end. You're asked whether to **include photos** before it downloads -- each photo runs roughly 100–350KB, so a photo-heavy trip makes for a noticeably bigger file; leave it unchecked for a smaller, text-only export. A progress screen shows what's being gathered, and tells you the final file size when it's done.
 
 ---
 
