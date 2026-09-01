@@ -7588,8 +7588,24 @@ async function _lpBuildPrintDocument(onProgress) {
     let bookingCostTotal = 0;
     bookings.forEach(b => { if (b.cost != null && !isNaN(b.cost)) bookingCostTotal += Number(b.cost); });
     let itemCostTotal = 0;
-    days.forEach(d => (d.items || []).forEach(it => { if (it.cost != null && !isNaN(it.cost)) itemCostTotal += Number(it.cost); }));
+    const costByType = {};
+    days.forEach(d => (d.items || []).forEach(it => {
+        if (it.cost != null && !isNaN(it.cost)) {
+            const c = Number(it.cost);
+            itemCostTotal += c;
+            const key = (it.type && it.type !== 'none') ? it.type : 'other';
+            costByType[key] = (costByType[key] || 0) + c;
+        }
+    }));
     const grandTotal = bookingCostTotal + itemCostTotal;
+    // Same breakdown format as the Trip Info accordion's cost line: bookings first,
+    // then item types in a fixed readable order, omitting any $0 bucket.
+    const costBreakdownParts = [];
+    if (bookingCostTotal > 0) costBreakdownParts.push('bookings: $' + bookingCostTotal.toFixed(2));
+    ['hotel', 'flight', 'travel', 'drive', 'activity', 'other'].forEach(key => {
+        const v = costByType[key] || 0;
+        if (v > 0) costBreakdownParts.push(key + ': $' + v.toFixed(2));
+    });
 
     const esc = _lpEsc;
     const fmtDate = iso => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
@@ -7693,8 +7709,15 @@ async function _lpBuildPrintDocument(onProgress) {
     function dayItemsHtml(items) {
         let html = '';
         let lastTimeline = null;
-        (items || []).forEach(item => {
-            if (item.onTimeline && lastTimeline) html += travelLineHtml(lastTimeline, item);
+        (items || []).forEach((item, idx) => {
+            const hasTravelLine = item.onTimeline && lastTimeline;
+            if (hasTravelLine) {
+                html += travelLineHtml(lastTimeline, item);
+            } else if (idx > 0) {
+                // A short centered rule between items when there's no travel-line
+                // already doing that job.
+                html += '<hr class="item-sep">';
+            }
             html += itemHtml(item);
             if (item.onTimeline) lastTimeline = item;
         });
@@ -7705,7 +7728,7 @@ async function _lpBuildPrintDocument(onProgress) {
     const dateRange = p.startDate ? `${fmtDate(p.startDate)}${p.endDate ? ' – ' + fmtDate(p.endDate) : ''}` : '';
     const travelers = (p.people || []).map(pe => pe.name).filter(Boolean).join(', ');
     const costLine = grandTotal > 0
-        ? `<div><strong>Estimated total cost:</strong> $${grandTotal.toFixed(2)}${bookingCostTotal > 0 && itemCostTotal > 0 ? ` (bookings: $${bookingCostTotal.toFixed(2)}, itinerary: $${itemCostTotal.toFixed(2)})` : ''}</div>`
+        ? `<div><strong>Estimated total cost:</strong> $${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${costBreakdownParts.length ? ` (${costBreakdownParts.join(', ')})` : ''}</div>`
         : '';
 
     const summaryHtml = `
@@ -7723,7 +7746,7 @@ async function _lpBuildPrintDocument(onProgress) {
         <h2>Itinerary</h2>
         ${days.map(d => `
             <div class="day">
-                <h3>${esc(d.label || fmtDate(d.date))}</h3>
+                <h3 class="day-title">${esc(d.label || fmtDate(d.date))}</h3>
                 ${dayItemsHtml(d.items)}
             </div>
         `).join('')}` : '';
@@ -7828,9 +7851,11 @@ async function _lpBuildPrintDocument(onProgress) {
     .print-toolbar button { font-size: 0.95em; padding: 8px 16px; cursor: pointer; }
     .summary { margin-bottom: 12px; }
     .date-range { color: #555; margin-bottom: 6px; }
-    .day { break-before: page; padding-top: 4px; }
-    .day:first-of-type { break-before: avoid; }
-    .item { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; break-inside: avoid; }
+    .day { break-before: page; margin-top: 56px; padding-top: 16px; }
+    .day:first-of-type { break-before: avoid; margin-top: 0; padding-top: 0; }
+    .day-title { font-size: 1.6em; font-weight: 700; margin: 0 0 16px; border-bottom: 2px solid #333; padding-bottom: 6px; break-after: avoid; }
+    .item-sep { border: none; border-top: 2px solid #ccc; width: 70px; margin: 24px auto; }
+    .item { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; break-inside: avoid; }
     .item-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .item-title { font-weight: 600; font-size: 1.02em; }
     .badge { font-size: 0.72em; padding: 1px 8px; border-radius: 10px; font-weight: 600; background: #eee; }
