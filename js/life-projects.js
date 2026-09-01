@@ -7950,11 +7950,11 @@ async function _lpBuildPrintDocument(onProgress) {
     .date-range { color: #555; margin-bottom: 6px; }
     .day { break-before: page; margin-top: 56px; padding-top: 16px; }
     .day:first-of-type { break-before: avoid; margin-top: 0; padding-top: 0; }
-    .day-title { font-size: 1.6em; font-weight: 700; margin: 0 0 16px; border-bottom: 2px solid #333; padding-bottom: 6px; break-after: avoid; }
-    .item-sep { border: none; border-top: 2px solid #ccc; width: 70px; margin: 24px auto; }
-    .item { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; break-inside: avoid; }
+    .day-title { font-size: 2.1em; font-weight: 700; color: #b91c1c; margin: 0 0 18px; border-bottom: 2px solid #b91c1c; padding-bottom: 8px; break-after: avoid; }
+    .item-sep { border: none; border-top: 2px solid #ccc; width: 70px; margin: 32px auto; }
+    .item { border: 1px solid #ddd; border-radius: 6px; padding: 10px 14px; margin-bottom: 26px; break-inside: avoid; }
     .item-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .item-title { font-weight: 600; font-size: 1.02em; }
+    .item-title { font-weight: 700; font-size: 1.35em; color: #7e22ce; }
     .badge { font-size: 0.72em; padding: 1px 8px; border-radius: 10px; font-weight: 600; background: #eee; }
     .badge-type { background: #e0e7ff; color: #3730a3; }
     .item-time { font-size: 0.85em; color: #555; margin-top: 3px; }
