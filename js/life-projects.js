@@ -622,7 +622,7 @@ function _lpRenderDetailPage(page) {
             <h2 style="flex:1; min-width:0;">${tpl.icon} ${_lpEsc(p.title)}</h2>
             <div style="display:flex; gap:6px; align-items:center;">
                 <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;">${st.label}</span>
-                <button class="btn btn-small" onclick="_lpPrintProject()" title="Print or save the full project as a PDF">🖨️ Print</button>
+                <button class="btn btn-small" onclick="_lpOpenPrintChoiceModal()" title="Print to PDF, or save the whole trip as a standalone HTML file">🖨️ Print</button>
                 <button class="btn btn-small" onclick="_lpOpenExportModal()" title="Export this project to a JSON file you can share">⬇️ Export</button>
                 <button class="btn btn-small" onclick="_lpToggleMode()" id="lpModeToggle" title="Switch mode">
                     ${p.mode === 'travel' ? '🧳 Travel' : '📝 Planning'}
@@ -802,6 +802,28 @@ function _lpRenderDetailPage(page) {
                 </div>
             </div>
 
+            <!-- Print / Save choice modal -->
+            <div class="modal-overlay" id="lpPrintChoiceModal">
+                <div class="modal" style="max-width:400px;">
+                    <h3>Print / Save Project</h3>
+                    <p style="font-size:0.9em; color:#666; margin:0 0 10px;">A full paper-ready copy of this project — itinerary, bookings, packing, notes, photos, and a full locations reference. Choose how you want it:</p>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="radio" name="lpPrintMode" value="pdf" checked onchange="_lpUpdatePrintChoiceBtn()">
+                            <span><strong>Print to PDF</strong><br><span style="font-size:0.8em; color:#999;">Opens in a new tab; use your browser's print dialog to print or Save as PDF.</span></span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="radio" name="lpPrintMode" value="html" onchange="_lpUpdatePrintChoiceBtn()">
+                            <span><strong>Save as HTML</strong><br><span style="font-size:0.8em; color:#999;">Downloads one standalone file with everything embedded — hand it to anyone and they can open it in a browser.</span></span>
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn" onclick="closeModal('lpPrintChoiceModal')">Cancel</button>
+                        <button class="btn btn-primary" id="lpPrintChoiceBtn" onclick="_lpRunPrintChoice()">Print</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Export options modal -->
             <div class="modal-overlay" id="lpExportModal">
                 <div class="modal" style="max-width:420px;">
@@ -819,10 +841,10 @@ function _lpRenderDetailPage(page) {
                 </div>
             </div>
 
-            <!-- Export progress modal -->
+            <!-- Export / Save-as-HTML progress modal (shared — only one such flow runs at a time) -->
             <div class="modal-overlay" id="lpExportProgressModal">
                 <div class="modal">
-                    <h3>Exporting Project…</h3>
+                    <h3 id="lpExportProgressTitle">Exporting Project…</h3>
                     <div id="lpExportProgressBody" style="padding:12px 0;">
                         <p style="color:#666;">Gathering project data…</p>
                     </div>
@@ -6907,6 +6929,7 @@ function _lpOpenExportModal() {
 async function _lpRunExport() {
     const includePhotos = document.getElementById('lpExportIncludePhotos').checked;
     closeModal('lpExportModal');
+    document.getElementById('lpExportProgressTitle').textContent = 'Exporting Project…';
     openModal('lpExportProgressModal');
     const prog = document.getElementById('lpExportProgressBody');
     prog.innerHTML = '<p>Starting export…</p>';
@@ -7151,7 +7174,12 @@ function _lpSlugify(str) {
 
 /** Trigger a browser download of a JSON string as a named file. */
 function _lpDownloadJson(filename, jsonString) {
-    const blob = new Blob([jsonString], { type: 'application/json' });
+    _lpDownloadFile(filename, jsonString, 'application/json');
+}
+
+/** Trigger a browser download of arbitrary text content as a named file. */
+function _lpDownloadFile(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -7470,19 +7498,73 @@ async function _lpExecuteFullImport(d) {
 }
 
 // ============================================================
-// Print / Save as PDF
+// Print / Save as PDF  +  Save as HTML
 //
-// Opens a standalone print-friendly document in a new tab (its own HTML/CSS,
-// entirely separate from the app's own pages/CSS) and triggers the browser's
-// print dialog, where "Save as PDF" produces the actual file — no PDF library
-// needed. Everything is read fresh from Firestore (like Export) rather than
-// relying on the page's cached globals, which may not be loaded for lazy
-// accordion sections. Blank fields are omitted throughout.
+// Both share the same standalone document built by _lpBuildPrintDocument —
+// its own HTML/CSS, entirely self-contained (photos embedded as Base64,
+// no external resources) so it works equally well opened for printing or
+// handed to someone else as a single file. Everything is read fresh from
+// Firestore (like Export) rather than relying on the page's cached globals,
+// which may not be loaded for lazy accordion sections. Blank fields are
+// omitted throughout.
 // ============================================================
 
-/** Entry point for the 🖨️ Print button. Opens the target window SYNCHRONOUSLY
- *  (before any await) so browsers don't treat it as a blocked popup — then
- *  fills it in once the async data-gathering finishes. */
+/** Entry point for the 🖨️ Print button — opens the choice modal (Print to
+ *  PDF vs. Save as HTML) rather than acting immediately. */
+function _lpOpenPrintChoiceModal() {
+    const pdfRadio = document.querySelector('input[name="lpPrintMode"][value="pdf"]');
+    if (pdfRadio) pdfRadio.checked = true;
+    _lpUpdatePrintChoiceBtn();
+    openModal('lpPrintChoiceModal');
+}
+
+/** Keeps the action button's label in sync with the selected radio ("Print" for
+ *  PDF, "Save" for HTML). */
+function _lpUpdatePrintChoiceBtn() {
+    const mode = document.querySelector('input[name="lpPrintMode"]:checked')?.value || 'pdf';
+    const btn = document.getElementById('lpPrintChoiceBtn');
+    if (btn) btn.textContent = mode === 'html' ? 'Save' : 'Print';
+}
+
+function _lpRunPrintChoice() {
+    const mode = document.querySelector('input[name="lpPrintMode"]:checked')?.value || 'pdf';
+    closeModal('lpPrintChoiceModal');
+    if (mode === 'html') {
+        _lpSaveProjectHtml();
+    } else {
+        _lpPrintProject();
+    }
+}
+
+/** Save the same standalone document Print builds as a downloadable .html file —
+ *  a recipient just double-clicks it and opens it in any browser, with clickable
+ *  links and every photo already embedded, no internet connection needed. */
+async function _lpSaveProjectHtml() {
+    document.getElementById('lpExportProgressTitle').textContent = 'Saving Project as HTML…';
+    openModal('lpExportProgressModal');
+    const prog = document.getElementById('lpExportProgressBody');
+    prog.innerHTML = '<p>Starting…</p>';
+
+    try {
+        const html = await _lpBuildPrintDocument(msg => {
+            prog.innerHTML = `<p>${_lpEsc(msg)}</p>`;
+        });
+        const sizeKb = html.length / 1024;
+        const sizeLabel = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : Math.round(sizeKb) + ' KB';
+        const filename = _lpSlugify(_lpCurrentProject.title) + '-trip.html';
+        _lpDownloadFile(filename, html, 'text/html');
+        prog.innerHTML = `<p>✅ Downloaded <strong>${_lpEsc(filename)}</strong> (${sizeLabel}).</p>
+            <button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal('lpExportProgressModal')">Done</button>`;
+    } catch (err) {
+        console.error('Save HTML error:', err);
+        prog.innerHTML = `<p style="color:red;">Error building the file: ${_lpEsc(err.message)}</p>
+            <button class="btn" style="margin-top:12px;" onclick="closeModal('lpExportProgressModal')">Close</button>`;
+    }
+}
+
+/** Opens the target window SYNCHRONOUSLY (before any await) so browsers don't
+ *  treat it as a blocked popup — then fills it in once the async data-gathering
+ *  finishes. */
 function _lpPrintProject() {
     const win = window.open('', '_blank');
     if (!win) {
@@ -7628,9 +7710,23 @@ async function _lpBuildPrintDocument(onProgress) {
         `).join('')}</div>`;
     }
 
+    // A clickable link whose visible text is the full URL (so it can be read and
+    // copy-pasted from a printed PDF too, not just clicked in the HTML version),
+    // optionally preceded by a human label.
+    function linkHtml(url, label) {
+        if (!url) return '';
+        const href = _lpEscAttr(url);
+        const shown = esc(url);
+        return label ? `${esc(label)}: <a href="${href}">${shown}</a>` : `<a href="${href}">${shown}</a>`;
+    }
+
     function factsHtml(facts) {
         if (!facts || !facts.length) return '';
-        return `<div class="facts">${facts.map(f => `<div><strong>${esc(f.label || 'Fact')}:</strong> ${esc(f.value)}</div>`).join('')}</div>`;
+        return `<div class="facts">${facts.map(f => {
+            const isUrl = /^https?:\/\//i.test((f.value || '').trim());
+            const valHtml = isUrl ? linkHtml(f.value) : esc(f.value);
+            return `<div><strong>${esc(f.label || 'Fact')}:</strong> ${valHtml}</div>`;
+        }).join('')}</div>`;
     }
 
     // ---- One itinerary/planning item, fully expanded ----
@@ -7738,7 +7834,7 @@ async function _lpBuildPrintDocument(onProgress) {
             ${p.description ? `<p>${esc(p.description)}</p>` : ''}
             ${travelers ? `<div><strong>Travelers:</strong> ${esc(travelers)}</div>` : ''}
             ${costLine}
-            ${(p.links && p.links.length) ? `<div><strong>Links:</strong> ${p.links.map(l => `${esc(l.label || l.url)}: ${esc(l.url)}`).join(' &nbsp;|&nbsp; ')}</div>` : ''}
+            ${(p.links && p.links.length) ? `<div><strong>Links:</strong></div>${p.links.map(l => `<div>${linkHtml(l.url, l.label)}</div>`).join('')}` : ''}
         </div>`;
 
     // ---- Itinerary ----
@@ -7765,7 +7861,7 @@ async function _lpBuildPrintDocument(onProgress) {
             if (b.paymentStatus && LP_PAYMENT_STATUSES[b.paymentStatus]) meta.push(`<div><strong>Payment:</strong> ${esc(LP_PAYMENT_STATUSES[b.paymentStatus].label)}</div>`);
             if (b.contact) meta.push(`<div><strong>Contact:</strong> ${esc(b.contact)}</div>`);
             if (b.address) meta.push(`<div><strong>Address:</strong> ${esc(b.address)}</div>`);
-            if (b.link) meta.push(`<div><strong>Link:</strong> ${esc(b.link)}</div>`);
+            if (b.link) meta.push(`<div>${linkHtml(b.link, 'Link')}</div>`);
             if (b.notes) meta.push(`<div><strong>Notes:</strong> ${esc(b.notes)}</div>`);
             return `
                 <div class="item">
@@ -7817,7 +7913,7 @@ async function _lpBuildPrintDocument(onProgress) {
             const lines = [];
             if (l.address) lines.push(esc(l.address));
             if (l.phone) lines.push(esc(l.phone));
-            if (l.website) lines.push(esc(l.website));
+            if (l.website) lines.push(linkHtml(l.website));
             if (l.contact) lines.push('Contact: ' + esc(l.contact));
             if (l.lat != null && l.lng != null && l.lat !== '' && l.lng !== '') lines.push(l.lat + ', ' + l.lng);
             if (l.notes) lines.push(esc(l.notes));
@@ -7842,6 +7938,7 @@ async function _lpBuildPrintDocument(onProgress) {
 <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #1a1a1a; max-width: 850px; margin: 0 auto; padding: 24px; line-height: 1.45; }
+    a { color: #2563eb; word-break: break-all; }
     h1 { font-size: 1.6em; margin: 0 0 4px; }
     h2 { font-size: 1.25em; margin: 28px 0 10px; border-bottom: 2px solid #333; padding-bottom: 4px; break-after: avoid; }
     h3 { font-size: 1.05em; margin: 18px 0 8px; break-after: avoid; }
