@@ -7697,9 +7697,11 @@ async function _lpBuildPrintDocument(onProgress) {
         const loc = projLocId ? locByProjLocId[projLocId] : null;
         if (!loc) return '';
         const lines = [];
-        if (loc.address) lines.push(esc(loc.address));
+        if (loc.address) lines.push(mapsLinkHtml(loc.address, loc.address));
         if (loc.phone) lines.push(esc(loc.phone));
-        if (loc.lat != null && loc.lng != null && loc.lat !== '' && loc.lng !== '') lines.push(loc.lat + ', ' + loc.lng);
+        if (loc.lat != null && loc.lng != null && loc.lat !== '' && loc.lng !== '') {
+            lines.push(mapsLinkHtml(loc.lat + ', ' + loc.lng, loc.lat + ',' + loc.lng));
+        }
         return `<div class="loc-block"><strong>📍 ${esc(loc.name)}</strong>${lines.length ? '<br>' + lines.join('<br>') : ''}</div>`;
     }
 
@@ -7718,6 +7720,16 @@ async function _lpBuildPrintDocument(onProgress) {
         const href = _lpEscAttr(url);
         const shown = esc(url);
         return label ? `${esc(label)}: <a href="${href}">${shown}</a>` : `<a href="${href}">${shown}</a>`;
+    }
+
+    // A Google Maps link whose visible text is the given display text (an address
+    // or "lat, lng" pair), same URL scheme as _lpMapsUrl elsewhere in the app.
+    // Address and coordinates get their own separate link — coordinates are kept
+    // exact (the address text alone sometimes geocodes to the wrong spot, which is
+    // exactly why a location can have both).
+    function mapsLinkHtml(displayText, query) {
+        const href = _lpEscAttr('https://maps.google.com/?q=' + encodeURIComponent(query));
+        return `<a href="${href}" title="Open in Google Maps">${esc(displayText)}</a>`;
     }
 
     function factsHtml(facts) {
@@ -7911,11 +7923,11 @@ async function _lpBuildPrintDocument(onProgress) {
         <h2>Locations</h2>
         ${locations.map(l => {
             const lines = [];
-            if (l.address) lines.push(esc(l.address));
+            if (l.address) lines.push(mapsLinkHtml(l.address, l.address));
             if (l.phone) lines.push(esc(l.phone));
             if (l.website) lines.push(linkHtml(l.website));
             if (l.contact) lines.push('Contact: ' + esc(l.contact));
-            if (l.lat != null && l.lng != null && l.lat !== '' && l.lng !== '') lines.push(l.lat + ', ' + l.lng);
+            if (l.lat != null && l.lng != null && l.lat !== '' && l.lng !== '') lines.push(mapsLinkHtml(l.lat + ', ' + l.lng, l.lat + ',' + l.lng));
             if (l.notes) lines.push(esc(l.notes));
             return `<div class="item"><div class="item-head"><span class="item-title">${esc(l.name)}</span></div>${lines.length ? `<div class="item-meta">${lines.map(x => `<div>${x}</div>`).join('')}</div>` : ''}</div>`;
         }).join('')}` : '';
