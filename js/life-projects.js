@@ -664,6 +664,23 @@ function _lpRenderDetailPage(page) {
                                 <option value="hotel">Hotel</option>
                             </select>
                         </div>
+                        <div id="lpItSubTypeWrap" style="display:none;">
+                            <label class="form-label">Sub Type</label>
+                            <select id="lpItSubType" class="form-control" onchange="_lpApplyItemTypeUI()">
+                                <option value="other">Other</option>
+                                <option value="hike">Hike</option>
+                                <option value="sports">Sports Event</option>
+                                <option value="tour">Tour</option>
+                                <option value="viewpoint">Viewpoint</option>
+                                <option value="eat">Eat</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="show">Show</option>
+                            </select>
+                        </div>
+                        <div id="lpItDownloadedWrap" style="display:none; gap:8px; align-items:center;">
+                            <input type="checkbox" id="lpItDownloaded">
+                            <label for="lpItDownloaded" id="lpItDownloadedLabel" style="font-size:0.9em; margin:0; cursor:pointer;">Trail Map Downloaded</label>
+                        </div>
                         <div>
                             <label class="form-label">Start Time</label>
                             <input type="text" id="lpItTime" class="form-control" placeholder="e.g. 8:30am">
@@ -3129,6 +3146,20 @@ const LP_ITEM_STATUSES = {
     nope:      { label: 'Nope',      color: '#6b7280', bg: '#f3f4f6' }
 };
 
+/** Sub types for Activity-type items. `downloadLabel`, when present, is the label
+ *  shown on the shared "itemDownloaded" checkbox for that sub type (e.g. a trail
+ *  map for a Hike, tickets for a Sports Event). Legacy/missing items read as 'other'. */
+const LP_ACTIVITY_SUBTYPES = {
+    other:     { label: 'Other' },
+    hike:      { label: 'Hike', downloadLabel: 'Trail Map Downloaded' },
+    sports:    { label: 'Sports Event', downloadLabel: 'Tickets Downloaded' },
+    tour:      { label: 'Tour' },
+    viewpoint: { label: 'Viewpoint' },
+    eat:       { label: 'Eat' },
+    shopping:  { label: 'Shopping' },
+    show:      { label: 'Show' }
+};
+
 let _lpDays = [];
 
 /** Dates (YYYY-MM-DD) that have at least one journal entry — populated when itinerary loads */
@@ -3867,6 +3898,18 @@ function _lpItemDetailsContent(item, ctx) {
         </div>`);
     }
 
+    // Activity sub type + its shared "downloaded" checkbox (trail map / tickets / etc.)
+    if (item.type === 'activity') {
+        const subKey = item.activitySubType || 'other';
+        const sub = LP_ACTIVITY_SUBTYPES[subKey] || LP_ACTIVITY_SUBTYPES.other;
+        if (subKey !== 'other') {
+            parts.push(`<div><strong>Type:</strong> ${_lpEsc(sub.label)}</div>`);
+            if (sub.downloadLabel) {
+                parts.push(`<div>${item.itemDownloaded ? '✅' : '⬜'} ${_lpEsc(sub.downloadLabel)}</div>`);
+            }
+        }
+    }
+
     if (item.duration) parts.push(`<div><strong>Duration:</strong> ${_lpEsc(item.duration)}</div>`);
     if (!travel && item.cost != null && item.cost !== '') parts.push(`<div><strong>Cost:</strong> $${Number(item.cost).toFixed(2)}${item.costNote ? ` <span style="color:#888;">(${_lpEsc(item.costNote)})</span>` : ''}</div>`);
     // In travel mode, confirmation and contact are prominent
@@ -4460,6 +4503,8 @@ function _lpOpenItemModal(title, item, currentDayId) {
     document.getElementById('lpItTitle').value = item.title || '';
     document.getElementById('lpItStatus').value = item.status || 'idea';
     document.getElementById('lpItType').value = item.type || 'none'; // null/legacy → None
+    document.getElementById('lpItSubType').value = item.activitySubType || 'other'; // legacy/missing → Other
+    document.getElementById('lpItDownloaded').checked = !!item.itemDownloaded;
     document.getElementById('lpItTime').value = item.time || '';
     document.getElementById('lpItDuration').value = item.duration || '';
     document.getElementById('lpItCost').value = item.cost != null ? item.cost : '';
@@ -4585,6 +4630,20 @@ function _lpApplyItemTypeUI() {
     if (locLabel) locLabel.textContent = isTravelType ? 'From Location' : 'Location';
     const toWrap = document.getElementById('lpItToLocationWrap');
     if (toWrap) toWrap.style.display = isTravelType ? '' : 'none';
+
+    // Sub Type: only for Activity. The "itemDownloaded" checkbox is shared across
+    // sub types (e.g. a trail map for Hike, tickets for Sports Event) and only
+    // shows for the sub types that define a downloadLabel.
+    const subTypeWrap = document.getElementById('lpItSubTypeWrap');
+    if (subTypeWrap) subTypeWrap.style.display = type === 'activity' ? '' : 'none';
+
+    const subType = LP_ACTIVITY_SUBTYPES[document.getElementById('lpItSubType').value] || LP_ACTIVITY_SUBTYPES.other;
+    const downloadedWrap = document.getElementById('lpItDownloadedWrap');
+    if (downloadedWrap) {
+        downloadedWrap.style.display = (type === 'activity' && subType.downloadLabel) ? 'flex' : 'none';
+    }
+    const downloadedLabel = document.getElementById('lpItDownloadedLabel');
+    if (downloadedLabel && subType.downloadLabel) downloadedLabel.textContent = subType.downloadLabel;
 }
 
 /** Save handler for the item modal */
@@ -4604,6 +4663,8 @@ async function _lpSaveItemModal() {
         title,
         status: document.getElementById('lpItStatus').value,
         type: document.getElementById('lpItType').value || 'none',
+        activitySubType: document.getElementById('lpItSubType').value || 'other',
+        itemDownloaded: document.getElementById('lpItDownloaded').checked,
         time: document.getElementById('lpItTime').value.trim(),
         duration: document.getElementById('lpItDuration').value.trim(),
         cost,
