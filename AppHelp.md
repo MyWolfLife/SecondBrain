@@ -1889,6 +1889,7 @@ Both reuse locations already in your account (matched by name) rather than dupli
 - One project's full workspace -- **Trip Info, Itinerary, Bookings, Packing**, and more, each a collapsible section. Breadcrumb: Life › Projects › {title}
 - The **Planning ⇄ Travel mode** toggle in the header changes what's shown -- Planning shows everything; Travel strips it down to what you need on the trip
 - **⬇️ Export** in the header downloads this project as a `.json` file, so it can be handed to someone else or kept as a backup -- see **Export** below
+- **🖨️ Print** in the header opens a clean, print-ready version of the whole project in a new tab -- your browser's print dialog lets you print it or **Save as PDF** -- see **Print / Save as PDF** below
 - The **search box** at the top filters every section at once -- days, bookings, to-dos, packing, and notes
 - **Trip Info** shows a **cost rollup** totaling booking costs plus itinerary item costs
 - Most editing happens in a shared item modal -- Cancel/Save at the bottom, and **Delete lives inside the edit modal**
@@ -1905,6 +1906,8 @@ Both reuse locations already in your account (matched by name) rather than dupli
 **Deleting the project:** Deleting the whole project (from the Projects list) cascades to all of its days, bookings, photos, to-dos, packing items, notes, planning groups, and location links.
 
 **Export:** **⬇️ Export** in the header downloads everything in this project as one `.json` file -- itinerary, bookings, locations, distances, to-dos, packing list, notes, and links -- so another person can **📥 Import** it into their own Bishop account, or so you have a backup. Only **people** are left out, since contacts are specific to your account and wouldn't mean anything on the other end. You're asked whether to **include photos** before it downloads -- each photo runs roughly 100–350KB, so a photo-heavy trip makes for a noticeably bigger file; leave it unchecked for a smaller, text-only export. A progress screen shows what's being gathered, and tells you the final file size when it's done.
+
+**Print / Save as PDF:** **🖨️ Print** in the header opens a new tab with a clean, paper-ready copy of the whole project and immediately brings up your browser's print dialog -- choose **Save as PDF** there to get an actual PDF file, or print it for real. If your browser blocks the pop-up, it'll tell you to allow pop-ups for the site and try again. The document starts with a summary (dates, description, travelers, total cost, reference links), then the full **Itinerary** day by day with every item expanded -- times, cost, confirmation, notes, **facts**, and **photos** -- and, right under each item's location, its address, phone, and coordinates so you're not hunting for them separately. After that come **Bookings** (with screenshots), **Packing List**, **To-Do**, **Notes**, the **Photos** gallery, and finally a complete **Locations** and **Distances** reference at the very back. Anything you haven't filled in (a blank cost, empty notes, no photos, and so on) is simply left off rather than shown empty. The Planning Board and your People list aren't included -- Planning Board is exploratory, not-yet-decided content, and travelers are already named in the summary.
 
 ---
 

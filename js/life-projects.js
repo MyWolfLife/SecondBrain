@@ -622,6 +622,7 @@ function _lpRenderDetailPage(page) {
             <h2 style="flex:1; min-width:0;">${tpl.icon} ${_lpEsc(p.title)}</h2>
             <div style="display:flex; gap:6px; align-items:center;">
                 <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;">${st.label}</span>
+                <button class="btn btn-small" onclick="_lpPrintProject()" title="Print or save the full project as a PDF">🖨️ Print</button>
                 <button class="btn btn-small" onclick="_lpOpenExportModal()" title="Export this project to a JSON file you can share">⬇️ Export</button>
                 <button class="btn btn-small" onclick="_lpToggleMode()" id="lpModeToggle" title="Switch mode">
                     ${p.mode === 'travel' ? '🧳 Travel' : '📝 Planning'}
@@ -7466,6 +7467,409 @@ async function _lpExecuteFullImport(d) {
         prog.innerHTML = `<p style="color:red;">Error: ${err.message}</p>
             <button class="btn" style="margin-top:12px;" onclick="closeModal('lpImportProgressModal')">Close</button>`;
     }
+}
+
+// ============================================================
+// Print / Save as PDF
+//
+// Opens a standalone print-friendly document in a new tab (its own HTML/CSS,
+// entirely separate from the app's own pages/CSS) and triggers the browser's
+// print dialog, where "Save as PDF" produces the actual file — no PDF library
+// needed. Everything is read fresh from Firestore (like Export) rather than
+// relying on the page's cached globals, which may not be loaded for lazy
+// accordion sections. Blank fields are omitted throughout.
+// ============================================================
+
+/** Entry point for the 🖨️ Print button. Opens the target window SYNCHRONOUSLY
+ *  (before any await) so browsers don't treat it as a blocked popup — then
+ *  fills it in once the async data-gathering finishes. */
+function _lpPrintProject() {
+    const win = window.open('', '_blank');
+    if (!win) {
+        alert('Please allow pop-ups for this site, then try Print again.');
+        return;
+    }
+    win.document.write('<!DOCTYPE html><html><head><title>Preparing…</title></head><body style="font-family:sans-serif; padding:40px; color:#666;">Preparing print view…</body></html>');
+    _lpRunPrintBuild(win);
+}
+
+async function _lpRunPrintBuild(win) {
+    try {
+        const html = await _lpBuildPrintDocument(msg => {
+            if (win.closed) return;
+            const body = win.document.body;
+            if (body) body.textContent = msg;
+        });
+        if (win.closed) return;
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        win.print();
+    } catch (err) {
+        console.error('Print build error:', err);
+        if (!win.closed && win.document.body) {
+            win.document.body.innerHTML = '<p style="color:red; font-family:sans-serif; padding:40px;">Error building print view: ' + _lpEsc(err.message) + '</p>';
+        }
+    }
+}
+
+/** Read the whole project fresh from Firestore and build a complete, standalone
+ *  print HTML document (own <style>, no dependency on the app's CSS). */
+async function _lpBuildPrintDocument(onProgress) {
+    const projectId = _lpCurrentProjectId;
+    const p = _lpCurrentProject;
+
+    onProgress('Reading project data…');
+    const [daySnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap] = await Promise.all([
+        lpSub(projectId, 'days').orderBy('sortOrder').get(),
+        lpSub(projectId, 'bookings').orderBy('sortOrder').get(),
+        lpSub(projectId, 'projectLocations').get(),
+        lpSub(projectId, 'todoItems').orderBy('sortOrder').get(),
+        lpSub(projectId, 'packingItems').get(),
+        lpSub(projectId, 'projectNotes').get(),
+        lpSub(projectId, 'itemPhotos').get()
+    ]);
+
+    const days = []; daySnap.forEach(doc => days.push({ id: doc.id, ...doc.data() }));
+    const bookings = []; bookingSnap.forEach(doc => bookings.push({ id: doc.id, ...doc.data() }));
+    const locations = []; plSnap.forEach(doc => locations.push({ id: doc.id, ...doc.data() }));
+    const todoItems = []; todoSnap.forEach(doc => todoItems.push(doc.data()));
+    const packingItems = []; packingSnap.forEach(doc => packingItems.push(doc.data()));
+    const projectNotes = []; noteSnap.forEach(doc => projectNotes.push(doc.data()));
+
+    const locByProjLocId = {};
+    locations.forEach(l => { locByProjLocId[l.id] = l; });
+    const bookingById = {};
+    bookings.forEach(b => { bookingById[b.id] = b; });
+
+    // Distances between this project's locations (global collection, filtered client-side)
+    onProgress('Reading distances…');
+    const globalIds = new Set(locations.map(l => l.locationId).filter(Boolean));
+    let distances = [];
+    if (globalIds.size >= 2) {
+        const distSnap = await lpDistancesCol().get();
+        distSnap.forEach(doc => {
+            const d = doc.data();
+            if (globalIds.has(d.fromLocationId) && globalIds.has(d.toLocationId)) distances.push(d);
+        });
+    }
+
+    // Booking screenshots
+    onProgress('Reading booking screenshots…');
+    const bookingPhotosByBookingId = {};
+    if (bookings.length) {
+        const bpSnap = await lpSub(projectId, 'bookingPhotos').get();
+        bpSnap.forEach(doc => {
+            const d = doc.data();
+            (bookingPhotosByBookingId[d.bookingId] = bookingPhotosByBookingId[d.bookingId] || []).push(d);
+        });
+    }
+
+    // Item photos — fetch every image in parallel (print always includes photos)
+    onProgress('Reading item photos…');
+    const itemPhotoIndex = []; itemPhotoSnap.forEach(doc => itemPhotoIndex.push({ id: doc.id, ...doc.data() }));
+    const itemPhotoData = await Promise.all(itemPhotoIndex.map(ph => lpSub(projectId, 'itemPhotoData').doc(ph.id).get()));
+    const itemPhotosByItemId = {};
+    itemPhotoIndex.forEach((ph, i) => {
+        const imageData = itemPhotoData[i].exists ? itemPhotoData[i].data().imageData : null;
+        if (!imageData) return;
+        (itemPhotosByItemId[ph.itemId] = itemPhotosByItemId[ph.itemId] || []).push({ name: ph.name, imageData });
+    });
+
+    // Project gallery
+    onProgress('Reading project photos…');
+    const ppSnap = await lpSub(projectId, 'projectPhotos').get();
+    const projectPhotos = []; ppSnap.forEach(doc => projectPhotos.push(doc.data()));
+
+    onProgress('Formatting document…');
+
+    // ---- Cost rollup (computed fresh, same math as the Trip Info accordion) ----
+    let bookingCostTotal = 0;
+    bookings.forEach(b => { if (b.cost != null && !isNaN(b.cost)) bookingCostTotal += Number(b.cost); });
+    let itemCostTotal = 0;
+    days.forEach(d => (d.items || []).forEach(it => { if (it.cost != null && !isNaN(it.cost)) itemCostTotal += Number(it.cost); }));
+    const grandTotal = bookingCostTotal + itemCostTotal;
+
+    const esc = _lpEsc;
+    const fmtDate = iso => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+    // ---- Shared block: name + address + phone + lat/lng for a location, inline under an item ----
+    function locInlineHtml(projLocId) {
+        const loc = projLocId ? locByProjLocId[projLocId] : null;
+        if (!loc) return '';
+        const lines = [];
+        if (loc.address) lines.push(esc(loc.address));
+        if (loc.phone) lines.push(esc(loc.phone));
+        if (loc.lat != null && loc.lng != null && loc.lat !== '' && loc.lng !== '') lines.push(loc.lat + ', ' + loc.lng);
+        return `<div class="loc-block"><strong>📍 ${esc(loc.name)}</strong>${lines.length ? '<br>' + lines.join('<br>') : ''}</div>`;
+    }
+
+    function photoGalleryHtml(photos) {
+        if (!photos || !photos.length) return '';
+        return `<div class="photo-gallery">${photos.map(ph => `
+            <figure><img src="${ph.imageData}" alt="${esc(ph.name || ph.caption || '')}">${ph.name || ph.caption ? `<figcaption>${esc(ph.name || ph.caption)}</figcaption>` : ''}</figure>
+        `).join('')}</div>`;
+    }
+
+    function factsHtml(facts) {
+        if (!facts || !facts.length) return '';
+        return `<div class="facts">${facts.map(f => `<div><strong>${esc(f.label || 'Fact')}:</strong> ${esc(f.value)}</div>`).join('')}</div>`;
+    }
+
+    // ---- One itinerary/planning item, fully expanded ----
+    function itemHtml(item) {
+        const st = LP_ITEM_STATUSES[item.status] || LP_ITEM_STATUSES.idea;
+        const isTravelType = item.type === 'drive' || item.type === 'flight' || item.type === 'travel';
+        const leaveLabel = item.type === 'hotel' ? 'Check-in' : (isTravelType ? 'Arrival' : 'Leave by');
+        const subType = (item.type === 'activity') ? (LP_ACTIVITY_SUBTYPES[item.activitySubType] || LP_ACTIVITY_SUBTYPES.other) : null;
+
+        const badges = [`<span class="badge" style="background:${st.bg};color:${st.color};">${st.label}</span>`];
+        if (item.type && item.type !== 'none') badges.push(`<span class="badge badge-type">${esc(item.type[0].toUpperCase() + item.type.slice(1))}</span>`);
+        if (subType && item.activitySubType !== 'other') badges.push(`<span class="badge badge-type">${esc(subType.label)}</span>`);
+
+        const timeParts = [];
+        if (item.time) timeParts.push(`Time: ${esc(item.time)}`);
+        if (item.duration) timeParts.push(`Duration: ${esc(item.duration)}`);
+        if (item.leaveTime) timeParts.push(`${leaveLabel}: ${esc(item.leaveTime)}`);
+
+        const locHtml = isTravelType
+            ? locInlineHtml(item.locationId) + locInlineHtml(item.toLocationId)
+            : locInlineHtml(item.locationId);
+
+        const meta = [];
+        if (item.cost != null && item.cost !== '') meta.push(`<div><strong>Cost:</strong> $${Number(item.cost).toFixed(2)}${item.costNote ? ' (' + esc(item.costNote) + ')' : ''}</div>`);
+        if (item.confirmation) meta.push(`<div><strong>Confirmation:</strong> ${esc(item.confirmation)}</div>`);
+        if (item.contact) meta.push(`<div><strong>Contact:</strong> ${esc(item.contact)}</div>`);
+        if (item.bookingRef && bookingById[item.bookingRef]) meta.push(`<div><strong>Booking:</strong> ${esc(bookingById[item.bookingRef].name || '')}</div>`);
+        if (subType && subType.downloadLabel) meta.push(`<div>${item.itemDownloaded ? '☑' : '☐'} ${esc(subType.downloadLabel)}</div>`);
+        if (item.notes) meta.push(`<div><strong>Notes:</strong> ${esc(item.notes)}</div>`);
+
+        return `
+            <div class="item">
+                <div class="item-head">
+                    <span class="item-title">${esc(item.title)}</span>
+                    ${badges.join('')}
+                </div>
+                ${timeParts.length ? `<div class="item-time">${timeParts.join(' · ')}</div>` : ''}
+                ${locHtml ? `<div class="item-locs">${locHtml}</div>` : ''}
+                ${meta.length ? `<div class="item-meta">${meta.join('')}</div>` : ''}
+                ${factsHtml(item.facts)}
+                ${photoGalleryHtml(itemPhotosByItemId[item.id])}
+            </div>`;
+    }
+
+    // ---- Travel summary line between two consecutive on-timeline items ----
+    function travelLineHtml(fromItem, toItem) {
+        const fromLoc = fromItem.locationId ? locByProjLocId[fromItem.locationId] : null;
+        const toLoc = toItem.locationId ? locByProjLocId[toItem.locationId] : null;
+        const fromGlobalId = fromLoc ? fromLoc.locationId : null;
+        const toGlobalId = toLoc ? toLoc.locationId : null;
+        const dist = (fromGlobalId && toGlobalId)
+            ? distances.find(d => (d.fromLocationId === fromGlobalId && d.toLocationId === toGlobalId) || (d.fromLocationId === toGlobalId && d.toLocationId === fromGlobalId))
+            : null;
+
+        let arrivalStr = '';
+        if (fromItem.leaveTime && dist && dist.time) {
+            const departMin = _lpParseTimeStr(fromItem.leaveTime);
+            const durationMin = _lpParseDurationStr(dist.time);
+            if (departMin !== null && durationMin !== null) arrivalStr = ` → arrives ${_lpFormatArrivalTime(departMin + durationMin)}`;
+        }
+
+        const parts = [];
+        if (fromItem.leaveTime) parts.push(`Depart ${esc(fromItem.leaveTime)}${arrivalStr}`);
+        if (dist) {
+            const modeLabel = dist.mode === 'walk' ? 'Walk' : dist.mode === 'bike' ? 'Bike' : dist.mode === 'fly' ? 'Fly' : 'Drive';
+            const bits = [modeLabel];
+            if (dist.time) bits.push(dist.time);
+            if (dist.miles) bits.push(dist.miles + ' mi');
+            parts.push(bits.join(' · '));
+        }
+        if (fromLoc && toLoc) parts.push(`${esc(fromLoc.name)} → ${esc(toLoc.name)}`);
+        if (!parts.length) return '';
+        return `<div class="travel-line">${parts.join(' &nbsp;|&nbsp; ')}</div>`;
+    }
+
+    function dayItemsHtml(items) {
+        let html = '';
+        let lastTimeline = null;
+        (items || []).forEach(item => {
+            if (item.onTimeline && lastTimeline) html += travelLineHtml(lastTimeline, item);
+            html += itemHtml(item);
+            if (item.onTimeline) lastTimeline = item;
+        });
+        return html;
+    }
+
+    // ---- Summary ----
+    const dateRange = p.startDate ? `${fmtDate(p.startDate)}${p.endDate ? ' – ' + fmtDate(p.endDate) : ''}` : '';
+    const travelers = (p.people || []).map(pe => pe.name).filter(Boolean).join(', ');
+    const costLine = grandTotal > 0
+        ? `<div><strong>Estimated total cost:</strong> $${grandTotal.toFixed(2)}${bookingCostTotal > 0 && itemCostTotal > 0 ? ` (bookings: $${bookingCostTotal.toFixed(2)}, itinerary: $${itemCostTotal.toFixed(2)})` : ''}</div>`
+        : '';
+
+    const summaryHtml = `
+        <div class="summary">
+            <h1>${LP_TEMPLATES[p.template]?.icon || ''} ${esc(p.title)}</h1>
+            ${dateRange ? `<div class="date-range">${dateRange}</div>` : ''}
+            ${p.description ? `<p>${esc(p.description)}</p>` : ''}
+            ${travelers ? `<div><strong>Travelers:</strong> ${esc(travelers)}</div>` : ''}
+            ${costLine}
+            ${(p.links && p.links.length) ? `<div><strong>Links:</strong> ${p.links.map(l => `${esc(l.label || l.url)}: ${esc(l.url)}`).join(' &nbsp;|&nbsp; ')}</div>` : ''}
+        </div>`;
+
+    // ---- Itinerary ----
+    const itineraryHtml = days.length ? `
+        <h2>Itinerary</h2>
+        ${days.map(d => `
+            <div class="day">
+                <h3>${esc(d.label || fmtDate(d.date))}</h3>
+                ${dayItemsHtml(d.items)}
+            </div>
+        `).join('')}` : '';
+
+    // ---- Bookings ----
+    const bookingsHtml = bookings.length ? `
+        <h2>Bookings</h2>
+        ${bookings.map(b => {
+            const meta = [];
+            const dateBits = [];
+            if (b.startDate) dateBits.push(fmtDate(b.startDate) + (b.startTime ? ' ' + esc(b.startTime) : ''));
+            if (b.multiDay && b.endDate) dateBits.push('– ' + fmtDate(b.endDate) + (b.endTime ? ' ' + esc(b.endTime) : ''));
+            if (dateBits.length) meta.push(`<div>${dateBits.join(' ')}</div>`);
+            if (b.confirmation) meta.push(`<div><strong>Confirmation:</strong> ${esc(b.confirmation)}</div>`);
+            if (b.cost != null && b.cost !== '') meta.push(`<div><strong>Cost:</strong> $${Number(b.cost).toFixed(2)}${b.costNote ? ' (' + esc(b.costNote) + ')' : ''}</div>`);
+            if (b.paymentStatus && LP_PAYMENT_STATUSES[b.paymentStatus]) meta.push(`<div><strong>Payment:</strong> ${esc(LP_PAYMENT_STATUSES[b.paymentStatus].label)}</div>`);
+            if (b.contact) meta.push(`<div><strong>Contact:</strong> ${esc(b.contact)}</div>`);
+            if (b.address) meta.push(`<div><strong>Address:</strong> ${esc(b.address)}</div>`);
+            if (b.link) meta.push(`<div><strong>Link:</strong> ${esc(b.link)}</div>`);
+            if (b.notes) meta.push(`<div><strong>Notes:</strong> ${esc(b.notes)}</div>`);
+            return `
+                <div class="item">
+                    <div class="item-head"><span class="item-title">${esc(b.name)}</span>${b.type ? `<span class="badge badge-type">${esc(b.type)}</span>` : ''}</div>
+                    ${meta.length ? `<div class="item-meta">${meta.join('')}</div>` : ''}
+                    ${photoGalleryHtml(bookingPhotosByBookingId[b.id])}
+                </div>`;
+        }).join('')}` : '';
+
+    // ---- Packing ----
+    const packingByCat = {};
+    packingItems.forEach(i => { (packingByCat[i.category || 'Gear / Other'] = packingByCat[i.category || 'Gear / Other'] || []).push(i); });
+    const packingHtml = packingItems.length ? `
+        <h2>Packing List</h2>
+        ${Object.entries(packingByCat).map(([cat, items]) => `
+            <h4>${esc(cat)}</h4>
+            <ul class="checklist">
+                ${items.map(i => `<li>${i.done ? '☑' : '☐'} ${esc(i.text)}${i.notes ? ` <span class="dim">— ${esc(i.notes)}</span>` : ''}</li>`).join('')}
+            </ul>
+        `).join('')}` : '';
+
+    // ---- To-Do ----
+    const todoHtml = todoItems.length ? `
+        <h2>To-Do</h2>
+        <ul class="checklist">
+            ${todoItems.map(t => `<li>${t.done ? '☑' : '☐'} ${esc(t.text)}${t.notes ? ` <span class="dim">— ${esc(t.notes)}</span>` : ''}</li>`).join('')}
+        </ul>` : '';
+
+    // ---- Notes ----
+    const notesHtml = projectNotes.length ? `
+        <h2>Notes</h2>
+        ${projectNotes.map(n => `
+            <div class="item">
+                ${n.title ? `<div class="item-head"><span class="item-title">${esc(n.title)}</span></div>` : ''}
+                ${n.text ? `<p>${esc(n.text)}</p>` : ''}
+                ${factsHtml(n.facts)}
+            </div>
+        `).join('')}` : '';
+
+    // ---- Project photo gallery ----
+    const galleryHtml = projectPhotos.length ? `
+        <h2>Photos</h2>
+        ${photoGalleryHtml(projectPhotos.map(ph => ({ imageData: ph.imageData, name: ph.caption })))}` : '';
+
+    // ---- Full location data dump (bottom reference) ----
+    const locationsHtml = locations.length ? `
+        <h2>Locations</h2>
+        ${locations.map(l => {
+            const lines = [];
+            if (l.address) lines.push(esc(l.address));
+            if (l.phone) lines.push(esc(l.phone));
+            if (l.website) lines.push(esc(l.website));
+            if (l.contact) lines.push('Contact: ' + esc(l.contact));
+            if (l.lat != null && l.lng != null && l.lat !== '' && l.lng !== '') lines.push(l.lat + ', ' + l.lng);
+            if (l.notes) lines.push(esc(l.notes));
+            return `<div class="item"><div class="item-head"><span class="item-title">${esc(l.name)}</span></div>${lines.length ? `<div class="item-meta">${lines.map(x => `<div>${x}</div>`).join('')}</div>` : ''}</div>`;
+        }).join('')}` : '';
+
+    const distancesHtml = distances.length ? `
+        <h2>Distances</h2>
+        <table class="dist-table">
+            <tr><th>From</th><th>To</th><th>Time</th><th>Miles</th><th>Mode</th></tr>
+            ${distances.map(d => {
+                const nameFor = gid => locations.find(l => l.locationId === gid)?.name || '';
+                return `<tr><td>${esc(nameFor(d.fromLocationId))}</td><td>${esc(nameFor(d.toLocationId))}</td><td>${esc(d.time || '')}</td><td>${d.miles != null ? d.miles : ''}</td><td>${esc(d.mode || '')}</td></tr>`;
+            }).join('')}
+        </table>` : '';
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${esc(p.title)} — Print</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #1a1a1a; max-width: 850px; margin: 0 auto; padding: 24px; line-height: 1.45; }
+    h1 { font-size: 1.6em; margin: 0 0 4px; }
+    h2 { font-size: 1.25em; margin: 28px 0 10px; border-bottom: 2px solid #333; padding-bottom: 4px; break-after: avoid; }
+    h3 { font-size: 1.05em; margin: 18px 0 8px; break-after: avoid; }
+    h4 { font-size: 0.95em; margin: 12px 0 4px; }
+    p { margin: 4px 0; }
+    .print-toolbar { text-align: right; margin-bottom: 16px; }
+    .print-toolbar button { font-size: 0.95em; padding: 8px 16px; cursor: pointer; }
+    .summary { margin-bottom: 12px; }
+    .date-range { color: #555; margin-bottom: 6px; }
+    .day { break-before: page; padding-top: 4px; }
+    .day:first-of-type { break-before: avoid; }
+    .item { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; break-inside: avoid; }
+    .item-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .item-title { font-weight: 600; font-size: 1.02em; }
+    .badge { font-size: 0.72em; padding: 1px 8px; border-radius: 10px; font-weight: 600; background: #eee; }
+    .badge-type { background: #e0e7ff; color: #3730a3; }
+    .item-time { font-size: 0.85em; color: #555; margin-top: 3px; }
+    .item-locs { margin-top: 6px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .loc-block { font-size: 0.85em; background: #f5f7fa; border-left: 3px solid #2563eb; padding: 4px 8px; }
+    .item-meta { font-size: 0.9em; margin-top: 6px; }
+    .item-meta div { margin: 2px 0; }
+    .facts { font-size: 0.88em; margin-top: 6px; color: #333; }
+    .travel-line { font-size: 0.82em; color: #555; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 4px 8px; margin: 4px 0; }
+    .photo-gallery { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .photo-gallery figure { margin: 0; width: 200px; }
+    .photo-gallery img { width: 100%; height: 140px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+    .photo-gallery figcaption { font-size: 0.75em; color: #666; margin-top: 2px; }
+    .checklist { list-style: none; padding-left: 0; margin: 4px 0; }
+    .checklist li { margin: 3px 0; }
+    .dim { color: #888; }
+    .dist-table { border-collapse: collapse; font-size: 0.88em; width: 100%; }
+    .dist-table th, .dist-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+    @media print {
+        .print-toolbar { display: none; }
+        body { padding: 0; max-width: none; }
+    }
+</style>
+</head>
+<body>
+    <div class="print-toolbar no-print"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+    ${summaryHtml}
+    ${itineraryHtml}
+    ${bookingsHtml}
+    ${packingHtml}
+    ${todoHtml}
+    ${notesHtml}
+    ${galleryHtml}
+    ${locationsHtml}
+    ${distancesHtml}
+</body>
+</html>`;
 }
 
 // ============================================================
