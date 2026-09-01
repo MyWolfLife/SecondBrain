@@ -7842,10 +7842,10 @@ async function _lpBuildPrintDocument(onProgress) {
     .item-meta div { margin: 2px 0; }
     .facts { font-size: 0.88em; margin-top: 6px; color: #333; }
     .travel-line { font-size: 0.82em; color: #555; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 4px 8px; margin: 4px 0; }
-    .photo-gallery { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .photo-gallery figure { margin: 0; width: 200px; }
-    .photo-gallery img { width: 100%; height: 140px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
-    .photo-gallery figcaption { font-size: 0.75em; color: #666; margin-top: 2px; }
+    .photo-gallery { display: flex; flex-direction: column; gap: 18px; margin-top: 10px; }
+    .photo-gallery figure { margin: 0; width: 100%; break-inside: avoid; }
+    .photo-gallery img { width: 100%; height: auto; display: block; border-radius: 4px; border: 1px solid #ddd; }
+    .photo-gallery figcaption { font-size: 0.85em; color: #666; margin-top: 4px; }
     .checklist { list-style: none; padding-left: 0; margin: 4px 0; }
     .checklist li { margin: 3px 0; }
     .dim { color: #888; }
