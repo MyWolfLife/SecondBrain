@@ -723,13 +723,19 @@ function _lpRenderDetailPage(page) {
                             <div style="color:#999; font-size:0.78em; margin-top:3px;">Photos save as soon as you add them — Cancel won't undo them.</div>
                         </div>
                         <div>
-                            <label class="form-label" id="lpItLocationLabel">Location</label>
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                                <label class="form-label" id="lpItLocationLabel" style="margin:0;">Location</label>
+                                <div id="lpItLocationIcons" style="display:none; gap:4px; align-items:center;"></div>
+                            </div>
                             <select id="lpItLocation" class="form-control">
                                 <option value="">— None —</option>
                             </select>
                         </div>
                         <div id="lpItToLocationWrap" style="display:none;">
-                            <label class="form-label">To Location</label>
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                                <label class="form-label" style="margin:0;">To Location</label>
+                                <div id="lpItToLocationIcons" style="display:none; gap:4px; align-items:center;"></div>
+                            </div>
                             <select id="lpItToLocation" class="form-control">
                                 <option value="">— None —</option>
                             </select>
@@ -1807,16 +1813,19 @@ async function _lpSaveLocation() {
             const ctx = _lpPickerReturnCtx;
             _lpPickerReturnCtx = null;
             if (ctx.source === 'itemModal') {
-                // Re-populate both item-modal location dropdowns. Pre-select the new
-                // location on whichever dropdown triggered the add; preserve the other's
-                // current selection. (ctx.field is 'from' or 'to'; default to 'from'.)
+                // Re-populate both item-modal location dropdowns. Pre-select the location
+                // on whichever dropdown triggered this: the newly-created location when
+                // adding, or the same location (ctx.selectedId) when editing in place —
+                // newProjLocId is only set by the "create new" branch above. Preserve the
+                // other dropdown's current selection. (ctx.field is 'from' or 'to'.)
+                const targetId = newProjLocId || ctx.selectedId || null;
                 const curFrom = document.getElementById('lpItLocation')?.value || null;
                 const curTo   = document.getElementById('lpItToLocation')?.value || null;
                 if (ctx.field === 'to') {
                     _lpPopulateItemLocationSelect(curFrom);
-                    _lpPopulateItemToLocationSelect(newProjLocId || null);
+                    _lpPopulateItemToLocationSelect(targetId);
                 } else {
-                    _lpPopulateItemLocationSelect(newProjLocId || null);
+                    _lpPopulateItemLocationSelect(targetId);
                     _lpPopulateItemToLocationSelect(curTo);
                 }
             } else {
@@ -4347,13 +4356,19 @@ function _lpPopulateItemLocationSelect(selectedId) {
             locSelect.appendChild(opt);
         });
 
-    // Handler: if user picks "Add new location…", open the location modal and return here
+    // Handler: if user picks "Add new location…", open the location modal and return here;
+    // otherwise just keep the 📍/✏️ icons in sync with the new selection.
     locSelect.onchange = function() {
-        if (this.value !== '__add_new__') return;
-        this.value = selectedId || ''; // revert selection while user fills out modal
-        _lpPickerReturnCtx = { source: 'itemModal', field: 'from' };
-        _lpOpenLocationModal();
+        if (this.value === '__add_new__') {
+            this.value = selectedId || ''; // revert selection while user fills out modal
+            _lpPickerReturnCtx = { source: 'itemModal', field: 'from' };
+            _lpOpenLocationModal();
+            return;
+        }
+        _lpRefreshItemLocIcons('from');
     };
+
+    _lpRefreshItemLocIcons('from');
 }
 
 /** Populate the item modal's "To Location" dropdown (used for travel-type items).
@@ -4384,13 +4399,58 @@ function _lpPopulateItemToLocationSelect(selectedId) {
             sel.appendChild(opt);
         });
 
-    // Handler: if user picks "Add new location…", open the location modal and return here
+    // Handler: if user picks "Add new location…", open the location modal and return here;
+    // otherwise just keep the 📍/✏️ icons in sync with the new selection.
     sel.onchange = function() {
-        if (this.value !== '__add_new__') return;
-        this.value = selectedId || ''; // revert selection while user fills out modal
-        _lpPickerReturnCtx = { source: 'itemModal', field: 'to' };
-        _lpOpenLocationModal();
+        if (this.value === '__add_new__') {
+            this.value = selectedId || ''; // revert selection while user fills out modal
+            _lpPickerReturnCtx = { source: 'itemModal', field: 'to' };
+            _lpOpenLocationModal();
+            return;
+        }
+        _lpRefreshItemLocIcons('to');
     };
+
+    _lpRefreshItemLocIcons('to');
+}
+
+/** Show/hide the 📍 (open in Google Maps) and ✏️ (edit) icons next to the item
+ *  modal's Location / To Location dropdown, based on its current selection. */
+function _lpRefreshItemLocIcons(field) {
+    const selId   = field === 'to' ? 'lpItToLocation' : 'lpItLocation';
+    const iconsId = field === 'to' ? 'lpItToLocationIcons' : 'lpItLocationIcons';
+    const iconsEl = document.getElementById(iconsId);
+    const selEl   = document.getElementById(selId);
+    if (!iconsEl || !selEl) return;
+
+    const val = selEl.value;
+    const loc = val && val !== '__add_new__' ? _lpLocations.find(l => l.id === val) : null;
+    if (!loc) {
+        iconsEl.style.display = 'none';
+        iconsEl.innerHTML = '';
+        return;
+    }
+
+    const hasCoords = loc.lat != null && loc.lng != null && loc.lat !== '' && loc.lng !== '';
+    const title = _lpEsc(loc.name) + (loc.address ? '\n' + _lpEsc(loc.address) : '') + (loc.phone ? '\n' + _lpEsc(loc.phone) : '');
+    const mapLink = (hasCoords || loc.address)
+        ? `<a href="${_lpMapsUrl(loc)}" onclick="event.stopPropagation();window.open(this.href,'_blank');return false;" title="${title}\nOpen in Google Maps" style="text-decoration:none; font-size:0.95em;">📍</a>`
+        : '';
+
+    iconsEl.style.display = 'flex';
+    iconsEl.innerHTML = mapLink +
+        `<button type="button" class="btn btn-small" onclick="_lpEditItemModalLocation('${field}')" title="Edit location — address, phone, etc." style="padding:1px 5px; font-size:0.8em;">✏️</button>`;
+}
+
+/** ✏️ next to the item modal's Location/To Location dropdown — opens the shared
+ *  Add/Edit Location modal (on top of the item modal) for the currently-selected
+ *  location, and returns here with the same location still selected on Save. */
+function _lpEditItemModalLocation(field) {
+    const selId = field === 'to' ? 'lpItToLocation' : 'lpItLocation';
+    const val = document.getElementById(selId)?.value;
+    if (!val || val === '__add_new__') return;
+    _lpPickerReturnCtx = { source: 'itemModal', field, selectedId: val };
+    _lpOpenLocationModal(val);
 }
 
 function _lpOpenItemModal(title, item, currentDayId) {
