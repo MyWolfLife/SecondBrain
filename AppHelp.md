@@ -1899,11 +1899,11 @@ Both reuse locations already in your account (matched by name) rather than dupli
 
 **Planning vs. Travel mode:** A toggle in the project header (stored on the project). **Planning mode** shows everything -- itinerary, planning board, journal, to-dos, locations, distances, costs. **Travel mode** is the on-the-trip view: it hides "maybe/idea/nope" items, hides cost fields, hides the To-Do, Planning Board, Journal, Locations, and Distances sections, auto-expands Itinerary and Bookings, and makes confirmed items more prominent.
 
-**Per-section help:** Every accordion header carries a **?** icon. Tapping it opens a quick-help popup for just that section -- a plain-language ("explain it simply") summary, a divider, then the section's full detailed help -- without leaving the project. The sections are: Trip Info, Itinerary, Planning Board, Journal, To-Do, Photos, Links, Bookings, Packing, Locations, Distances, and People. (Each has its own detailed help below.)
+**Per-section help:** Every accordion header carries a **?** icon. Tapping it opens a quick-help popup for just that section -- a plain-language ("explain it simply") summary, a divider, then the section's full detailed help -- without leaving the project. The sections are: Trip Info, Itinerary, Planning Board, Journal, To-Do, Photos, Links, Bookings, Receipts, Packing, Locations, Distances, and People. (Each has its own detailed help below.)
 
 **Search:** The search box at the top of the page hides non-matching content across every section in real time -- day cards, bookings, to-dos, packing items, and notes.
 
-**Deleting the project:** Deleting the whole project (from the Projects list) cascades to all of its days, bookings, photos, to-dos, packing items, notes, planning groups, and location links.
+**Deleting the project:** Deleting the whole project (from the Projects list) cascades to all of its days, bookings, photos, receipts, to-dos, packing items, notes, planning groups, and location links.
 
 **Export:** **⬇️ Export** in the header downloads everything in this project as one `.json` file -- itinerary, bookings, locations, distances, to-dos, packing list, notes, and links -- so another person can **📥 Import** it into their own Bishop account, or so you have a backup. Only **people** are left out, since contacts are specific to your account and wouldn't mean anything on the other end. You're asked whether to **include photos** before it downloads -- each photo runs roughly 100–350KB, so a photo-heavy trip makes for a noticeably bigger file; leave it unchecked for a smaller, text-only export. A progress screen shows what's being gathered, and tells you the final file size when it's done.
 
@@ -2012,6 +2012,16 @@ Bookings is where you keep all your reservations -- flights, hotels, tours, anyt
 ---
 
 **Bookings:** Full booking records -- name, type, dates/times, confirmation #, cost, payment status, contact, address, link, and notes -- with screenshot attachments. Booking badges on itinerary items scroll to the matching booking card. Drag to reorder.
+
+---
+
+## screen:life-project-receipts
+
+This is a running list of receipts from the trip. Snap a photo of a receipt (or paste one you copied), jot a short note like "Dinner Wed night," and it's saved -- tap the note any time to see the picture again.
+
+---
+
+**Receipts:** A running log of receipt photos with a short description each. Add via **🖼️ Add Image** (file picker, supports multi-select), **📷 Camera** (capture), or **📋 Paste** (clipboard) -- after the image is added, a prompt asks for a description (e.g. "Dinner Wed night"). Each receipt shows as a row with its description; tapping the description opens a **lightbox** with the full image, an ✏️ Edit Description button, 🗑️ Delete, and ✕ Close. Stored in the `receipts` subcollection (Base64 image + description + createdAt). Visible in both planning and travel modes. Accordion summary shows receipt count.
 
 ---
 

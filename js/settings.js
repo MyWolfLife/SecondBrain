@@ -942,7 +942,7 @@ var LP_SUBCOLLECTIONS = [
     'bookingPhotos', 'bookings', 'days', 'itemPhotoData',
     'itemPhotos', 'packingItems', 'planningGroups',
     'projectLocations', 'projectNotes', 'projectPhotos',
-    'todoItems'
+    'receipts', 'todoItems'
 ];
 
 /**

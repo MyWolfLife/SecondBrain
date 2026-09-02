@@ -536,7 +536,7 @@ async function confirmDeleteLifeProject() {
 
     try {
         // Delete all subcollections
-        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'itemPhotos', 'itemPhotoData', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
+        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'receipts', 'itemPhotos', 'itemPhotoData', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
         for (const sub of subs) {
             const snap = await lpSub(projectId, sub).get();
             if (!snap.empty) {
@@ -1087,6 +1087,7 @@ function _lpRenderDetailPage(page) {
                 ${_lpAccordionSection('photos', '📸 Photos', '', false)}
                 ${_lpAccordionSection('links', '🔗 Links', '', false)}
                 ${_lpAccordionSection('bookings', '🏨 Bookings', '', travel)}
+                ${_lpAccordionSection('receipts', '🧾 Receipts', '', false)}
                 ${_lpAccordionSection('packing', '🧳 Packing', '', false)}
                 ${travel ? '' : _lpAccordionSection('locations', '📌 Locations', '', false)}
                 ${travel ? '' : _lpAccordionSection('distances', '🛣️ Distances', '', false)}
@@ -1171,6 +1172,7 @@ const LP_ACC_HELP = {
     photos:    { key: 'life-project-photos',    title: 'Photos' },
     links:     { key: 'life-project-links',     title: 'Links' },
     bookings:  { key: 'life-project-bookings',  title: 'Bookings' },
+    receipts:  { key: 'life-project-receipts',  title: 'Receipts' },
     packing:   { key: 'life-project-packing',   title: 'Packing' },
     locations: { key: 'life-project-locations', title: 'Locations' },
     distances: { key: 'life-project-distances', title: 'Distances' },
@@ -1234,6 +1236,7 @@ function _lpLoadAccordionContent(id) {
         case 'planning':  return _lpLoadPlanningBoard();
         case 'itinerary': return _lpLoadItinerary();
         case 'bookings':  return _lpLoadBookings();
+        case 'receipts':  return _lpLoadReceipts();
         case 'packing':   return _lpLoadPacking();
         case 'photos':    return _lpLoadProjectPhotos();
         case 'links':     return Promise.resolve(_lpLoadLinks());
@@ -6146,6 +6149,210 @@ async function _lpProjDeletePhoto(photoId) {
 }
 
 // ============================================================
+// Receipts Section
+// ============================================================
+
+let _lpReceipts = [];
+
+async function _lpLoadReceipts() {
+    const body = document.getElementById('lpBody_receipts');
+    if (!body || !_lpCurrentProjectId) return;
+    body.innerHTML = '<p style="color:#999; font-size:0.9em;">Loading...</p>';
+
+    try {
+        const snap = await lpSub(_lpCurrentProjectId, 'receipts').orderBy('createdAt', 'desc').get();
+        _lpReceipts = [];
+        snap.forEach(doc => _lpReceipts.push({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+        // Firestore index may not exist yet — fallback to unordered
+        try {
+            const snap = await lpSub(_lpCurrentProjectId, 'receipts').get();
+            _lpReceipts = [];
+            snap.forEach(doc => _lpReceipts.push({ id: doc.id, ...doc.data() }));
+        } catch (err2) {
+            body.innerHTML = '<p style="color:red;">Error loading receipts.</p>';
+            return;
+        }
+    }
+
+    _lpUpdateAccordionSummary('receipts', _lpReceipts.length > 0 ? `(${_lpReceipts.length})` : '');
+    _lpRenderReceipts(body);
+}
+
+function _lpRenderReceipts(body) {
+    const receipts = _lpReceipts;
+
+    body.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
+            <label class="btn btn-small btn-primary" style="cursor:pointer;" title="Choose an existing image">
+                🖼️ Add Image
+                <input type="file" accept="image/*" multiple style="display:none;" onchange="_lpReceiptHandleFiles(this.files)">
+            </label>
+            <label class="btn btn-small btn-primary" style="cursor:pointer;" title="Take a photo">
+                📷 Camera
+                <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="_lpReceiptHandleFiles(this.files)">
+            </label>
+            <button class="btn btn-small btn-primary" onclick="_lpReceiptPaste()" title="Paste from clipboard">📋 Paste</button>
+        </div>
+        ${receipts.length === 0
+            ? '<p style="color:#bbb; font-size:0.85em;">No receipts yet.</p>'
+            : `<div id="lpReceiptList" style="display:flex; flex-direction:column; gap:4px;">
+                ${receipts.map(r => `
+                    <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
+                        <span onclick="_lpReceiptOpenLightbox('${r.id}')" style="flex:1; cursor:pointer; color:#1d4ed8; text-decoration:underline;">${_lpEsc(r.description || '(no description)')}</span>
+                        <button class="btn btn-small" onclick="_lpReceiptEditDescription('${r.id}')" title="Edit description" style="padding:2px 8px;">✏️</button>
+                        <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${r.id}')" title="Delete" style="padding:2px 8px;">🗑️</button>
+                    </div>
+                `).join('')}
+               </div>`
+        }
+    `;
+}
+
+async function _lpReceiptHandleFiles(files) {
+    if (!files || !files.length || !_lpCurrentProjectId) return;
+    for (const file of Array.from(files)) {
+        try {
+            // Use crop preview from photos.js if available
+            let processedFile = file;
+            if (typeof showCropPreview === 'function') {
+                try { processedFile = await showCropPreview(file); } catch { return; }
+            }
+            const imageData = await compressImage(processedFile);
+            await _lpReceiptSave(imageData);
+        } catch (err) {
+            console.error('Error processing receipt image:', err);
+            alert('Error processing image.');
+        }
+    }
+}
+
+async function _lpReceiptPaste() {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+        alert('Clipboard paste is not supported in this browser. Try Add Image instead.');
+        return;
+    }
+    try {
+        const items = await navigator.clipboard.read();
+        let imageBlob = null;
+        for (const item of items) {
+            const imageType = item.types.find(t => t.startsWith('image/'));
+            if (imageType) { imageBlob = await item.getType(imageType); break; }
+        }
+        if (!imageBlob) {
+            alert('No image on the clipboard.\n\nRight-click an image and choose "Copy image", then click Paste.');
+            return;
+        }
+        const ext = imageBlob.type === 'image/png' ? '.png' : '.jpg';
+        const file = new File([imageBlob], 'pasted-receipt' + ext, { type: imageBlob.type });
+        const imageData = await compressImage(file);
+        await _lpReceiptSave(imageData);
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            alert('Clipboard access was denied. Click "Allow" when the browser asks, then try again.');
+        } else {
+            console.error('Paste error:', err);
+            alert('Could not read clipboard. Try the Add Image button instead.');
+        }
+    }
+}
+
+async function _lpReceiptSave(imageData) {
+    // Prompt for a description right after the image is captured/selected
+    const description = await _lpTextPrompt({ title: 'Add Description', placeholder: 'e.g. Dinner Wed night', value: '', okText: 'Save Receipt' });
+    if (description === null) return; // cancelled
+
+    try {
+        await lpSub(_lpCurrentProjectId, 'receipts').add({
+            imageData,
+            description: description.trim(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await _lpLoadReceipts();
+    } catch (err) {
+        console.error('Error saving receipt:', err);
+        alert('Error saving receipt.');
+    }
+}
+
+// ---- Receipt Lightbox ----
+
+function _lpReceiptOpenLightbox(receiptId) {
+    const receipt = _lpReceipts.find(r => r.id === receiptId);
+    if (!receipt) return;
+
+    let lb = document.getElementById('lpReceiptLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'lpReceiptLightbox';
+        lb.onclick = (e) => { if (e.target === lb) _lpReceiptCloseLightbox(); };
+        document.body.appendChild(lb);
+    }
+
+    lb.innerHTML = `
+        <div onclick="_lpReceiptCloseLightbox()" style="position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; box-sizing:border-box; cursor:pointer;">
+            <div onclick="event.stopPropagation()" style="position:relative; max-width:92vw; max-height:82vh; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:default;">
+                <img src="${receipt.imageData}" style="max-width:92vw; max-height:74vh; object-fit:contain; border-radius:6px; display:block;" alt="${_lpEsc(receipt.description || 'Receipt')}">
+                ${receipt.description ? `<div style="color:#e2e8f0; font-size:0.9em; text-align:center;">${_lpEsc(receipt.description)}</div>` : ''}
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    <button class="btn btn-small" onclick="_lpReceiptEditDescription('${receipt.id}')" style="background:#475569; color:#fff; border:none;">✏️ Edit Description</button>
+                    <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${receipt.id}')">🗑️ Delete</button>
+                    <button class="btn btn-small" onclick="_lpReceiptCloseLightbox()" style="background:#475569; color:#fff; border:none;">✕ Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    lb.style.display = 'block';
+
+    // ESC key closes
+    lb._escHandler = (e) => { if (e.key === 'Escape') _lpReceiptCloseLightbox(); };
+    document.addEventListener('keydown', lb._escHandler);
+}
+
+function _lpReceiptCloseLightbox() {
+    const lb = document.getElementById('lpReceiptLightbox');
+    if (lb) {
+        lb.style.display = 'none';
+        if (lb._escHandler) { document.removeEventListener('keydown', lb._escHandler); lb._escHandler = null; }
+    }
+}
+
+async function _lpReceiptEditDescription(receiptId) {
+    const receipt = _lpReceipts.find(r => r.id === receiptId);
+    if (!receipt) return;
+
+    const newDescription = prompt('Edit description:', receipt.description || '');
+    if (newDescription === null) return; // cancelled
+
+    try {
+        await lpSub(_lpCurrentProjectId, 'receipts').doc(receiptId).update({ description: newDescription.trim() });
+        receipt.description = newDescription.trim(); // update in-memory
+
+        // Refresh whichever view is currently showing this receipt
+        const lb = document.getElementById('lpReceiptLightbox');
+        if (lb && lb.style.display === 'block') _lpReceiptOpenLightbox(receiptId);
+        const body = document.getElementById('lpBody_receipts');
+        if (body) _lpRenderReceipts(body);
+    } catch (err) {
+        console.error('Error updating description:', err);
+        alert('Error updating description.');
+    }
+}
+
+async function _lpReceiptDelete(receiptId) {
+    if (!confirm('Delete this receipt?')) return;
+    _lpReceiptCloseLightbox();
+    try {
+        await lpSub(_lpCurrentProjectId, 'receipts').doc(receiptId).delete();
+        await _lpLoadReceipts();
+    } catch (err) {
+        console.error('Error deleting receipt:', err);
+        alert('Error deleting receipt.');
+    }
+}
+
+// ============================================================
 // Notes / Journal Section (Phase 8)
 // ============================================================
 
@@ -6304,7 +6511,7 @@ async function _lpRunSearch() {
 
     // Expand and load every accordion section that isn't already open
     const allSections = ['tripInfo', 'itinerary', 'planning', 'notes', 'todos',
-                         'photos', 'links', 'bookings', 'packing', 'locations',
+                         'photos', 'links', 'bookings', 'receipts', 'packing', 'locations',
                          'distances', 'people'];
     const loadPromises = [];
     allSections.forEach(id => {
@@ -6342,7 +6549,7 @@ function _lpClearSearch() {
     _lpFilterBySearch('');
 
     const allSections = ['tripInfo','itinerary','planning','notes','todos',
-                         'photos','links','bookings','packing','locations',
+                         'photos','links','bookings','receipts','packing','locations',
                          'distances','people'];
     allSections.forEach(id => {
         const section = document.getElementById(`lpAcc_${id}`);
