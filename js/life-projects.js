@@ -7456,6 +7456,16 @@ async function _lpBuildExportData(includePhotos, onProgress) {
         });
     }
 
+    let receipts = [];
+    if (includePhotos) {
+        onProgress('Reading receipts…');
+        const rSnap = await lpSub(projectId, 'receipts').get();
+        rSnap.forEach(doc => {
+            const d = doc.data();
+            receipts.push({ imageData: d.imageData || '', description: d.description || '', amount: d.amount != null ? d.amount : null, category: d.category || 'Other' });
+        });
+    }
+
     return {
         exportVersion: LP_EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
@@ -7469,7 +7479,7 @@ async function _lpBuildExportData(includePhotos, onProgress) {
             links: p.links || []
             // people intentionally omitted — contacts don't carry over between accounts
         },
-        locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos
+        locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos, receipts
     };
 }
 
@@ -7793,6 +7803,23 @@ async function _lpExecuteFullImport(d) {
             }
         }
 
+        // Receipts — inline imageData, small chunks
+        if (d.receipts && d.receipts.length) {
+            const validReceipts = d.receipts.filter(r => r.imageData);
+            if (validReceipts.length) {
+                prog.innerHTML = `<p>Importing ${validReceipts.length} receipts…</p>`;
+                for (let i = 0; i < validReceipts.length; i += 30) {
+                    const chunk = validReceipts.slice(i, i + 30);
+                    const batch = firebase.firestore().batch();
+                    chunk.forEach(r => batch.set(lpSub(projectId, 'receipts').doc(), {
+                        imageData: r.imageData, description: r.description || '',
+                        amount: r.amount != null ? r.amount : 0, category: r.category || 'Other', createdAt: now
+                    }));
+                    await batch.commit();
+                }
+            }
+        }
+
         closeModal('lpImportProgressModal');
         location.hash = '#life-project/' + projectId;
 
@@ -7909,14 +7936,15 @@ async function _lpBuildPrintDocument(onProgress) {
     const p = _lpCurrentProject;
 
     onProgress('Reading project data…');
-    const [daySnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap] = await Promise.all([
+    const [daySnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap, receiptSnap] = await Promise.all([
         lpSub(projectId, 'days').orderBy('sortOrder').get(),
         lpSub(projectId, 'bookings').orderBy('sortOrder').get(),
         lpSub(projectId, 'projectLocations').get(),
         lpSub(projectId, 'todoItems').orderBy('sortOrder').get(),
         lpSub(projectId, 'packingItems').get(),
         lpSub(projectId, 'projectNotes').get(),
-        lpSub(projectId, 'itemPhotos').get()
+        lpSub(projectId, 'itemPhotos').get(),
+        lpSub(projectId, 'receipts').get()
     ]);
 
     const days = []; daySnap.forEach(doc => days.push({ id: doc.id, ...doc.data() }));
@@ -7925,6 +7953,7 @@ async function _lpBuildPrintDocument(onProgress) {
     const todoItems = []; todoSnap.forEach(doc => todoItems.push(doc.data()));
     const packingItems = []; packingSnap.forEach(doc => packingItems.push(doc.data()));
     const projectNotes = []; noteSnap.forEach(doc => projectNotes.push(doc.data()));
+    const receipts = []; receiptSnap.forEach(doc => receipts.push(doc.data()));
 
     const locByProjLocId = {};
     locations.forEach(l => { locByProjLocId[l.id] = l; });
@@ -8224,6 +8253,35 @@ async function _lpBuildPrintDocument(onProgress) {
         <h2>Photos</h2>
         ${photoGalleryHtml(projectPhotos.map(ph => ({ imageData: ph.imageData, name: ph.caption })))}` : '';
 
+    // ---- Receipts ----
+    // Same total + per-category breakdown format as the Receipts accordion header.
+    const receiptsTotal = receipts.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const receiptsByCategory = {};
+    receipts.forEach(r => {
+        const cat = r.category || 'Other';
+        receiptsByCategory[cat] = (receiptsByCategory[cat] || 0) + (Number(r.amount) || 0);
+    });
+    const receiptsBreakdownParts = [];
+    LP_RECEIPT_CATEGORIES.forEach(cat => {
+        if (receiptsByCategory[cat] > 0) receiptsBreakdownParts.push(`${cat}: $${receiptsByCategory[cat].toFixed(2)}`);
+    });
+    Object.keys(receiptsByCategory).forEach(cat => {
+        if (!LP_RECEIPT_CATEGORIES.includes(cat) && receiptsByCategory[cat] > 0) receiptsBreakdownParts.push(`${cat}: $${receiptsByCategory[cat].toFixed(2)}`);
+    });
+    const receiptsHtml = receipts.length ? `
+        <h2>Receipts</h2>
+        ${receiptsTotal > 0 ? `<div><strong>Total:</strong> $${receiptsTotal.toFixed(2)}${receiptsBreakdownParts.length ? ` (${receiptsBreakdownParts.join(', ')})` : ''}</div>` : ''}
+        ${receipts.map(r => `
+            <div class="item">
+                <div class="item-head">
+                    <span class="item-title">${esc(r.description || 'Receipt')}</span>
+                    <span class="badge badge-type">${esc(r.category || 'Other')}</span>
+                </div>
+                <div class="item-meta"><div><strong>Amount:</strong> $${(Number(r.amount) || 0).toFixed(2)}</div></div>
+                ${photoGalleryHtml(r.imageData ? [{ imageData: r.imageData, name: '' }] : [])}
+            </div>
+        `).join('')}` : '';
+
     // ---- Full location data dump (bottom reference) ----
     const locationsHtml = locations.length ? `
         <h2>Locations</h2>
@@ -8302,6 +8360,7 @@ async function _lpBuildPrintDocument(onProgress) {
     ${summaryHtml}
     ${itineraryHtml}
     ${bookingsHtml}
+    ${receiptsHtml}
     ${packingHtml}
     ${todoHtml}
     ${notesHtml}
