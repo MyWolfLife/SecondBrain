@@ -2017,11 +2017,11 @@ Bookings is where you keep all your reservations -- flights, hotels, tours, anyt
 
 ## screen:life-project-receipts
 
-This is a running list of receipts from the trip. Snap a photo of a receipt (or paste one you copied), jot a short note like "Dinner Wed night," and it's saved -- tap the note any time to see the picture again.
+This is a running list of receipts from the trip, plus what they cost. Snap a photo of a receipt (or paste one you copied), then jot a short note like "Dinner Wed night," how much it was, and what kind of expense it was -- the section header keeps a running total so you can see what you've spent without adding it all up yourself.
 
 ---
 
-**Receipts:** A running log of receipt photos with a short description each. Add via **🖼️ Add Image** (file picker, supports multi-select), **📷 Camera** (capture), or **📋 Paste** (clipboard) -- after the image is added, a prompt asks for a description (e.g. "Dinner Wed night"). Each receipt shows as a row with its description; tapping the description opens a **lightbox** with the full image, an ✏️ Edit Description button, 🗑️ Delete, and ✕ Close. Stored in the `receipts` subcollection (Base64 image + description + createdAt). Visible in both planning and travel modes. Accordion summary shows receipt count.
+**Receipts:** A running log of receipt photos with a description, amount, and category each. Add via **🖼️ Add Image** (file picker, supports multi-select), **📷 Camera** (capture), or **📋 Paste** (clipboard) -- after the image is added, a **Receipt Details** modal asks for a Description (e.g. "Dinner Wed night"), an Amount, and a Category (dropdown: Meals, Snacks, Parking, Souvenirs, Other). Each receipt shows as a row with its description, category, and amount; tapping the description opens a **lightbox** with the full image, description, category + amount, an ✏️ Edit button (reopens the same Details modal, pre-filled), 🗑️ Delete, and ✕ Close. The **accordion header** shows a running total followed by a per-category breakdown in parentheses, e.g. `$142.50 (Meals: $80.00, Parking: $20.00, Souvenirs: $30.00, Snacks: $12.50)` -- same style as the Trip Info cost breakdown. Stored in the `receipts` subcollection (Base64 image + description + amount + category + createdAt). Visible in both planning and travel modes.
 
 ---
 

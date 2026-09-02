@@ -6152,6 +6152,9 @@ async function _lpProjDeletePhoto(photoId) {
 // Receipts Section
 // ============================================================
 
+/** Seed list of receipt categories, in the fixed order used for the breakdown display. */
+const LP_RECEIPT_CATEGORIES = ['Meals', 'Snacks', 'Parking', 'Souvenirs', 'Other'];
+
 let _lpReceipts = [];
 
 async function _lpLoadReceipts() {
@@ -6175,8 +6178,35 @@ async function _lpLoadReceipts() {
         }
     }
 
-    _lpUpdateAccordionSummary('receipts', _lpReceipts.length > 0 ? `(${_lpReceipts.length})` : '');
+    _lpUpdateAccordionSummary('receipts', _lpReceiptsBreakdownText(_lpReceipts));
     _lpRenderReceipts(body);
+}
+
+// Build the "$total (Meals: $X, Parking: $Y, …)" breakdown for the accordion header —
+// same pattern as the Trip Info cost rollup (_lpCostBreakdownText).
+function _lpReceiptsBreakdownText(receipts) {
+    const byCategory = {};
+    let total = 0;
+    receipts.forEach(r => {
+        const amt = Number(r.amount) || 0;
+        total += amt;
+        const cat = r.category || 'Other';
+        byCategory[cat] = (byCategory[cat] || 0) + amt;
+    });
+    if (total === 0) return '';
+
+    const seen = new Set();
+    const parts = [];
+    LP_RECEIPT_CATEGORIES.forEach(cat => {
+        seen.add(cat);
+        if (byCategory[cat] > 0) parts.push(`${cat}: $${byCategory[cat].toFixed(2)}`);
+    });
+    // Any category not in the seed list (e.g. an older custom value) still gets counted.
+    Object.keys(byCategory).forEach(cat => {
+        if (!seen.has(cat) && byCategory[cat] > 0) parts.push(`${cat}: $${byCategory[cat].toFixed(2)}`);
+    });
+
+    return `$${total.toFixed(2)} (${parts.join(', ')})`;
 }
 
 function _lpRenderReceipts(body) {
@@ -6200,7 +6230,8 @@ function _lpRenderReceipts(body) {
                 ${receipts.map(r => `
                     <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
                         <span onclick="_lpReceiptOpenLightbox('${r.id}')" style="flex:1; cursor:pointer; color:#1d4ed8; text-decoration:underline;">${_lpEsc(r.description || '(no description)')}</span>
-                        <button class="btn btn-small" onclick="_lpReceiptEditDescription('${r.id}')" title="Edit description" style="padding:2px 8px;">✏️</button>
+                        <span style="color:#666; font-size:0.85em; white-space:nowrap;">${_lpEsc(r.category || 'Other')} · $${(Number(r.amount) || 0).toFixed(2)}</span>
+                        <button class="btn btn-small" onclick="_lpReceiptEdit('${r.id}')" title="Edit" style="padding:2px 8px;">✏️</button>
                         <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${r.id}')" title="Delete" style="padding:2px 8px;">🗑️</button>
                     </div>
                 `).join('')}
@@ -6258,14 +6289,16 @@ async function _lpReceiptPaste() {
 }
 
 async function _lpReceiptSave(imageData) {
-    // Prompt for a description right after the image is captured/selected
-    const description = await _lpTextPrompt({ title: 'Add Description', placeholder: 'e.g. Dinner Wed night', value: '', okText: 'Save Receipt' });
-    if (description === null) return; // cancelled
+    // Collect description, amount, and category right after the image is captured/selected
+    const details = await _lpReceiptDetailsPrompt();
+    if (details === null) return; // cancelled
 
     try {
         await lpSub(_lpCurrentProjectId, 'receipts').add({
             imageData,
-            description: description.trim(),
+            description: details.description,
+            amount: details.amount,
+            category: details.category,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await _lpLoadReceipts();
@@ -6273,6 +6306,70 @@ async function _lpReceiptSave(imageData) {
         console.error('Error saving receipt:', err);
         alert('Error saving receipt.');
     }
+}
+
+/**
+ * Modal collecting a receipt's description, amount, and category.
+ * Pass `initial` ({description, amount, category}) to pre-fill for editing.
+ * Resolves with {description, amount, category}, or null if cancelled.
+ */
+function _lpReceiptDetailsPrompt(initial) {
+    initial = initial || {};
+    return new Promise(resolve => {
+        let modal = document.getElementById('lpReceiptDetailsModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'lpReceiptDetailsModal';
+            modal.className = 'modal-overlay';
+            // Above the item modal, since this can be triggered from inside another modal
+            modal.style.zIndex = '1300';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:360px;">
+                    <h3 style="margin:0 0 12px;">Receipt Details</h3>
+                    <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Description</label>
+                    <input type="text" id="lpRcptDescInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" placeholder="e.g. Dinner Wed night">
+                    <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Amount</label>
+                    <input type="number" id="lpRcptAmountInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00">
+                    <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Category</label>
+                    <select id="lpRcptCategoryInput" class="form-control" style="width:100%; box-sizing:border-box;">
+                        ${LP_RECEIPT_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                    <div class="modal-actions" style="margin-top:12px;">
+                        <button class="btn" id="lpRcptCancel">Cancel</button>
+                        <button class="btn btn-primary" id="lpRcptOk">Save</button>
+                    </div>
+                </div>`;
+            document.getElementById('page-life-project').appendChild(modal);
+        }
+
+        const descInput     = document.getElementById('lpRcptDescInput');
+        const amountInput   = document.getElementById('lpRcptAmountInput');
+        const categoryInput = document.getElementById('lpRcptCategoryInput');
+        const okBtn          = document.getElementById('lpRcptOk');
+        const cancelBtn       = document.getElementById('lpRcptCancel');
+
+        descInput.value = initial.description || '';
+        amountInput.value = (initial.amount || initial.amount === 0) ? initial.amount : '';
+        categoryInput.value = initial.category || LP_RECEIPT_CATEGORIES[0];
+
+        const cleanup = () => { modal.classList.remove('open'); okBtn.onclick = null; cancelBtn.onclick = null; };
+
+        okBtn.onclick = () => {
+            const description = descInput.value.trim();
+            const parsedAmount = parseFloat(amountInput.value);
+            const amount = isNaN(parsedAmount) ? 0 : parsedAmount;
+            const category = categoryInput.value;
+            cleanup();
+            resolve({ description, amount, category });
+        };
+        cancelBtn.onclick = () => { cleanup(); resolve(null); };
+
+        // Enter key in the description field submits
+        descInput.onkeydown = (e) => { if (e.key === 'Enter') okBtn.click(); };
+
+        modal.classList.add('open');
+        setTimeout(() => { descInput.focus(); descInput.select(); }, 50);
+    });
 }
 
 // ---- Receipt Lightbox ----
@@ -6294,8 +6391,9 @@ function _lpReceiptOpenLightbox(receiptId) {
             <div onclick="event.stopPropagation()" style="position:relative; max-width:92vw; max-height:82vh; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:default;">
                 <img src="${receipt.imageData}" style="max-width:92vw; max-height:74vh; object-fit:contain; border-radius:6px; display:block;" alt="${_lpEsc(receipt.description || 'Receipt')}">
                 ${receipt.description ? `<div style="color:#e2e8f0; font-size:0.9em; text-align:center;">${_lpEsc(receipt.description)}</div>` : ''}
+                <div style="color:#94a3b8; font-size:0.85em; text-align:center;">${_lpEsc(receipt.category || 'Other')} · $${(Number(receipt.amount) || 0).toFixed(2)}</div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-                    <button class="btn btn-small" onclick="_lpReceiptEditDescription('${receipt.id}')" style="background:#475569; color:#fff; border:none;">✏️ Edit Description</button>
+                    <button class="btn btn-small" onclick="_lpReceiptEdit('${receipt.id}')" style="background:#475569; color:#fff; border:none;">✏️ Edit</button>
                     <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${receipt.id}')">🗑️ Delete</button>
                     <button class="btn btn-small" onclick="_lpReceiptCloseLightbox()" style="background:#475569; color:#fff; border:none;">✕ Close</button>
                 </div>
@@ -6318,25 +6416,26 @@ function _lpReceiptCloseLightbox() {
     }
 }
 
-async function _lpReceiptEditDescription(receiptId) {
+async function _lpReceiptEdit(receiptId) {
     const receipt = _lpReceipts.find(r => r.id === receiptId);
     if (!receipt) return;
 
-    const newDescription = prompt('Edit description:', receipt.description || '');
-    if (newDescription === null) return; // cancelled
+    const details = await _lpReceiptDetailsPrompt({ description: receipt.description, amount: receipt.amount, category: receipt.category });
+    if (details === null) return; // cancelled
 
     try {
-        await lpSub(_lpCurrentProjectId, 'receipts').doc(receiptId).update({ description: newDescription.trim() });
-        receipt.description = newDescription.trim(); // update in-memory
+        await lpSub(_lpCurrentProjectId, 'receipts').doc(receiptId).update(details);
+        Object.assign(receipt, details); // update in-memory
 
         // Refresh whichever view is currently showing this receipt
         const lb = document.getElementById('lpReceiptLightbox');
         if (lb && lb.style.display === 'block') _lpReceiptOpenLightbox(receiptId);
         const body = document.getElementById('lpBody_receipts');
         if (body) _lpRenderReceipts(body);
+        _lpUpdateAccordionSummary('receipts', _lpReceiptsBreakdownText(_lpReceipts));
     } catch (err) {
-        console.error('Error updating description:', err);
-        alert('Error updating description.');
+        console.error('Error updating receipt:', err);
+        alert('Error updating receipt.');
     }
 }
 
