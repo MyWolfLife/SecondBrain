@@ -1899,7 +1899,7 @@ Both reuse locations already in your account (matched by name) rather than dupli
 
 **Planning vs. Travel mode:** A toggle in the project header (stored on the project). **Planning mode** shows everything -- itinerary, planning board, journal, to-dos, locations, distances, costs. **Travel mode** is the on-the-trip view: it hides "maybe/idea/nope" items, hides cost fields, hides the To-Do, Planning Board, Journal, Locations, and Distances sections, auto-expands Itinerary and Bookings, and makes confirmed items more prominent.
 
-**Per-section help:** Every accordion header carries a **?** icon. Tapping it opens a quick-help popup for just that section -- a plain-language ("explain it simply") summary, a divider, then the section's full detailed help -- without leaving the project. The sections are: Trip Info, Itinerary, Planning Board, Journal, To-Do, Photos, Links, Bookings, Receipts, Packing, Locations, Distances, and People. (Each has its own detailed help below.)
+**Per-section help:** Every accordion header carries a **?** icon. Tapping it opens a quick-help popup for just that section -- a plain-language ("explain it simply") summary, a divider, then the section's full detailed help -- without leaving the project. The sections are: Trip Info, Itinerary, Receipts, Locations, Planning Board, Journal, To-Do, Photos, Links, Bookings, Packing, Distances, and People. (Each has its own detailed help below.)
 
 **Search:** The search box at the top of the page hides non-matching content across every section in real time -- day cards, bookings, to-dos, packing items, and notes.
 

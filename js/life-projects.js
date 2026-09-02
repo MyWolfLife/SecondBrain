@@ -1081,15 +1081,15 @@ function _lpRenderDetailPage(page) {
             <div id="lpAccordion">
                 ${_lpAccordionSection('tripInfo', '📍 Trip Info', '', true)}
                 ${_lpAccordionSection('itinerary', '📅 Itinerary', '', travel)}
+                ${_lpAccordionSection('receipts', '🧾 Receipts', '', false)}
+                ${travel ? '' : _lpAccordionSection('locations', '📌 Locations', '', false)}
                 ${travel ? '' : _lpAccordionSection('planning', '🗺️ Planning Board', '', false)}
                 ${travel ? '' : _lpAccordionSection('notes', '📓 Journal', '', false)}
                 ${travel ? '' : _lpAccordionSection('todos', '☑️ To-Do', '', false)}
                 ${_lpAccordionSection('photos', '📸 Photos', '', false)}
                 ${_lpAccordionSection('links', '🔗 Links', '', false)}
                 ${_lpAccordionSection('bookings', '🏨 Bookings', '', travel)}
-                ${_lpAccordionSection('receipts', '🧾 Receipts', '', false)}
                 ${_lpAccordionSection('packing', '🧳 Packing', '', false)}
-                ${travel ? '' : _lpAccordionSection('locations', '📌 Locations', '', false)}
                 ${travel ? '' : _lpAccordionSection('distances', '🛣️ Distances', '', false)}
                 ${_lpAccordionSection('people', '👥 People', _lpPeopleSummary(p), false)}
             </div>
@@ -1166,15 +1166,15 @@ function _lpAccordionSection(id, title, summary, expanded) {
 const LP_ACC_HELP = {
     tripInfo:  { key: 'life-project-tripinfo',  title: 'Trip Info' },
     itinerary: { key: 'life-project-itinerary', title: 'Itinerary' },
+    receipts:  { key: 'life-project-receipts',  title: 'Receipts' },
+    locations: { key: 'life-project-locations', title: 'Locations' },
     planning:  { key: 'life-project-planning',  title: 'Planning Board' },
     notes:     { key: 'life-project-journal',   title: 'Journal' },
     todos:     { key: 'life-project-todo',       title: 'To-Do' },
     photos:    { key: 'life-project-photos',    title: 'Photos' },
     links:     { key: 'life-project-links',     title: 'Links' },
     bookings:  { key: 'life-project-bookings',  title: 'Bookings' },
-    receipts:  { key: 'life-project-receipts',  title: 'Receipts' },
     packing:   { key: 'life-project-packing',   title: 'Packing' },
-    locations: { key: 'life-project-locations', title: 'Locations' },
     distances: { key: 'life-project-distances', title: 'Distances' },
     people:    { key: 'life-project-people',     title: 'People' }
 };
