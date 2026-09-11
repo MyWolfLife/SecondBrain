@@ -536,7 +536,7 @@ async function confirmDeleteLifeProject() {
 
     try {
         // Delete all subcollections
-        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'receipts', 'itemPhotos', 'itemPhotoData', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
+        const subs = ['days', 'bookings', 'bookingPhotos', 'projectPhotos', 'receipts', 'receiptCurrencies', 'itemPhotos', 'itemPhotoData', 'todoItems', 'packingItems', 'projectNotes', 'planningGroups', 'projectLocations'];
         for (const sub of subs) {
             const snap = await lpSub(projectId, sub).get();
             if (!snap.empty) {
@@ -1081,7 +1081,7 @@ function _lpRenderDetailPage(page) {
             <div id="lpAccordion">
                 ${_lpAccordionSection('tripInfo', '📍 Trip Info', '', true)}
                 ${_lpAccordionSection('itinerary', '📅 Itinerary', '', travel)}
-                ${_lpAccordionSection('receipts', '🧾 Receipts', '', false)}
+                ${_lpAccordionSection('receipts', '🧾 Receipts', '', false, '<span onclick="event.stopPropagation(); _lpOpenCurrencySetup()" title="Set up receipt currencies" style="cursor:pointer; color:#2563eb; border:1px solid #93c5fd; border-radius:50%; width:17px; height:17px; min-width:17px; display:inline-flex; align-items:center; justify-content:center; font-size:0.72em; line-height:1;">⚙️</span>')}
                 ${travel ? '' : _lpAccordionSection('locations', '📌 Locations', '', false)}
                 ${travel ? '' : _lpAccordionSection('planning', '🗺️ Planning Board', '', false)}
                 ${travel ? '' : _lpAccordionSection('notes', '📓 Journal', '', false)}
@@ -1140,7 +1140,7 @@ async function _lpLoadInitialData() {
 }
 
 /** Build an accordion section shell */
-function _lpAccordionSection(id, title, summary, expanded) {
+function _lpAccordionSection(id, title, summary, expanded, extraHeaderHtml) {
     return `
         <div class="lp-accordion-section" id="lpAcc_${id}" data-expanded="${expanded}" data-default-open="${expanded}">
             <div class="lp-accordion-header" onclick="_lpToggleAccordion('${id}')" style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; margin-bottom:4px; user-select:none;">
@@ -1148,6 +1148,7 @@ function _lpAccordionSection(id, title, summary, expanded) {
                     <span class="lp-accordion-arrow" id="lpArrow_${id}" style="transition:transform 0.2s; display:inline-block; ${expanded ? 'transform:rotate(90deg);' : ''}"">▶</span>
                     <strong>${title}</strong>
                     <span class="lp-acc-help" onclick="event.stopPropagation(); _lpShowAccordionHelp('${id}')" title="Quick help for this section" style="cursor:help; color:#2563eb; border:1px solid #93c5fd; border-radius:50%; width:17px; height:17px; min-width:17px; display:inline-flex; align-items:center; justify-content:center; font-size:0.72em; font-weight:700; line-height:1;">?</span>
+                    ${extraHeaderHtml || ''}
                     ${summary ? `<span style="color:#888; font-size:0.85em; margin-left:4px;">${summary}</span>` : ''}
                 </div>
             </div>
@@ -6157,6 +6158,16 @@ const LP_RECEIPT_CATEGORIES = ['Meals', 'Snacks', 'Parking', 'Souvenirs', 'Alcoh
 
 let _lpReceipts = [];
 
+/**
+ * Custom currencies/countries the user has set up for receipts (Setup ⚙️ in the accordion
+ * header). Each entry is {id, name, rate, sortOrder} where `rate` means "1 `name` = rate USD".
+ * Receipts store the currency by NAME (not this doc id) so they stay correct even if a
+ * currency is later renamed, reordered, or deleted — see _lpReceiptDetailsPrompt.
+ */
+let _lpReceiptCurrencies = [];
+/** null = no row being edited; 'new' = the add-row is open; else the id of the row being edited. */
+let _lpCurrencyEditingId = null;
+
 async function _lpLoadReceipts() {
     const body = document.getElementById('lpBody_receipts');
     if (!body || !_lpCurrentProjectId) return;
@@ -6167,6 +6178,7 @@ async function _lpLoadReceipts() {
         _lpReceipts = [];
         snap.forEach(doc => _lpReceipts.push({ id: doc.id, ...doc.data() }));
         _lpReceipts.sort((a, b) => _lpReceiptSortKey(b).localeCompare(_lpReceiptSortKey(a)));
+        await _lpLoadReceiptCurrencies();
     } catch (err) {
         body.innerHTML = '<p style="color:red;">Error loading receipts.</p>';
         return;
@@ -6174,6 +6186,18 @@ async function _lpLoadReceipts() {
 
     _lpUpdateAccordionSummary('receipts', _lpReceiptsBreakdownText(_lpReceipts));
     _lpRenderReceipts(body);
+}
+
+async function _lpLoadReceiptCurrencies() {
+    if (!_lpCurrentProjectId) return;
+    try {
+        const snap = await lpSub(_lpCurrentProjectId, 'receiptCurrencies').orderBy('sortOrder').get();
+        _lpReceiptCurrencies = [];
+        snap.forEach(doc => _lpReceiptCurrencies.push({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+        console.error('Error loading receipt currencies:', err);
+        _lpReceiptCurrencies = [];
+    }
 }
 
 /** Sort key (YYYY-MM-DD) for ordering receipts by date desc. Falls back to createdAt for older records saved before the date field existed. */
@@ -6185,6 +6209,160 @@ function _lpReceiptSortKey(r) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
     return '';
+}
+
+// ---- Receipt Currency Setup ----
+
+function _lpOpenCurrencySetup() {
+    _lpCurrencyEditingId = null;
+    let modal = document.getElementById('lpCurrencySetupModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'lpCurrencySetupModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '1300';
+        modal.innerHTML = `
+            <div class="modal" style="max-width:420px;">
+                <h3 style="margin:0 0 4px;">Receipt Currencies</h3>
+                <p style="margin:0 0 12px; color:#666; font-size:0.85em;">The top currency is the default when you add a receipt. Use ▲▼ to move the country you're currently in to the top. US Dollar is always available and needs no setup.</p>
+                <div id="lpCurrencySetupList"></div>
+                <button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="_lpCurrencyStartAdd()">+ Add Currency</button>
+                <div class="modal-actions" style="margin-top:16px;">
+                    <button class="btn btn-primary" onclick="_lpCloseCurrencySetup()">Done</button>
+                </div>
+            </div>`;
+        document.getElementById('page-life-project').appendChild(modal);
+    }
+    _lpRenderCurrencySetupList();
+    modal.classList.add('open');
+}
+
+function _lpCloseCurrencySetup() {
+    const modal = document.getElementById('lpCurrencySetupModal');
+    if (modal) modal.classList.remove('open');
+    _lpCurrencyEditingId = null;
+    // Currency list may have changed — refresh the accordion body if it's open.
+    const body = document.getElementById('lpBody_receipts');
+    if (body && body.innerHTML.indexOf('Loading') === -1) _lpRenderReceipts(body);
+}
+
+function _lpRenderCurrencySetupList() {
+    const list = document.getElementById('lpCurrencySetupList');
+    if (!list) return;
+
+    if (!_lpReceiptCurrencies.length && _lpCurrencyEditingId !== 'new') {
+        list.innerHTML = '<p style="color:#999; font-size:0.85em;">No currencies set up yet — receipts default to US Dollar.</p>';
+        return;
+    }
+
+    const rowStyle = 'display:flex; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;';
+
+    const rows = _lpReceiptCurrencies.map((c, idx) => {
+        if (_lpCurrencyEditingId === c.id) {
+            return `
+                <div style="${rowStyle}">
+                    <input type="text" id="lpCurEditName" class="form-control" style="flex:1;" value="${_lpEsc(c.name)}" placeholder="e.g. Canada">
+                    <input type="number" id="lpCurEditRate" class="form-control" style="width:90px;" value="${c.rate != null ? c.rate : ''}" step="0.0001" min="0" placeholder="1">
+                    <button class="btn btn-small btn-primary" onclick="_lpCurrencySaveEdit('${c.id}')" title="Save">✓</button>
+                    <button class="btn btn-small" onclick="_lpCurrencyCancelEdit()" title="Cancel">✕</button>
+                </div>`;
+        }
+        return `
+            <div style="${rowStyle}">
+                <div style="display:flex; flex-direction:column;">
+                    <button class="btn btn-small" onclick="_lpCurrencyMove('${c.id}', -1)" ${idx === 0 ? 'disabled' : ''} title="Move up" style="padding:0 6px; line-height:1.3;">▲</button>
+                    <button class="btn btn-small" onclick="_lpCurrencyMove('${c.id}', 1)" ${idx === _lpReceiptCurrencies.length - 1 ? 'disabled' : ''} title="Move down" style="padding:0 6px; line-height:1.3;">▼</button>
+                </div>
+                <div style="flex:1;">
+                    <strong>${_lpEsc(c.name)}</strong>
+                    <div style="color:#888; font-size:0.8em;">1 ${_lpEsc(c.name)} = $${c.rate != null ? c.rate : 1} USD</div>
+                </div>
+                <button class="btn btn-small" onclick="_lpCurrencyStartEdit('${c.id}')" title="Edit">✏️</button>
+                <button class="btn btn-small btn-danger" onclick="_lpCurrencyDelete('${c.id}')" title="Delete">🗑️</button>
+            </div>`;
+    }).join('');
+
+    const addRow = _lpCurrencyEditingId === 'new' ? `
+        <div style="${rowStyle}">
+            <input type="text" id="lpCurEditName" class="form-control" style="flex:1;" placeholder="e.g. Canada">
+            <input type="number" id="lpCurEditRate" class="form-control" style="width:90px;" step="0.0001" min="0" placeholder="1">
+            <button class="btn btn-small btn-primary" onclick="_lpCurrencySaveEdit(null)" title="Save">✓</button>
+            <button class="btn btn-small" onclick="_lpCurrencyCancelEdit()" title="Cancel">✕</button>
+        </div>` : '';
+
+    list.innerHTML = rows + addRow;
+    const nameInput = document.getElementById('lpCurEditName');
+    if (nameInput) setTimeout(() => nameInput.focus(), 50);
+}
+
+function _lpCurrencyStartAdd() {
+    _lpCurrencyEditingId = 'new';
+    _lpRenderCurrencySetupList();
+}
+
+function _lpCurrencyStartEdit(id) {
+    _lpCurrencyEditingId = id;
+    _lpRenderCurrencySetupList();
+}
+
+function _lpCurrencyCancelEdit() {
+    _lpCurrencyEditingId = null;
+    _lpRenderCurrencySetupList();
+}
+
+/** Save the add/edit row. `id` is null when adding a new currency. */
+async function _lpCurrencySaveEdit(id) {
+    const nameInput = document.getElementById('lpCurEditName');
+    const rateInput = document.getElementById('lpCurEditRate');
+    const name = (nameInput.value || '').trim();
+    if (!name) { alert('Please enter a country/currency name.'); return; }
+    const parsedRate = parseFloat(rateInput.value);
+    const rate = (isNaN(parsedRate) || parsedRate <= 0) ? 1 : parsedRate;
+
+    try {
+        if (id) {
+            await lpSub(_lpCurrentProjectId, 'receiptCurrencies').doc(id).update({ name, rate });
+        } else {
+            await lpSub(_lpCurrentProjectId, 'receiptCurrencies').add({ name, rate, sortOrder: _lpReceiptCurrencies.length });
+        }
+        _lpCurrencyEditingId = null;
+        await _lpLoadReceiptCurrencies();
+        _lpRenderCurrencySetupList();
+    } catch (err) {
+        console.error('Error saving currency:', err);
+        alert('Error saving currency.');
+    }
+}
+
+async function _lpCurrencyDelete(id) {
+    if (!confirm('Delete this currency? Receipts already logged in it keep their amounts, but you won\'t be able to pick it again.')) return;
+    try {
+        await lpSub(_lpCurrentProjectId, 'receiptCurrencies').doc(id).delete();
+        await _lpLoadReceiptCurrencies();
+        _lpRenderCurrencySetupList();
+    } catch (err) {
+        console.error('Error deleting currency:', err);
+        alert('Error deleting currency.');
+    }
+}
+
+/** Swap this currency's position with its neighbor (dir: -1 up, +1 down) by swapping sortOrder. */
+async function _lpCurrencyMove(id, dir) {
+    const idx = _lpReceiptCurrencies.findIndex(c => c.id === id);
+    const otherIdx = idx + dir;
+    if (idx < 0 || otherIdx < 0 || otherIdx >= _lpReceiptCurrencies.length) return;
+    const a = _lpReceiptCurrencies[idx];
+    const b = _lpReceiptCurrencies[otherIdx];
+    try {
+        const batch = firebase.firestore().batch();
+        batch.update(lpSub(_lpCurrentProjectId, 'receiptCurrencies').doc(a.id), { sortOrder: otherIdx });
+        batch.update(lpSub(_lpCurrentProjectId, 'receiptCurrencies').doc(b.id), { sortOrder: idx });
+        await batch.commit();
+        await _lpLoadReceiptCurrencies();
+        _lpRenderCurrencySetupList();
+    } catch (err) {
+        console.error('Error reordering currencies:', err);
+    }
 }
 
 // Build the "$total (Meals: $X, Parking: $Y, …)" breakdown for the accordion header —
@@ -6240,7 +6418,7 @@ function _lpRenderReceipts(body) {
                             : `<span style="flex:1; color:#333;">${_lpEsc(r.description || '(no description)')}</span>`
                         }
                         <span style="color:#999; font-size:0.8em; white-space:nowrap;">${_lpReceiptFormatDate(r.date)}</span>
-                        <span style="color:#666; font-size:0.85em; white-space:nowrap;">${_lpEsc(r.category || 'Other')} · $${(Number(r.amount) || 0).toFixed(2)}</span>
+                        <span style="color:#666; font-size:0.85em; white-space:nowrap;">${_lpEsc(r.category || 'Other')} · $${(Number(r.amount) || 0).toFixed(2)}${r.currencyName ? ` (${(Number(r.localAmount) || 0).toFixed(2)} ${_lpEsc(r.currencyName)})` : ''}</span>
                         <button class="btn btn-small" onclick="_lpReceiptEdit('${r.id}')" title="Edit" style="padding:2px 8px;">✏️</button>
                         <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${r.id}')" title="Delete" style="padding:2px 8px;">🗑️</button>
                     </div>
@@ -6323,10 +6501,7 @@ async function _lpReceiptSave(imageData) {
     try {
         await lpSub(_lpCurrentProjectId, 'receipts').add({
             imageData,
-            description: details.description,
-            date: details.date,
-            amount: details.amount,
-            category: details.category,
+            ...details,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         await _lpLoadReceipts();
@@ -6336,10 +6511,42 @@ async function _lpReceiptSave(imageData) {
     }
 }
 
+/** Toggle the Amount vs. Local+USD blocks in the Receipt Details modal based on the currency picked. */
+function _lpRcptCurrencyChanged() {
+    const currencySelect = document.getElementById('lpRcptCurrencyInput');
+    const usdBlock = document.getElementById('lpRcptUsdAmountBlock');
+    const foreignBlock = document.getElementById('lpRcptForeignAmountBlock');
+    if (!currencySelect || !usdBlock || !foreignBlock) return;
+    const name = currencySelect.value;
+    if (!name) {
+        usdBlock.style.display = '';
+        foreignBlock.style.display = 'none';
+    } else {
+        usdBlock.style.display = 'none';
+        foreignBlock.style.display = '';
+        const label = document.getElementById('lpRcptLocalAmountLabel');
+        if (label) label.textContent = `Amount (${name})`;
+        _lpRcptRecalcUsd();
+    }
+}
+
+/** Recompute the "≈ US Dollar" field from the local amount × the selected currency's rate. */
+function _lpRcptRecalcUsd() {
+    const currencySelect = document.getElementById('lpRcptCurrencyInput');
+    const localInput = document.getElementById('lpRcptLocalAmountInput');
+    const usdEquivInput = document.getElementById('lpRcptUsdEquivInput');
+    if (!currencySelect || !localInput || !usdEquivInput) return;
+    const cur = _lpReceiptCurrencies.find(c => c.name === currencySelect.value);
+    const rate = cur ? (cur.rate || 1) : 1;
+    const local = parseFloat(localInput.value);
+    if (isNaN(local)) return;
+    usdEquivInput.value = (local * rate).toFixed(2);
+}
+
 /**
- * Modal collecting a receipt's description, amount, and category.
- * Pass `initial` ({description, amount, category}) to pre-fill for editing.
- * Resolves with {description, amount, category}, or null if cancelled.
+ * Modal collecting a receipt's description, date, currency, amount, and category.
+ * Pass `initial` ({description, date, amount, category, currencyName, localAmount}) to pre-fill for editing.
+ * Resolves with {description, date, amount, category, currencyName, localAmount, rate}, or null if cancelled.
  */
 function _lpReceiptDetailsPrompt(initial) {
     initial = initial || {};
@@ -6358,8 +6565,24 @@ function _lpReceiptDetailsPrompt(initial) {
                     <input type="text" id="lpRcptDescInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" placeholder="e.g. Dinner Wed night">
                     <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Date</label>
                     <input type="date" id="lpRcptDateInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;">
-                    <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Amount</label>
-                    <input type="number" id="lpRcptAmountInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00">
+
+                    <div id="lpRcptCurrencyRow" style="display:none;">
+                        <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Currency</label>
+                        <select id="lpRcptCurrencyInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" onchange="_lpRcptCurrencyChanged()"></select>
+                    </div>
+
+                    <div id="lpRcptUsdAmountBlock">
+                        <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Amount</label>
+                        <input type="number" id="lpRcptAmountInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00">
+                    </div>
+
+                    <div id="lpRcptForeignAmountBlock" style="display:none;">
+                        <label id="lpRcptLocalAmountLabel" style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Amount</label>
+                        <input type="number" id="lpRcptLocalAmountInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00" oninput="_lpRcptRecalcUsd()">
+                        <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">≈ US Dollar</label>
+                        <input type="number" id="lpRcptUsdEquivInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00">
+                    </div>
+
                     <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Category</label>
                     <select id="lpRcptCategoryInput" class="form-control" style="width:100%; box-sizing:border-box;">
                         ${LP_RECEIPT_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
@@ -6372,28 +6595,72 @@ function _lpReceiptDetailsPrompt(initial) {
             document.getElementById('page-life-project').appendChild(modal);
         }
 
-        const descInput     = document.getElementById('lpRcptDescInput');
-        const dateInput     = document.getElementById('lpRcptDateInput');
-        const amountInput   = document.getElementById('lpRcptAmountInput');
-        const categoryInput = document.getElementById('lpRcptCategoryInput');
+        const descInput       = document.getElementById('lpRcptDescInput');
+        const dateInput       = document.getElementById('lpRcptDateInput');
+        const currencyRow     = document.getElementById('lpRcptCurrencyRow');
+        const currencySelect  = document.getElementById('lpRcptCurrencyInput');
+        const amountInput     = document.getElementById('lpRcptAmountInput');
+        const localInput      = document.getElementById('lpRcptLocalAmountInput');
+        const usdEquivInput   = document.getElementById('lpRcptUsdEquivInput');
+        const categoryInput   = document.getElementById('lpRcptCategoryInput');
         const okBtn          = document.getElementById('lpRcptOk');
         const cancelBtn       = document.getElementById('lpRcptCancel');
 
         descInput.value = initial.description || '';
         dateInput.value = initial.date || _lpTodayIsoDate();
-        amountInput.value = (initial.amount || initial.amount === 0) ? initial.amount : '';
         categoryInput.value = initial.category || LP_RECEIPT_CATEGORIES[0];
+
+        // Rebuild the currency options fresh every open — the currency list can change between calls.
+        currencySelect.innerHTML = _lpReceiptCurrencies.map(c => `<option value="${_lpEsc(c.name)}">${_lpEsc(c.name)}</option>`).join('')
+            + '<option value="">US Dollar</option>';
+
+        if (_lpReceiptCurrencies.length) {
+            currencyRow.style.display = '';
+            const selectedName = initial.currencyName || _lpReceiptCurrencies[0].name;
+            // If editing a receipt whose currency was since deleted, keep its name visible instead of silently switching.
+            if (selectedName && !Array.from(currencySelect.options).some(o => o.value === selectedName)) {
+                const opt = document.createElement('option');
+                opt.value = selectedName;
+                opt.textContent = selectedName + ' (removed)';
+                currencySelect.insertBefore(opt, currencySelect.firstChild);
+            }
+            currencySelect.value = selectedName;
+        } else {
+            currencyRow.style.display = 'none';
+            currencySelect.value = '';
+        }
+
+        amountInput.value = (initial.amount || initial.amount === 0) ? initial.amount : '';
+        localInput.value = (initial.localAmount || initial.localAmount === 0) ? initial.localAmount : '';
+        usdEquivInput.value = (initial.amount || initial.amount === 0) ? initial.amount : '';
+
+        _lpRcptCurrencyChanged(); // sets USD-vs-foreign block visibility + label for the current selection
 
         const cleanup = () => { modal.classList.remove('open'); okBtn.onclick = null; cancelBtn.onclick = null; };
 
         okBtn.onclick = () => {
             const description = descInput.value.trim();
             const date = dateInput.value || _lpTodayIsoDate();
-            const parsedAmount = parseFloat(amountInput.value);
-            const amount = isNaN(parsedAmount) ? 0 : parsedAmount;
             const category = categoryInput.value;
+            const currencyName = _lpReceiptCurrencies.length ? (currencySelect.value || '') : '';
+
+            let amount, localAmount, rate;
+            if (currencyName) {
+                const cur = _lpReceiptCurrencies.find(c => c.name === currencyName);
+                rate = cur ? (cur.rate || 1) : 1;
+                const parsedLocal = parseFloat(localInput.value);
+                localAmount = isNaN(parsedLocal) ? 0 : parsedLocal;
+                const parsedUsd = parseFloat(usdEquivInput.value);
+                amount = isNaN(parsedUsd) ? (localAmount * rate) : parsedUsd;
+            } else {
+                const parsedAmount = parseFloat(amountInput.value);
+                amount = isNaN(parsedAmount) ? 0 : parsedAmount;
+                localAmount = amount;
+                rate = 1;
+            }
+
             cleanup();
-            resolve({ description, date, amount, category });
+            resolve({ description, date, amount, category, currencyName, localAmount, rate });
         };
         cancelBtn.onclick = () => { cleanup(); resolve(null); };
 
@@ -6424,7 +6691,7 @@ function _lpReceiptOpenLightbox(receiptId) {
             <div onclick="event.stopPropagation()" style="position:relative; max-width:92vw; max-height:82vh; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:default;">
                 <img src="${receipt.imageData}" style="max-width:92vw; max-height:74vh; object-fit:contain; border-radius:6px; display:block;" alt="${_lpEsc(receipt.description || 'Receipt')}">
                 ${receipt.description ? `<div style="color:#e2e8f0; font-size:0.9em; text-align:center;">${_lpEsc(receipt.description)}</div>` : ''}
-                <div style="color:#94a3b8; font-size:0.85em; text-align:center;">${_lpReceiptFormatDate(receipt.date)}${receipt.date ? ' · ' : ''}${_lpEsc(receipt.category || 'Other')} · $${(Number(receipt.amount) || 0).toFixed(2)}</div>
+                <div style="color:#94a3b8; font-size:0.85em; text-align:center;">${_lpReceiptFormatDate(receipt.date)}${receipt.date ? ' · ' : ''}${_lpEsc(receipt.category || 'Other')} · $${(Number(receipt.amount) || 0).toFixed(2)}${receipt.currencyName ? ` (${(Number(receipt.localAmount) || 0).toFixed(2)} ${_lpEsc(receipt.currencyName)})` : ''}</div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
                     <button class="btn btn-small" onclick="_lpReceiptEdit('${receipt.id}')" style="background:#475569; color:#fff; border:none;">✏️ Edit</button>
                     <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${receipt.id}')">🗑️ Delete</button>
@@ -6453,7 +6720,10 @@ async function _lpReceiptEdit(receiptId) {
     const receipt = _lpReceipts.find(r => r.id === receiptId);
     if (!receipt) return;
 
-    const details = await _lpReceiptDetailsPrompt({ description: receipt.description, date: receipt.date, amount: receipt.amount, category: receipt.category });
+    const details = await _lpReceiptDetailsPrompt({
+        description: receipt.description, date: receipt.date, amount: receipt.amount, category: receipt.category,
+        currencyName: receipt.currencyName || '', localAmount: receipt.localAmount
+    });
     if (details === null) return; // cancelled
 
     try {
@@ -7301,7 +7571,7 @@ async function _lpBuildExportData(includePhotos, onProgress) {
     const p = _lpCurrentProject;
 
     onProgress('Reading project data…');
-    const [daySnap, pgSnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap] = await Promise.all([
+    const [daySnap, pgSnap, bookingSnap, plSnap, todoSnap, packingSnap, noteSnap, itemPhotoSnap, rcSnap] = await Promise.all([
         lpSub(projectId, 'days').orderBy('sortOrder').get(),
         lpSub(projectId, 'planningGroups').orderBy('sortOrder').get(),
         lpSub(projectId, 'bookings').orderBy('sortOrder').get(),
@@ -7309,7 +7579,8 @@ async function _lpBuildExportData(includePhotos, onProgress) {
         lpSub(projectId, 'todoItems').orderBy('sortOrder').get(),
         lpSub(projectId, 'packingItems').get(),
         lpSub(projectId, 'projectNotes').get(),
-        lpSub(projectId, 'itemPhotos').get()
+        lpSub(projectId, 'itemPhotos').get(),
+        lpSub(projectId, 'receiptCurrencies').orderBy('sortOrder').get()
     ]);
 
     // Locations — assign portable export IDs, keyed by the projectLocations doc id
@@ -7496,9 +7767,21 @@ async function _lpBuildExportData(includePhotos, onProgress) {
         const rSnap = await lpSub(projectId, 'receipts').get();
         rSnap.forEach(doc => {
             const d = doc.data();
-            receipts.push({ imageData: d.imageData || '', description: d.description || '', date: d.date || '', amount: d.amount != null ? d.amount : null, category: d.category || 'Other' });
+            receipts.push({
+                imageData: d.imageData || '', description: d.description || '', date: d.date || '',
+                amount: d.amount != null ? d.amount : null, category: d.category || 'Other',
+                currencyName: d.currencyName || '', localAmount: d.localAmount != null ? d.localAmount : (d.amount != null ? d.amount : null),
+                rate: d.rate != null ? d.rate : 1
+            });
         });
     }
+
+    // Receipt currencies (Setup ⚙️) — plain metadata, not gated behind includePhotos.
+    const receiptCurrencies = [];
+    rcSnap.forEach(doc => {
+        const d = doc.data();
+        receiptCurrencies.push({ name: d.name || '', rate: d.rate != null ? d.rate : 1, sortOrder: d.sortOrder || 0 });
+    });
 
     return {
         exportVersion: LP_EXPORT_VERSION,
@@ -7513,7 +7796,7 @@ async function _lpBuildExportData(includePhotos, onProgress) {
             links: p.links || []
             // people intentionally omitted — contacts don't carry over between accounts
         },
-        locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos, receipts
+        locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos, receipts, receiptCurrencies
     };
 }
 
@@ -7837,20 +8120,30 @@ async function _lpExecuteFullImport(d) {
             }
         }
 
-        // Receipts — inline imageData, small chunks
+        // Receipt currencies (Setup ⚙️) — import before receipts so the setup is in place either way.
+        if (d.receiptCurrencies && d.receiptCurrencies.length) {
+            prog.innerHTML = `<p>Creating ${d.receiptCurrencies.length} receipt currencies…</p>`;
+            const batch = firebase.firestore().batch();
+            d.receiptCurrencies.forEach(c => {
+                batch.set(lpSub(projectId, 'receiptCurrencies').doc(), { name: c.name || '', rate: c.rate != null ? c.rate : 1, sortOrder: c.sortOrder || 0 });
+            });
+            await batch.commit();
+        }
+
+        // Receipts — inline imageData, small chunks. Note: some receipts intentionally have
+        // no image (the "No Photo" option), so this no longer filters on imageData.
         if (d.receipts && d.receipts.length) {
-            const validReceipts = d.receipts.filter(r => r.imageData);
-            if (validReceipts.length) {
-                prog.innerHTML = `<p>Importing ${validReceipts.length} receipts…</p>`;
-                for (let i = 0; i < validReceipts.length; i += 30) {
-                    const chunk = validReceipts.slice(i, i + 30);
-                    const batch = firebase.firestore().batch();
-                    chunk.forEach(r => batch.set(lpSub(projectId, 'receipts').doc(), {
-                        imageData: r.imageData, description: r.description || '', date: r.date || '',
-                        amount: r.amount != null ? r.amount : 0, category: r.category || 'Other', createdAt: now
-                    }));
-                    await batch.commit();
-                }
+            prog.innerHTML = `<p>Importing ${d.receipts.length} receipts…</p>`;
+            for (let i = 0; i < d.receipts.length; i += 30) {
+                const chunk = d.receipts.slice(i, i + 30);
+                const batch = firebase.firestore().batch();
+                chunk.forEach(r => batch.set(lpSub(projectId, 'receipts').doc(), {
+                    imageData: r.imageData || '', description: r.description || '', date: r.date || '',
+                    amount: r.amount != null ? r.amount : 0, category: r.category || 'Other',
+                    currencyName: r.currencyName || '', localAmount: r.localAmount != null ? r.localAmount : (r.amount != null ? r.amount : 0),
+                    rate: r.rate != null ? r.rate : 1, createdAt: now
+                }));
+                await batch.commit();
             }
         }
 
@@ -8311,7 +8604,7 @@ async function _lpBuildPrintDocument(onProgress) {
                     <span class="item-title">${esc(r.description || 'Receipt')}</span>
                     <span class="badge badge-type">${esc(r.category || 'Other')}</span>
                 </div>
-                <div class="item-meta"><div><strong>Amount:</strong> $${(Number(r.amount) || 0).toFixed(2)}</div></div>
+                <div class="item-meta"><div><strong>Amount:</strong> $${(Number(r.amount) || 0).toFixed(2)}${r.currencyName ? ` (${(Number(r.localAmount) || 0).toFixed(2)} ${esc(r.currencyName)})` : ''}</div></div>
                 ${photoGalleryHtml(r.imageData ? [{ imageData: r.imageData, name: '' }] : [])}
             </div>
         `).join('')}` : '';
