@@ -6228,13 +6228,17 @@ function _lpRenderReceipts(body) {
                 <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="_lpReceiptHandleFiles(this.files)">
             </label>
             <button class="btn btn-small btn-primary" onclick="_lpReceiptPaste()" title="Paste from clipboard">📋 Paste</button>
+            <button class="btn btn-small" onclick="_lpReceiptAddNoPhoto()" title="Add a receipt without a photo">📝 No Photo</button>
         </div>
         ${receipts.length === 0
             ? '<p style="color:#bbb; font-size:0.85em;">No receipts yet.</p>'
             : `<div id="lpReceiptList" style="display:flex; flex-direction:column; gap:4px;">
                 ${receipts.map(r => `
                     <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
-                        <span onclick="_lpReceiptOpenLightbox('${r.id}')" style="flex:1; cursor:pointer; color:#1d4ed8; text-decoration:underline;">${_lpEsc(r.description || '(no description)')}</span>
+                        ${r.imageData
+                            ? `<span onclick="_lpReceiptOpenLightbox('${r.id}')" style="flex:1; cursor:pointer; color:#1d4ed8; text-decoration:underline;">${_lpEsc(r.description || '(no description)')}</span>`
+                            : `<span style="flex:1; color:#333;">${_lpEsc(r.description || '(no description)')}</span>`
+                        }
                         <span style="color:#999; font-size:0.8em; white-space:nowrap;">${_lpReceiptFormatDate(r.date)}</span>
                         <span style="color:#666; font-size:0.85em; white-space:nowrap;">${_lpEsc(r.category || 'Other')} · $${(Number(r.amount) || 0).toFixed(2)}</span>
                         <button class="btn btn-small" onclick="_lpReceiptEdit('${r.id}')" title="Edit" style="padding:2px 8px;">✏️</button>
@@ -6304,6 +6308,11 @@ async function _lpReceiptPaste() {
             alert('Could not read clipboard. Try the Add Image button instead.');
         }
     }
+}
+
+/** Add a receipt with no photo attached — same Details modal, blank imageData. */
+function _lpReceiptAddNoPhoto() {
+    _lpReceiptSave('');
 }
 
 async function _lpReceiptSave(imageData) {
