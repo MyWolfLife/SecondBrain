@@ -6153,7 +6153,7 @@ async function _lpProjDeletePhoto(photoId) {
 // ============================================================
 
 /** Seed list of receipt categories, in the fixed order used for the breakdown display. */
-const LP_RECEIPT_CATEGORIES = ['Meals', 'Snacks', 'Parking', 'Souvenirs', 'Other'];
+const LP_RECEIPT_CATEGORIES = ['Meals', 'Snacks', 'Parking', 'Souvenirs', 'Alcohol', 'Gas', 'Activity', 'Other'];
 
 let _lpReceipts = [];
 
@@ -6163,23 +6163,28 @@ async function _lpLoadReceipts() {
     body.innerHTML = '<p style="color:#999; font-size:0.9em;">Loading...</p>';
 
     try {
-        const snap = await lpSub(_lpCurrentProjectId, 'receipts').orderBy('createdAt', 'desc').get();
+        const snap = await lpSub(_lpCurrentProjectId, 'receipts').get();
         _lpReceipts = [];
         snap.forEach(doc => _lpReceipts.push({ id: doc.id, ...doc.data() }));
+        _lpReceipts.sort((a, b) => _lpReceiptSortKey(b).localeCompare(_lpReceiptSortKey(a)));
     } catch (err) {
-        // Firestore index may not exist yet — fallback to unordered
-        try {
-            const snap = await lpSub(_lpCurrentProjectId, 'receipts').get();
-            _lpReceipts = [];
-            snap.forEach(doc => _lpReceipts.push({ id: doc.id, ...doc.data() }));
-        } catch (err2) {
-            body.innerHTML = '<p style="color:red;">Error loading receipts.</p>';
-            return;
-        }
+        body.innerHTML = '<p style="color:red;">Error loading receipts.</p>';
+        return;
     }
 
     _lpUpdateAccordionSummary('receipts', _lpReceiptsBreakdownText(_lpReceipts));
     _lpRenderReceipts(body);
+}
+
+/** Sort key (YYYY-MM-DD) for ordering receipts by date desc. Falls back to createdAt for older records saved before the date field existed. */
+function _lpReceiptSortKey(r) {
+    if (r.date) return r.date;
+    if (r.createdAt) {
+        const ms = r.createdAt.seconds ? r.createdAt.seconds * 1000 : r.createdAt;
+        const d = new Date(ms);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    return '';
 }
 
 // Build the "$total (Meals: $X, Parking: $Y, …)" breakdown for the accordion header —
@@ -6230,6 +6235,7 @@ function _lpRenderReceipts(body) {
                 ${receipts.map(r => `
                     <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc;">
                         <span onclick="_lpReceiptOpenLightbox('${r.id}')" style="flex:1; cursor:pointer; color:#1d4ed8; text-decoration:underline;">${_lpEsc(r.description || '(no description)')}</span>
+                        <span style="color:#999; font-size:0.8em; white-space:nowrap;">${_lpReceiptFormatDate(r.date)}</span>
                         <span style="color:#666; font-size:0.85em; white-space:nowrap;">${_lpEsc(r.category || 'Other')} · $${(Number(r.amount) || 0).toFixed(2)}</span>
                         <button class="btn btn-small" onclick="_lpReceiptEdit('${r.id}')" title="Edit" style="padding:2px 8px;">✏️</button>
                         <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${r.id}')" title="Delete" style="padding:2px 8px;">🗑️</button>
@@ -6238,6 +6244,18 @@ function _lpRenderReceipts(body) {
                </div>`
         }
     `;
+}
+
+/** Format a receipt's YYYY-MM-DD date for display, e.g. "Sep 11". Blank if not set. */
+function _lpReceiptFormatDate(dateStr) {
+    if (!dateStr) return '';
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Today's date as YYYY-MM-DD, in local time (matches the <input type="date"> value format). */
+function _lpTodayIsoDate() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 async function _lpReceiptHandleFiles(files) {
@@ -6297,6 +6315,7 @@ async function _lpReceiptSave(imageData) {
         await lpSub(_lpCurrentProjectId, 'receipts').add({
             imageData,
             description: details.description,
+            date: details.date,
             amount: details.amount,
             category: details.category,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -6328,6 +6347,8 @@ function _lpReceiptDetailsPrompt(initial) {
                     <h3 style="margin:0 0 12px;">Receipt Details</h3>
                     <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Description</label>
                     <input type="text" id="lpRcptDescInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" placeholder="e.g. Dinner Wed night">
+                    <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Date</label>
+                    <input type="date" id="lpRcptDateInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;">
                     <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Amount</label>
                     <input type="number" id="lpRcptAmountInput" class="form-control" style="width:100%; box-sizing:border-box; margin-bottom:10px;" step="0.01" min="0" placeholder="0.00">
                     <label style="display:block; font-size:0.85em; color:#555; margin-bottom:2px;">Category</label>
@@ -6343,12 +6364,14 @@ function _lpReceiptDetailsPrompt(initial) {
         }
 
         const descInput     = document.getElementById('lpRcptDescInput');
+        const dateInput     = document.getElementById('lpRcptDateInput');
         const amountInput   = document.getElementById('lpRcptAmountInput');
         const categoryInput = document.getElementById('lpRcptCategoryInput');
         const okBtn          = document.getElementById('lpRcptOk');
         const cancelBtn       = document.getElementById('lpRcptCancel');
 
         descInput.value = initial.description || '';
+        dateInput.value = initial.date || _lpTodayIsoDate();
         amountInput.value = (initial.amount || initial.amount === 0) ? initial.amount : '';
         categoryInput.value = initial.category || LP_RECEIPT_CATEGORIES[0];
 
@@ -6356,11 +6379,12 @@ function _lpReceiptDetailsPrompt(initial) {
 
         okBtn.onclick = () => {
             const description = descInput.value.trim();
+            const date = dateInput.value || _lpTodayIsoDate();
             const parsedAmount = parseFloat(amountInput.value);
             const amount = isNaN(parsedAmount) ? 0 : parsedAmount;
             const category = categoryInput.value;
             cleanup();
-            resolve({ description, amount, category });
+            resolve({ description, date, amount, category });
         };
         cancelBtn.onclick = () => { cleanup(); resolve(null); };
 
@@ -6391,7 +6415,7 @@ function _lpReceiptOpenLightbox(receiptId) {
             <div onclick="event.stopPropagation()" style="position:relative; max-width:92vw; max-height:82vh; display:flex; flex-direction:column; align-items:center; gap:10px; cursor:default;">
                 <img src="${receipt.imageData}" style="max-width:92vw; max-height:74vh; object-fit:contain; border-radius:6px; display:block;" alt="${_lpEsc(receipt.description || 'Receipt')}">
                 ${receipt.description ? `<div style="color:#e2e8f0; font-size:0.9em; text-align:center;">${_lpEsc(receipt.description)}</div>` : ''}
-                <div style="color:#94a3b8; font-size:0.85em; text-align:center;">${_lpEsc(receipt.category || 'Other')} · $${(Number(receipt.amount) || 0).toFixed(2)}</div>
+                <div style="color:#94a3b8; font-size:0.85em; text-align:center;">${_lpReceiptFormatDate(receipt.date)}${receipt.date ? ' · ' : ''}${_lpEsc(receipt.category || 'Other')} · $${(Number(receipt.amount) || 0).toFixed(2)}</div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
                     <button class="btn btn-small" onclick="_lpReceiptEdit('${receipt.id}')" style="background:#475569; color:#fff; border:none;">✏️ Edit</button>
                     <button class="btn btn-small btn-danger" onclick="_lpReceiptDelete('${receipt.id}')">🗑️ Delete</button>
@@ -6420,12 +6444,13 @@ async function _lpReceiptEdit(receiptId) {
     const receipt = _lpReceipts.find(r => r.id === receiptId);
     if (!receipt) return;
 
-    const details = await _lpReceiptDetailsPrompt({ description: receipt.description, amount: receipt.amount, category: receipt.category });
+    const details = await _lpReceiptDetailsPrompt({ description: receipt.description, date: receipt.date, amount: receipt.amount, category: receipt.category });
     if (details === null) return; // cancelled
 
     try {
         await lpSub(_lpCurrentProjectId, 'receipts').doc(receiptId).update(details);
         Object.assign(receipt, details); // update in-memory
+        _lpReceipts.sort((a, b) => _lpReceiptSortKey(b).localeCompare(_lpReceiptSortKey(a))); // date may have changed
 
         // Refresh whichever view is currently showing this receipt
         const lb = document.getElementById('lpReceiptLightbox');
@@ -7462,7 +7487,7 @@ async function _lpBuildExportData(includePhotos, onProgress) {
         const rSnap = await lpSub(projectId, 'receipts').get();
         rSnap.forEach(doc => {
             const d = doc.data();
-            receipts.push({ imageData: d.imageData || '', description: d.description || '', amount: d.amount != null ? d.amount : null, category: d.category || 'Other' });
+            receipts.push({ imageData: d.imageData || '', description: d.description || '', date: d.date || '', amount: d.amount != null ? d.amount : null, category: d.category || 'Other' });
         });
     }
 
@@ -7812,7 +7837,7 @@ async function _lpExecuteFullImport(d) {
                     const chunk = validReceipts.slice(i, i + 30);
                     const batch = firebase.firestore().batch();
                     chunk.forEach(r => batch.set(lpSub(projectId, 'receipts').doc(), {
-                        imageData: r.imageData, description: r.description || '',
+                        imageData: r.imageData, description: r.description || '', date: r.date || '',
                         amount: r.amount != null ? r.amount : 0, category: r.category || 'Other', createdAt: now
                     }));
                     await batch.commit();
