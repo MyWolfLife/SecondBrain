@@ -201,9 +201,13 @@
 
 **Scope note:** "Go Offline" only affects the Firestore connection — it has no effect on other network calls (SecondBrain's LLM calls, Foursquare, stock price lookups, etc.). Those features still need real connectivity to work at all, offline mode or not; if one of them also writes to Firestore, that write queues up normally like any other offline write.
 
+**UI decision:** the Go Offline / Go Online buttons live on the **Settings** page, alongside the existing Backup section (same kind of occasional, whole-dataset action). The app already has a passive "you're offline" banner (`#offlineBanner` in `index.html` / `js/app.js`) driven by `navigator.onLine` — extend that same banner to also show when deliberate Go Offline mode is on, so the current mode is visible from anywhere in the app, not just on the Settings page.
+
+**PWA-only requirement:** offline data caching technically works in a plain browser tab too, but browsers (especially iPhone Safari) can quietly wipe a regular tab's saved data after about a week of inactivity — a real risk on a multi-week trip. Installed home-screen apps aren't subject to that cleanup. So the "Go Offline" button checks whether the app is running in installed/standalone mode (e.g. `display-mode: standalone` / `navigator.standalone`) and refuses to proceed otherwise, showing a message to install the app to the home screen first — enforced, not just a suggestion.
+
+**Conflict handling decision:** rather than merging conflicting edits, prevent the overlap from happening at all (reasonable for a single-user app). "Go Offline" writes a lock flag to Firestore settings *before* disconnecting (while still online). Any web app session checks this flag and, if set, goes **read-only** with a banner explaining the phone is mid-trip — viewing still works, editing is disabled. "Go Online" clears the flag once the phone finishes pushing its queued changes. A manual **"Force unlock"** option lives in web Settings as an escape hatch (phone lost/dead/forgot to sync), with a clear warning that forcing it risks the phone later overwriting web edits made in the meantime with its own stale queued changes.
+
 **Still to be decided / verified (not yet resolved):**
-- UI: where the Go Offline/Go Online controls live, and what indicator shows current mode
-- What happens if the same record was also edited elsewhere (another device/session) while this device was offline — conflict handling
 - Verify Firebase Auth login survives a multi-week offline stretch with no network at all (should work, since the SDK doesn't need to refresh the session to serve cached data, but this is a real edge case to test rather than assume)
 
 **Effort:** TBD. Core mechanism (unlimited cache setting + prefetch-everything loop + the two button handlers) is small and no longer depends on per-module scoping decisions.
