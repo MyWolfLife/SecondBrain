@@ -2788,6 +2788,17 @@ Two separate backup files — **data** (all Firestore collections) and **photos*
 
 **Backup reminder (home page banner)** — nags on the desktop home page (`#main`) when backups get stale.
 
+#### Offline Trip Mode (`offline-sync.js`)
+For trips with no signal for days or weeks, where the automatic Firestore caching (which only holds recently-viewed data) isn't reliable enough. Settings → **Offline Trip Mode**:
+
+- **Go Offline** — requires the installed home-screen app (checked via `display-mode: standalone` / `navigator.standalone`; refuses with an explanatory alert otherwise, since a regular browser tab's local data can be cleared by the browser after a few days of inactivity). Reuses `backupReadCollections(BACKUP_DATA_COLLECTIONS)` plus `backupReadCollections(['photos'])` — the same collection list Backup & Restore uses — to pull a full copy of the user's data into Firestore's local cache, then calls `firebase.firestore().disableNetwork()` to force the app to stop attempting any network calls. Sets `localStorage.bishopOfflineMode = 'true'`.
+- **Go Online** — calls `firebase.firestore().enableNetwork()`, which reconnects and lets Firestore's normal offline write queue flush automatically. Clears the `bishopOfflineMode` flag.
+- Firestore's local cache size is set to unlimited (`cacheSizeBytes: CACHE_SIZE_UNLIMITED` in `firebase-config.js`) so nothing gets evicted no matter how long the device stays offline.
+- On every app load, `firebase-config.js` re-applies `disableNetwork()` if `bishopOfflineMode` is still set in `localStorage`, since that setting doesn't persist across reloads on its own.
+- The shared `#offlineBanner` (previously driven only by `navigator.onLine` in `app.js`) is now driven by `offline-sync.js`, and shows a distinct message for deliberate Offline Trip Mode vs. an ordinary loss of signal.
+
+**Not yet built:** a Firestore-side lock that puts the web app into read-only mode while a phone/device holds an active offline session (to prevent the two diverging), with a manual "Force unlock" override in Settings. See `PwaPlan.md` Phase 2.5 for the full design.
+
 - **State** lives in `settings/main` so it is consistent across every device on the account:
   - `lastBackupAt` — ISO string, stamped by `backupRecordCompleted()` at the end of `runBackup()`
   - `backupSnoozeUntil` — ISO string; the banner stays hidden until this moment passes

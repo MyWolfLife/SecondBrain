@@ -716,6 +716,22 @@ Firebase Storage is not available on the free Spark plan. The Blaze (pay-as-you-
 - Do not reuse your app login password as your private passphrase — they serve different purposes.
 - The vault auto-locks after 60 minutes of inactivity. Any activity anywhere in the app resets the timer.
 
+### Offline Trip Mode
+
+For trips where you'll have no signal at all for days or weeks (not just a brief dead zone).
+
+**Go Offline:**
+1. Open the app from your **Home Screen icon** — this only works in the installed app, not a regular browser tab (a browser tab can have its saved data cleared by the browser after a few days unused, which would ruin this for a long trip)
+2. In **Settings → Offline Trip Mode**, tap **Go Offline**
+3. The app downloads a full copy of your data — this can take a minute
+4. Once done, the app stops trying to reach the internet at all and works entirely from what's saved on your phone
+
+**While offline:** everything works as normal — view your data, add/edit/delete records, take photos. Nothing is lost; it's all saved locally and queued up.
+
+**Go Online:** once you're back on a signal, open **Settings → Offline Trip Mode** and tap **Go Online**. Everything you added, changed, or deleted while offline gets pushed up automatically.
+
+**Note:** a small banner at the top of the screen shows whenever Offline Trip Mode is on, so you always know which mode you're in.
+
 ---
 
 ## screen:firebase-setup

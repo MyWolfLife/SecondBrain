@@ -212,7 +212,7 @@
 
 **Effort:** TBD. Core mechanism (unlimited cache setting + prefetch-everything loop + the two button handlers) is small and no longer depends on per-module scoping decisions.
 
-**Status: planned only, no code written yet.**
+**Status: Core mechanism BUILT (2026-09-12)** — unlimited cache, Go Offline/Go Online buttons in Settings, PWA-only guard, prefetch via `backupReadCollections()`, banner integration, re-apply on reload. **Not yet built:** the lock-flag + web-app read-only enforcement described above — that part touches many modules across the app and needs its own scoping pass before being built (see conversation notes; a coarse first cut would likely gate the shared `openModal()`/`closeModal()` utilities in `zones.js`, but delete buttons and other non-modal write paths across dozens of modules would need a separate audit).
 
 ---
 

@@ -32,6 +32,12 @@ firebase.initializeApp(activeFirebaseConfig);
 // Get a reference to Firestore — this is what we'll use everywhere to read/write data
 const db = firebase.firestore();
 
+// Unlimited local cache size — must be set before any other Firestore call.
+// Without this, Firestore can quietly evict old cached data once the cache
+// fills up. Offline Trip Mode (js/offline-sync.js) depends on nothing ever
+// being evicted, since a trip can last weeks with zero connectivity.
+db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED, merge: true });
+
 // Enable offline persistence — Firestore caches data locally so reads work without
 // a connection, and writes queue up and sync automatically when reconnected.
 firebase.firestore().enablePersistence({ synchronizeTabs: true })
@@ -40,6 +46,14 @@ firebase.firestore().enablePersistence({ synchronizeTabs: true })
             console.warn('Offline persistence not supported in this browser.');
         }
     });
+
+// If the device was left in Offline Trip Mode, re-apply that now — disableNetwork()
+// is a per-session setting and does not persist across app reloads on its own.
+if (localStorage.getItem('bishopOfflineMode') === 'true') {
+    firebase.firestore().disableNetwork().catch(function(err) {
+        console.warn('Could not re-apply Offline Trip Mode:', err);
+    });
+}
 
 // Get a reference to Firebase Auth — used by auth.js for login/logout
 const auth = firebase.auth();

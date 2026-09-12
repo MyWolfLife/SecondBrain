@@ -77,20 +77,8 @@ function _swShowUpdateBanner(reg) {
 }
 
 // ---------- Offline Banner ----------
-(function() {
-    var banner = document.getElementById('offlineBanner');
-    if (!banner) return;
-    function update() {
-        if (navigator.onLine) {
-            banner.classList.add('hidden');
-        } else {
-            banner.classList.remove('hidden');
-        }
-    }
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    update(); // set initial state
-}());
+// Banner show/hide logic now lives in js/offline-sync.js (updateOfflineModeBanner),
+// since it needs to reflect Offline Trip Mode as well as plain network loss.
 
 // ---------- PWA Install Banner ----------
 var _pwaDeferred = null; // holds the beforeinstallprompt event for later

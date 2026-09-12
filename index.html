@@ -935,6 +935,22 @@
                 </div>
             </div>
 
+            <!-- Offline Trip Mode -->
+            <div class="settings-card accordion-card">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>Offline Trip Mode</span><span class="accordion-chevron">&#9658;</span>
+                </button>
+                <div class="accordion-body">
+                    <p class="accordion-desc">For trips with no signal for days or weeks. <strong>Go Offline</strong> downloads a full copy of your data to this device and switches the app to use it exclusively. <strong>Go Online</strong> reconnects and syncs up anything you added, changed, or deleted while offline.</p>
+                    <p class="accordion-desc"><strong>Requires the installed app</strong> — open it from your Home Screen icon, not a browser tab.</p>
+                    <div class="settings-save-row">
+                        <button class="btn btn-primary" id="goOfflineBtn" onclick="goOffline()">Go Offline</button>
+                        <button class="btn btn-secondary hidden" id="goOnlineBtn" onclick="goOnline()">Go Online</button>
+                    </div>
+                    <p class="form-hint" id="offlineSyncStatus"></p>
+                </div>
+            </div>
+
             <!-- Storage Usage -->
             <div class="settings-card accordion-card">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
@@ -11571,7 +11587,7 @@ export default {
 
     <!-- ========== SCRIPTS ========== -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="js/firebase-config.js?v=579"></script>
+    <script src="js/firebase-config.js?v=580"></script>
     <script src="js/auth.js?v=351"></script>
     <script src="js/zones.js?v=355"></script>
     <script src="js/plants.js?v=354"></script>
@@ -11651,7 +11667,8 @@ export default {
     <script src="js/analyzer-news.js?v=1"></script>
     <script src="js/analyzer-holdingshealth.js?v=4"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=686"></script>
+    <script src="js/app.js?v=687"></script>
+    <script src="js/offline-sync.js?v=1"></script>
 
 </body>
 </html>
