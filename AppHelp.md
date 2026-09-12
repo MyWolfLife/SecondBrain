@@ -736,7 +736,7 @@ For trips where you'll have no signal at all for days or weeks (not just a brief
 
 **Force Unlock:** if the offline device is lost, dead, or otherwise can't come back to sync normally, a **Force Unlock** button appears in Settings → Offline Trip Mode on any locked session. It removes the read-only lock immediately — only use this if you're sure the other device won't be reconnecting, since it can overwrite what you did here if it later comes back online.
 
-**Note:** this read-only protection currently covers most of the app (Yard, House, Garage, Vehicles, Contacts, and similar screens), but not yet a handful of newer sections (Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos, Notes, Legacy, Memories, Neighbors, Views) — those can still be edited from a second session even while another device is offline.
+**Note:** on most screens (Yard, House, Garage, Vehicles, Contacts, and similar), the Save/Delete buttons themselves visibly disappear while locked. On a handful of newer sections (Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos, Notes, Legacy, Memories, Neighbors, Views), the "+Add" buttons don't visibly grey out — but they're still blocked underneath: tapping one just shows the same read-only message instead of actually saving anything. Either way, nothing you do in a locked session can overwrite what the offline device saves when it reconnects.
 
 ---
 

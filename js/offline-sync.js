@@ -24,6 +24,23 @@ function isOfflineModeActive() {
 }
 
 /**
+ * True when THIS session is currently read-only because another device
+ * holds an active Offline Trip Mode lock (set by applyDataLock() in
+ * response to the shared Firestore flag). Checked by _guardFirestoreRef()
+ * and the guarded db.batch() in firebase-config.js — this is what actually
+ * blocks every write app-wide, not just the ones with a visibly hidden
+ * button. Exported globally so those checks work regardless of load order.
+ */
+function isDataLocked() {
+    return document.body.classList.contains('data-locked');
+}
+
+/** Shows a standard message when a write is blocked by the read-only lock. */
+function dataLockedAlert() {
+    alert('Read-only — another device is in Offline Trip Mode. Editing is disabled until it reconnects (or use Force Unlock in Settings → Offline Trip Mode).');
+}
+
+/**
  * Downloads a full copy of the user's data to this device, then switches
  * the app into offline-only mode. Reuses backupReadCollections() from
  * settings.js so the same collection list (kept up to date for Backup &
@@ -55,7 +72,7 @@ async function goOffline() {
         // another device) will see this via the live listener in
         // offlineLockInit() and switch to read-only. This device is exempt
         // from its own lock — see applyDataLock().
-        await userCol('settings').doc('offlineMode').set({
+        await _rawUserCol('settings').doc('offlineMode').set({
             active: true,
             device: navigator.userAgent,
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -88,7 +105,7 @@ async function goOnline() {
         // Clear the lock flag now that we're back online. Any writes made
         // while offline were already queued locally by Firestore and will
         // flush automatically now that the network is back on.
-        await userCol('settings').doc('offlineMode').set({
+        await _rawUserCol('settings').doc('offlineMode').set({
             active: false,
             endedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
@@ -151,17 +168,28 @@ function updateOfflineModeBanner() {
  * is exempt from its own lock (isOfflineModeActive() true) — otherwise a
  * phone that just went offline would lock itself out of editing.
  *
- * Covers the standard modal-based add/edit/delete pattern used by most of
- * the app (every modal shares the .modal-overlay wrapper): while locked,
- * every Save button (.btn-primary) and Delete button (.btn-danger) inside
- * a modal is hidden and disabled. Modals still open normally, so existing
- * data can still be viewed — only saving/deleting is blocked.
+ * This function handles the VISUAL side only, for the common cases:
+ * 1. Save buttons (.btn-primary) inside any modal are hidden/disabled —
+ *    every modal shares the .modal-overlay wrapper, so this one rule
+ *    covers add/edit saving app-wide. Modals still open normally, so
+ *    existing data can still be viewed — only saving is blocked.
+ * 2. Delete buttons (.btn-danger) are hidden/disabled EVERYWHERE, not just
+ *    in modals, since that class is used consistently app-wide for
+ *    destructive actions only (including inline list-card delete buttons
+ *    outside any modal) — with #forceUnlockRow's own button excluded,
+ *    since that's the escape hatch, not a data write.
  *
- * Known gap: a smaller number of features use their own inline add/delete
- * buttons instead of the shared modal pattern (Investments/Stock Analyzer,
- * Checklists, Life Projects, Journal, Health, Photos gallery, Notes,
- * Legacy, Memories, Neighbors, Views) and are NOT yet covered by this
- * lock — see PwaPlan.md Phase 2.5.
+ * The actual, guaranteed-complete SAFETY mechanism is separate: every
+ * Firestore write anywhere in the app is blocked at the source by
+ * _guardFirestoreRef()/the guarded db.batch() in firebase-config.js, which
+ * both check isDataLocked() directly. So even a feature whose "+Add"
+ * button isn't covered by the two visual rules above (a number of
+ * features add records via their own inline controls instead of a modal
+ * Save button — Investments/Stock Analyzer, Checklists, Life Projects,
+ * Journal, Health, Notes, Legacy, Memories, Neighbors, Views, Exercise,
+ * Budgets) still can't actually write anything while locked — clicking it
+ * just surfaces dataLockedAlert() instead of silently doing nothing or
+ * succeeding. See PwaPlan.md Phase 2.5.
  */
 function applyDataLock(sharedLockActive) {
     _sharedOfflineLockActive = sharedLockActive;
@@ -169,7 +197,11 @@ function applyDataLock(sharedLockActive) {
     var locked = sharedLockActive && !exemptSelf;
 
     document.body.classList.toggle('data-locked', locked);
-    document.querySelectorAll('.modal-overlay .btn-primary, .modal-overlay .btn-danger').forEach(function(btn) {
+    document.querySelectorAll('.modal-overlay .btn-primary').forEach(function(btn) {
+        btn.disabled = locked;
+    });
+    document.querySelectorAll('.btn-danger').forEach(function(btn) {
+        if (btn.closest('#forceUnlockRow')) return;
         btn.disabled = locked;
     });
 
@@ -186,7 +218,7 @@ function applyDataLock(sharedLockActive) {
  * app.js, after sign-in.
  */
 function offlineLockInit() {
-    userCol('settings').doc('offlineMode').onSnapshot(function(doc) {
+    _rawUserCol('settings').doc('offlineMode').onSnapshot(function(doc) {
         var data = doc.data();
         applyDataLock(!!(data && data.active));
     }, function(err) {
@@ -210,7 +242,7 @@ async function forceUnlockOfflineData() {
     if (!warned) return;
 
     try {
-        await userCol('settings').doc('offlineMode').set({
+        await _rawUserCol('settings').doc('offlineMode').set({
             active: false,
             forceUnlockedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });

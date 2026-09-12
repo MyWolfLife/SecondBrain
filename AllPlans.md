@@ -41,7 +41,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `LifeCalendar.md` | Life → Calendar | Life-section calendar for personal events (separate from Yard calendar) |
 | `ChecklistBoardEnhancements.md` | Checklists | Active runs → manual 3-column board (2-D `boardCol`/`boardOrder` position, desktop-editable / phone read-only), drag reorder, star-bump-to-top, collapsible cards, edit tags on a run, unique-tag AND filter (sidebar/accordion). **ALL 5 PHASES COMPLETE** |
 | `NativePhoneAppPlan.md` | App-wide | Native Android/iPhone sister app idea. **RESOLVED — not being built.** Root need (reliable offline access on multi-day, zero-signal trips) is instead solved inside the existing PWA — see `PwaPlan.md` Phase 2.5. Kept as a record of the reasoning. |
-| `PwaPlan.md` | App-wide | PWA implementation — installable icon, offline support, service worker, custom Firebase config. **Phases 1, 2 & 4 COMPLETE.** Phase 2.5 (Go Offline/Go Online) core mechanism BUILT, plus read-only lock for the modal-based part of the app. **Known gap:** ~20 files with inline (non-modal) add/delete buttons not yet covered — see doc. Phase 3 (install-prompt polish) and Phase 5 (push notifications) not started. |
+| `PwaPlan.md` | App-wide | PWA implementation — installable icon, offline support, service worker, custom Firebase config. **Phases 1, 2 & 4 COMPLETE.** Phase 2.5 (Go Offline/Go Online) COMPLETE — core mechanism plus a full-coverage read-only lock (visual hiding on most screens + a Proxy-based write guard on `userCol()`/`db.batch()` that blocks every write app-wide as a backstop). Residual gap: Firebase Storage writes (Private vault only) aren't covered. Phase 3 (install-prompt polish) and Phase 5 (push notifications) not started. |
 
 ---
 

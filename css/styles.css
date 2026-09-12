@@ -31,11 +31,20 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-/* Offline Trip Mode read-only lock — hides Save/Delete inside any modal
-   while another device holds an active offline session. See offline-sync.js. */
+/* Offline Trip Mode read-only lock, while another device holds an active
+   offline session. See offline-sync.js.
+   - Save (.btn-primary) is only hidden inside modals -- .btn-primary is
+     used too broadly elsewhere (Save Settings, Test, Calculate, etc.) to
+     hide everywhere.
+   - Delete (.btn-danger) is hidden everywhere -- it's used consistently
+     app-wide for destructive/write actions only, inline list cards
+     included, with one exception (#forceUnlockRow) carved out below. */
 body.data-locked .modal-overlay .btn-primary,
-body.data-locked .modal-overlay .btn-danger {
+body.data-locked .btn-danger {
     display: none !important;
+}
+body.data-locked #forceUnlockRow .btn-danger {
+    display: inline-block !important;
 }
 
 /* ---------- SW Update Banner ---------- */

@@ -214,9 +214,14 @@
 
 **Status: Core mechanism BUILT (2026-09-12)** — unlimited cache, Go Offline/Go Online buttons in Settings, PWA-only guard, prefetch via `backupReadCollections()`, banner integration, re-apply on reload.
 
-**Read-only lock: BUILT for the modal-based part (2026-09-12).** Every modal shares the `.modal-overlay` wrapper, so gating there (`body.data-locked .modal-overlay .btn-primary/.btn-danger`, driven by a live `onSnapshot` listener on `userCol('settings').doc('offlineMode')`) covers most of the app's add/edit/delete flows in one shot — no need to touch 45 files individually. Modals still open for viewing while locked; only Save/Delete are blocked. Force Unlock escape hatch also built.
+**Read-only lock: BUILT, full coverage (2026-09-12).** Two layers, driven by a live `onSnapshot` listener on `userCol('settings').doc('offlineMode')`:
 
-**Known gap, not yet built:** ~20 files use their own inline add/delete buttons instead of the shared modal pattern and are not covered by the lock yet: Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos gallery, Notes, Legacy, Memories, Neighbors, Views. Gating those needs an individual per-file pass — deferred until requested.
+1. **Visual** — every modal shares the `.modal-overlay` wrapper, so `body.data-locked .modal-overlay .btn-primary` hides every modal Save button app-wide, and `body.data-locked .btn-danger` hides every Delete button app-wide (inline list-card deletes included — that class is used consistently for destructive actions only, across all ~45 files, not just modals). Modals still open for viewing while locked. `#forceUnlockRow`'s own button is excluded from the Delete rule.
+2. **Enforcement** — `userCol()` in `firebase-config.js` now wraps every reference it returns in a `Proxy` (`_guardFirestoreRef`) that blocks `add`/`set`/`update`/`delete` app-wide whenever `isDataLocked()` is true, recursing into `doc()`/`collection()`/query methods so nothing slips through regardless of chain depth. `db.batch()` is separately guarded at `.commit()` time. This is what actually makes the lock airtight — it doesn't depend on finding and hiding every trigger button by hand. `offline-sync.js` itself uses a new unwrapped `_rawUserCol()` for its own lock-flag reads/writes, so managing the lock is never blocked by the lock.
+
+Net result: originally-identified gap (Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos gallery, Notes, Legacy, Memories, Neighbors, Views, Exercise, Budgets — features with their own inline "+Add" controls instead of a modal Save button) is closed at the enforcement layer, even though those specific buttons aren't visually greyed out — clicking one while locked surfaces the same read-only alert instead of writing anything.
+
+**Known residual gap:** Firebase Storage writes (used only by the optional encrypted Private vault for file blobs) aren't covered, since Storage doesn't go through `userCol()`. Low priority — that feature is optional and not part of `BACKUP_DATA_COLLECTIONS`/the offline prefetch anyway.
 
 ---
 

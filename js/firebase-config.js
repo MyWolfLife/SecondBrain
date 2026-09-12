@@ -72,7 +72,12 @@ const storage = firebase.storage();
 //
 // Used by all JS modules after the multi-user refactor (MU-5+).
 // ============================================================
-function userCol(collectionName) {
+
+/** The real, unwrapped reference — bypasses the Offline Trip Mode
+ * read-only guard below. Only for offline-sync.js's own lock-management
+ * writes (js/offline-sync.js), which must never be blocked by the lock
+ * they themselves control. Everything else should use userCol(). */
+function _rawUserCol(collectionName) {
     var user = firebase.auth().currentUser;
     if (!user) {
         console.error('userCol() called with no signed-in user');
@@ -82,5 +87,75 @@ function userCol(collectionName) {
     }
     return db.collection('users').doc(user.uid).collection(collectionName);
 }
+
+/**
+ * Wraps a Firestore reference so its write methods (add/set/update/delete)
+ * are blocked while another device holds an active Offline Trip Mode lock
+ * (see js/offline-sync.js — isDataLocked() reflects the same exemption
+ * logic used everywhere else: the device that itself went offline is
+ * never blocked, only other sessions are). Recurses into doc()/collection()
+ * and query-builder methods so a write is caught no matter how deep a
+ * chain it's reached through (e.g. userCol('x').doc(y).collection('z').add(...)).
+ *
+ * This is the backstop that covers every write in the app, including the
+ * many features that don't use the shared modal Save/Delete pattern (that
+ * pattern is instead hidden visually via the .data-locked CSS rule in
+ * css/styles.css, for better UX in the common case) — see PwaPlan.md
+ * Phase 2.5.
+ *
+ * Does NOT cover db.batch() — that's guarded separately below, since a
+ * batch's set/update/delete calls queue up on a different object than the
+ * reference passed to them.
+ */
+function _guardFirestoreRef(ref) {
+    var WRITE_METHODS  = ['add', 'set', 'update', 'delete'];
+    var CHAIN_METHODS  = ['doc', 'collection', 'where', 'orderBy', 'limit', 'limitToLast', 'startAt', 'startAfter', 'endAt', 'endBefore'];
+    return new Proxy(ref, {
+        get: function(target, prop, receiver) {
+            var orig = target[prop];
+            if (typeof orig !== 'function') return orig;
+
+            if (WRITE_METHODS.indexOf(prop) !== -1) {
+                return function() {
+                    if (typeof isDataLocked === 'function' && isDataLocked()) {
+                        if (typeof dataLockedAlert === 'function') dataLockedAlert();
+                        return Promise.reject(new Error('Blocked by Offline Trip Mode read-only lock'));
+                    }
+                    return orig.apply(target, arguments);
+                };
+            }
+            if (CHAIN_METHODS.indexOf(prop) !== -1) {
+                return function() {
+                    return _guardFirestoreRef(orig.apply(target, arguments));
+                };
+            }
+            // Everything else (get, onSnapshot, id, path, withConverter, ...) — pass through.
+            return orig.bind(target);
+        }
+    });
+}
+
+function userCol(collectionName) {
+    return _guardFirestoreRef(_rawUserCol(collectionName));
+}
+
+// Guard db.batch() too — its queued set()/update()/delete() calls happen on
+// the batch object itself, not on a reference _guardFirestoreRef() can see,
+// so the lock is instead enforced at commit() time.
+(function() {
+    var origBatch = db.batch.bind(db);
+    db.batch = function() {
+        var batch = origBatch();
+        var origCommit = batch.commit.bind(batch);
+        batch.commit = function() {
+            if (typeof isDataLocked === 'function' && isDataLocked()) {
+                if (typeof dataLockedAlert === 'function') dataLockedAlert();
+                return Promise.reject(new Error('Blocked by Offline Trip Mode read-only lock'));
+            }
+            return origCommit();
+        };
+        return batch;
+    };
+})();
 
 console.log("Firebase initialized successfully. Project:", firebaseConfig.projectId);
