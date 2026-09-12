@@ -186,6 +186,26 @@
 
 ---
 
+### Phase 2.5 — Explicit Offline Mode (Go Offline / Go Online)
+**Goal:** Give the user manual control over offline mode, instead of relying only on whatever data happened to get cached from normal browsing. Solves the "days-long, zero-signal trip" case (e.g. a Banff vacation) where automatic caching isn't guaranteed to have everything needed.
+
+**Background:** Phase 2 already turns on Firestore's automatic offline persistence — reads are served from a local cache and writes queue up automatically. But that cache only holds whatever was queried before going offline. This phase adds a deliberate, user-triggered way to (a) guarantee specific data is cached before disconnecting, and (b) force the app into offline mode on purpose, regardless of whether the phone technically still has a signal.
+
+**How it works:**
+1. **"Go Offline" button** — runs a prefetch pass: reads all the data flagged as "needed offline" (exact scope TBD, see below) so it lands in Firestore's local cache, then calls `firebase.firestore().disableNetwork()`. This tells the SDK to stop attempting any network calls and serve everything from the local cache only — a real Firestore feature, not a workaround.
+2. **While offline** — app behaves normally; reads come from cache, edits queue up locally (already automatic, part of Phase 2).
+3. **"Go Online" button** — calls `firebase.firestore().enableNetwork()`, which reconnects and automatically pushes any queued writes to Firestore, then resumes live syncing.
+
+**Still to be decided (feature-design phase, not yet resolved):**
+- Which collections/documents count as "needed offline" — likely varies by module (e.g., a specific Life Project's days/bookings/todo/packing items, or specific zones/plants)
+- Whether the user picks what to prefetch each time, or there's a fixed rule per module
+- UI: where the Go Offline/Go Online controls live, and what indicator shows current mode
+- What happens if the same record was also edited elsewhere (another device/session) while this device was offline — conflict handling
+
+**Effort:** TBD, depends on scope decided later. The core mechanism (prefetch loop + the two button handlers) is small; most of the effort is in scoping what gets prefetched per module.
+
+---
+
 ### Phase 3 — Install Experience Polish
 **Goal:** Users don't have to hunt for the browser's install option. A friendly prompt appears in the app itself.
 
@@ -315,6 +335,7 @@ This uses the Web Push API + Firebase Cloud Messaging (FCM). The user grants not
 |-------|-------------|--------|
 | Phase 1 | Installable app icon, standalone window, no browser chrome | 3–4 hrs |
 | Phase 2 | True offline support, Firestore sync, offline banner | 4–6 hrs |
+| Phase 2.5 | Manual "Go Offline"/"Go Online" control + guaranteed prefetch (replaces the native-app idea) | TBD |
 | Phase 3 | In-app install prompt, iOS tip, polish | 2–3 hrs |
 | Phase 4 | Multi-user, each person's own Firebase | 1–2 days + docs |
 | Phase 5 | Push notifications for calendar | 1 day (future) |
