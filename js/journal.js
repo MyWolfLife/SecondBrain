@@ -735,6 +735,17 @@ function _renderEntryCard(id, data) {
         placeHtml = '<div class="journal-place-line">' + placeLinks.join(', ') + '</div>';
     }
 
+    // Coordinate-pin check-in — no place record, just a link straight out to Google Maps
+    var coords = data.checkinCoords;
+    if (coords && coords.lat != null && coords.lng != null) {
+        var mapsUrl = 'https://www.google.com/maps?q=' + coords.lat + ',' + coords.lng;
+        placeHtml = '<div class="journal-place-line">' +
+            '<a href="' + mapsUrl + '" target="_blank" rel="noopener" ' +
+                'onclick="event.stopPropagation();" class="journal-place-link">📍 ' +
+                coords.lat.toFixed(5) + ', ' + coords.lng.toFixed(5) +
+            '</a></div>';
+    }
+
     // "Go to Event" button — shown only on compiled entries (sourceEventId is set)
     var goToEvent = data.sourceEventId
         ? '<div class="lc-go-to-event-wrap">' +
@@ -1310,13 +1321,18 @@ async function saveJournalEntry() {
     });
 
     try {
-        // Resolve the check-in venue to a Firestore place ID (dedup + enrichment inside)
+        // Resolve the check-in venue to a Firestore place ID (dedup + enrichment inside).
+        // A coordinate-pin check-in (isCoordinatePin) has no .name, so it skips this
+        // entirely — no place record is created, it's just raw coordinates below.
         if (_journalCheckinMode && _journalCheckinVenue && _journalCheckinVenue.name) {
             var checkinPlaceId = _journalCheckinVenue.existingId
                 ? _journalCheckinVenue.existingId
                 : await placesSaveNew(_journalCheckinVenue);
             if (placeIds.indexOf(checkinPlaceId) === -1) placeIds.push(checkinPlaceId);
         }
+        var checkinCoords = (isCheckinEntry && _journalCheckinVenue && _journalCheckinVenue.isCoordinatePin)
+            ? { lat: _journalCheckinVenue.lat, lng: _journalCheckinVenue.lng }
+            : null;
 
         if (window.journalEditMode && window.currentJournalEntry) {
             // Update existing entry — preserve existing isCheckin value (do not overwrite)
@@ -1346,6 +1362,7 @@ async function saveJournalEntry() {
                 isCheckin:          isCheckinEntry,
                 createdAt:          firebase.firestore.FieldValue.serverTimestamp()
             };
+            if (checkinCoords) newEntryData.checkinCoords = checkinCoords;
             // If opened from a health visit, store the back-link on the entry
             var sourceVisitId = window._journalSourceVisitId || null;
             if (sourceVisitId) newEntryData.sourceVisitId = sourceVisitId;
@@ -2697,6 +2714,12 @@ function openCheckIn() {
         };
     }
 
+    // Wire "Save Coordinates" button → skip searching entirely, check in with just the raw GPS point
+    var coordsBtn = document.getElementById('checkInCoordsBtn');
+    if (coordsBtn) {
+        coordsBtn.onclick = _checkinSaveCoordinates;
+    }
+
     // Wire bias location input — geocode typed city/address and re-run nearby search
     var _biasTimer = null;
     if (biasEl) {
@@ -2857,6 +2880,54 @@ function _checkinPickerFetchNearby(forceRefresh) {
 }
 
 /**
+ * "📍 Save Coordinates" button — for when the place you're at isn't findable by name
+ * (a spot in the woods, where you parked, a creek bend). Skips search entirely and
+ * checks in with just the raw GPS point, flagged as a coordinate pin rather than a
+ * place — see _checkinApplyVenueToEntry / the save logic in _journalSaveEntry, and
+ * the isCoordinatePin rendering in _journalUpdateCheckinModeUI / _renderEntryCard.
+ * Uses the GPS fix already in flight from opening the picker; if it hasn't resolved
+ * yet, takes a fresh reading rather than making the user wait on the picker UI.
+ */
+function _checkinSaveCoordinates() {
+    function proceedWithCoords(lat, lng) {
+        var coordVenue = { isCoordinatePin: true, lat: lat, lng: lng };
+        // Close the picker the same way _checkinSelectPlace does, NOT via closeModal() —
+        // closeModal's history.back() is async and, when this leads into openCheckInForm
+        // (which navigates the hash to #journal-entry), can fire after that navigation
+        // and revert the URL back to #main. replaceState sidesteps the race entirely.
+        var overlay = document.getElementById('checkInPickerModal');
+        if (overlay) overlay.classList.remove('open');
+        if (history.state && history.state.modal === 'checkInPickerModal') {
+            history.replaceState(null, '');
+        }
+        if (_checkinPickerCallback) {
+            var cb = _checkinPickerCallback;
+            _checkinPickerCallback = null;
+            cb(coordVenue);
+        } else {
+            openCheckInForm(coordVenue, false);
+        }
+    }
+
+    if (_checkinPickerLat != null && _checkinPickerLng != null) {
+        proceedWithCoords(_checkinPickerLat, _checkinPickerLng);
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        alert('GPS not available on this device/browser.');
+        return;
+    }
+    var statusEl = document.getElementById('checkInPickerStatus');
+    if (statusEl) statusEl.textContent = '📍 Getting your location...';
+    navigator.geolocation.getCurrentPosition(
+        function(pos) { proceedWithCoords(pos.coords.latitude, pos.coords.longitude); },
+        function() { alert('Could not get your location. Please try again.'); },
+        { timeout: 12000, maximumAge: 60000 }
+    );
+}
+
+/**
  * Render the venue list inside the check-in picker modal.
  * @param {Array} venues  Array of venue objects from placesNearby/placesSearchByName.
  */
@@ -2954,7 +3025,10 @@ function _journalUpdateCheckinModeUI() {
         // Show the locked check-in place display
         if (checkinRow)   checkinRow.classList.remove('hidden');
 
-        if (_journalCheckinVenue) {
+        if (_journalCheckinVenue && _journalCheckinVenue.isCoordinatePin) {
+            if (nameEl) nameEl.textContent = '📍 Coordinates saved';
+            if (subEl)  subEl.textContent  = _journalCheckinVenue.lat.toFixed(5) + ', ' + _journalCheckinVenue.lng.toFixed(5);
+        } else if (_journalCheckinVenue) {
             if (nameEl) nameEl.textContent = _journalCheckinVenue.name || '';
             if (subEl) {
                 var parts = [];

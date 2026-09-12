@@ -746,7 +746,7 @@ The Life section covers personal tracking — journal, people, health, notes, an
 Daily entry logging with optional tracking metrics.
 
 **Firestore**:
-- `journalEntries` — `date`, `entryTime` (HH:MM), `entryText`, `mentionedPersonIds[]`, `placeIds[]`, `photos[]` (each: `{imageData, caption}`), `isCheckin` (bool), `sourceEventId?`, `sourceVisitId?`, `createdAt`, `updatedAt`
+- `journalEntries` — `date`, `entryTime` (HH:MM), `entryText`, `mentionedPersonIds[]`, `placeIds[]`, `photos[]` (each: `{imageData, caption}`), `isCheckin` (bool), `checkinCoords?` (`{lat, lng}` — only on a "Save Coordinates" check-in, in place of `placeIds`), `sourceEventId?`, `sourceVisitId?`, `createdAt`, `updatedAt`
 - `journalTrackingItems` — `date`, `category`, `value`, `createdAt`
 - `journalCategories` — `name`, `createdAt`
 - `lifeEventLogs` — `logDate`, `logTime`, `body`, `eventId`, `mentionedPersonIds[]`, `createdAt` (mini logs from Life Calendar)
@@ -2349,8 +2349,9 @@ Tracks real-world places the user visits. Places tie together journal check-ins,
 4. **Name search**: User can type in the search box; results are biased to the user's current GPS position (or the typed location box). Each result shows name, address, category, and **distance from current location** (e.g. "0.3 mi") to disambiguate same-named locations. The **location box** (default "Current location") auto-selects its contents on focus (`setTimeout` deferred past mouseup) so the user can type a city/area straight over it. **Source toggle**: two radio buttons — **Foursquare** (default; businesses) and **OpenStreetMap** (trails, lakes, parks, natural features Foursquare doesn't index). Switching (`_checkinSetSource`) re-runs the current query on the new source (`_checkinRunSearch` routes to `placesSearchByName` or `placesSearchOSM`). **OSM mode is name-search only** (Nominatim is a geocoder, not a nearby-discovery service) — the GPS "nearby" list doesn't populate; the location box acts as a soft viewbox bias instead of Foursquare's `near`. The toggle resets to Foursquare each time the picker opens. Shared by both journal check-ins and the Life Projects "Find a place" location add.
 5. **Select a venue**: Tapping a result closes the picker and opens the journal entry form pre-filled with that venue. The check-in is **not saved yet** — the user must tap Save on the journal form.
 6. **Enter Manually**: Opens the journal entry form with a blank location. No place record is created — only a plain journal note. Manual entries have no GPS, address, or Foursquare ID and won't appear in the Places list or on a map.
-7. On Save: creates a `journalEntries` doc with `placeIds: [placeId]`, `isCheckin: true`. If the venue wasn't already in Firestore, `placesSaveNew()` creates the place record first (dedup by `fsqId`).
-8. **Finding check-ins**: Journal → "Check-Ins Only" filter checkbox. Check-in entries show a 📍 badge.
+6a. **📍 Save Coordinates**: For when the place can't be found by search or doesn't have a name at all — a spot in the woods, a creek bend, where you parked. Skips the picker/search entirely: uses the GPS fix already in flight from opening the picker (or takes a fresh reading if that hasn't resolved yet), then immediately opens the journal entry form, same as picking a venue. **No place record is created** — the check-in is flagged `isCoordinatePin: true` (`_checkinSaveCoordinates` in journal.js) and stored as raw coordinates directly on the journal entry (`checkinCoords: {lat, lng}`), not via `placeIds`. The locked check-in display in the entry form shows "📍 Coordinates saved" + the lat/lng instead of a venue name. Available both from the home-screen Check In button and from "Change Location" inside an entry being composed (reuses the existing `_checkinPickerCallback` mechanism, so it applies to whichever flow launched the picker).
+7. On Save: creates a `journalEntries` doc with `placeIds: [placeId]`, `isCheckin: true` for a picked/manual venue — or `checkinCoords: {lat, lng}` (no `placeIds` entry) for a coordinates check-in. If the venue wasn't already in Firestore, `placesSaveNew()` creates the place record first (dedup by `fsqId`).
+8. **Finding check-ins**: Journal → "Check-Ins Only" filter checkbox. Check-in entries show a 📍 badge. In the feed, a coordinates check-in shows its lat/lng as a link (in place of the usual place-name link) that opens `https://www.google.com/maps?q=lat,lng` in a new tab — a direct jump to Google Maps, not the in-app place detail page.
 
 ### Foursquare Integration
 - **API**: `places-api.foursquare.com` (new API — not the retired `api.foursquare.com/v3`)
@@ -3388,7 +3389,7 @@ All collections live under `/users/{uid}/`. Every module uses `userCol('collecti
 | `peopleImportantDates` | personId, label, month, day, year?, notes, createdAt |
 | `peopleInteractions` | personId, date, notes, createdAt |
 | `peopleCategories` | name, createdAt |
-| `journalEntries` | date, entryTime, entryText, mentionedPersonIds[], placeIds[], photos[]{imageData,caption}, isCheckin, sourceEventId?, sourceVisitId?, createdAt, updatedAt |
+| `journalEntries` | date, entryTime, entryText, mentionedPersonIds[], placeIds[], photos[]{imageData,caption}, isCheckin, checkinCoords?{lat,lng}, sourceEventId?, sourceVisitId?, createdAt, updatedAt |
 | `journalTrackingItems` | date, category, value, createdAt |
 | `journalCategories` | name, createdAt |
 | `lifeEvents` | title, description, startDate, endDate?, startTime?, endTime?, location? (manual text), locationContactId? (people doc ID), categoryId?, status, peopleIds[], notes?, miniLogEnabled, createdAt |
