@@ -1252,6 +1252,8 @@ function initApp() {
     if (typeof gcalLoadSettings === 'function') gcalLoadSettings();
     // Load favorites (star button + home page widget)
     if (typeof favInit === 'function') favInit();
+    // Watch for another device's active Offline Trip Mode session (read-only lock)
+    if (typeof offlineLockInit === 'function') offlineLockInit();
     _initTabIndentTextareas();
     _initChecklistsNavLinks();
     console.log("Bishop app initialized.");

@@ -50,6 +50,17 @@ async function goOffline() {
         await backupReadCollections(BACKUP_DATA_COLLECTIONS);
         await backupReadCollections(['photos']);
 
+        // Write the read-only lock flag BEFORE disconnecting, while we still
+        // have a connection to write it. Any other session (the web app,
+        // another device) will see this via the live listener in
+        // offlineLockInit() and switch to read-only. This device is exempt
+        // from its own lock — see applyDataLock().
+        await userCol('settings').doc('offlineMode').set({
+            active: true,
+            device: navigator.userAgent,
+            startedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
         await firebase.firestore().disableNetwork();
         localStorage.setItem('bishopOfflineMode', 'true');
 
@@ -73,6 +84,15 @@ async function goOnline() {
 
     try {
         await firebase.firestore().enableNetwork();
+
+        // Clear the lock flag now that we're back online. Any writes made
+        // while offline were already queued locally by Firestore and will
+        // flush automatically now that the network is back on.
+        await userCol('settings').doc('offlineMode').set({
+            active: false,
+            endedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
         localStorage.removeItem('bishopOfflineMode');
 
         updateOfflineModeBanner();
@@ -96,11 +116,18 @@ function renderOfflineSyncSection() {
     onlineBtn.classList.toggle('hidden', !active);
 }
 
+// Set by offlineLockInit()'s live listener: whether SOME device (this one or
+// another) currently has an active Offline Trip Mode session, per Firestore.
+var _sharedOfflineLockActive = false;
+
 /**
- * Keeps the shared #offlineBanner in sync with two different states:
- * deliberate Offline Trip Mode (takes priority) vs. an ordinary loss of
- * signal (navigator.onLine). Replaces the simpler banner logic that used
- * to live in app.js, since there are now two things it needs to reflect.
+ * Keeps the shared #offlineBanner in sync with three possible states:
+ * 1. This device is itself in Offline Trip Mode (takes priority)
+ * 2. Another device has an active Offline Trip Mode session, so this
+ *    session is read-only
+ * 3. An ordinary loss of signal (navigator.onLine)
+ * Replaces the simpler banner logic that used to live in app.js, since
+ * there's more than one thing to reflect now.
  */
 function updateOfflineModeBanner() {
     var banner = document.getElementById('offlineBanner');
@@ -108,11 +135,88 @@ function updateOfflineModeBanner() {
     if (isOfflineModeActive()) {
         banner.textContent = "🔒 Offline Trip Mode is ON — using data saved on this device. Tap “Go Online” in Settings when you're back on a connection.";
         banner.classList.remove('hidden');
+    } else if (_sharedOfflineLockActive) {
+        banner.textContent = "🔒 Read-only — another device is in Offline Trip Mode. Editing here is disabled until it reconnects (or use Force Unlock in Settings).";
+        banner.classList.remove('hidden');
     } else if (!navigator.onLine) {
         banner.textContent = "⚡ You're offline — changes will sync when you reconnect";
         banner.classList.remove('hidden');
     } else {
         banner.classList.add('hidden');
+    }
+}
+
+/**
+ * Applies (or lifts) the read-only lock on this session's UI. This device
+ * is exempt from its own lock (isOfflineModeActive() true) — otherwise a
+ * phone that just went offline would lock itself out of editing.
+ *
+ * Covers the standard modal-based add/edit/delete pattern used by most of
+ * the app (every modal shares the .modal-overlay wrapper): while locked,
+ * every Save button (.btn-primary) and Delete button (.btn-danger) inside
+ * a modal is hidden and disabled. Modals still open normally, so existing
+ * data can still be viewed — only saving/deleting is blocked.
+ *
+ * Known gap: a smaller number of features use their own inline add/delete
+ * buttons instead of the shared modal pattern (Investments/Stock Analyzer,
+ * Checklists, Life Projects, Journal, Health, Photos gallery, Notes,
+ * Legacy, Memories, Neighbors, Views) and are NOT yet covered by this
+ * lock — see PwaPlan.md Phase 2.5.
+ */
+function applyDataLock(sharedLockActive) {
+    _sharedOfflineLockActive = sharedLockActive;
+    var exemptSelf = isOfflineModeActive();
+    var locked = sharedLockActive && !exemptSelf;
+
+    document.body.classList.toggle('data-locked', locked);
+    document.querySelectorAll('.modal-overlay .btn-primary, .modal-overlay .btn-danger').forEach(function(btn) {
+        btn.disabled = locked;
+    });
+
+    var forceUnlockRow = document.getElementById('forceUnlockRow');
+    if (forceUnlockRow) forceUnlockRow.classList.toggle('hidden', !locked);
+
+    updateOfflineModeBanner();
+}
+
+/**
+ * Starts a live listener on the shared offline-mode lock flag so this
+ * session reacts immediately if another device goes offline or comes back
+ * online, without needing a page reload. Called once from initApp() in
+ * app.js, after sign-in.
+ */
+function offlineLockInit() {
+    userCol('settings').doc('offlineMode').onSnapshot(function(doc) {
+        var data = doc.data();
+        applyDataLock(!!(data && data.active));
+    }, function(err) {
+        console.warn('Offline-lock listener error:', err);
+    });
+}
+
+/**
+ * Escape hatch for when the device that went offline can't come back to
+ * clear the lock itself (lost, dead battery, forgot to sync). Clears the
+ * shared lock flag from this session instead. Warns first, since forcing
+ * this while that device still has queued offline changes risks it later
+ * overwriting whatever gets edited here in the meantime.
+ */
+async function forceUnlockOfflineData() {
+    var warned = confirm(
+        'This removes the read-only lock without waiting for the offline device to reconnect.\n\n' +
+        'Only do this if that device is lost, out of battery, or otherwise cannot be brought back online to sync normally — forcing this risks it later overwriting changes you make here in the meantime.\n\n' +
+        'Continue?'
+    );
+    if (!warned) return;
+
+    try {
+        await userCol('settings').doc('offlineMode').set({
+            active: false,
+            forceUnlockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (err) {
+        console.error('Force unlock failed:', err);
+        alert('Something went wrong removing the lock — check your connection and try again.');
     }
 }
 

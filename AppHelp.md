@@ -732,6 +732,12 @@ For trips where you'll have no signal at all for days or weeks (not just a brief
 
 **Note:** a small banner at the top of the screen shows whenever Offline Trip Mode is on, so you always know which mode you're in.
 
+**While your phone is offline, other sessions go read-only.** If you (or someone else) opens the app on the web or another device while your phone holds an active offline session, that session shows a "read-only" banner and Save/Delete buttons disappear on most screens — you can still look things up, just can't edit, so the phone's changes don't get overwritten when it reconnects. It goes back to normal automatically once you tap **Go Online** on the phone.
+
+**Force Unlock:** if the offline device is lost, dead, or otherwise can't come back to sync normally, a **Force Unlock** button appears in Settings → Offline Trip Mode on any locked session. It removes the read-only lock immediately — only use this if you're sure the other device won't be reconnecting, since it can overwrite what you did here if it later comes back online.
+
+**Note:** this read-only protection currently covers most of the app (Yard, House, Garage, Vehicles, Contacts, and similar screens), but not yet a handful of newer sections (Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos, Notes, Legacy, Memories, Neighbors, Views) — those can still be edited from a second session even while another device is offline.
+
 ---
 
 ## screen:firebase-setup

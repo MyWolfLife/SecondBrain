@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=788">
+    <link rel="stylesheet" href="css/styles.css?v=789">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -948,6 +948,13 @@
                         <button class="btn btn-secondary hidden" id="goOnlineBtn" onclick="goOnline()">Go Online</button>
                     </div>
                     <p class="form-hint" id="offlineSyncStatus"></p>
+
+                    <div class="settings-save-row hidden" id="forceUnlockRow" style="margin-top:16px; border-top:1px solid #e5e7eb; padding-top:16px;">
+                        <div>
+                            <p class="accordion-desc" style="margin-top:0;">Another device is in Offline Trip Mode, so editing here is disabled. If that device is lost or can't reconnect normally, you can remove the lock manually.</p>
+                            <button class="btn btn-danger btn-small" onclick="forceUnlockOfflineData()">Force Unlock</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -11667,8 +11674,8 @@ export default {
     <script src="js/analyzer-news.js?v=1"></script>
     <script src="js/analyzer-holdingshealth.js?v=4"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=687"></script>
-    <script src="js/offline-sync.js?v=1"></script>
+    <script src="js/app.js?v=688"></script>
+    <script src="js/offline-sync.js?v=2"></script>
 
 </body>
 </html>

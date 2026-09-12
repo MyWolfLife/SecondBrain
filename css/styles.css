@@ -31,6 +31,13 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
+/* Offline Trip Mode read-only lock — hides Save/Delete inside any modal
+   while another device holds an active offline session. See offline-sync.js. */
+body.data-locked .modal-overlay .btn-primary,
+body.data-locked .modal-overlay .btn-danger {
+    display: none !important;
+}
+
 /* ---------- SW Update Banner ---------- */
 .sw-update-banner {
     position: fixed;

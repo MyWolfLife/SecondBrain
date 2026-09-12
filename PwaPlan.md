@@ -212,7 +212,11 @@
 
 **Effort:** TBD. Core mechanism (unlimited cache setting + prefetch-everything loop + the two button handlers) is small and no longer depends on per-module scoping decisions.
 
-**Status: Core mechanism BUILT (2026-09-12)** — unlimited cache, Go Offline/Go Online buttons in Settings, PWA-only guard, prefetch via `backupReadCollections()`, banner integration, re-apply on reload. **Not yet built:** the lock-flag + web-app read-only enforcement described above — that part touches many modules across the app and needs its own scoping pass before being built (see conversation notes; a coarse first cut would likely gate the shared `openModal()`/`closeModal()` utilities in `zones.js`, but delete buttons and other non-modal write paths across dozens of modules would need a separate audit).
+**Status: Core mechanism BUILT (2026-09-12)** — unlimited cache, Go Offline/Go Online buttons in Settings, PWA-only guard, prefetch via `backupReadCollections()`, banner integration, re-apply on reload.
+
+**Read-only lock: BUILT for the modal-based part (2026-09-12).** Every modal shares the `.modal-overlay` wrapper, so gating there (`body.data-locked .modal-overlay .btn-primary/.btn-danger`, driven by a live `onSnapshot` listener on `userCol('settings').doc('offlineMode')`) covers most of the app's add/edit/delete flows in one shot — no need to touch 45 files individually. Modals still open for viewing while locked; only Save/Delete are blocked. Force Unlock escape hatch also built.
+
+**Known gap, not yet built:** ~20 files use their own inline add/delete buttons instead of the shared modal pattern and are not covered by the lock yet: Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos gallery, Notes, Legacy, Memories, Neighbors, Views. Gating those needs an individual per-file pass — deferred until requested.
 
 ---
 

@@ -2797,7 +2797,13 @@ For trips with no signal for days or weeks, where the automatic Firestore cachin
 - On every app load, `firebase-config.js` re-applies `disableNetwork()` if `bishopOfflineMode` is still set in `localStorage`, since that setting doesn't persist across reloads on its own.
 - The shared `#offlineBanner` (previously driven only by `navigator.onLine` in `app.js`) is now driven by `offline-sync.js`, and shows a distinct message for deliberate Offline Trip Mode vs. an ordinary loss of signal.
 
-**Not yet built:** a Firestore-side lock that puts the web app into read-only mode while a phone/device holds an active offline session (to prevent the two diverging), with a manual "Force unlock" override in Settings. See `PwaPlan.md` Phase 2.5 for the full design.
+**Read-only lock (modal-based coverage):** `userCol('settings').doc('offlineMode')` holds the shared lock flag (`{active, device, startedAt}`), written by `goOffline()` before disconnecting and cleared by `goOnline()`. `offlineLockInit()` (called once from `initApp()` in `app.js`) keeps a live `onSnapshot` listener on this doc so every open session — this device included — reacts immediately, without a reload. `applyDataLock()` decides whether *this* session should actually be locked: the device that itself went offline (`isOfflineModeActive()` true) is exempt from its own lock and stays fully editable; every other session gets `body.classList.add('data-locked')`.
+
+Coverage is **modal-based only**: every modal in the app shares the `.modal-overlay` wrapper, so `body.data-locked .modal-overlay .btn-primary` and `.btn-danger` (in `css/styles.css`) hide (and `applyDataLock()` also disables) every Save and Delete button inside any modal. Modals still open normally while locked — existing data can still be viewed, only saving/deleting is blocked. This covers most of the app (Zones, Plants, Activities, Problems, Facts, Weeds, Chemicals, Projects, House/Garage, Vehicles, Contacts, etc.).
+
+**Known gap:** roughly 20 files use their own inline add/delete buttons instead of the shared modal pattern and are **not yet covered** by this lock: Investments/Stock Analyzer, Checklists, Life Projects, Journal, Health, Photos gallery, Notes, Legacy, Memories, Neighbors, Views. Auditing and gating those individually is a separate, not-yet-scheduled follow-up (see `PwaPlan.md` Phase 2.5).
+
+**Force Unlock:** a `#forceUnlockRow` button in the Offline Trip Mode section, shown only while this session is locked, calls `forceUnlockOfflineData()` — after a `confirm()` warning, it clears the shared lock flag directly, for when the device that went offline can't come back to clear it itself (lost, dead, forgot).
 
 - **State** lives in `settings/main` so it is consistent across every device on the account:
   - `lastBackupAt` — ISO string, stamped by `backupRecordCompleted()` at the end of `runBackup()`
