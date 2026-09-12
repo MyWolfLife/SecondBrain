@@ -187,22 +187,28 @@
 ---
 
 ### Phase 2.5 — Explicit Offline Mode (Go Offline / Go Online)
-**Goal:** Give the user manual control over offline mode, instead of relying only on whatever data happened to get cached from normal browsing. Solves the "days-long, zero-signal trip" case (e.g. a Banff vacation) where automatic caching isn't guaranteed to have everything needed.
+**Goal:** Give the user manual control over offline mode, instead of relying only on whatever data happened to get cached from normal browsing. Solves the "weeks-long, zero-signal trip" case (e.g. a Banff vacation, or 2–3 weeks overseas) where the user doesn't want to wonder whether a given piece of data is cached or not.
 
-**Background:** Phase 2 already turns on Firestore's automatic offline persistence — reads are served from a local cache and writes queue up automatically. But that cache only holds whatever was queried before going offline. This phase adds a deliberate, user-triggered way to (a) guarantee specific data is cached before disconnecting, and (b) force the app into offline mode on purpose, regardless of whether the phone technically still has a signal.
+**Background:** Phase 2 already turns on Firestore's automatic offline persistence — reads are served from a local cache and writes queue up automatically. But that cache only holds whatever was queried before going offline, and by default Firestore can quietly evict old cached data once the cache grows past a size limit. This phase adds a deliberate, user-triggered way to (a) guarantee **all** data is cached before disconnecting, (b) make sure none of it ever gets evicted, and (c) force the app into offline mode on purpose, regardless of whether the phone technically still has a signal.
+
+**Decision: grab everything, not a subset.** Rather than deciding per-module what counts as "needed offline," "Go Offline" prefetches the user's *entire* dataset (every collection under their account). For a personal app at this scale, total data size is small enough that this is simpler than scoping it down module-by-module, and it means the user never has to wonder what is or isn't available offline — the answer is always "all of it."
 
 **How it works:**
-1. **"Go Offline" button** — runs a prefetch pass: reads all the data flagged as "needed offline" (exact scope TBD, see below) so it lands in Firestore's local cache, then calls `firebase.firestore().disableNetwork()`. This tells the SDK to stop attempting any network calls and serve everything from the local cache only — a real Firestore feature, not a workaround.
-2. **While offline** — app behaves normally; reads come from cache, edits queue up locally (already automatic, part of Phase 2).
-3. **"Go Online" button** — calls `firebase.firestore().enableNetwork()`, which reconnects and automatically pushes any queued writes to Firestore, then resumes live syncing.
+1. **Unlimited local cache** — set Firestore's local persistence cache size to unlimited (rather than the default, which can evict old entries once the cache fills up). This is a one-time settings change, done up front, not something the user manages.
+2. **"Go Offline" button** — runs a prefetch pass that reads every collection under the user's account once, so all of it lands in the local cache, then calls `firebase.firestore().disableNetwork()`. This tells the SDK to stop attempting any network calls and serve everything from the local cache only — a real Firestore feature, not a workaround.
+3. **While offline (however long — days or weeks)** — app behaves normally; reads come from cache, edits queue up locally (already automatic, part of Phase 2). Nothing expires or gets cleaned up because of the unlimited cache setting.
+4. **"Go Online" button** — calls `firebase.firestore().enableNetwork()`, which reconnects and automatically pushes any queued writes to Firestore, then resumes live syncing.
 
-**Still to be decided (feature-design phase, not yet resolved):**
-- Which collections/documents count as "needed offline" — likely varies by module (e.g., a specific Life Project's days/bookings/todo/packing items, or specific zones/plants)
-- Whether the user picks what to prefetch each time, or there's a fixed rule per module
+**Scope note:** "Go Offline" only affects the Firestore connection — it has no effect on other network calls (SecondBrain's LLM calls, Foursquare, stock price lookups, etc.). Those features still need real connectivity to work at all, offline mode or not; if one of them also writes to Firestore, that write queues up normally like any other offline write.
+
+**Still to be decided / verified (not yet resolved):**
 - UI: where the Go Offline/Go Online controls live, and what indicator shows current mode
 - What happens if the same record was also edited elsewhere (another device/session) while this device was offline — conflict handling
+- Verify Firebase Auth login survives a multi-week offline stretch with no network at all (should work, since the SDK doesn't need to refresh the session to serve cached data, but this is a real edge case to test rather than assume)
 
-**Effort:** TBD, depends on scope decided later. The core mechanism (prefetch loop + the two button handlers) is small; most of the effort is in scoping what gets prefetched per module.
+**Effort:** TBD. Core mechanism (unlimited cache setting + prefetch-everything loop + the two button handlers) is small and no longer depends on per-module scoping decisions.
+
+**Status: planned only, no code written yet.**
 
 ---
 
