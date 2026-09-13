@@ -2658,10 +2658,19 @@ function _updateJournalPlaceChips() {
  * Open the check-in picker from within the journal entry form.
  * Same picker as the main-screen Check In button, but instead of creating a new
  * entry, the selected venue is applied to the current open entry.
+ *
+ * If the entry already has a coordinate-pin check-in, seed the picker with
+ * those coordinates instead of the device's current GPS position — this is
+ * "Change Location" on an entry you may be reviewing long after the fact, not
+ * a live check-in, so searching around wherever the phone physically is right
+ * now would usually be wrong.
  */
 function _openCheckInFromEntry() {
     _checkinPickerCallback = _checkinApplyVenueToEntry;
-    openCheckIn();
+    var seedCoords = (_journalCheckinVenue && _journalCheckinVenue.isCoordinatePin)
+        ? { lat: _journalCheckinVenue.lat, lng: _journalCheckinVenue.lng }
+        : null;
+    openCheckIn(seedCoords);
 }
 
 /**
@@ -2679,8 +2688,15 @@ function _checkinApplyVenueToEntry(venue) {
  * Open the check-in picker modal.
  * Fires GPS immediately; user can also search by name.
  * Called from the "📍 Check In" button on the home/landing page.
+ *
+ * @param {{lat:number,lng:number}} [seedCoords] — When given (from
+ *   _openCheckInFromEntry() re-picking an existing coordinate check-in),
+ *   search around these coordinates instead of fetching a fresh GPS fix, and
+ *   hide "Save Coordinates" — that button captures wherever the device
+ *   physically is right now, which only makes sense for a live check-in, not
+ *   for editing an entry that may have been saved somewhere else entirely.
  */
-function openCheckIn() {
+function openCheckIn(seedCoords) {
     // _checkinPickerCallback is intentionally NOT reset here — callers like
     // _openCheckInFromEntry() set it immediately before calling this function.
     // The callback is cleared by the cancel, manual, and venue-select handlers.
@@ -2690,11 +2706,10 @@ function openCheckIn() {
     var resultsEl = document.getElementById('checkInPickerResults');
     var searchEl  = document.getElementById('checkInPickerSearch');
     var biasEl    = document.getElementById('checkInPickerBias');
+    var coordsBtn = document.getElementById('checkInCoordsBtn');
 
-    if (statusEl)  statusEl.textContent = '📍 Getting your location...';
     if (resultsEl) resultsEl.innerHTML  = '';
     if (searchEl)  searchEl.value       = '';
-    if (biasEl)    biasEl.value         = '';
     _checkinPickerLat = null;
     _checkinPickerLng = null;
     _checkinPickerNearText = null;
@@ -2703,6 +2718,20 @@ function openCheckIn() {
     _checkinPickerSource = 'fsq';
     var fsqRadio = document.querySelector('input[name="checkInSource"][value="fsq"]');
     if (fsqRadio) fsqRadio.checked = true;
+
+    if (coordsBtn) coordsBtn.classList.toggle('hidden', !!seedCoords);
+
+    if (seedCoords) {
+        // Re-picking a location for an existing coordinate check-in — search
+        // around where it was already saved, not wherever the phone is now.
+        if (biasEl) biasEl.value = seedCoords.lat.toFixed(5) + ', ' + seedCoords.lng.toFixed(5);
+        _checkinPickerLat = seedCoords.lat;
+        _checkinPickerLng = seedCoords.lng;
+        if (statusEl) statusEl.textContent = '🔍 Finding nearby places...';
+    } else {
+        if (biasEl)   biasEl.value = '';
+        if (statusEl) statusEl.textContent = '📍 Getting your location...';
+    }
 
     // Wire Cancel button
     var cancelBtn = document.getElementById('checkInPickerCancelBtn');
@@ -2801,8 +2830,21 @@ function openCheckIn() {
         };
     }
 
-    // Fire GPS immediately (Foursquare nearby; source always resets to fsq on open)
-    _checkinPickerFetchNearby(false);
+    if (seedCoords) {
+        // Search around the seeded coordinates instead of fetching fresh GPS.
+        placesNearby(seedCoords.lat, seedCoords.lng).then(function(venues) {
+            _checkinPickerVenues = venues;
+            _checkinPickerShowResults(venues);
+            if (statusEl) statusEl.textContent = venues.length
+                ? 'Places near your saved check-in — tap one to switch, or search by name'
+                : 'No named places found nearby. Try searching by name.';
+        }).catch(function() {
+            if (statusEl) statusEl.textContent = 'Could not load nearby places. Search by name above.';
+        });
+    } else {
+        // Fire GPS immediately (Foursquare nearby; source always resets to fsq on open)
+        _checkinPickerFetchNearby(false);
+    }
 }
 
 /**
