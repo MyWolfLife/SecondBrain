@@ -1028,8 +1028,22 @@ async function openEditJournalEntry(id) {
         var data = doc.data();
         window.currentJournalEntry = { id: id, ...data };
         window.journalEditMode = true;
-        _journalCheckinMode  = false;  // editing is never in check-in mode
-        _journalCheckinVenue = null;
+        // Editing never lets you pick a NEW check-in venue -- but a coordinate-pin
+        // check-in has no place record to fall back on (unlike a place-based
+        // check-in, which still shows via the placeIds chips below), so without
+        // this the saved location would just vanish from the edit screen even
+        // though it's still safely stored on the entry. Show it read-only instead.
+        if (data.checkinCoords && data.checkinCoords.lat != null && data.checkinCoords.lng != null) {
+            _journalCheckinMode  = true;
+            _journalCheckinVenue = {
+                isCoordinatePin: true,
+                lat: data.checkinCoords.lat,
+                lng: data.checkinCoords.lng
+            };
+        } else {
+            _journalCheckinMode  = false;
+            _journalCheckinVenue = null;
+        }
         // Restore mention set from stored IDs, then show chips
         _journalMentionedPersonIds = new Set(data.mentionedPersonIds || []);
         _journalPeopleCache = null;
