@@ -1359,6 +1359,12 @@ async function saveJournalEntry() {
                 placeIds:           placeIds,
                 links:              links,
                 photos:             _journalPhotos.slice(),
+                // Write the current coordinate-pin state explicitly, clearing it via
+                // delete() when it's no longer a coordinate pin (e.g. "Change Location"
+                // was used to switch to a real place) -- .update() only touches listed
+                // fields, so without this the old checkinCoords would linger forever and
+                // keep winning over the new place in both the feed and edit-screen display.
+                checkinCoords:      checkinCoords || firebase.firestore.FieldValue.delete(),
                 updatedAt:          firebase.firestore.FieldValue.serverTimestamp()
             });
             // Re-sync interactions (deletes old records, creates fresh ones)
