@@ -258,6 +258,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Common tasks:**
 - **Log a treatment:** Tap **Log Activity** to record when and how you treated this weed
+- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with everything you have recorded (how and when you treat it, where it grows, every treatment logged). Copy it or open it in ChatGPT, Claude, or Google. It asks whether your identification and timing are right, when the next treatment window is, and about safety
 - **Update zones:** Tap **Edit** and check/uncheck zones as the weed spreads or is eliminated
 - **Add photos:** Attach reference photos for identification
 
@@ -295,6 +296,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - **Add a fact manually:** Scroll to Facts → **+ Add Fact** (e.g., "Active Ingredient = Triclopyr")
 - **Scan the label:** In edit mode, tap **Scan Label** → photograph the bottle — AI extracts facts automatically
 - **View where this was used:** The Usage History section shows every activity that included this product
+- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with your notes, facts, every logged use (what it went on and when), and the saved actions that use it. It asks what the product is, whether you are using it more often or at different times than labels usually allow, and about safety. Copy it or open it in ChatGPT, Claude, or Google
 
 **Tips:**
 - Facts extracted by AI scan include: active ingredients, mixing ratio, reentry interval, application method, safety info.

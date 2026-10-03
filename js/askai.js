@@ -7,8 +7,8 @@
 // every entity can have (facts, problems, quick tasks, activities, calendar events, photos).
 //
 // Used by: plants (askAiForPlant), Bucket List items (bucketlist-links.js), and house / garage /
-// structure things, sub-things and items plus vehicles (askAiForKind, via buttons with
-// class="ask-ai-btn" data-askai="<kind>").
+// structure things, sub-things and items, vehicles, weeds and products (askAiForKind, via buttons
+// with class="ask-ai-btn" data-askai="<kind>").
 // ============================================================
 
 // Longest prompt (after URL-encoding) we put in a web address. Longer prompts are copied instead and
@@ -229,9 +229,9 @@ function askAiRelatedSections(rel, opts) {
 }
 
 /** The closing instructions shared by every "let's talk about this" prompt. */
-function askAiConversationRules(thing, extraFirstSteps) {
+function askAiConversationRules(thing, extraFirstSteps, summaryLine) {
     var steps = [
-        'Start with a short summary of what this ' + thing + ' is and how it seems to be doing based on my records.',
+        summaryLine || ('Start with a short summary of what this ' + thing + ' is and how it seems to be doing based on my records.')
     ].concat(extraFirstSteps || []).concat([
         'Then ask me what I would like to know, and keep all of this information in mind for my follow-up questions.',
         'If something in my records looks wrong (a misidentified name, details that don\'t fit), tell me.',
@@ -370,7 +370,9 @@ var ASK_AI_KINDS = {
     garagesubthing   : { col: 'garageSubThings',    targetType: 'garagesubthing',    area: 'Garage',     current: 'currentGarageSubThing' },
     structurething   : { col: 'structureThings',    targetType: 'structurething',    area: 'Structures', current: 'currentStructureThing' },
     structuresubthing: { col: 'structureSubThings', targetType: 'structuresubthing', area: 'Structures', current: 'currentStructureSubThing' },
-    vehicle          : { col: 'vehicles',           targetType: 'vehicle',                               current: 'currentVehicle' }
+    vehicle          : { col: 'vehicles',           targetType: 'vehicle',                               current: 'currentVehicle' },
+    weed             : { col: 'weeds',              targetType: 'weed',                                  current: 'currentWeed' },
+    chemical         : { col: 'chemicals',          targetType: 'chemical',                              current: 'currentChemical' }
 };
 
 // How each kind of record points at what it sits in (walked upward to say where it is)
@@ -415,6 +417,10 @@ function askAiForKind(kind) {
     if (!rec || !rec.id) return;
     if (kind === 'vehicle') {
         openAskAiModal('Ask an AI About ' + _askAiVehicleName(rec), askAiVehiclePrompt(rec.id));
+    } else if (kind === 'weed') {
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Weed'), askAiWeedPrompt(rec.id));
+    } else if (kind === 'chemical') {
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Product'), askAiChemicalPrompt(rec.id));
     } else {
         openAskAiModal('Ask an AI About ' + (rec.name || 'This Item'), askAiThingPrompt(kind, rec.id));
     }
@@ -568,4 +574,136 @@ async function askAiVehiclePrompt(id) {
         'Use the year, make, model and VIN to identify the exact version (engine, generation) if you can.',
         'Based on the mileage and my service history, tell me which maintenance is likely due or overdue (oil, tires, brakes, fluids, filters, timing belt, battery and so on), and mention well-known problems or recalls for this model.'
      ])]).filter(Boolean).join('\n\n');
+}
+
+// ---------- Weeds ----------
+
+/** "Front Yard > By Mailbox" for a zone id (or '' if missing). */
+async function _askAiZonePath(zoneId) {
+    var parts = [], id = zoneId, guard = 0;
+    while (id && guard++ < 5) {
+        var z = await userCol('zones').doc(id).get();
+        if (!z.exists) break;
+        parts.unshift(z.data().name || '');
+        id = z.data().parentId;
+    }
+    return parts.join(' > ');
+}
+
+/**
+ * Prompt for a weed: what I call it, how and when I treat it, where it grows, the AI-identification
+ * notes saved with it, and every related record (treatments logged, facts, photos...).
+ */
+async function askAiWeedPrompt(id) {
+    var snap = await userCol('weeds').doc(id).get();
+    if (!snap.exists) throw new Error('Weed not found');
+    var w = snap.data();
+
+    var results = await Promise.all([
+        Promise.all((w.zoneIds || []).map(_askAiZonePath)),
+        askAiHome(),
+        askAiChemicalNames(),
+        askAiRelatedRecords('weed', id)
+    ]);
+    var zonePaths = results[0].filter(Boolean), home = results[1], chemicals = results[2], rel = results[3];
+
+    var known = ['name', 'treatmentMethod', 'applicationTiming', 'notes', 'whatToLookFor', 'urlMoreInfo', 'zones'];
+    var details = [
+        askAiField('Name', w.name),
+        askAiField('How I treat it', w.treatmentMethod),
+        askAiField('When I treat it', w.applicationTiming),
+        askAiField('What to look for (identification notes)', w.whatToLookFor),
+        askAiField('More info link I saved', w.urlMoreInfo),
+        askAiField('My notes', w.notes)
+    ].concat(_askAiOtherFields(w, known));
+
+    return [
+        'I want to talk with you about a weed in my yard and ask you some questions about it. Below is everything I have recorded about it in my yard-tracking app. Use it as background for our whole conversation.',
+        askAiSection('THE WEED', details),
+        askAiSection('WHERE IT GROWS IN MY YARD', zonePaths),
+        askAiSection('ABOUT ME', [askAiField('I live near', home), askAiField("Today's date", askAiDate(new Date()))])
+    ].concat(askAiRelatedSections(rel, { chemicals: chemicals }))
+     .concat([askAiConversationRules('weed', [
+        'Confirm whether my identification seems right, and how to tell it apart from look-alikes.',
+        'Tell me whether my treatment method and timing are effective for my area and this time of year, what the next treatment window is (including pre-emergent timing), and how to keep it from coming back.',
+        'Mention safety for nearby plants, lawn, pets and children for the products involved.'
+     ])]).filter(Boolean).join('\n\n');
+}
+
+// ---------- Products (chemicals) ----------
+
+// Collection + display-name rule for each kind of record an activity can be logged against
+var ASK_AI_TARGET_NAMES = {
+    plant: 'plants', zone: 'zones', weed: 'weeds', room: 'rooms', thing: 'things', subthing: 'subThings',
+    item: 'subThingItems', garageroom: 'garageRooms', garagething: 'garageThings', garagesubthing: 'garageSubThings',
+    structure: 'structures', structurething: 'structureThings', structuresubthing: 'structureSubThings', vehicle: 'vehicles'
+};
+
+/** Name of the record an activity was logged against ("Azalea by mailbox", "Front Yard"...). */
+async function _askAiTargetName(targetType, targetId, cache) {
+    var key = targetType + '/' + targetId;
+    if (cache[key] !== undefined) return cache[key];
+    var col = ASK_AI_TARGET_NAMES[targetType];
+    var name = '';
+    if (col && targetId) {
+        try {
+            var d = await userCol(col).doc(targetId).get();
+            if (d.exists) {
+                var data = d.data();
+                name = targetType === 'vehicle' ? _askAiVehicleName(data) : (data.alias || data.name || '');
+            }
+        } catch (e) { /* unnamed */ }
+    }
+    cache[key] = name;
+    return name;
+}
+
+/**
+ * Prompt for a product: its notes and facts, every logged use (date, what it was applied to, notes),
+ * and the saved actions that use it.
+ */
+async function askAiChemicalPrompt(id) {
+    var snap = await userCol('chemicals').doc(id).get();
+    if (!snap.exists) throw new Error('Product not found');
+    var c = snap.data();
+
+    var results = await Promise.all([
+        askAiHome(),
+        askAiRelatedRecords('chemical', id),
+        userCol('activities').where('chemicalIds', 'array-contains', id).get().catch(function() { return null; }),
+        userCol('savedActions').where('chemicalIds', 'array-contains', id).get().catch(function() { return null; })
+    ]);
+    var home = results[0], rel = results[1], usesSnap = results[2], actionsSnap = results[3];
+
+    var uses = usesSnap ? usesSnap.docs.map(function(d) { return d.data(); }) : [];
+    uses.sort(function(a, b) { return _askAiDateKey(b.date || b.createdAt).localeCompare(_askAiDateKey(a.date || a.createdAt)); });
+    var nameCache = {};
+    var useLines = [];
+    for (var i = 0; i < uses.length && i < 60; i++) {
+        var u = uses[i];
+        var target = await _askAiTargetName(u.targetType, u.targetId, nameCache);
+        useLines.push(askAiDate(u.date || u.createdAt) + ' — ' + (u.description || '') +
+                      (target ? ' on ' + target + ' (' + u.targetType + ')' : '') + (u.notes ? ' — ' + u.notes : ''));
+    }
+    if (uses.length > 60) useLines.push('(' + (uses.length - 60) + ' older uses not shown)');
+
+    var actionLines = actionsSnap ? actionsSnap.docs.map(function(d) {
+        var a = d.data();
+        return [a.name, a.description, a.notes].filter(Boolean).join(' — ');
+    }) : [];
+
+    var details = [askAiField('Name', c.name), askAiField('My notes', c.notes)].concat(_askAiOtherFields(c, ['name', 'notes']));
+
+    return [
+        'I want to talk with you about a lawn/garden product I use and ask you some questions about it. Below is everything I have recorded about it in my yard-tracking app, including every time I logged using it. Use it as background for our whole conversation.',
+        askAiSection('THE PRODUCT', details),
+        askAiSection('EVERY TIME I LOGGED USING IT (newest first)', useLines),
+        askAiSection('SAVED ACTIONS THAT USE IT', actionLines),
+        askAiSection('ABOUT ME', [askAiField('I live near', home), askAiField("Today's date", askAiDate(new Date()))])
+    ].concat(askAiRelatedSections(rel))
+     .concat([askAiConversationRules('product', [
+        'Identify the product if you can: active ingredient(s), what it is for, and how it works.',
+        'Compare how often and when I have used it with typical label directions (rates, intervals, yearly maximums, temperature or season limits), and tell me if anything looks too frequent or mistimed. Remind me to follow the actual label.',
+        'Cover safety: pets and children, rain-free and re-entry times, nearby plants, storage and shelf life.'
+     ], 'Start with a short summary of what this product is and how I have been using it.')]).filter(Boolean).join('\n\n');
 }

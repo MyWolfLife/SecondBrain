@@ -181,6 +181,8 @@ Weeds are tracked by type (not by zone instance). Each weed type stores its trea
 
 **[Shared]**: Facts, Problems, Quick Task List, Activities, Photos, Calendar Events
 
+**🤖 Ask AI** (header button, `askAiWeedPrompt` in `js/askai.js`): the shared Ask AI dialog with a prompt to talk about this weed: name, treatment method and timing, saved identification notes and link, notes, the zones it grows in (full paths), the user's home and today's date, and related records (logged treatments with products, facts, problems, calendar, photo count). It asks the AI to confirm the identification and look-alikes, judge the treatment and timing for the location and season (including the next window and pre-emergent timing), cover prevention and safety, then wait for questions.
+
 ### Chemicals / Products (`chemicals.js`)
 A shared inventory of all chemicals, fertilizers, herbicides, and products used in the yard.
 
@@ -191,6 +193,8 @@ A shared inventory of all chemicals, fertilizers, herbicides, and products used 
 **Used by**: Activities and Saved Actions link to chemicals via `chemicalIds[]` array. Multiple chemicals can be linked to a single activity.
 
 **[Shared]**: Facts (URL values clickable as links), Photos
+
+**🤖 Ask AI** (header button, `askAiChemicalPrompt` in `js/askai.js`): the shared Ask AI dialog with a prompt to talk about this product: name and notes, every activity that used it (newest first, up to 60, with what it was applied to — plant common name, zone, weed, etc. — and notes), saved actions that use it, facts, and photo count. It asks the AI to identify the active ingredient and use, compare the logged frequency and timing with typical label limits (reminding the user to follow the actual label), and cover safety and storage, then wait for questions.
 
 ### Activities & Saved Actions (`activities.js`)
 See [Shared: Activities](#activities) for the full description. Nuances in the Yard context:
