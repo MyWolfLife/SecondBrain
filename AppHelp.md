@@ -921,6 +921,7 @@ Your existing account and password reset still work after this.
 ### Quick Help
 - Detail page for a single item in a room (appliance, furniture, fixture, electronics, etc.)
 - Things can have sub-things (drawers in a dresser, shelves in a bookcase, compartments in a cabinet)
+- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?"
 - All sections are collapsible accordions -- expand only what you need
 - AI photo ID available from the room page -- photograph a new item and it creates the record automatically
 
@@ -979,6 +980,7 @@ Your existing account and password reset still work after this.
 ### Quick Help
 - Detail page for a sub-thing -- a compartment, drawer, shelf, or section inside a Thing
 - Sub-things can contain individual Items (the deepest tracking level in the house hierarchy)
+- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?"
 - Use tags to group or categorize sub-things (e.g., "seasonal", "office supplies", "tools")
 
 ### Details
@@ -4170,6 +4172,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Track your vehicles with full maintenance history, mileage log, photos, and documents
 - Each vehicle has a detail page with collapsible sections: info, mileage, photos, activities, calendar, problems, facts, quick tasks
+- **🤖 Ask AI** on a vehicle's page builds a question with its year, make, model, VIN, mileage log, and service history, and asks the AI what maintenance is likely due and about known problems or recalls. Copy it or open it in ChatGPT, Claude, or Google (your license plate is not included)
 - Archived (sold/gone) vehicles move to a collapsed section -- history is fully preserved
 - Log mileage readings over time to track odometer history
 
@@ -4216,6 +4219,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Inventory what is stored in your garage and attic -- organized by room (space), things, and sub-things
 - Two default spaces are pre-created: Garage and Attic -- rename them or add more
+- Garage things and sub-things have a **🤖 Ask AI** button, the same as house things
 - Things support category badges, photos, activities, problems, facts, quick tasks, and calendar events
 - Use the **+ From Photo** AI identification button to identify and log items from photos
 
@@ -4278,6 +4282,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Track outdoor structures -- sheds, decks, pergolas, gazebos, pools, fences, etc.
 - Each structure has photos, activities, calendar events, problems, facts, and quick tasks
+- Things and sub-things stored in a structure have a **🤖 Ask AI** button, the same as house things
 - Mark a structure as "Storage" to unlock a Things inventory section inside it
 - Things and sub-things inside storage structures support the same AI photo identification as the Garage
 

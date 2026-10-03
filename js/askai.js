@@ -6,8 +6,9 @@
 // prompt from everything the app knows about it; the shared loaders below collect the records
 // every entity can have (facts, problems, quick tasks, activities, calendar events, photos).
 //
-// Used by: plants (askAiForPlant), Bucket List items (bucketlist-links.js).
-// Planned next: things, vehicles.
+// Used by: plants (askAiForPlant), Bucket List items (bucketlist-links.js), and house / garage /
+// structure things, sub-things and items plus vehicles (askAiForKind, via buttons with
+// class="ask-ai-btn" data-askai="<kind>").
 // ============================================================
 
 // Longest prompt (after URL-encoding) we put in a web address. Longer prompts are copied instead and
@@ -233,7 +234,7 @@ function askAiConversationRules(thing, extraFirstSteps) {
         'Start with a short summary of what this ' + thing + ' is and how it seems to be doing based on my records.',
     ].concat(extraFirstSteps || []).concat([
         'Then ask me what I would like to know, and keep all of this information in mind for my follow-up questions.',
-        'If something in my records looks wrong (a misidentified name, care details that don\'t fit), tell me.',
+        'If something in my records looks wrong (a misidentified name, details that don\'t fit), tell me.',
         'Be specific to my location and today\'s date. If you are unsure about something, say so rather than guessing.'
     ]);
     return 'HOW TO HELP ME\n' + steps.map(function(s) { return '- ' + s; }).join('\n');
@@ -350,4 +351,221 @@ async function _askAiZoneWeeds(zones) {
         var snap = await userCol('weeds').where('zoneIds', 'array-contains-any', ids).get();
         return snap.docs.map(function(d) { return d.data(); });
     } catch (e) { return []; }
+}
+
+// ============================================================
+// Things (house / garage / structures) and vehicles
+// ============================================================
+
+/**
+ * Every page that has an Ask AI button marked class="ask-ai-btn" data-askai="<kind>".
+ * col: Firestore collection; targetType: key used by facts/problems/activities/photos;
+ * current: the window.current* object the detail page keeps for the record on screen.
+ */
+var ASK_AI_KINDS = {
+    thing            : { col: 'things',             targetType: 'thing',             area: 'House',      current: 'currentThing' },
+    subthing         : { col: 'subThings',          targetType: 'subthing',          area: 'House',      current: 'currentSubThing' },
+    item             : { col: 'subThingItems',      targetType: 'item',              area: 'House',      current: 'currentItem' },
+    garagething      : { col: 'garageThings',       targetType: 'garagething',       area: 'Garage',     current: 'currentGarageThing' },
+    garagesubthing   : { col: 'garageSubThings',    targetType: 'garagesubthing',    area: 'Garage',     current: 'currentGarageSubThing' },
+    structurething   : { col: 'structureThings',    targetType: 'structurething',    area: 'Structures', current: 'currentStructureThing' },
+    structuresubthing: { col: 'structureSubThings', targetType: 'structuresubthing', area: 'Structures', current: 'currentStructureSubThing' },
+    vehicle          : { col: 'vehicles',           targetType: 'vehicle',                               current: 'currentVehicle' }
+};
+
+// How each kind of record points at what it sits in (walked upward to say where it is)
+var ASK_AI_PARENTS = {
+    things            : { field: 'roomId',      col: 'rooms' },
+    rooms             : { field: 'floorId',     col: 'floors' },
+    subThings         : { field: 'thingId',     col: 'things' },
+    subThingItems     : { field: 'subThingId',  col: 'subThings' },
+    garageThings      : { field: 'roomId',      col: 'garageRooms' },
+    garageSubThings   : { field: 'thingId',     col: 'garageThings' },
+    structureThings   : { field: 'structureId', col: 'structures' },
+    structureSubThings: { field: 'thingId',     col: 'structureThings' }
+};
+
+// What sits inside a record (listed by name so the AI knows its parts/contents)
+var ASK_AI_CHILDREN = {
+    things         : { col: 'subThings',          field: 'thingId' },
+    subThings      : { col: 'subThingItems',      field: 'subThingId' },
+    garageThings   : { col: 'garageSubThings',    field: 'thingId' },
+    structureThings: { col: 'structureSubThings', field: 'thingId' }
+};
+
+// Fields shown with friendly labels, in this order; any other simple field is listed after them
+var ASK_AI_THING_FIELDS = [
+    ['name', 'Name'], ['category', 'Category'], ['description', 'Description'], ['worth', 'Value I recorded'],
+    ['notes', 'My notes'], ['tags', 'Tags']
+];
+// Never sent: internal links, images and bookkeeping
+var ASK_AI_SKIP_FIELDS = ['profilePhotoData', 'createdAt', 'updatedAt', 'sortOrder', 'order', 'beneficiaryContactId',
+                          'archived', 'archivedAt', 'archivedReason', 'licensePlate'];
+
+// Any button with class "ask-ai-btn" and data-askai="<kind>" opens Ask AI for the record on screen
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest && e.target.closest('.ask-ai-btn[data-askai]');
+    if (btn) askAiForKind(btn.dataset.askai);
+});
+
+/** Open Ask AI for the record currently shown on a thing/sub-thing/item/vehicle page. */
+function askAiForKind(kind) {
+    var k = ASK_AI_KINDS[kind];
+    var rec = k ? window[k.current] : null;
+    if (!rec || !rec.id) return;
+    if (kind === 'vehicle') {
+        openAskAiModal('Ask an AI About ' + _askAiVehicleName(rec), askAiVehiclePrompt(rec.id));
+    } else {
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Item'), askAiThingPrompt(kind, rec.id));
+    }
+}
+
+/** "TV" from "tags" / "beneficiary" style keys → "Some field" style labels for leftover fields. */
+function _askAiHumanize(key) {
+    var s = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim().toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Leftover simple fields (strings, numbers, true/false, short lists) not already shown. */
+function _askAiOtherFields(data, shownKeys) {
+    var lines = [];
+    Object.keys(data).sort().forEach(function(key) {
+        if (shownKeys.indexOf(key) !== -1 || ASK_AI_SKIP_FIELDS.indexOf(key) !== -1) return;
+        if (/Id$|Ids$/.test(key)) return;   // links to other records
+        var v = data[key];
+        if (v === null || v === undefined || v === '') return;
+        if (Array.isArray(v)) {
+            if (!v.length || typeof v[0] === 'object') return;
+            v = v.join(', ');
+        } else if (typeof v === 'object') {
+            return;   // nested data / timestamps
+        } else if (typeof v === 'boolean') {
+            v = v ? 'yes' : 'no';
+        }
+        lines.push(askAiField(_askAiHumanize(key), v));
+    });
+    return lines;
+}
+
+/** "House > 1st Floor > Office > Desk" — walks up from the record to its top-level area. */
+async function _askAiLocationPath(col, data, area) {
+    var parts = [];
+    var curCol = col, cur = data, guard = 0;
+    while (ASK_AI_PARENTS[curCol] && guard++ < 6) {
+        var link = ASK_AI_PARENTS[curCol];
+        var pid = cur[link.field];
+        if (!pid) break;
+        var snap = await userCol(link.col).doc(pid).get();
+        if (!snap.exists) break;
+        cur = snap.data();
+        parts.unshift(cur.name + (link.col === 'structures' && cur.type ? ' (' + cur.type + ')' : ''));
+        curCol = link.col;
+    }
+    if (area) parts.unshift(area);
+    return parts.join(' > ');
+}
+
+/**
+ * Prompt for a thing / sub-thing / item (house, garage or structure): its details, where it is,
+ * what is inside it, who it is set aside for, and every related record.
+ */
+async function askAiThingPrompt(kind, id) {
+    var k = ASK_AI_KINDS[kind];
+    var snap = await userCol(k.col).doc(id).get();
+    if (!snap.exists) throw new Error('Record not found');
+    var data = snap.data();
+
+    var childDef = ASK_AI_CHILDREN[k.col];
+    var results = await Promise.all([
+        _askAiLocationPath(k.col, data, k.area),
+        askAiHome(),
+        askAiRelatedRecords(k.targetType, id),
+        childDef ? userCol(childDef.col).where(childDef.field, '==', id).get().catch(function() { return null; }) : null,
+        data.beneficiaryContactId ? userCol('people').doc(data.beneficiaryContactId).get().catch(function() { return null; }) : null
+    ]);
+    var where = results[0], home = results[1], rel = results[2], children = results[3], beneficiary = results[4];
+
+    var details = ASK_AI_THING_FIELDS.map(function(f) {
+        var v = data[f[0]];
+        if (Array.isArray(v)) v = v.join(', ');
+        if (f[0] === 'worth' && v !== undefined && v !== null && v !== '' && !isNaN(Number(v))) v = '$' + Number(v).toLocaleString();
+        return askAiField(f[1], v);
+    });
+    details.push(askAiField('Where it is', where));
+    if (beneficiary && beneficiary.exists) details.push(askAiField('Set aside for (beneficiary)', beneficiary.data().name));
+    details = details.concat(_askAiOtherFields(data, ASK_AI_THING_FIELDS.map(function(f) { return f[0]; })));
+
+    var inside = [];
+    if (children) {
+        children.forEach(function(c) {
+            var d = c.data();
+            inside.push([d.name, d.description].filter(Boolean).join(' — '));
+        });
+    }
+
+    return [
+        'I want to talk with you about something I own and ask you some questions about it. Below is everything I have recorded about it in my home-tracking app. Use it as background for our whole conversation.',
+        askAiSection('THE ITEM', details),
+        askAiSection('WHAT IS INSIDE IT / ITS PARTS', inside),
+        askAiSection('ABOUT ME', [askAiField('I live near', home), askAiField("Today's date", askAiDate(new Date()))])
+    ].concat(askAiRelatedSections(rel))
+     .concat([askAiConversationRules('item', [
+        'If my notes or photos captions give a brand or model, identify it and tell me the main specs, the maintenance it needs, common problems, and its typical lifespan.',
+        'If I recorded a value, tell me whether it seems reasonable today, and anything that affects it.'
+     ])]).filter(Boolean).join('\n\n');
+}
+
+// ---------- Vehicles ----------
+
+function _askAiVehicleName(v) {
+    return [v.year, v.make, v.model, v.trim].filter(Boolean).join(' ') || 'This Vehicle';
+}
+
+/**
+ * Prompt for a vehicle: its details (including VIN, which identifies the exact build), the mileage
+ * log, and every related record (service history, problems, tasks, scheduled maintenance).
+ */
+async function askAiVehiclePrompt(id) {
+    var snap = await userCol('vehicles').doc(id).get();
+    if (!snap.exists) throw new Error('Vehicle not found');
+    var v = snap.data();
+
+    var results = await Promise.all([
+        askAiHome(),
+        askAiRelatedRecords('vehicle', id),
+        userCol('mileageLogs').where('vehicleId', '==', id).get().catch(function() { return null; })
+    ]);
+    var home = results[0], rel = results[1], mileSnap = results[2];
+
+    var logs = mileSnap ? mileSnap.docs.map(function(d) { return d.data(); }) : [];
+    logs.sort(function(a, b) { return _askAiDateKey(b.date).localeCompare(_askAiDateKey(a.date)); });
+    var latest = logs[0];
+
+    var known = ['year', 'make', 'model', 'trim', 'color', 'vin', 'purchaseDate', 'purchasePrice', 'notes'];
+    var details = [
+        askAiField('Vehicle', _askAiVehicleName(v)),
+        askAiField('Color', v.color),
+        askAiField('VIN', v.vin),
+        askAiField('Bought', askAiDate(v.purchaseDate)),
+        askAiField('Purchase price', v.purchasePrice ? '$' + Number(v.purchasePrice).toLocaleString() : ''),
+        askAiField('Current mileage (latest reading)', latest ? Number(latest.mileage).toLocaleString() + ' miles on ' + askAiDate(latest.date) : ''),
+        askAiField('Status', v.archived ? 'No longer have it' + (v.archivedReason ? ' (' + v.archivedReason + ')' : '') : ''),
+        askAiField('My notes', v.notes)
+    ].concat(_askAiOtherFields(v, known));
+
+    var mileLines = logs.slice(0, 30).map(function(l) {
+        return askAiDate(l.date) + ' — ' + Number(l.mileage).toLocaleString() + ' miles' + (l.notes ? ' (' + l.notes + ')' : '');
+    });
+    if (logs.length > 30) mileLines.push('(' + (logs.length - 30) + ' older readings not shown)');
+
+    return [
+        'I want to talk with you about one of my vehicles and ask you some questions about it. Below is everything I have recorded about it in my tracking app. Use it as background for our whole conversation.',
+        askAiSection('THE VEHICLE', details),
+        askAiSection('MILEAGE LOG (newest first)', mileLines),
+        askAiSection('ABOUT ME', [askAiField('I live near', home), askAiField("Today's date", askAiDate(new Date()))])
+    ].concat(askAiRelatedSections(rel))
+     .concat([askAiConversationRules('vehicle', [
+        'Use the year, make, model and VIN to identify the exact version (engine, generation) if you can.',
+        'Based on the mileage and my service history, tell me which maintenance is likely due or overdue (oil, tires, brakes, fluids, filters, timing belt, battery and so on), and mention well-known problems or recalls for this model.'
+     ])]).filter(Boolean).join('\n\n');
 }

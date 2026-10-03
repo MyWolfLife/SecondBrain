@@ -287,6 +287,8 @@ Items of significance in a room — furniture, appliances, fixtures.
 
 **[Shared]**: Facts, Problems, Quick Task List, Activities, Photos, Calendar Events
 
+**🤖 Ask AI** (header button, `askAiForKind` in `js/askai.js`, wired by a shared click handler on any `.ask-ai-btn[data-askai]`): opens the shared Ask AI dialog (see Plants) with a prompt saying the user wants to talk about this item and ask questions, followed by its recorded fields (name, category, description, value, notes, tags, plus any other simple field such as a model number; internal links, images and bookkeeping are left out), where it is (walked up the hierarchy, e.g. "House > 1st Floor > Office > Desk"), what is inside it (child sub-things/items), its beneficiary if set, the user's home and today's date, and every related record (facts, problems, tasks, calendar, activity history, photo count). It asks the AI to identify the make/model if the notes give one and cover specs, maintenance, common problems, lifespan and whether the recorded value is reasonable, then wait for questions. Also on Sub-Things, Items, and garage and structure things/sub-things.
+
 ### Sub-Things (`house.js`)
 Sub-items within a Thing — drawers in a dresser, shelves in a bookcase, compartments in a cabinet.
 
@@ -641,7 +643,7 @@ The Garage section mirrors the House section structure but is separate. It pre-s
 
 **Routes**: `#garage` (room list), `#garageroom/{id}`, `#garagething/{id}`, `#garagesubthing/{id}`
 
-**Features**: Same as House — Things, Sub-Things, and their cross-entity sections (Facts, Problems, Quick Task List, Activities, Photos, Calendar Events). LLM photo identification also available.
+**Features**: Same as House — Things, Sub-Things, and their cross-entity sections (Facts, Problems, Quick Task List, Activities, Photos, Calendar Events). LLM photo identification also available. Garage things and sub-things have the **🤖 Ask AI** button (see Things).
 
 **Detail page layouts**: All three detail pages (garage room, garage thing, garage subthing) use collapsible `.detail-acc` accordions, all collapsed by default with item count badges. Garage room sections: Photos, Things, Activity History, Calendar Events, Problems/Concerns, Facts, Quick Task List. Thing and sub-thing pages follow the same pattern.
 
@@ -657,7 +659,7 @@ Outdoor structures separate from the main house — sheds, decks, pergolas, gaze
 
 **Routes**: `#structures` (list), `#structure/{id}`, `#structurething/{id}`, `#structuresubthing/{id}`
 
-**Features**: Full feature set — Facts, Problems (roll-up), Quick Task List (roll-up), Activities, Photos, Calendar Events. Same hierarchy as House but without floor plans or breaker panels.
+**Features**: Full feature set — Facts, Problems (roll-up), Quick Task List (roll-up), Activities, Photos, Calendar Events. Same hierarchy as House but without floor plans or breaker panels. Structure things and sub-things have the **🤖 Ask AI** button (see Things).
 
 **Detail page layouts**: All three detail pages (structure, structure-thing, structure-subthing) use collapsible `.detail-acc` accordions, all collapsed by default with item count badges. Structure page sections: Photos, Things (hidden unless `isStorage=true`), Activity History, Calendar Events, Problems/Concerns, Facts, Quick Task List. Thing and Sub-thing pages follow the same pattern.
 
@@ -672,6 +674,8 @@ Tracks vehicles with maintenance history, mileage, and documentation.
 **Firestore**: `vehicles` — `year`, `make`, `model`, `trim`, `color`, `vin`, `licensePlate`, `purchaseDate`, `purchasePrice`, `notes`, `archived`, `archivedAt`, `archivedReason`, `profilePhotoData?`, `createdAt`
 
 **Routes**: `#vehicles` (list), `#vehicle/{id}` (detail)
+
+**🤖 Ask AI** (header button, `askAiVehiclePrompt` in `js/askai.js`): the shared Ask AI dialog with a prompt saying the user wants to talk about this vehicle, followed by year/make/model/trim, color, VIN (the license plate is deliberately left out), purchase date and price, latest odometer reading, notes, any other simple fields, the mileage log (newest first, up to 30), the user's home and today's date, and all related records (service activities, problems, tasks, calendar, facts, photo count). It asks the AI to identify the exact version from the VIN, say which maintenance is likely due or overdue given the mileage and service history, and mention known problems or recalls, then wait for questions.
 
 **Archival**: Vehicles can be marked as sold/gone with an optional reason. Archived vehicles move to a collapsed "Archived" section on the list — they are not deleted, so their full history is preserved.
 
