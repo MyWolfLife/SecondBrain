@@ -54,6 +54,7 @@ var SB_ICONS = {
     ADD_NOTE:           '📝', FIND_THING:         '🔍', ADD_DEV_NOTE:       '🛠️',
     ADD_CHEMICAL:       '🧪', ADD_PERSONAL_EVENT: '🗓️',
     CHECK_IN:           '📍',
+    ADD_BUCKET_ITEM:    '🗺️', QUERY_BUCKET_LIST:  '🧭',
     ASK_HELP:           '💡',
     ADD_REMINDER:       '⏰',
     LOG_EXERCISE:       '🏃',
@@ -72,6 +73,7 @@ var SB_LABELS = {
     ADD_PLANT:          'Add Plant',           ADD_NOTE:           'Add Note',
     ADD_CHEMICAL:       'Add Product',         ADD_PERSONAL_EVENT: 'Add Personal Event',
     CHECK_IN:           'Check In',
+    ADD_BUCKET_ITEM:    'Add to Bucket List', QUERY_BUCKET_LIST: 'Show Bucket List',
     ASK_HELP:           'Help Question',
     ADD_REMINDER:       'Add Reminder',
     LOG_EXERCISE:       'Log Exercise',
@@ -559,6 +561,14 @@ ctxJson,
 'useGps: set true ONLY when user says "here", "this place", "my location", "current location", or similar with no specific named place.',
 'Do NOT use CHECK_IN for journal entries or activities that happen to mention a place — only when the primary intent is to record a physical presence at a location.',
 '',
+'ADD_BUCKET_ITEM — save a place, trail, town, country, event or experience the user WANTS TO VISIT SOMEDAY (a bucket list idea). Use for "I want to visit/see/go to X", "add X to my bucket list", "save this place", "I saw a reel about X". If the user has a firm plan with a date (concert, race, trip they are taking) use ADD_PERSONAL_EVENT instead; if they are physically there right now use CHECK_IN.',
+'{"action":"ADD_BUCKET_ITEM","payload":{"name":"the place or event name","kind":"country|region|town|park|trail|waterfall|scenic|bar|restaurant|event|other","country":null,"region":null,"city":null,"venue":null,"timing":{"type":"none|months|date|range","months":[],"startDate":null,"endDate":null,"yearly":false,"label":null},"why":null,"notes":null,"website":null,"tags":[],"ambiguous":false}}',
+'timing: use months for a time of year (fall=[10,11], spring=[3,4,5], summer=[6,7,8], winter=[12,1,2], "in May"=[5]); date or range with YYYY-MM-DD for events with dates (yearly true if annual); otherwise type none. country/region/city: full English names only when you are confident, else null. Never invent a website.',
+'',
+'QUERY_BUCKET_LIST — the user asks to SEE or LIST what is on their bucket list, optionally narrowed by place, type, time of year or status. Examples: "what do I want to see in Ireland?", "show my bucket list for Dublin", "which waterfalls are on my list?", "what is good to do this month?". This only opens the list, it saves nothing.',
+'{"action":"QUERY_BUCKET_LIST","payload":{"country":null,"region":null,"city":null,"kind":null,"month":null,"status":null,"text":null}}',
+'month: 1-12, or "now" for "this month", "right now" or "soon". status: active (default), want, planned, visited, dismissed or all. kind: one of country|region|town|park|trail|waterfall|scenic|bar|restaurant|event|other. text: any other search words.',
+'',
 'ASK_HELP — the user is asking how to use the app, looking for a feature, expressing confusion, or asking a "how do I" / "where is" / "what does X do" question. Use this broadly — implicit confusion ("I can\'t find", "this isn\'t working") counts.',
 '{"action":"ASK_HELP","payload":{"originalPrompt":"exact user question"}}',
 '',
@@ -957,13 +967,17 @@ function _sbShowConfirmation(result) {
     var isUnknown    = (action === 'UNKNOWN_ACTION');
     var isFindThing  = (action === 'FIND_THING');
     document.getElementById('sbConfirmGoBtn').classList.toggle('hidden',       isUnknown || (isFindThing && !payload.found));
-    document.getElementById('sbConfirmDoneBtn').classList.toggle('hidden',     isUnknown || isFindThing);
+    var isQueryBL    = (action === 'QUERY_BUCKET_LIST');
+    document.getElementById('sbConfirmDoneBtn').classList.toggle('hidden',     isUnknown || isFindThing || isQueryBL);
     document.getElementById('sbConfirmTryAgainBtn').classList.toggle('hidden', !isUnknown);
 
     // FIND_THING: rename the Go button to "Take Me There"
     if (isFindThing && payload.found) {
         if (goBtnEl) goBtnEl.textContent = '🗺️ Take Me There';
     }
+
+    // QUERY_BUCKET_LIST is read-only: the Go button just opens the filtered list
+    if (isQueryBL && goBtnEl) goBtnEl.textContent = '🗺️ Show Me';
 
     document.getElementById('sbConfirmModal').classList.add('open');
 }
@@ -1550,6 +1564,47 @@ function _sbRenderConfirmFields(action, payload) {
             break;
         }
 
+        case 'ADD_BUCKET_ITEM': {
+            var blKindOpts = Object.keys(BL_KINDS).map(function(k) {
+                return '<option value="' + k + '"' + (k === p.kind ? ' selected' : '') + '>' + _sbEsc(BL_KINDS[k].label) + '</option>';
+            }).join('');
+            html += _sbFieldRow('Name',
+                '<input type="text" class="sb-field" data-field="name" value="' + _sbEsc(p.name || '') + '">');
+            html += _sbFieldRow('Type', '<select class="sb-field" data-field="kind">' + blKindOpts + '</select>');
+            html += _sbFieldRow('Country',
+                '<input type="text" class="sb-field" data-field="country" value="' + _sbEsc(p.country || '') + '">');
+            html += _sbFieldRow('State / Region',
+                '<input type="text" class="sb-field" data-field="region" value="' + _sbEsc(p.region || '') + '">');
+            html += _sbFieldRow('City / Town',
+                '<input type="text" class="sb-field" data-field="city" value="' + _sbEsc(p.city || '') + '">');
+            html += _sbFieldRow('Why',
+                '<textarea class="sb-field" data-field="why" rows="2">' + _sbEsc(p.why || '') + '</textarea>');
+            html += _sbFieldRow('Notes',
+                '<textarea class="sb-field" data-field="notes" rows="2">' + _sbEsc(p.notes || '') + '</textarea>');
+            var blTimingText = _blTimingText(_blimpTiming(p.timing));
+            if (blTimingText) html += '<div class="sb-info">\uD83D\uDDD3\uFE0F ' + _sbEsc(blTimingText) + ' (edit later from the item)</div>';
+            break;
+        }
+
+        case 'QUERY_BUCKET_LIST': {
+            var qParts = [];
+            if (p.city)    qParts.push(p.city);
+            if (p.region)  qParts.push(p.region);
+            if (p.country) qParts.push(p.country);
+            var qWhere = qParts.length ? qParts.join(', ') : 'everywhere';
+            var qExtra = [];
+            if (p.kind && BL_KINDS[p.kind]) qExtra.push(BL_KINDS[p.kind].label.toLowerCase());
+            if (p.month === 'now') qExtra.push('good now');
+            else if (p.month) qExtra.push('good in month ' + p.month);
+            if (p.status && p.status !== 'active') qExtra.push(p.status);
+            if (p.text) qExtra.push('"' + p.text + '"');
+            html += '<div class="sb-find-result">' +
+                    '<div class="sb-find-name">\uD83E\uDDED Bucket List: ' + _sbEsc(qWhere) + '</div>' +
+                    '<div class="sb-find-path">' + _sbEsc(qExtra.join(' \u00b7 ') || 'all active items') + '</div>' +
+                    '</div>';
+            break;
+        }
+
         case 'FIND_THING':
             if (p.found) {
                 html += '<div class="sb-find-result">' +
@@ -1664,6 +1719,13 @@ async function _sbExecuteAction(navigate) {
     if (action === 'FIND_THING') {
         _sbCloseConfirm();
         _sbNavigateTo(action, payload, null);
+        return;
+    }
+
+    // QUERY_BUCKET_LIST is read-only — open the Bucket List with the filters applied
+    if (action === 'QUERY_BUCKET_LIST') {
+        _sbCloseConfirm();
+        bucketListShowFiltered(payload);
         return;
     }
 
@@ -2365,6 +2427,24 @@ async function _sbWrite(action, payload) {
             break;
         }
 
+        // ---- Add to Bucket List -----------------------------
+        case 'ADD_BUCKET_ITEM': {
+            // Same cleanup the screenshot import uses: bad kinds/dates/URLs are dropped
+            var bucketNorm = _blimpNormalizeItem(payload);
+            if (!bucketNorm) throw new Error('Please enter a name.');
+            if (_blItems.length === 0) { try { await _blLoadItems(); } catch (e) { /* spelling match is optional */ } }
+            _blEditId = null;
+            ref = await userCol('bucketList').add(_blBuildDocFromItem(bucketNorm, 'quicklog', null));
+            newId = ref.id;
+            // QuickLog photos (e.g. the screenshot) go straight onto the item
+            await _sbSavePhotos('bucketItem', newId, '');
+            return newId;
+        }
+
+        case 'QUERY_BUCKET_LIST':
+            // Read-only — short-circuited before _sbWrite in _sbExecuteAction
+            return null;
+
         case 'FIND_THING':
             // Read-only — no write needed (short-circuited before _sbWrite in normal flow)
             return null;
@@ -2463,6 +2543,10 @@ function _sbNavigateTo(action, payload, newId) {
             hash = (payload.found && payload.targetType && payload.targetId)
                 ? _sbTypeHash(payload.targetType, payload.targetId)
                 : null;
+            break;
+
+        case 'ADD_BUCKET_ITEM':
+            hash = id ? '#bucketitem/' + id : '#bucketlist';
             break;
 
         case 'CHECK_IN':
@@ -2752,6 +2836,28 @@ var SB_HELP_ACTIONS = [
             "I'm at Home Depot",
             'Check in here',
             'Just arrived at the dentist'
+        ]
+    },
+    {
+        action: 'ADD_BUCKET_ITEM',
+        icon: '🗺️', label: 'Add to Bucket List',
+        desc: 'Save a place, trail, town, country, or event you want to visit someday. Picks up a time of year ("in the fall") or dates if you mention them. Attach a screenshot first to keep it on the item.',
+        examples: [
+            'I want to visit Amicalola Falls in the spring',
+            'Add Dublin, Ireland to my bucket list',
+            'Save the Christmas lights show in Helen, Georgia, runs late Nov to New Year',
+            'Bucket list: hike the Appalachian Trail section at McAfee Knob'
+        ]
+    },
+    {
+        action: 'QUERY_BUCKET_LIST',
+        icon: '🧭', label: 'Show Bucket List',
+        desc: 'Open your Bucket List filtered by place, type, time of year, or status. Reads only, nothing is saved.',
+        examples: [
+            'What do I want to see in Ireland?',
+            'Show my bucket list for Dublin',
+            'Which waterfalls are on my list?',
+            "What's good to do this month?"
         ]
     },
     {

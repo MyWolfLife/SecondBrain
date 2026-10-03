@@ -496,6 +496,48 @@ function _blimpRenderReview(message) {
     document.getElementById('blImportRawText').textContent = _blimpRaw;
 }
 
+
+/**
+ * Build a bucketList document from a cleaned-up item (the shape _blimpNormalizeItem returns).
+ * Shared by the screenshot import and the QuickLog "Add to Bucket List" action.
+ * Country/region/city take the spelling already used by existing items (_blCanonPlace).
+ */
+function _blBuildDocFromItem(it, source, importNote) {
+    var geo = {
+        country    : it.country || null,
+        countryCode: null,
+        region     : it.region || null,
+        city       : it.city || null,
+        venue      : it.venue || null,
+        address    : null,
+        lat        : it.lat != null ? it.lat : null,
+        lng        : it.lng != null ? it.lng : null
+    };
+    geo.country = _blCanonPlace(geo.country, 'country');
+    geo.region  = _blCanonPlace(geo.region,  'region');
+    geo.city    = _blCanonPlace(geo.city,    'city');
+    geo.precision = _blPrecision(geo);
+
+    return {
+        name       : it.name,
+        kind       : it.kind,
+        why        : it.why || null,
+        notes      : it.notes || null,
+        tags       : it.tags || [],
+        geo        : geo,
+        timing     : it.timing,
+        website    : it.website || null,
+        links      : [],
+        status     : 'want',
+        priority   : 2,
+        visitedDate: null,
+        source     : source,
+        importNote : importNote || null,
+        createdAt  : firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt  : firebase.firestore.FieldValue.serverTimestamp()
+    };
+}
+
 // ============================================================
 // Saving
 // ============================================================
@@ -526,40 +568,17 @@ async function _blimpSaveSelected() {
             var card = cards[i];
             var it = _blimpItems[parseInt(card.dataset.idx, 10)];
 
-            var name = card.querySelector('.bl-rev-name').value.trim() || it.name;
-            var geo = {
-                country    : card.querySelector('.bl-rev-country').value.trim() || null,
-                countryCode: null,
-                region     : card.querySelector('.bl-rev-region').value.trim() || null,
-                city       : card.querySelector('.bl-rev-city').value.trim() || null,
-                venue      : it.venue,
-                address    : null,
-                lat        : it.lat,
-                lng        : it.lng
-            };
-            geo.country = _blCanonPlace(geo.country, 'country');
-            geo.region  = _blCanonPlace(geo.region,  'region');
-            geo.city    = _blCanonPlace(geo.city,    'city');
-            geo.precision = _blPrecision(geo);
-
-            var doc = {
-                name       : name,
-                kind       : card.querySelector('.bl-rev-kind').value,
-                why        : card.querySelector('.bl-rev-why').value.trim() || null,
-                notes      : it.notes,
-                tags       : it.tags,
-                geo        : geo,
-                timing     : it.timing,
-                website    : it.website,
-                links      : [],
-                status     : 'want',
-                priority   : 2,
-                visitedDate: null,
-                source     : _blimpSource,
-                importNote : (it.confidence + ' confidence' + (it.evidence ? ': ' + it.evidence : '')).slice(0, 300),
-                createdAt  : firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt  : firebase.firestore.FieldValue.serverTimestamp()
-            };
+            // Apply the user's edits from the card on top of the cleaned-up LLM item
+            var edited = Object.assign({}, it, {
+                name   : card.querySelector('.bl-rev-name').value.trim() || it.name,
+                kind   : card.querySelector('.bl-rev-kind').value,
+                country: card.querySelector('.bl-rev-country').value.trim() || null,
+                region : card.querySelector('.bl-rev-region').value.trim() || null,
+                city   : card.querySelector('.bl-rev-city').value.trim() || null,
+                why    : card.querySelector('.bl-rev-why').value.trim() || null
+            });
+            var doc = _blBuildDocFromItem(edited, _blimpSource,
+                (it.confidence + ' confidence' + (it.evidence ? ': ' + it.evidence : '')).slice(0, 300));
             var ref = await userCol('bucketList').add(doc);
 
             // Keep the screenshot(s) on each saved item

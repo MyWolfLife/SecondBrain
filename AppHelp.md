@@ -71,6 +71,8 @@ It is used by the in-app AI assistant to answer your questions.
 | 🔍 | **Find Item** | Locate where something is stored or tracked | "Where is my gator hat?", "Find the chainsaw", "Where did I put the router manual?" |
 | ⏰ | **Add Reminder** | Set a time-based reminder; syncs to Google Calendar | "Remind me in 30 days to change the hot tub filter", "Remind me tomorrow to call the groomer" |
 | 📍 | **Check In** | Check in at a real-world place | "Check in at Smokey Bones", "I'm at Home Depot" |
+| 🗺️ | **Add to Bucket List** | Save a place, trail, town, country, or event you want to visit someday; picks up a time of year or dates you mention | "I want to visit Amicalola Falls in the spring", "Add Dublin, Ireland to my bucket list", "Save the Christmas lights show in Helen, Georgia, late Nov to New Year" |
+| 🧭 | **Show Bucket List** | Open your Bucket List filtered by place, type, month, or status (reads only) | "What do I want to see in Ireland?", "Which waterfalls are on my list?", "What's good to do this month?" |
 | 💡 | **Help Question** | Ask how to use the app | "How do I add a plant?", "Where do I log a doctor's visit?" |
 
 ### Tips
@@ -3476,6 +3478,9 @@ One post can name several places, so you may get several cards. The AI is told n
 ### Quick Help
 - Everything about one bucket list item
 - **Mark Visited**, **Mark Planned**, and **Dismiss** change its status in one tap
+- **📓 Log visit in journal** writes a journal entry about the visit and marks the place Visited
+- **🧳 Add to trip** puts it on a vacation trip's Locations list
+- **📅 Add to calendar** puts the event, or a reminder before the best time, on your Life Calendar
 - A map appears when the item has coordinates; **Open in Maps** opens it in Google Maps
 - Attach photos (such as the screenshot that gave you the idea) and facts
 - **Edit** changes any field; **Back** returns to the list
@@ -3486,12 +3491,20 @@ One post can name several places, so you may get several cards. The AI is told n
 
 **Status buttons:** **Mark Visited** records today's date as the visit date (edit the item to change it). **Back to Want** undoes Visited or Dismissed.
 
+**Log visit in journal:** opens a new journal entry that already says "Visited {place} ({location})." Add whatever you like and tap Save. Saving also marks the place **Visited** (dated the same as the entry) and links the two. If the place has map coordinates it is logged as a **check-in** and shows up in your Places list; if not, it is a normal entry. Cancel and nothing changes. After that the button becomes **📓 View journal entry**. (The plain **Mark Visited** button still just flips the status without a journal entry.)
+
+**Add to trip:** pick one of your vacation trips and the place is added to that trip's **Locations** list, with your reason, best time, and website filled in. The item moves to **Planned** and a **Trips** line on this page links to the trip. A place is only copied with map coordinates when it has exact ones; if the trip needs drive times, open the location there and use **Get lat/lng**. You need at least one active vacation under Life → Projects.
+
+**Add to calendar:** for an event with dates you can put the event itself on your **Life Calendar** (yearly events use the next time around), or just a reminder before it starts. For something good in certain months (like fall color) you get a reminder before the season begins, 1 week to 2 months ahead (2 weeks by default). The reminder never lands in the past, and it syncs to Google Calendar if that is connected. If the item has no "When", set one first with **Edit**.
+
 **Photos and facts:** work like on any other record. Photos are compressed before saving. Facts are free-form label and value pairs such as "Height: 729 ft" or "Parking: lower lot".
 
 **Deleting:** open **Edit** and choose Delete. This permanently removes the item and its photos and facts. To hide an item without losing it, use **Dismiss** instead.
 
 ### See Also
 - [Bucket List](#help/bucketlist)
+- [Journal](#help/journal)
+- [Life Projects](#help/life-projects)
 - [Photos](#help/concept-photos)
 - [Facts](#help/concept-facts)
 

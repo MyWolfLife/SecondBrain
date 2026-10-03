@@ -11324,6 +11324,38 @@ service firebase.storage {
         </div>
     </div>
 
+    <!-- ========== BUCKET LIST: ADD TO TRIP MODAL ========== -->
+    <div class="modal-overlay" id="blTripModal">
+        <div class="modal">
+            <h3>Add to a Trip</h3>
+            <p class="bl-import-intro">Adds this place to the trip's Locations list. Marks the item as Planned.</p>
+            <div class="form-group">
+                <label for="blTripSelect">Trip</label>
+                <select id="blTripSelect"></select>
+            </div>
+            <p class="bl-import-status" id="blTripStatus"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="blTripCancelBtn">Cancel</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-primary" id="blTripAddBtn">Add to trip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== BUCKET LIST: ADD TO LIFE CALENDAR MODAL ========== -->
+    <div class="modal-overlay" id="blCalModal">
+        <div class="modal">
+            <h3>Add to Life Calendar</h3>
+            <div id="blCalBody"></div>
+            <p class="bl-import-status" id="blCalStatus"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="blCalCancelBtn">Cancel</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-primary" id="blCalCreateBtn">Add to calendar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== BUCKET LIST IMPORT (screenshot -> LLM -> review) MODAL ========== -->
     <div class="modal-overlay" id="blImportModal">
         <div class="modal modal-wide">
@@ -11978,7 +12010,7 @@ export default {
     <script src="js/garage.js?v=537"></script>
     <script src="js/structures.js?v=537"></script>
     <script src="js/moveThings.js?v=350"></script>
-    <script src="js/journal.js?v=552"></script>
+    <script src="js/journal.js?v=553"></script>
     <script src="js/contacts.js?v=550"></script>
     <script src="js/neighbors.js?v=8"></script>
     <script src="js/favorites.js?v=1"></script>
@@ -11994,11 +12026,12 @@ export default {
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>
     <script src="js/chat.js?v=350"></script>
-    <script src="js/secondbrain.js?v=542"></script>
+    <script src="js/secondbrain.js?v=543"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=358"></script>
-    <script src="js/bucketlist.js?v=5"></script>
-    <script src="js/bucketlist-import.js?v=2"></script>
+    <script src="js/bucketlist.js?v=6"></script>
+    <script src="js/bucketlist-import.js?v=3"></script>
+    <script src="js/bucketlist-links.js?v=1"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>

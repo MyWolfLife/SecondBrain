@@ -747,6 +747,8 @@ async function loadBucketItemPage(itemId) {
         if (status === 'want')    actionEl.appendChild(_blStatusButton(itemId, 'planned', '📅 Mark Planned'));
         if (status !== 'want' && status !== 'planned') actionEl.appendChild(_blStatusButton(itemId, 'want', '↩ Back to Want'));
         if (status !== 'dismissed') actionEl.appendChild(_blStatusButton(itemId, 'dismissed', 'Dismiss'));
+        // Journal / trip / calendar buttons (bucketlist-links.js)
+        if (typeof _blAddIntegrationButtons === 'function') _blAddIntegrationButtons(actionEl, itemId, data);
 
         // ── Info table ───────────────────────────────────────────
         var geo = data.geo || {};
@@ -761,6 +763,11 @@ async function loadBucketItemPage(itemId) {
         if (data.why)   rows.push({ label: 'Why', text: data.why });
         if (data.notes) rows.push({ label: 'Notes', text: data.notes, pre: true });
         if (data.tags && data.tags.length) rows.push({ label: 'Tags', text: data.tags.join(', ') });
+        if (data.trips && data.trips.length) {
+            rows.push({ label: 'Trips', html: data.trips.map(function(t) {
+                return '<a href="#life-project/' + encodeURIComponent(t.projectId) + '">' + escapeHtml(t.title || 'Trip') + '</a>';
+            }).join(', ') });
+        }
         if (data.website) rows.push({ label: 'Website', link: { url: data.website, label: data.website } });
         (data.links || []).forEach(function(l, i) {
             rows.push({ label: i === 0 ? 'Links' : '', link: { url: l.url, label: l.label || l.url } });

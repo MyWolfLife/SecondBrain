@@ -91,6 +91,12 @@ window.journalEditMode = false;
 window._journalSourceVisitId = null;
 
 /**
+ * When the entry was opened from a Bucket List item ("Log visit in journal"), this holds the
+ * item's ID so saveJournalEntry() can mark it Visited and store the link back (visitedJournalId).
+ */
+window._journalSourceBucketId = null;
+
+/**
  * Where the Cancel button navigates. Normally '#journal'; set to the visit
  * detail route when opening from a health visit so Cancel goes back there.
  */
@@ -896,6 +902,7 @@ function openAddJournalEntry() {
     window.journalEditMode       = false;
     window.currentJournalEntry   = null;
     window._journalSourceVisitId = null;
+    window._journalSourceBucketId = null;
     window._journalCancelTarget  = '#journal';
     _journalMentionedPersonIds = new Set();   // fresh mention set for new entry
     _journalPeopleCache = null;               // refresh people list
@@ -1104,6 +1111,7 @@ async function openEditJournalEntry(id) {
 
         // Cancel goes back to the visit if sourced from one, otherwise journal feed
         window._journalSourceVisitId = null;  // editing existing — no re-link needed
+        window._journalSourceBucketId = null;
         window._journalCancelTarget  = data.sourceVisitId
             ? '#health-visit/' + data.sourceVisitId
             : '#journal';
@@ -1253,6 +1261,7 @@ function _journalWireEntryPage() {
         window.location.hash = window._journalCancelTarget || '#journal';
         window._journalCancelTarget  = '#journal';
         window._journalSourceVisitId = null;
+        window._journalSourceBucketId = null;
     };
 
     var dateEl = document.getElementById('journalEntryDate');
@@ -1386,8 +1395,21 @@ async function saveJournalEntry() {
             // If opened from a health visit, store the back-link on the entry
             var sourceVisitId = window._journalSourceVisitId || null;
             if (sourceVisitId) newEntryData.sourceVisitId = sourceVisitId;
+            // If opened from a Bucket List item, store the back-link on the entry
+            var sourceBucketId = window._journalSourceBucketId || null;
+            if (sourceBucketId) newEntryData.sourceBucketId = sourceBucketId;
 
             var ref = await userCol('journalEntries').add(newEntryData);
+
+            // Mark the Bucket List item Visited and link it to this entry
+            if (sourceBucketId) {
+                await userCol('bucketList').doc(sourceBucketId).update({
+                    status: 'visited',
+                    visitedDate: date,
+                    visitedJournalId: ref.id,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
 
             // Write the forward-link onto the visit so the button updates to "View Journal"
             if (sourceVisitId) {
@@ -1406,6 +1428,7 @@ async function saveJournalEntry() {
 
         var cancelTarget = window._journalCancelTarget || '#journal';
         window._journalSourceVisitId = null;
+        window._journalSourceBucketId = null;
         window._journalCancelTarget  = '#journal';
         window.location.hash = cancelTarget;
 
