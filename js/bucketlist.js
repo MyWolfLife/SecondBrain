@@ -680,34 +680,32 @@ function _blBadgesHtml(data) {
     return badges.join('');
 }
 
-/** One list card. */
+/** One list line: name plus its most specific place (city, else state/region, else country). Tap to open. */
 function _blRenderCard(id, data) {
-    var kind = BL_KINDS[data.kind] || BL_KINDS.other;
+    var geo = data.geo || {};
+    var where = geo.city || geo.region || geo.country || '';
+    if (where.trim().toLowerCase() === (data.name || '').trim().toLowerCase()) where = '';   // e.g. a country item named after itself
+
     var row = document.createElement('div');
-    row.className = 'card-list-item bl-card';
+    row.className = 'card-list-item bl-line';
+    row.tabIndex = 0;
+    row.setAttribute('role', 'link');
+    row.onclick = function() { window.location.hash = '#bucketitem/' + id; };
+    row.onkeydown = function(e) { if (e.key === 'Enter') window.location.hash = '#bucketitem/' + id; };
 
-    var main = document.createElement('div');
-    main.className = 'bl-card-main';
-    main.style.cursor = 'pointer';
-    main.onclick = function() { window.location.hash = '#bucketitem/' + id; };
-
-    var loc = _blLocationText(data.geo);
-    var timing = _blTimingText(data.timing);
-
-    main.innerHTML =
-        '<div class="bl-card-name">' + kind.icon + ' ' + escapeHtml(data.name || '(unnamed)') + '</div>' +
-        '<div class="bl-badges">' + _blBadgesHtml(data) + '</div>' +
-        (loc    ? '<div class="bl-card-sub">📍 ' + escapeHtml(loc) + '</div>' : '') +
-        (timing ? '<div class="bl-card-sub">🗓️ ' + escapeHtml(timing) + '</div>' : '') +
-        (data.why ? '<div class="bl-card-why">' + escapeHtml(data.why) + '</div>' : '');
-
-    var editBtn = document.createElement('button');
-    editBtn.className = 'btn btn-secondary btn-small';
-    editBtn.textContent = 'Edit';
-    editBtn.onclick = function(e) { e.stopPropagation(); _blOpenModal(id, data); };
-
-    row.appendChild(main);
-    row.appendChild(editBtn);
+    var text = document.createElement('div');
+    text.className = 'bl-line-text';
+    var nameEl = document.createElement('span');
+    nameEl.className = 'bl-line-name';
+    nameEl.textContent = data.name || '(unnamed)';
+    text.appendChild(nameEl);
+    if (where) {
+        var whereEl = document.createElement('span');
+        whereEl.className = 'bl-line-where';
+        whereEl.textContent = ' \u00b7 ' + where;
+        text.appendChild(whereEl);
+    }
+    row.appendChild(text);
     return row;
 }
 

@@ -20784,29 +20784,27 @@ a.legacy-fin-card:hover {
     margin: 0 0 6px;
 }
 
-/* List cards */
-.bl-card-main {
+/* List lines: one clickable line per item (name + city/state/country) */
+.bl-line {
+    cursor: pointer;
+    padding: 10px 12px;
+}
+.bl-line:hover { background: #f0f9ff; }
+.bl-line:focus-visible { outline: 2px solid #0284c7; outline-offset: -2px; }
+.bl-line-text {
     flex: 1;
     min-width: 0;
-}
-.bl-card-name {
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--text, #333);
-}
-.bl-card-sub {
-    font-size: 0.82rem;
-    color: var(--text-muted, #888);
-    margin-top: 3px;
-}
-.bl-card-why {
-    font-size: 0.85rem;
-    color: var(--text, #333);
-    margin-top: 4px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bl-line-name {
+    font-weight: 600;
+    color: var(--text, #333);
+}
+.bl-line-where {
+    color: var(--text-muted, #888);
+    font-size: 0.9rem;
 }
 
 /* Badges — always left-aligned under the title */

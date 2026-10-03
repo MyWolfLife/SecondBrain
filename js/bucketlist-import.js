@@ -20,6 +20,7 @@ var _blimpSource = 'llm-image';
 var _blimpRaw    = '';       // raw LLM text, shown in the review screen for prompt tuning
 var _blimpBusy   = false;
 var _blimpSharedUrl = '';   // link shared from the phone share sheet; saved on each imported item
+var _blimpLinks  = [];      // every link to save on each imported item: the shared link + any URLs found in the caption box
 
 // ============================================================
 // Prompt
@@ -84,6 +85,42 @@ async function _blimpBuildPrompt(hint) {
 
     if (hint) p += '\n\nCaption / hint typed by the user (may contain the place name, location or hashtags):\n' + hint;
     return p;
+}
+
+// ============================================================
+// Links typed or pasted into the caption box
+// ============================================================
+
+/** All http(s) links in a piece of text (trailing punctuation trimmed, duplicates removed). */
+function _blimpExtractUrls(text) {
+    var found = (text || '').match(/https?:\/\/[^\s<>"')]+/gi) || [];
+    var seen = {};
+    return found.map(function(u) { return u.replace(/[.,;:!?]+$/, ''); }).filter(function(u) {
+        var key = u.toLowerCase().replace(/\/$/, '');
+        if (!u || seen[key]) return false;
+        seen[key] = true;
+        return true;
+    });
+}
+
+/** The text with its links removed (the AI can't open links, so it never needs to see them). */
+function _blimpStripUrls(text) {
+    return (text || '').replace(/https?:\/\/[^\s<>"')]+/gi, ' ').replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
+}
+
+/** Gather the links to keep: the one from the share sheet first, then any pasted into the caption box. */
+function _blimpCollectLinks() {
+    var links = [];
+    var seen = {};
+    function add(url, label) {
+        var key = url.toLowerCase().replace(/\/$/, '');
+        if (!url || seen[key]) return;
+        seen[key] = true;
+        links.push({ url: url, label: label });
+    }
+    if (_blimpSharedUrl) add(_blimpSharedUrl, 'Shared link');
+    _blimpExtractUrls(document.getElementById('blImportHint').value).forEach(function(u) { add(u, 'Link'); });
+    _blimpLinks = links;
 }
 
 // ============================================================
@@ -204,6 +241,7 @@ function openBucketImportModal() {
     _blimpRaw = '';
     _blimpBusy = false;
     _blimpSharedUrl = '';
+    _blimpLinks = [];
 
     document.getElementById('blImportHint').value = '';
     document.getElementById('blImportJson').value = '';
@@ -354,9 +392,12 @@ async function _blimpCopyPrompt() {
 /** "Read with AI": send the staged screenshot(s) and any caption text to the configured LLM. */
 async function _blimpRunAi() {
     if (_blimpBusy) return;
-    var hint = document.getElementById('blImportHint').value.trim();
+    var rawHint = document.getElementById('blImportHint').value.trim();
+    var hint = _blimpStripUrls(rawHint);   // the AI can't open links; they are saved on the items instead
     if (_blimpImages.length === 0 && !hint) {
-        _blimpStatus('Add a screenshot (or type some text about the place) first.');
+        _blimpStatus(_blimpExtractUrls(rawHint).length
+            ? 'The AI cannot open links. Add a screenshot, or paste the caption text as well (the link will be kept).'
+            : 'Add a screenshot (or type some text about the place) first.');
         return;
     }
 
@@ -412,6 +453,7 @@ function _blimpUsePastedJson() {
 
 /** Normalize the parsed response and show the review cards (or explain why there are none). */
 function _blimpStartReview(parsed) {
+    _blimpCollectLinks();
     _blimpItems = parsed.items.map(_blimpNormalizeItem).filter(Boolean);
     if (_blimpItems.length === 0) {
         _blimpStatus(parsed.message || 'No identifiable places were found. Try a clearer screenshot or add the place name as text.');
@@ -489,6 +531,11 @@ function _blimpRenderReview(message) {
         card.querySelector('.bl-rev-why').value = it.why || '';
         list.appendChild(card);
     });
+
+    // Tell the user which links will be saved on each item
+    var linksNote = document.getElementById('blImportLinksNote');
+    linksNote.textContent = _blimpLinks.length ? 'Links saved with each item: ' + _blimpLinks.map(function(l) { return l.url; }).join(', ') : '';
+    linksNote.classList.toggle('hidden', !_blimpLinks.length);
 
     // Photos option only makes sense when screenshots are staged
     var photoRow = document.getElementById('blImportPhotoRow');
@@ -581,8 +628,8 @@ async function _blimpSaveSelected() {
             });
             var doc = _blBuildDocFromItem(edited, _blimpSource,
                 (it.confidence + ' confidence' + (it.evidence ? ': ' + it.evidence : '')).slice(0, 300));
-            // A link shared along with the screenshot (e.g. the reel's URL) is kept on the item
-            if (_blimpSharedUrl) doc.links = [{ url: _blimpSharedUrl, label: 'Shared link' }];
+            // Links shared or pasted with the screenshot (e.g. the reel's URL) are kept on the item
+            if (_blimpLinks.length) doc.links = _blimpLinks.map(function(l) { return { url: l.url, label: l.label }; });
             var ref = await userCol('bucketList').add(doc);
 
             // Keep the screenshot(s) on each saved item

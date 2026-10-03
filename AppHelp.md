@@ -3433,11 +3433,11 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - **List / Map** switches to a map where nearby places group into numbered circles; tap a circle to zoom in
 - **Good now** shows what is worth doing in the next 60 days
 - The search box and filters narrow things by status, type, priority, or month
-- Tap an item to see its details, map, photos, and facts
+- Tap a line to open the item and see its details, map, photos, and facts (**Edit** is at the top of that page)
 
 ### Details
 
-**The list:** by default it shows items marked **Want** or **Planned**, with the High-priority ones first. Use the status filter to see Visited, Dismissed, or everything. Each card shows the name, a priority badge, where it is, when it is best, and why you want to go.
+**The list:** by default it shows items marked **Want** or **Planned**, with the High-priority ones first. Use the status filter to see Visited, Dismissed, or everything. Each item is one line: its name, then the city (or the state, or the country if that is all you have). Tap a line to open the item, where you will find the priority, when it is best, your reason, the map, and the **Edit** button.
 
 **Filters:** Type (waterfall, trail, bar...), Priority, and **Month** — pick May to see everything that is good in May, including events whose dates fall in that month. The line above the list shows how many items match.
 
@@ -3458,6 +3458,7 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - Untick places you do not want. Low-confidence guesses, places already on your list, and repeats start unticked
 - Each card shows what the AI saw in the image, so a bad read is easy to spot
 - Leave **Keep the screenshot(s) as photos** ticked to attach the screenshot to each saved place
+- Any web links you pasted into the caption box (a Facebook or Instagram reel, a YouTube video) are saved on each place under Other links. The AI cannot open links, so it only reads the screenshot and the text, not the link
 - Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
 One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. Items you import show on the map a moment after you first open it.
 
