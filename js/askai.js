@@ -28,13 +28,32 @@ var ASK_AI_TARGETS = {
 /**
  * Open the Ask AI dialog. `promptOrPromise` may be the prompt text or a Promise for it (the dialog
  * opens straight away with "Building the prompt…" while the records load).
+ * `pictureOrPromise` (optional) is the record's picture as a data URL (or a Promise for one, or
+ * null): the "Send picture" checkbox copies it to the clipboard when a chat app is opened, because
+ * a web link can only carry text.
  */
-async function openAskAiModal(title, promptOrPromise) {
+async function openAskAiModal(title, promptOrPromise, pictureOrPromise) {
     var box = document.getElementById('askAiText');
     var status = document.getElementById('askAiStatus');
+    var picRow = document.getElementById('askAiPictureRow');
+    var picCheck = document.getElementById('askAiSendPicture');
+    var picThumb = document.getElementById('askAiPictureThumb');
+    var picBtn = document.getElementById('askAiCopyPictureBtn');
     document.getElementById('askAiTitle').textContent = title || 'Ask an AI';
     box.value = 'Building the prompt…';
     status.textContent = '';
+
+    // "Send picture" starts off every time; hidden until we know the record has a picture
+    _askAiPicture = null;
+    picCheck.checked = false;
+    picRow.classList.add('hidden');
+    picBtn.classList.add('hidden');
+    picCheck.onchange = function() { picBtn.classList.toggle('hidden', !picCheck.checked); };
+    picBtn.onclick = async function() {
+        status.textContent = (await _askAiCopyPicture())
+            ? 'Picture copied. In the chat, press and hold (or right-click) the message box and choose Paste.'
+            : 'Could not copy the picture on this device. Save it from the record’s Photos and attach it in the chat instead.';
+    };
 
     // The action buttons stay disabled until the prompt is ready, so nothing half-built is copied
     var actionIds = ['askAiCopyBtn'].concat(Object.keys(ASK_AI_TARGETS).map(function(k) { return 'askAi_' + k; }));
@@ -53,10 +72,20 @@ async function openAskAiModal(title, promptOrPromise) {
     };
     Object.keys(ASK_AI_TARGETS).forEach(function(key) {
         var btn = document.getElementById('askAi_' + key);
-        if (btn) btn.onclick = function() { _askAiOpenIn(key, box.value, status); };
+        if (btn) btn.onclick = function() { _askAiOpenIn(key, box.value, status, picCheck.checked && !!_askAiPicture); };
     });
 
     openModal('askAiModal');
+
+    // Picture (if any) loads alongside the prompt
+    Promise.resolve(pictureOrPromise).then(function(pic) {
+        _askAiPicture = pic || null;
+        if (_askAiPicture) {
+            picRow.classList.remove('hidden');
+            picThumb.src = _askAiPicture;
+        }
+    }).catch(function() { /* no picture */ });
+
     try {
         box.value = await promptOrPromise;
         setEnabled(true);
@@ -67,26 +96,98 @@ async function openAskAiModal(title, promptOrPromise) {
     }
 }
 
+var _askAiPicture = null;   // data URL of the picture offered by "Send picture" (or null)
+
 /** Copy text to the clipboard. Returns true on success. */
 async function _askAiCopy(text) {
     try { await navigator.clipboard.writeText(text); return true; }
     catch (e) { return false; }
 }
 
+/** Convert a stored picture (usually JPEG) to a PNG blob — the image format clipboards accept. */
+function _askAiPngBlob(dataUrl) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            canvas.toBlob(function(blob) { blob ? resolve(blob) : reject(new Error('Could not convert the picture')); }, 'image/png');
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+    });
+}
+
 /**
- * Open a chat app in a new tab with the prompt filled in. The prompt is always copied too; when it
- * is too long for a web address the app opens empty and the user pastes it.
+ * Put the picture on the clipboard. Must be called straight from a tap: the PNG is passed as a
+ * promise so the browser still treats the copy as part of that tap while the conversion finishes.
+ * Returns true on success.
  */
-function _askAiOpenIn(key, text, statusEl) {
+async function _askAiCopyPicture() {
+    if (!_askAiPicture || !navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === 'undefined') return false;
+    try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': _askAiPngBlob(_askAiPicture) })]);
+        return true;
+    } catch (e) {
+        console.warn('Could not copy the picture:', e);
+        return false;
+    }
+}
+
+/**
+ * Open a chat app in a new tab with the prompt filled in.
+ * Without a picture the prompt is also copied. With "Send picture" ticked the clipboard gets the
+ * picture instead (the question is already in the link), for the user to paste into the chat.
+ * When the prompt is too long for a web address the app opens empty and the prompt is copied; the
+ * picture can then be copied afterwards with "Copy picture".
+ */
+function _askAiOpenIn(key, text, statusEl, withPicture) {
     var t = ASK_AI_TARGETS[key];
     var encoded = encodeURIComponent(text);
+    var fits = encoded.length <= ASK_AI_MAX_URL_CHARS;
+
+    if (fits && withPicture) {
+        var copying = _askAiCopyPicture();   // started inside the tap, before the new tab opens
+        window.open(t.withPrompt + encoded, '_blank', 'noopener');
+        copying.then(function(ok) {
+            statusEl.textContent = ok
+                ? t.label + ' opened with your question, and the picture is copied. In ' + t.label + ', press and hold (or right-click) the message box and choose Paste to add it.'
+                : t.label + ' opened with your question, but the picture could not be copied on this device. Attach it from your photos in the chat instead.';
+        });
+        return;
+    }
+
     _askAiCopy(text);   // best effort, so the prompt is on the clipboard either way
-    if (encoded.length <= ASK_AI_MAX_URL_CHARS) {
+    if (fits) {
         window.open(t.withPrompt + encoded, '_blank', 'noopener');
         statusEl.textContent = '';
     } else {
         window.open(t.empty, '_blank', 'noopener');
-        statusEl.textContent = 'This prompt is too long to pass straight to ' + t.label + ', so it was copied. Paste it into the chat box there.';
+        statusEl.textContent = 'This prompt is too long to pass straight to ' + t.label + ', so it was copied. Paste it into the chat box there.' +
+            (withPicture ? ' Then come back and tap Copy picture, and paste that too.' : '');
+    }
+}
+
+/**
+ * The picture to offer with "Send picture": the record's main picture (the one set with "Use as
+ * Profile"), otherwise its newest photo; for a Bucket List item also a screenshot shared from the
+ * same import. Returns a data URL or null.
+ */
+async function askAiFirstPicture(targetType, targetId, profilePhotoData) {
+    if (profilePhotoData) return profilePhotoData;
+    try {
+        var snap = await userCol('photos').where('targetType', '==', targetType).where('targetId', '==', targetId).get();
+        var photos = snap.docs.map(function(d) { return d.data(); });
+        if (!photos.length && targetType === 'bucketItem') {
+            var shared = await userCol('photos').where('alsoTargetIds', 'array-contains', targetId).get();
+            photos = shared.docs.map(function(d) { return d.data(); });
+        }
+        photos.sort(function(a, b) { return (b.takenAt || '').localeCompare(a.takenAt || ''); });   // newest first, as the photo viewer shows them
+        return photos.length ? photos[0].imageData : null;
+    } catch (e) {
+        return null;
     }
 }
 
@@ -256,7 +357,8 @@ var ASK_AI_PLANT_META = [
 /** "🤖 Ask AI" on a plant's page. */
 function askAiForPlant(plantId) {
     var plant = window.currentPlant || {};
-    openAskAiModal('Ask an AI About ' + (plant.alias || plant.name || 'This Plant'), askAiPlantPrompt(plantId));
+    openAskAiModal('Ask an AI About ' + (plant.alias || plant.name || 'This Plant'), askAiPlantPrompt(plantId),
+                   askAiFirstPicture('plant', plantId, plant.profilePhotoData));
 }
 
 /**
@@ -415,14 +517,15 @@ function askAiForKind(kind) {
     var k = ASK_AI_KINDS[kind];
     var rec = k ? window[k.current] : null;
     if (!rec || !rec.id) return;
+    var picture = askAiFirstPicture(k.targetType, rec.id, rec.profilePhotoData);
     if (kind === 'vehicle') {
-        openAskAiModal('Ask an AI About ' + _askAiVehicleName(rec), askAiVehiclePrompt(rec.id));
+        openAskAiModal('Ask an AI About ' + _askAiVehicleName(rec), askAiVehiclePrompt(rec.id), picture);
     } else if (kind === 'weed') {
-        openAskAiModal('Ask an AI About ' + (rec.name || 'This Weed'), askAiWeedPrompt(rec.id));
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Weed'), askAiWeedPrompt(rec.id), picture);
     } else if (kind === 'chemical') {
-        openAskAiModal('Ask an AI About ' + (rec.name || 'This Product'), askAiChemicalPrompt(rec.id));
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Product'), askAiChemicalPrompt(rec.id), picture);
     } else {
-        openAskAiModal('Ask an AI About ' + (rec.name || 'This Item'), askAiThingPrompt(kind, rec.id));
+        openAskAiModal('Ask an AI About ' + (rec.name || 'This Item'), askAiThingPrompt(kind, rec.id), picture);
     }
 }
 

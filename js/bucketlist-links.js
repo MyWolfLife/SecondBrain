@@ -819,5 +819,5 @@ async function blBuildAskPrompt(itemId, data) {
 
 /** "🤖 Ask AI about it": the shared Ask AI dialog (askai.js) with the full prompt. */
 function blOpenAskAi(itemId, data) {
-    openAskAiModal('Ask an AI About This Place', blBuildAskPrompt(itemId, data));
+    openAskAiModal('Ask an AI About This Place', blBuildAskPrompt(itemId, data), askAiFirstPicture('bucketItem', itemId, null));
 }

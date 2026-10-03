@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=796">
+    <link rel="stylesheet" href="css/styles.css?v=797">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -11358,6 +11358,13 @@ service firebase.storage {
             <h3 id="askAiTitle">Ask an AI</h3>
             <p class="bl-import-intro">A ready-made question with everything the app knows about this. Copy it into any AI chat app, or open one with it already filled in, then ask your own questions.</p>
             <textarea id="askAiText" class="settings-textarea ask-ai-text" rows="14" readonly></textarea>
+            <!-- "Send picture": a web link can only carry text, so the picture is copied for the user to paste into the chat -->
+            <div class="ask-ai-picture-row hidden" id="askAiPictureRow">
+                <img id="askAiPictureThumb" class="ask-ai-picture-thumb" alt="Picture to send">
+                <label class="bl-inline-check"><input type="checkbox" id="askAiSendPicture"> Send picture</label>
+                <span class="ask-ai-picture-hint">copied when you open a chat app, for you to paste in</span>
+                <button type="button" class="btn btn-secondary btn-small hidden" id="askAiCopyPictureBtn">&#128247; Copy picture</button>
+            </div>
             <p class="bl-import-status" id="askAiStatus"></p>
             <div class="ask-ai-buttons">
                 <button type="button" class="btn btn-primary btn-small" id="askAiCopyBtn">&#128203; Copy</button>
@@ -12079,8 +12086,8 @@ export default {
     <script src="js/places.js?v=358"></script>
     <script src="js/bucketlist.js?v=11"></script>
     <script src="js/bucketlist-import.js?v=7"></script>
-    <script src="js/bucketlist-links.js?v=6"></script>
-    <script src="js/askai.js?v=4"></script>
+    <script src="js/bucketlist-links.js?v=7"></script>
+    <script src="js/askai.js?v=5"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>

@@ -21180,3 +21180,8 @@ a.legacy-fin-card:hover {
 .ask-ai-text { width: 100%; font-size: 0.85rem; font-family: inherit; }
 .ask-ai-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .ask-ai-buttons .btn:disabled { opacity: 0.5; }
+
+/* Ask AI: "Send picture" row */
+.ask-ai-picture-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.ask-ai-picture-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+.ask-ai-picture-hint { font-size: 0.8rem; color: #6b7280; }

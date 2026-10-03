@@ -173,7 +173,7 @@ It is used by the in-app AI assistant to answer your questions.
 - Set health status (🟢 Healthy / 🟡 Struggling / 🔵 Dormant / 🔴 Dead) from the dropdown — saves instantly, no button needed
 - Tap **Log Activity** to record what you did; all sections (Photos, Facts, Problems, Tasks, Activities) are collapsible accordions
 - **Shortcut:** Tap **⚡ QuickLog** on the main screen and say "I pruned the big azalea" — no navigation needed
-- **🤖 Ask AI** builds a question with everything you have recorded about this plant (care info, problems, tasks, activities and products used, nearby weeds) so you can chat about it in ChatGPT, Claude, or Google. Tap **Copy**, or open one of them with it already filled in
+- **🤖 Ask AI** builds a question with everything you have recorded about this plant (care info, problems, tasks, activities and products used, nearby weeds) so you can chat about it in ChatGPT, Claude, or Google. Tap **Copy**, or open one of them with it already filled in To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 
 ### Details
 
@@ -258,7 +258,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 
 **Common tasks:**
 - **Log a treatment:** Tap **Log Activity** to record when and how you treated this weed
-- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with everything you have recorded (how and when you treat it, where it grows, every treatment logged). Copy it or open it in ChatGPT, Claude, or Google. It asks whether your identification and timing are right, when the next treatment window is, and about safety
+- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with everything you have recorded (how and when you treat it, where it grows, every treatment logged). Copy it or open it in ChatGPT, Claude, or Google. It asks whether your identification and timing are right, when the next treatment window is, and about safety To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - **Update zones:** Tap **Edit** and check/uncheck zones as the weed spreads or is eliminated
 - **Add photos:** Attach reference photos for identification
 
@@ -296,7 +296,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 - **Add a fact manually:** Scroll to Facts → **+ Add Fact** (e.g., "Active Ingredient = Triclopyr")
 - **Scan the label:** In edit mode, tap **Scan Label** → photograph the bottle — AI extracts facts automatically
 - **View where this was used:** The Usage History section shows every activity that included this product
-- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with your notes, facts, every logged use (what it went on and when), and the saved actions that use it. It asks what the product is, whether you are using it more often or at different times than labels usually allow, and about safety. Copy it or open it in ChatGPT, Claude, or Google
+- **Ask an AI about it:** Tap **🤖 Ask AI** for a question with your notes, facts, every logged use (what it went on and when), and the saved actions that use it. It asks what the product is, whether you are using it more often or at different times than labels usually allow, and about safety. Copy it or open it in ChatGPT, Claude, or Google To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 
 **Tips:**
 - Facts extracted by AI scan include: active ingredients, mixing ratio, reentry interval, application method, safety info.
@@ -923,7 +923,7 @@ Your existing account and password reset still work after this.
 ### Quick Help
 - Detail page for a single item in a room (appliance, furniture, fixture, electronics, etc.)
 - Things can have sub-things (drawers in a dresser, shelves in a bookcase, compartments in a cabinet)
-- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?"
+- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?" To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - All sections are collapsible accordions -- expand only what you need
 - AI photo ID available from the room page -- photograph a new item and it creates the record automatically
 
@@ -982,7 +982,7 @@ Your existing account and password reset still work after this.
 ### Quick Help
 - Detail page for a sub-thing -- a compartment, drawer, shelf, or section inside a Thing
 - Sub-things can contain individual Items (the deepest tracking level in the house hierarchy)
-- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?"
+- **🤖 Ask AI** builds a question with everything you have recorded about it (description, value, notes, where it is, what is inside it, facts, problems, tasks, activity) so you can chat about it in ChatGPT, Claude, or Google. Good for "what model is this TV and how do I fix the HDMI problem?" To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - Use tags to group or categorize sub-things (e.g., "seasonal", "office supplies", "tools")
 
 ### Details
@@ -2152,7 +2152,7 @@ This is the list of people going on the trip or helping with it. You can pick th
 - If you have more than one group, a **Group** selector appears at the top — switch groups to see a different portfolio view
 - **Performance** accordion: four cards (Day, Week, Month, YTD) showing $ gain and % vs. a baseline snapshot of each type — the first snapshot you captured today if there is one, otherwise your most recent earlier snapshot of that type (see the Summary page help for details). "—" means no snapshot of that type yet
 - **Retire Estimate** accordion: the same retirement income widget as the Summary page — estimated annual/monthly income, budget comparison, NW Shortfall, % of Target, and the ⚙ settings gear
-- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
+- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - **All-Time Highs** accordion: four ATH cards (Daily / Weekly / Monthly / Yearly) plus a "vs Daily ATH" companion card showing how far above or below you are right now
 - Each accordion remembers its open/closed state across sessions
 - Below the dashboard are nav cards linking to **Accounts**, **Summary**, **Stock Rollup**, **Snapshots**, **Budgets**, **SS Benefits**, and two coming-soon sections
@@ -2403,7 +2403,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 ## screen:investments-ai-setup
 
 ### Quick Help
-- Compose screen shown every time you click **🤖 Ask AI** — choose what data to send and optionally rewrite the prompt before running the analysis
+- Compose screen shown every time you click **🤖 Ask AI** — choose what data to send and optionally rewrite the prompt before running the analysis To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - **Data groups** checklist: Household Members & Ages, Accounts & Holdings, Social Security, Budgets, and Retirement Config (return rate, after-tax %, retirement ages) — all checked and locked by default
 - The checklist is locked whenever the prompt matches the default, since the default prompt's sections assume every group is present
 - Click **Clear** to empty the prompt box and unlock the checklist — now you can uncheck any group you don't want sent, and write your own prompt
@@ -2453,7 +2453,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 ### Quick Help
 - Shows **Net Worth** and **Invested** totals across all accounts in the selected group
 - **Retire Estimate** section: six stat cards (Annual, Monthly, Current Income, % To Goal, NW Shortfall, % of Target) — tap **?** on any card to see a plain-English explanation plus the formula with your real numbers; tap ⚙ to configure return rate, after-tax %, ages, and budget
-- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group
+- **🤖 Ask AI** button (below the Retire Estimate accordion): opens the Ask AI setup screen to choose data groups/prompt, then generates a plain-English analysis of your portfolio picture for the active group To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - **All-Time Highs** section: four ATH cards plus a "vs Daily ATH" card — collapsible accordion; open/closed state is remembered
 - **Category Breakdown**: Roth, Pre-Tax, Brokerage, Cash, and Uninvested Cash totals with % of Net Worth
 - **Period Performance**: Day / Week / Month / YTD gain or loss vs a baseline snapshot of each type (the first snapshot captured today if there is one, otherwise the most recent earlier snapshot)
@@ -3510,7 +3510,7 @@ One post can name several places, so you may get several cards. The AI is told n
 - **🧳 Add to trip** puts it on a vacation trip's Locations list
 - **📅 Add to calendar** puts the event, or a reminder before the best time, on your Life Calendar
 - **🔎 Google** opens Google's AI search with a question about this place already typed in
-- **🤖 Ask AI about it** builds a detailed question with everything you have saved, to copy or open in ChatGPT, Claude, or Google
+- **🤖 Ask AI about it** builds a detailed question with everything you have saved, to copy or open in ChatGPT, Claude, or Google To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - A map appears when the item has coordinates; **Open in Maps** opens it in Google Maps
 - Attach photos (such as the screenshot that gave you the idea) and facts
 - **Edit** changes any field; **Back** returns to the list
@@ -4174,7 +4174,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Track your vehicles with full maintenance history, mileage log, photos, and documents
 - Each vehicle has a detail page with collapsible sections: info, mileage, photos, activities, calendar, problems, facts, quick tasks
-- **🤖 Ask AI** on a vehicle's page builds a question with its year, make, model, VIN, mileage log, and service history, and asks the AI what maintenance is likely due and about known problems or recalls. Copy it or open it in ChatGPT, Claude, or Google (your license plate is not included)
+- **🤖 Ask AI** on a vehicle's page builds a question with its year, make, model, VIN, mileage log, and service history, and asks the AI what maintenance is likely due and about known problems or recalls. Copy it or open it in ChatGPT, Claude, or Google (your license plate is not included) To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - Archived (sold/gone) vehicles move to a collapsed section -- history is fully preserved
 - Log mileage readings over time to track odometer history
 
@@ -4221,7 +4221,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Inventory what is stored in your garage and attic -- organized by room (space), things, and sub-things
 - Two default spaces are pre-created: Garage and Attic -- rename them or add more
-- Garage things and sub-things have a **🤖 Ask AI** button, the same as house things
+- Garage things and sub-things have a **🤖 Ask AI** button, the same as house things To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - Things support category badges, photos, activities, problems, facts, quick tasks, and calendar events
 - Use the **+ From Photo** AI identification button to identify and log items from photos
 
@@ -4284,7 +4284,7 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 ### Quick Help
 - Track outdoor structures -- sheds, decks, pergolas, gazebos, pools, fences, etc.
 - Each structure has photos, activities, calendar events, problems, facts, and quick tasks
-- Things and sub-things stored in a structure have a **🤖 Ask AI** button, the same as house things
+- Things and sub-things stored in a structure have a **🤖 Ask AI** button, the same as house things To include a picture, tick **Send picture**: the main photo (or the newest one) is copied when the chat app opens, and you paste it into the message box.
 - Mark a structure as "Storage" to unlock a Things inventory section inside it
 - Things and sub-things inside storage structures support the same AI photo identification as the Garage
 
