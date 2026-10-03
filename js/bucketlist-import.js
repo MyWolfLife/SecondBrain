@@ -8,7 +8,7 @@
 // screenshot → paste the JSON it returns → same review screen.
 //
 // Depends on bucketlist.js (BL_KINDS, _blCanonPlace, _blPrecision, _blTimingText, _blLoadItems...),
-// chat.js (LLM_PROVIDERS, chatCallOpenAICompat) and photos.js (compressImage).
+// blLoadLlm/blCallLlm/blKindGuide/blPlaceRules (bucketlist.js) and photos.js (compressImage).
 // Plan document: saveplacesPlan.md §6
 // ============================================================
 
@@ -26,65 +26,123 @@ var _blimpLinks  = [];      // every link to save on each imported item: the sha
 // Prompt
 // ============================================================
 
+/** A worked example of the reply format. The prompt says its content is illustrative only. */
+var BL_IMPORT_EXAMPLE = JSON.stringify({
+    items: [
+        {
+            name: 'Amicalola Falls', kind: 'waterfall', country: 'United States', region: 'Georgia', city: 'Dawsonville',
+            venue: null, lat: null, lng: null,
+            timing: { type: 'months', months: [3, 4, 5], startDate: null, endDate: null, yearly: false, label: 'strongest flow in spring' },
+            why: 'Tallest cascading waterfall in the Southeast, with a short walk to the viewing platform.',
+            notes: 'State park parking fee.', website: null, tags: ['waterfall', 'hike'],
+            confidence: 'high', evidence: 'Overlay text: "Amicalola Falls - go in spring"'
+        },
+        {
+            name: 'Magical Nights of Lights', kind: 'event', country: 'United States', region: 'Georgia', city: 'Buford',
+            venue: 'Lake Lanier Islands', lat: null, lng: null,
+            timing: { type: 'range', months: [], startDate: '2026-11-20', endDate: '2026-12-31', yearly: true, label: 'drive-through light show' },
+            why: 'Drive-through holiday light show along the lake.',
+            notes: null, website: null, tags: ['christmas', 'lights'],
+            confidence: 'medium', evidence: 'Caption: "Nights of Lights at Lanier Islands, Nov 20 - Dec 31"'
+        }
+    ],
+    unreadable: false,
+    message: null
+});
+
 /**
- * Build the full prompt text. `hint` is optional caption/hashtag text the user typed.
- * Also used by "Copy prompt" so any chat app can produce the same JSON.
+ * Build the prompt as two parts: `system` (the instructions) and `user` (the user's own text).
+ * The screenshots are attached to the user message by the caller.
+ * `hint` is optional caption/comment/hint text typed or pasted by the user.
  */
-async function _blimpBuildPrompt(hint) {
+async function _blimpBuildPromptParts(hint) {
     var home = '';
     try {
         var main = await userCol('settings').doc('main').get();
         home = (main.exists && main.data().cityState) ? main.data().cityState.trim() : '';
     } catch (e) { /* optional context only */ }
 
-    var kinds = Object.keys(BL_KINDS).join(', ');
-    var p =
-        'You read screenshots of social media posts, reels, articles and maps, and extract PLACES THE USER ' +
-        'MIGHT WANT TO VISIT for a personal bucket list.\n\n' +
-        "Today's date: " + _blTodayIso() + '.' + (home ? ' The user lives near: ' + home + '.' : '') + '\n\n' +
-        'Return ONLY one JSON object (no prose, no markdown fences) in exactly this shape:\n' +
-        '{\n' +
-        '  "items": [\n' +
-        '    {\n' +
-        '      "name": string,\n' +
-        '      "kind": one of [' + kinds + '],\n' +
-        '      "country": string or null,\n' +
-        '      "region": string or null,\n' +
-        '      "city": string or null,\n' +
-        '      "venue": string or null,\n' +
-        '      "lat": number or null,\n' +
-        '      "lng": number or null,\n' +
-        '      "timing": { "type": "none" | "months" | "date" | "range", "months": [integers 1-12],\n' +
-        '                  "startDate": "YYYY-MM-DD" or null, "endDate": "YYYY-MM-DD" or null,\n' +
-        '                  "yearly": boolean, "label": string or null },\n' +
-        '      "why": string or null,\n' +
-        '      "notes": string or null,\n' +
-        '      "website": string or null,\n' +
-        '      "tags": [string],\n' +
-        '      "confidence": "high" | "medium" | "low",\n' +
-        '      "evidence": string\n' +
-        '    }\n' +
-        '  ],\n' +
-        '  "unreadable": boolean,\n' +
-        '  "message": string or null\n' +
-        '}\n\n' +
-        'Rules:\n' +
-        '- One item per distinct place. A "top 10 waterfalls" post means ten items.\n' +
-        '- Only include places that are named or clearly identifiable in the image or text. Never invent a place.\n' +
-        '- Use null for anything not visible or not reliably known. NEVER guess a website, coordinates, dates or an address.\n' +
-        '- "name" is the place itself (e.g. "Amicalola Falls"). It is NOT the account/creator handle, a caption slogan, or app interface text.\n' +
-        '- "kind": the best fit. Use "country", "region" (state/province/area) or "town" when the place is a whole country, region or town.\n' +
-        '- "country", "region", "city": full English names (e.g. "United States", "Georgia", "Dawsonville"). Fill them when confident; otherwise null.\n' +
-        '- "timing": use "months" when the content says a time of year (fall foliage = [10,11], spring wildflowers = [3,4,5], "in May" = [5]). ' +
-        'Use "date" or "range" for events with dates (use today\'s date to choose the year; set yearly true if it is clearly an annual event). ' +
-        'Otherwise type "none". "label" is a short phrase such as "peak fall color".\n' +
-        '- "why": one sentence on why it is worth visiting, based on the content. "notes": practical details shown (cost, hours, difficulty, tips).\n' +
-        '- "tags": 1 to 4 short lowercase words.\n' +
-        '- "confidence": "low" if the text is blurry, ambiguous or you are inferring. "evidence": a short quote or description of what in the image supports the item.\n' +
-        '- If nothing identifiable is present: "items": [], "unreadable": true, and explain in "message".';
+    var system = [
+        'You extract travel ideas for a personal bucket list from screenshots of social media posts, reels, articles, maps and comments.',
+        "Today's date: " + _blTodayIso() + '.' + (home ? ' The user lives near ' + home + '.' : ''),
+        '',
+        'OUTPUT',
+        'Return ONLY one JSON object, with no prose and no markdown fences, in exactly this shape:',
+        '{',
+        '  "items": [',
+        '    {',
+        '      "name": string,',
+        '      "kind": one of [' + Object.keys(BL_KINDS).join(', ') + '],',
+        '      "country": string or null,',
+        '      "region": string or null,',
+        '      "city": string or null,',
+        '      "venue": string or null,',
+        '      "lat": number or null,',
+        '      "lng": number or null,',
+        '      "timing": { "type": "none" | "months" | "date" | "range", "months": [integers 1-12],',
+        '                  "startDate": "YYYY-MM-DD" or null, "endDate": "YYYY-MM-DD" or null,',
+        '                  "yearly": boolean, "label": string or null },',
+        '      "why": string or null,',
+        '      "notes": string or null,',
+        '      "website": string or null,',
+        '      "tags": [string],',
+        '      "confidence": "high" | "medium" | "low",',
+        '      "evidence": string',
+        '    }',
+        '  ],',
+        '  "unreadable": boolean,',
+        '  "message": string or null',
+        '}',
+        '',
+        'READING THE IMAGES',
+        '- Several images may be parts of the same post (video frames, the caption, the comments). Combine them and never list the same place twice.',
+        '- Useful: on-screen text, the caption, the location tag (the pin line under the account name), signs and recognizable landmarks, and comments that name or correct the location.',
+        '- Ignore: account names and handles, like and follower counts, "Follow", "Sponsored", music or audio credits, hashtags that are not places, and app buttons.',
+        '- If commenters disagree about where it is, go with the clear majority and use confidence "medium" or "low".',
+        '- Text typed by the user (in the user message) is the most reliable source and overrides unclear image text.',
+        '',
+        'WHAT COUNTS AS AN ITEM',
+        '- One item per distinct place or event. A "top 10 waterfalls" post is ten items, but only the ones actually named or clearly identifiable.',
+        '- Never invent a place. If nothing identifiable is present, return "items": [], "unreadable": true, and say why in "message".',
+        '- "name" is the place or event itself (e.g. "Amicalola Falls", "Magical Nights of Lights").',
+        '- "venue": only when the name is not the site itself, e.g. an event held at a park (name = the event, venue = the park). Otherwise null.',
+        '',
+        'KIND (use exactly one of these keys)',
+        blKindGuide(),
+        '',
+        'LOCATION',
+        blPlaceRules(),
+        '- "lat" and "lng": only when coordinates are actually shown (e.g. a map screenshot). Otherwise null.',
+        '',
+        'TIMING',
+        '- "months" when the content gives a time of year. Use the season as it applies at that place: fall color in New England is [9,10] but in the Smoky Mountains [10,11]; spring wildflowers in the US South are [3,4,5]; seasons are reversed in the southern hemisphere (fall in New Zealand is [3,4,5]). "In May" is [5].',
+        '- "date" or "range" for events with specific dates. Use today\'s date to choose the year (the next upcoming occurrence). Set "yearly": true for annual events such as festivals and holiday lights.',
+        '- Otherwise "type": "none". Do not make up a best time, except a widely known peak season for that kind of sight (e.g. cherry blossoms in Kyoto are [3,4]).',
+        '- "label": a short phrase such as "peak fall color" or "drive-through light show".',
+        '',
+        'OTHER FIELDS',
+        '- "why": one sentence, based on the content, on why it is worth visiting.',
+        '- "notes": practical details that are shown (cost, hours, difficulty, parking, tips), otherwise null.',
+        '- "website": only a web address that is actually visible in the images or text. Never guess one.',
+        '- "tags": 1 to 4 short lowercase words.',
+        '- "confidence": "high" when the place is clearly named; "medium" when you relied on general knowledge or partial text; "low" when it is blurry, ambiguous, or recognized from scenery alone.',
+        '- "evidence": a short quote or description of what in the images supports the item.',
+        '',
+        'EXAMPLE of the format (the content is illustrative only; do not copy it):',
+        BL_IMPORT_EXAMPLE
+    ].join('\n');
 
-    if (hint) p += '\n\nCaption / hint typed by the user (may contain the place name, location or hashtags):\n' + hint;
-    return p;
+    var user = hint
+        ? 'Text from the user (caption, comments or a hint):\n' + hint + '\n\nExtract the bucket list places from this text and any attached screenshots.'
+        : 'Extract the bucket list places from the attached screenshots.';
+
+    return { system: system, user: user };
+}
+
+/** The whole prompt as one block of text, for "Copy prompt" (pasting into any chat app). */
+async function _blimpBuildPrompt(hint) {
+    var parts = await _blimpBuildPromptParts(hint);
+    return parts.system + '\n\n' + parts.user;
 }
 
 // ============================================================
@@ -406,22 +464,20 @@ async function _blimpRunAi() {
     runBtn.disabled = true;
     _blimpStatus('Reading with AI… this can take 10–20 seconds.');
     try {
-        var cfgDoc = await userCol('settings').doc('llm').get();
-        var cfg = cfgDoc.exists ? cfgDoc.data() : null;
-        if (!cfg || !cfg.provider || !cfg.apiKey) {
-            _blimpStatus('No LLM is configured (Settings). You can still use "Copy prompt" and "Paste JSON" below.');
+        var conf = await blLoadLlm();
+        if (!conf) {
+            _blimpStatus('No AI is configured (Settings). You can still use "Copy prompt" and "Paste JSON" below.');
             return;
         }
-        var llm = LLM_PROVIDERS[cfg.provider];
-        if (!llm) { _blimpStatus('Unknown LLM provider in Settings.'); return; }
 
-        var prompt = await _blimpBuildPrompt(hint);
-        var content = [{ type: 'text', text: prompt }];
+        // Instructions go in the system message; the user's text and the screenshots in the user message
+        var parts = await _blimpBuildPromptParts(hint);
+        var content = [{ type: 'text', text: parts.user }];
         _blimpImages.forEach(function(img) {
             content.push({ type: 'image_url', image_url: { url: img.llmData } });
         });
 
-        _blimpRaw = await chatCallOpenAICompat(llm, cfg.apiKey, content, cfg.model || llm.model);
+        _blimpRaw = await blCallLlm(conf, parts.system, content, true);   // JSON mode, retried without if unsupported
         var parsed = _blimpParseResponse(_blimpRaw);
         _blimpSource = _blimpImages.length ? 'llm-image' : 'llm-text';
         _blimpStartReview(parsed);

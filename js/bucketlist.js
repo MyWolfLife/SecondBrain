@@ -21,18 +21,93 @@
 // ---------- Constants ----------
 
 var BL_KINDS = {
-    country   : { icon: '🌍', label: 'Country' },
-    region    : { icon: '🗺️', label: 'Region / State' },
-    town      : { icon: '🏘️', label: 'Town / City' },
-    park      : { icon: '🌲', label: 'Park / Nature' },
-    trail     : { icon: '🥾', label: 'Trail / Hike' },
-    waterfall : { icon: '💦', label: 'Waterfall' },
-    scenic    : { icon: '📸', label: 'Scenic Spot' },
-    bar       : { icon: '🍺', label: 'Bar / Brewery' },
-    restaurant: { icon: '🍽️', label: 'Restaurant' },
-    event     : { icon: '🎉', label: 'Event' },
-    other     : { icon: '📍', label: 'Other' }
+    country   : { icon: '🌍', label: 'Country',        hint: 'a whole country' },
+    region    : { icon: '🗺️', label: 'Region / State', hint: 'a state, province or other large area (e.g. "Tuscany", "the Smoky Mountains")' },
+    town      : { icon: '🏘️', label: 'Town / City',    hint: 'a city, town or village as a whole' },
+    park      : { icon: '🌲', label: 'Park / Nature',  hint: 'a national, state or city park, forest, lake, river or other nature area' },
+    trail     : { icon: '🥾', label: 'Trail / Hike',   hint: 'a hike, trail, scenic drive or route' },
+    waterfall : { icon: '💦', label: 'Waterfall',      hint: 'a waterfall' },
+    scenic    : { icon: '📸', label: 'Scenic Spot',    hint: 'a single sight: landmark, monument, memorial, viewpoint, mountain, cave, beach, castle, museum' },
+    bar       : { icon: '🍺', label: 'Bar / Brewery',  hint: 'a bar, pub, brewery, winery or nightlife spot' },
+    restaurant: { icon: '🍽️', label: 'Restaurant',     hint: 'a restaurant, cafe, bakery or food spot' },
+    event     : { icon: '🎉', label: 'Event',          hint: 'something that happens at a time: festival, light show, concert, market, seasonal display' },
+    other     : { icon: '📍', label: 'Other',          hint: 'none of the above (lodging, an activity, a shop)' }
 };
+
+// ---------- Shared AI prompt pieces ----------
+// Used by every Bucket List prompt (screenshot import, Type picker, QuickLog) so the AI gets the
+// same category definitions and place-naming rules everywhere.
+
+/** Tie-break rules for choosing a kind. */
+var BL_KIND_RULES = [
+    'Pick the most specific kind: a waterfall on a hiking trail is "waterfall"; a trail through a park is "trail".',
+    'A landmark, monument or memorial is "scenic" even when it sits inside a park; the park itself (e.g. "Yellowstone National Park") is "park".',
+    'Something that happens at a time (festival, light show, concert, market) is "event"; the place it happens goes in "venue".',
+    'A whole town, region or country is "town", "region" or "country", even when the post is about its food or sights in general.'
+];
+
+/** The category list with a one-line meaning for each, plus the tie-break rules. */
+function blKindGuide() {
+    var lines = Object.keys(BL_KINDS).map(function(k) { return '- ' + k + ': ' + BL_KINDS[k].hint; });
+    return lines.join('\n') + '\n' + BL_KIND_RULES.map(function(r) { return '- ' + r; }).join('\n');
+}
+
+/**
+ * How to name country / region / city. Written to match what the OpenStreetMap place search
+ * fills in, so places from the AI and from the search group together in the place browser.
+ */
+function blPlaceRules() {
+    return [
+        '- "country": the common English name used on maps: "United States", "United Kingdom", "Ireland", "Canada", "Italy" (not "USA", "UK" or "America").',
+        '- "region": the main division just below the country, written out in full: a US state ("Georgia", not "GA"), a Canadian province ("Alberta"), an Australian state ("Queensland"), an Italian region ("Tuscany"), a UK nation ("Scotland"). In countries without that level (e.g. Ireland) use the county, written like "County Kerry". Null if unsure.',
+        '- "city": the city or town. For a natural site or attraction outside a town, use the nearest town visitors go through (e.g. Mount Rushmore is "Keystone"). Null if unsure.',
+        '- For well-known places, fill country/region/city from general knowledge even when the image does not show them. For obscure places, use only what is shown.'
+    ].join('\n');
+}
+
+/**
+ * Load the AI settings (Settings → LLM). Returns { apiKey, model, endpoint } or null when not set up.
+ */
+async function blLoadLlm() {
+    var doc = await userCol('settings').doc('llm').get();
+    var cfg = doc.exists ? doc.data() : null;
+    if (!cfg || !cfg.provider || !cfg.apiKey) return null;
+    var llm = (typeof LLM_PROVIDERS !== 'undefined') ? LLM_PROVIDERS[cfg.provider] : null;
+    if (!llm) return null;
+    return { apiKey: cfg.apiKey, model: cfg.model || llm.model, endpoint: llm.endpoint };
+}
+
+/**
+ * Call the AI with a separate system message (the instructions) and user message (the material).
+ * wantJson asks for JSON mode; if the model rejects that option (HTTP 400) the call is retried
+ * once without it, and the lenient parser handles the reply either way.
+ * NOTE: never send max_tokens (rejected by newer OpenAI models) — no token limit is sent at all.
+ */
+async function blCallLlm(conf, system, userContent, wantJson) {
+    var body = { model: conf.model, messages: [] };
+    if (system) body.messages.push({ role: 'system', content: system });
+    body.messages.push({ role: 'user', content: userContent });
+    if (wantJson) body.response_format = { type: 'json_object' };
+
+    function send() {
+        return fetch(conf.endpoint, {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + conf.apiKey },
+            body   : JSON.stringify(body)
+        });
+    }
+    var res = await send();
+    if (!res.ok && res.status === 400 && body.response_format) {
+        delete body.response_format;   // this model doesn't support JSON mode — ask again without it
+        res = await send();
+    }
+    if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error((errData.error && errData.error.message) || 'HTTP ' + res.status);
+    }
+    var data = await res.json();
+    return data.choices[0].message.content;
+}
 
 var BL_STATUSES = {
     want     : 'Want',
@@ -1045,7 +1120,7 @@ function _blMapNominatim(item) {
         isArea     : isArea,
         country    : a.country || '',
         countryCode: (a.country_code || '').toUpperCase(),
-        region     : a.state || a.region || a.province || a.state_district || '',
+        region     : a.state || a.region || a.province || a.state_district || a.county || '',   // county only where there is no state level (e.g. Ireland)
         city       : a.city || a.town || a.village || a.hamlet || a.municipality || '',   // county deliberately excluded — it isn't a city
         address    : item.display_name || '',
         lat        : parseFloat(item.lat),
@@ -1100,37 +1175,28 @@ function _blKindFromOsm(cls, type, addressType) {
 }
 
 /**
- * Ask the configured AI to pick the Type, giving it the list of categories and what we know about
- * the place. Returns a BL_KINDS key, or null if no AI is configured or it gave an unusable answer.
+ * Ask the configured AI to pick the Type, giving it the shared category guide (blKindGuide) and what
+ * we know about the place. Returns a BL_KINDS key, or null if no AI is configured or the answer is unusable.
  */
 async function _blSuggestKindLlm(r) {
     try {
-        var cfgDoc = await userCol('settings').doc('llm').get();
-        var cfg = cfgDoc.exists ? cfgDoc.data() : null;
-        if (!cfg || !cfg.provider || !cfg.apiKey) return null;
-        var llm = LLM_PROVIDERS[cfg.provider];
-        if (!llm) return null;
-        var prompt =
-            'Pick the single best category for this place on a personal travel bucket list.\n\n' +
-            'Categories:\n' +
-            '- country: a whole country\n' +
-            '- region: a state, province or large area\n' +
-            '- town: a city, town or village\n' +
-            '- park: a park, forest, lake, river or other nature area\n' +
-            '- trail: a hike, trail or route\n' +
-            '- waterfall: a waterfall\n' +
-            '- scenic: a viewpoint, landmark, monument, mountain, beach or other sight\n' +
-            '- bar: a bar, pub or brewery\n' +
-            '- restaurant: a restaurant or cafe\n' +
-            '- event: a festival, show or one-time/seasonal event\n' +
-            '- other: none of the above\n\n' +
+        var conf = await blLoadLlm();
+        if (!conf) return null;
+        var system = 'You classify places for a personal travel bucket list. Reply with exactly one category key from the list and nothing else.';
+        var user =
+            'Categories:\n' + blKindGuide() + '\n\n' +
             'Place: ' + r.name + '\n' +
-            'Location: ' + (r.address || r.display || '') + '\n' +
-            'OpenStreetMap tag: ' + (r.osmClass || '?') + ' / ' + (r.osmType || '?') + '\n\n' +
-            'Reply with ONLY the category word.';
-        var reply = await chatCallOpenAICompat(llm, cfg.apiKey, prompt, cfg.model || llm.model);
-        var word = (reply || '').trim().toLowerCase().replace(/[^a-z]/g, '');
-        return BL_KINDS[word] ? word : null;
+            'Full address: ' + (r.address || r.display || 'unknown') + '\n' +
+            'OpenStreetMap tag: ' + (r.osmClass || '?') + ' / ' + (r.osmType || '?') +
+            (r.addressType ? ' (' + r.addressType + ')' : '') + '\n\n' +
+            'Answer with one word: ' + Object.keys(BL_KINDS).join(', ') + '.';
+        var reply = (await blCallLlm(conf, system, user, false) || '').trim().toLowerCase();
+        // Normally the reply is just the key; otherwise take the first category word in it
+        var exact = reply.replace(/[^a-z]/g, '');
+        if (BL_KINDS[exact]) return exact;
+        var words = reply.match(/[a-z]+/g) || [];
+        for (var i = 0; i < words.length; i++) { if (BL_KINDS[words[i]]) return words[i]; }
+        return null;
     } catch (err) {
         console.warn('Type suggestion failed:', err);
         return null;
