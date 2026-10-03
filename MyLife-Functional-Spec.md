@@ -2316,6 +2316,28 @@ The "learning journal with receipts": every saved scan's candidates graded again
 
 ---
 
+## Part 8g: Bucket List
+
+**JS file**: `js/bucketlist.js` · **Plan document**: `saveplacesPlan.md`
+
+A wish list of places and experiences to visit someday: towns, countries, trails, waterfalls, bars, seasonal sights, events. It is separate from **Places** (Part 9), which holds venues already visited via check-ins. Reached from the **Bucket List** tile (🗺️) on the Life landing page (`data-tile-id="bucketlist"`, so it takes part in tile reordering).
+
+**Build status**: Phase 1 (manual list, filters, detail page) complete. Planned next: Phase 2 map with marker clustering and country → region → city drill-down; Phase 3 LLM import from a pasted screenshot; Phase 4 integrations; Phase 5 share target. See the plan document.
+
+**Firestore**: `bucketList` — `name`, `kind` (country/region/town/park/trail/waterfall/scenic/bar/restaurant/event/other), `why`, `notes`, `tags[]` (lowercase), `geo` {`country`, `countryCode`, `region`, `city`, `venue`, `address`, `lat`, `lng`, `precision` (country/region/city/exact)}, `timing` {`type` (none/months/date/range), `months[]` (1-12), `season`, `startDate`, `endDate`, `yearly`, `label`}, `website`, `links[]` ({url, label}), `status` (want/planned/visited/dismissed), `priority` (1 high / 2 medium / 3 low), `visitedDate`, `source` ('manual'), `createdAt`, `updatedAt`. Photos and facts use the shared collections with `targetType: 'bucketItem'`. Included in Backup (`BACKUP_DATA_COLLECTIONS`, storage breakdown) and Global Search.
+
+**Routes**: `#bucketlist` (list), `#bucketitem/{id}` (detail). Both are Life-context pages.
+
+**List page**: search box (matches name, why, notes, tags, location, timing text) plus filter dropdowns — Status (default **Want + Planned**; also Want, Planned, Visited, Dismissed, All), Type, Country (built from the countries present in the data), Priority, Month, and Sort (Priority, Newest, Name). Filters are remembered while the app stays open. Cards show type icon + name, left-aligned badges (priority; status when not Want; **Expired**), location line, timing line, and the "why" text. The Month filter matches month-based items directly and dated items by the months their date/range covers.
+
+**Expiry**: a one-off (non-yearly) date or range whose end is in the past shows an **Expired** badge but stays in the list until dismissed (decision recorded in the plan). Month-based and yearly items never expire.
+
+**Add/Edit modal** (`#blModal`): name, type, priority, status (a **Visited on** date appears for Visited and defaults to today), **Where** (OpenStreetMap search via Nominatim, reusing the 1 req/sec guard from `places.js`, fills country / state / city / specific place / address / coordinates; every field is also editable by hand; the county is deliberately not used as the city), **When** (None / Month(s) or season / One date / Date range; season buttons tick months; "repeats every year" for dated items; free-text timing note), why, notes, comma-separated tags, website, and any number of extra links (scheme added automatically if missing). `geo.precision` is derived on save from which fields are filled. Delete is permanent and also removes the item's photos and facts (Dismiss is the non-destructive alternative).
+
+**Detail page**: quick-action buttons (Mark Visited — stamps today's date, Mark Planned, Dismiss, Back to Want), an info table, a Leaflet map when coordinates exist (plus an Open in Maps link), Facts, and Photos (camera, gallery, paste). Breadcrumb: Bucket List › name.
+
+---
+
 ## Part 9: Places & Check-In
 
 **JS file**: `js/places.js`
@@ -3493,6 +3515,12 @@ Legacy overlay fields (`currentValue`, `whatToDo`, `legacyNotes`) will be added 
 | `analyzerEstimates` | weekId (Monday date, doc id), date, createdAt, count, data{TICKER:{epsCurrY, epsNextY, numAnalysts, fyLabel}} — weekly analyst-consensus snapshots for the divergence metric (Phase 3, Stage 3.2) |
 
 Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{asOf, source, count, companies:[{t,n,s}]}`.
+
+### Bucket List
+
+| Collection | Key Fields |
+|------------|------------|
+| `bucketList` | name, kind, why, notes, tags[], geo{country,countryCode,region,city,venue,address,lat,lng,precision}, timing{type,months[],season,startDate,endDate,yearly,label}, website, links[], status (want/planned/visited/dismissed), priority (1-3), visitedDate, source, createdAt, updatedAt |
 
 ### Places
 

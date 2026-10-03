@@ -1866,6 +1866,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - **Notes** -- notebook-organized notes system
 - **Calendar** -- Life Calendar for trips, milestones, goals, and major events
 - **Projects** -- Life Projects (vacation planner, build projects, etc.)
+- **Bucket List** -- places, trails, events, and seasonal sights you want to visit someday, filterable by country, type, priority, and month
 - **Checklists** -- reusable checklists for life tasks
 - **My Legacy** -- private end-of-life information for your loved ones (burial wishes, financial accounts, letters, and more)
 - **Credentials** -- passwords, usernames, API keys, and other sensitive data organized by category
@@ -3417,6 +3418,62 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 **Completing a run**: tap ✓ in the footer — the run moves to the Completed section (toggle "Show completed" to view it).
 
 **Archiving**: tap 📦 to archive a run without marking it complete. Toggle "Show archived" to see archived runs.
+
+---
+
+## screen:bucketlist
+
+### Quick Help
+- Your wish list of places to visit: towns, countries, trails, waterfalls, bars, seasonal sights, events
+- **+ Add** saves one; search for the place to fill in its location and map pin automatically
+- The search box and filters narrow the list by status, type, country, priority, or month
+- Tap an item to see its details, map, photos, and facts
+
+### Details
+
+**The list:** by default it shows items marked **Want** or **Planned**, with the High-priority ones first. Use the status filter to see Visited, Dismissed, or everything. Each card shows the name, a priority badge, where it is, when it is best, and why you want to go.
+
+**Filters:** Type (waterfall, trail, bar...), Country (only countries you have saved items in), Priority, and **Month** — pick May to see everything that is good in May, including events whose dates fall in that month. The line above the list shows how many items match.
+
+**Adding an item:** **+ Add** opens the form. At minimum give it a name. Then, optionally:
+- **Where:** search for the place and tap a result to fill country, state, city, address, and coordinates; or type them in yourself. A whole country or town works fine without coordinates.
+- **When:** no specific time, one or more months (the season buttons tick the months for you), one date, or a date range. Tick **Repeats every year** for things like a yearly light show.
+- **Why / Notes / Tags:** your reason for wanting to go and anything else to remember.
+- **Website and other links:** keep the official site plus as many reel or video links as you like.
+
+**Expired events:** a one-time event whose dates have passed shows an **Expired** badge but stays on the list until you dismiss it.
+
+**Status:** Want (default), Planned (you are going), Visited, Dismissed (no longer interested). Dismissed and Visited items leave the default list but are never deleted.
+
+### See Also
+- [Bucket List Item](#help/bucketitem)
+- [Life](#help/life)
+
+---
+
+## screen:bucketitem
+
+### Quick Help
+- Everything about one bucket list item
+- **Mark Visited**, **Mark Planned**, and **Dismiss** change its status in one tap
+- A map appears when the item has coordinates; **Open in Maps** opens it in Google Maps
+- Attach photos (such as the screenshot that gave you the idea) and facts
+- **Edit** changes any field; **Back** returns to the list
+
+### Details
+
+**Info table:** shows only the fields that are filled in: type, location, address, timing, your reason, notes, tags, website, extra links, and coordinates.
+
+**Status buttons:** **Mark Visited** records today's date as the visit date (edit the item to change it). **Back to Want** undoes Visited or Dismissed.
+
+**Photos and facts:** work like on any other record. Photos are compressed before saving. Facts are free-form label and value pairs such as "Height: 729 ft" or "Parking: lower lot".
+
+**Deleting:** open **Edit** and choose Delete. This permanently removes the item and its photos and facts. To hide an item without losing it, use **Dismiss** instead.
+
+### See Also
+- [Bucket List](#help/bucketlist)
+- [Photos](#help/concept-photos)
+- [Facts](#help/concept-facts)
 
 ---
 

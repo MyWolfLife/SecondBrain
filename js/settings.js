@@ -719,7 +719,7 @@ var STORAGE_GROUPS = [
     { label: 'Journal / Notes / Places', cols: ['journalCategories','journalEntries','journalTrackingItems','notebooks','notes','places'] },
     { label: 'People / Contacts',  cols: ['people','peopleCategories','peopleImportantDates','peopleInteractions'] },
     { label: 'Health',             cols: ['allergies','appointments','bloodWorkRecords','checklistRuns','checklistTemplates','concernUpdates','concerns','conditions','distances','emergencyInfo','eyePrescriptions','healthAppointments','healthCareTeam','healthConditionLogs','healthVisits','insurancePolicies','medications','supplements','vaccinations','vitals'] },
-    { label: 'Life / Calendar',    cols: ['lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups'] },
+    { label: 'Life / Calendar',    cols: ['bucketList','lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups'] },
     { label: 'Thoughts',           cols: ['top10categories','top10lists','memories','memoryLinks','memoryTags','views','viewCategories'] },
     { label: 'Misc / Settings',    cols: ['sbIssues','settings'] }
 ];
@@ -871,7 +871,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'insurancePolicies', 'medications', 'supplements', 'vaccinations', 'vitals',
 
     // Life / Calendar
-    'lifeCategories', 'lifeEventLogs', 'lifeEvents', 'lifeProjects',
+    'bucketList', 'lifeCategories', 'lifeEventLogs', 'lifeEvents', 'lifeProjects',
     'locations', 'lookups',
 
     // Thoughts — Top 10 Lists

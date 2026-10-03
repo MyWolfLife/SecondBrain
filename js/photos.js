@@ -71,6 +71,7 @@ var PHOTO_CONTAINERS = {
     note:               ['notePhotoContainer',              'notePhotoEmptyState'],
     item:               ['siPhotoContainer',               'siPhotoEmptyState'],
     place:              ['placePhotoContainer',            'placePhotoEmptyState'],
+    bucketItem:         ['blPhotoContainer',               'blPhotoEmptyState'],
     problem:            ['problemPhotoContainer',          'problemPhotoEmptyState'],
     medication:         ['medPhotoContainer',               'medPhotoEmptyState'],
     lifeEvent:          ['lcPhotoContainer',                'lcPhotoEmpty'],
@@ -463,6 +464,7 @@ function _getPasteEntity(type) {
         item:              window.currentItem,
         lifeEvent:         window.currentLifeEvent,
         problem:           window.currentProblem,
+        bucketItem:        window.currentBucketItem,
         note:              window.currentNote,
     };
     return entityMap[type] || null;
@@ -1117,6 +1119,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('addPlaceGalleryBtn').addEventListener('click', function() {
         if (window.currentPlace) triggerGalleryUpload('place', window.currentPlace.id);
+    });
+
+    document.getElementById('addBucketCameraBtn').addEventListener('click', function() {
+        if (window.currentBucketItem) triggerCameraUpload('bucketItem', window.currentBucketItem.id);
+    });
+    document.getElementById('addBucketGalleryBtn').addEventListener('click', function() {
+        if (window.currentBucketItem) triggerGalleryUpload('bucketItem', window.currentBucketItem.id);
     });
 
     document.getElementById('addProblemCameraBtn').addEventListener('click', function() {

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=790">
+    <link rel="stylesheet" href="css/styles.css?v=791">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -792,6 +792,100 @@
             </div>
             <div id="placeActivityContainer"></div>
             <p class="empty-state" id="placeActivityEmptyState">No activities logged yet.</p>
+        </section>
+
+        <!-- Page: Bucket List (#bucketlist) — places/events you want to visit -->
+        <section class="page hidden" id="page-bucketlist">
+            <div class="page-header">
+                <button class="btn btn-secondary btn-small back-btn" onclick="window.location.hash='#life'">&#8592; Back</button>
+                <h2>Bucket List</h2>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary btn-small" id="blAddBtn">+ Add</button>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <input type="text" id="blSearchInput" placeholder="Search name, reason, place, tag..." class="search-input">
+            </div>
+            <div class="bl-filter-row">
+                <select id="blStatusFilter" title="Status">
+                    <option value="active">Want + Planned</option>
+                    <option value="want">Want</option>
+                    <option value="planned">Planned</option>
+                    <option value="visited">Visited</option>
+                    <option value="dismissed">Dismissed</option>
+                    <option value="all">All statuses</option>
+                </select>
+                <select id="blKindFilter" title="Type">
+                    <option value="">All types</option>
+                    <option value="country">Country</option>
+                    <option value="region">Region / State</option>
+                    <option value="town">Town / City</option>
+                    <option value="park">Park / Nature</option>
+                    <option value="trail">Trail / Hike</option>
+                    <option value="waterfall">Waterfall</option>
+                    <option value="scenic">Scenic Spot</option>
+                    <option value="bar">Bar / Brewery</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="event">Event</option>
+                    <option value="other">Other</option>
+                </select>
+                <select id="blCountryFilter" title="Country"><option value="">All countries</option></select>
+                <select id="blPriorityFilter" title="Priority">
+                    <option value="">Any priority</option>
+                    <option value="1">High</option>
+                    <option value="2">Medium</option>
+                    <option value="3">Low</option>
+                </select>
+                <select id="blMonthFilter" title="Good in month">
+                    <option value="">Any month</option>
+                    <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                    <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                    <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                    <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+                </select>
+                <select id="blSortSelect" title="Sort">
+                    <option value="priority">Sort: Priority</option>
+                    <option value="newest">Sort: Newest</option>
+                    <option value="name">Sort: Name A–Z</option>
+                </select>
+            </div>
+            <p class="bl-count-line" id="blCountLine"></p>
+            <div class="card-list" id="blListContainer"></div>
+            <p class="empty-state" id="blEmptyState">Loading...</p>
+        </section>
+
+        <!-- Page: Bucket List Item detail (#bucketitem/{id}) -->
+        <section class="page hidden" id="page-bucketitem">
+            <div class="page-header">
+                <button class="btn btn-secondary btn-small back-btn" id="blDetailBackBtn">&#8592; Back</button>
+                <h2 id="blDetailName">Bucket List Item</h2>
+                <div class="page-header-actions">
+                    <button class="btn btn-secondary btn-small" id="blDetailEditBtn">Edit</button>
+                </div>
+            </div>
+            <div class="bl-detail-actions" id="blDetailActions"></div>
+            <div class="place-detail-info" id="blDetailInfo"></div>
+
+            <!-- Leaflet map — hidden when there are no coordinates -->
+            <div id="blDetailMapWrap" class="place-detail-map-wrap hidden">
+                <div id="blDetailMap" class="place-detail-map"></div>
+            </div>
+
+            <div class="section-header">
+                <h3 class="section-heading">Facts</h3>
+                <button class="btn btn-primary btn-small" id="addBucketFactBtn">+ Add</button>
+            </div>
+            <div id="blFactsContainer"></div>
+            <p class="empty-state" id="blFactsEmptyState"></p>
+
+            <div class="section-header">
+                <h3 class="section-heading">Photos</h3>
+                <button class="btn btn-primary btn-small" id="addBucketCameraBtn">+ Camera</button>
+                <button class="btn btn-primary btn-small" id="addBucketGalleryBtn">+ Gallery</button>
+                <button class="btn btn-primary btn-small paste-photo-btn" data-entity="bucketItem">&#128203; Paste</button>
+            </div>
+            <div id="blPhotoContainer"></div>
+            <p class="empty-state" id="blPhotoEmptyState">No photos yet.</p>
         </section>
 
         <!-- Page: Settings Hub -->
@@ -7419,6 +7513,10 @@ service firebase.storage {
                     <span class="landing-tile-icon">📋</span>
                     <span class="landing-tile-label">Projects</span>
                 </a>
+                <a href="#bucketlist" class="landing-tile landing-tile--bucketlist" data-tile-id="bucketlist">
+                    <span class="landing-tile-icon">🗺️</span>
+                    <span class="landing-tile-label">Bucket List</span>
+                </a>
                 <a href="#checklists/life" class="landing-tile landing-tile--life-checklists" data-page="checklists" data-tile-id="checklists">
                     <span class="landing-tile-icon">✅</span>
                     <span class="landing-tile-label">Checklists</span>
@@ -11034,6 +11132,181 @@ service firebase.storage {
         </div>
     </div>
 
+    <!-- ========== BUCKET LIST ADD/EDIT MODAL ========== -->
+    <div class="modal-overlay" id="blModal">
+        <div class="modal modal-wide">
+            <h3 id="blModalTitle">Add to Bucket List</h3>
+
+            <div class="form-group">
+                <label for="blNameInput">Name <span class="required">*</span></label>
+                <input type="text" id="blNameInput" placeholder="e.g. Amicalola Falls">
+            </div>
+            <div class="bl-two-col">
+                <div class="form-group">
+                    <label for="blKindSelect">Type</label>
+                    <select id="blKindSelect">
+                        <option value="country">Country</option>
+                        <option value="region">Region / State</option>
+                        <option value="town">Town / City</option>
+                        <option value="park">Park / Nature</option>
+                        <option value="trail">Trail / Hike</option>
+                        <option value="waterfall">Waterfall</option>
+                        <option value="scenic">Scenic Spot</option>
+                        <option value="bar">Bar / Brewery</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="event">Event</option>
+                        <option value="other" selected>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="blPrioritySelect">Priority</label>
+                    <select id="blPrioritySelect">
+                        <option value="1">High</option>
+                        <option value="2" selected>Medium</option>
+                        <option value="3">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bl-two-col">
+                <div class="form-group">
+                    <label for="blStatusSelect">Status</label>
+                    <select id="blStatusSelect">
+                        <option value="want">Want</option>
+                        <option value="planned">Planned</option>
+                        <option value="visited">Visited</option>
+                        <option value="dismissed">Dismissed</option>
+                    </select>
+                </div>
+                <div class="form-group hidden" id="blVisitedRow">
+                    <label for="blVisitedDate">Visited on</label>
+                    <input type="date" id="blVisitedDate">
+                </div>
+            </div>
+
+            <!-- Where -->
+            <div class="bl-section-label">Where</div>
+            <div class="form-group">
+                <label for="blLocSearchInput">Search for the place (fills the fields below)</label>
+                <div class="bl-loc-search-row">
+                    <input type="text" id="blLocSearchInput" placeholder="e.g. Amicalola Falls, Georgia">
+                    <button type="button" class="btn btn-secondary btn-small" id="blLocSearchBtn">Search</button>
+                </div>
+                <div id="blLocResults" class="bl-loc-results"></div>
+            </div>
+            <div class="bl-two-col">
+                <div class="form-group">
+                    <label for="blCountryInput">Country</label>
+                    <input type="text" id="blCountryInput" placeholder="e.g. Ireland">
+                </div>
+                <div class="form-group">
+                    <label for="blRegionInput">State / Region</label>
+                    <input type="text" id="blRegionInput" placeholder="e.g. Georgia">
+                </div>
+            </div>
+            <div class="bl-two-col">
+                <div class="form-group">
+                    <label for="blCityInput">City / Town</label>
+                    <input type="text" id="blCityInput" placeholder="e.g. Dublin">
+                </div>
+                <div class="form-group">
+                    <label for="blVenueInput">Specific place</label>
+                    <input type="text" id="blVenueInput" placeholder="e.g. trailhead, bar name">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="blAddressInput">Address</label>
+                <input type="text" id="blAddressInput" placeholder="Optional">
+            </div>
+            <div class="place-gps-row">
+                <span id="blCoordsLabel" class="place-gps-status">📍 No coordinates</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="blClearCoordsBtn" style="display:none;">Clear</button>
+            </div>
+
+            <!-- When -->
+            <div class="bl-section-label">When</div>
+            <div class="form-group">
+                <label for="blTimingType">Best time</label>
+                <select id="blTimingType">
+                    <option value="none">No specific time</option>
+                    <option value="months">Month(s) or season</option>
+                    <option value="date">One date</option>
+                    <option value="range">Date range</option>
+                </select>
+            </div>
+            <div class="form-group hidden" id="blMonthsRow">
+                <div class="bl-season-buttons" id="blSeasonButtons">
+                    <button type="button" class="btn btn-secondary btn-small" data-season="spring">🌸 Spring</button>
+                    <button type="button" class="btn btn-secondary btn-small" data-season="summer">☀️ Summer</button>
+                    <button type="button" class="btn btn-secondary btn-small" data-season="fall">🍂 Fall</button>
+                    <button type="button" class="btn btn-secondary btn-small" data-season="winter">❄️ Winter</button>
+                </div>
+                <div class="bl-month-grid" id="blMonthGrid">
+                    <label><input type="checkbox" value="1"> Jan</label>
+                    <label><input type="checkbox" value="2"> Feb</label>
+                    <label><input type="checkbox" value="3"> Mar</label>
+                    <label><input type="checkbox" value="4"> Apr</label>
+                    <label><input type="checkbox" value="5"> May</label>
+                    <label><input type="checkbox" value="6"> Jun</label>
+                    <label><input type="checkbox" value="7"> Jul</label>
+                    <label><input type="checkbox" value="8"> Aug</label>
+                    <label><input type="checkbox" value="9"> Sep</label>
+                    <label><input type="checkbox" value="10"> Oct</label>
+                    <label><input type="checkbox" value="11"> Nov</label>
+                    <label><input type="checkbox" value="12"> Dec</label>
+                </div>
+            </div>
+            <div class="bl-two-col hidden" id="blDatesRow">
+                <div class="form-group">
+                    <label for="blStartDate">Date / start</label>
+                    <input type="date" id="blStartDate">
+                </div>
+                <div class="form-group hidden" id="blEndDateWrap">
+                    <label for="blEndDate">End</label>
+                    <input type="date" id="blEndDate">
+                </div>
+            </div>
+            <div class="form-group hidden" id="blYearlyRow">
+                <label class="bl-inline-check"><input type="checkbox" id="blYearly"> Repeats every year (e.g. a yearly light show)</label>
+            </div>
+            <div class="form-group hidden" id="blTimingLabelRow">
+                <label for="blTimingLabel">Note about the timing</label>
+                <input type="text" id="blTimingLabel" placeholder="e.g. peak fall color, tulips bloom">
+            </div>
+
+            <!-- Why / notes -->
+            <div class="form-group">
+                <label for="blWhyInput">Why I want to go</label>
+                <textarea id="blWhyInput" class="settings-textarea" rows="2" placeholder="e.g. Saw it in a reel — 729 ft drop, easy hike"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="blNotesInput">Notes</label>
+                <textarea id="blNotesInput" class="settings-textarea" rows="3" placeholder="Anything else worth remembering"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="blTagsInput">Tags (comma separated)</label>
+                <input type="text" id="blTagsInput" placeholder="e.g. hike, fall-color, christmas">
+            </div>
+
+            <!-- Links -->
+            <div class="form-group">
+                <label for="blWebsiteInput">Website</label>
+                <input type="text" id="blWebsiteInput" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>Other links (reels, videos, articles)</label>
+                <div id="blLinksContainer"></div>
+                <button type="button" class="btn btn-secondary btn-small" id="blAddLinkBtn">+ Add link</button>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="blModalCancelBtn">Cancel</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-danger" id="blModalDeleteBtn" style="display:none;">Delete</button>
+                <button class="btn btn-primary" id="blModalSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== OPENSTREETMAP HELP MODAL ========== -->
     <!-- ===== Foursquare / Cloudflare Setup Help Modal ===== -->
     <div class="modal-overlay" id="fsqHelpModal">
@@ -11599,7 +11872,7 @@ export default {
     <script src="js/zones.js?v=355"></script>
     <script src="js/plants.js?v=354"></script>
     <script src="js/problems.js?v=389"></script>
-    <script src="js/facts.js?v=350"></script>
+    <script src="js/facts.js?v=351"></script>
     <script src="js/projects.js?v=404"></script>
     <script src="js/chemicals.js?v=350"></script>
     <script src="js/tags.js?v=4"></script>
@@ -11608,18 +11881,18 @@ export default {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <!-- SortableJS — drag-and-drop list reordering -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-    <script src="js/photos.js?v=397"></script>
+    <script src="js/photos.js?v=398"></script>
     <script src="js/weeds.js?v=351"></script>
     <script src="js/calendar.js?v=364"></script>
     <script src="js/gps.js?v=350"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=7"></script>
-    <script src="js/settings.js?v=666"></script>
+    <script src="js/settings.js?v=667"></script>
     <script src="js/devnotes.js?v=560"></script>
     <script src="js/house.js?v=537"></script>
     <script src="js/floorplan.js?v=398"></script>
     <script src="js/floorplanitem.js?v=393"></script>
-    <script src="js/search.js?v=519"></script>
+    <script src="js/search.js?v=520"></script>
     <script src="js/activityreport.js?v=350"></script>
     <script src="js/checklists.js?v=558"></script>
     <script src="js/bulkactivity.js?v=350"></script>
@@ -11646,12 +11919,13 @@ export default {
     <script src="js/secondbrain.js?v=542"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=358"></script>
+    <script src="js/bucketlist.js?v=2"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>
     <script src="js/firebasesetup.js?v=511"></script>
     <script src="js/views.js?v=556"></script>
-    <script src="js/help.js?v=558"></script>
+    <script src="js/help.js?v=559"></script>
     <script src="js/legacy-crypto.js?v=2"></script>
     <script src="js/legacy.js?v=28"></script>
     <script src="js/credentials.js?v=585"></script>
@@ -11674,7 +11948,7 @@ export default {
     <script src="js/analyzer-news.js?v=1"></script>
     <script src="js/analyzer-holdingshealth.js?v=4"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=688"></script>
+    <script src="js/app.js?v=689"></script>
     <script src="js/offline-sync.js?v=3"></script>
 
 </body>

@@ -92,6 +92,7 @@ function runSearch(query) {
         { col: 'people',             label: 'Contacts',             icon: '👤', nameField: 'name',  urlFn: function(id) { return '#contact/'         + id; } },
         { col: 'notebooks',          label: 'Notebooks',            icon: '📓', nameField: 'name',  urlFn: function(id) { return '#notebook/'        + id; } },
         { col: 'places',             label: 'Places',               icon: '📍', nameField: 'name',  urlFn: function(id) { return '#place/'           + id; } },
+        { col: 'bucketList',         label: 'Bucket List',          icon: '🗺️', nameField: 'name',  urlFn: function(id) { return '#bucketitem/'      + id; } },
         { col: 'lifeProjects',       label: 'Life Projects',        icon: '✈️', nameField: 'title', urlFn: function(id) { return '#life-project/'    + id; } },
         // ── Thoughts ──
         { col: 'memories',           label: 'Memories',             icon: '💭', nameField: 'title',       urlFn: function(id)       { return '#memory-edit/'     + id; } },

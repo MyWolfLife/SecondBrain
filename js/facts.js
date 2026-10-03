@@ -286,6 +286,7 @@ function reloadFactsForCurrentTarget(targetType, targetId) {
         'structurething':   ['structureThingFactsContainer',     'structureThingFactsEmpty'],
         'structuresubthing':['structureSubThingFactsContainer',  'structureSubThingFactsEmpty'],
         'person':           ['personFactsContainer',             'personFactsEmptyState'],
+        'bucketItem':       ['blFactsContainer',                 'blFactsEmptyState'],
     };
     var ids = map[targetType];
     if (ids) {
@@ -319,6 +320,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addWeedFactBtn').addEventListener('click', function() {
         if (window.currentWeed) {
             openAddFactModal('weed', window.currentWeed.id);
+        }
+    });
+
+    document.getElementById('addBucketFactBtn').addEventListener('click', function() {
+        if (window.currentBucketItem) {
+            openAddFactModal('bucketItem', window.currentBucketItem.id);
         }
     });
 

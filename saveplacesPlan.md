@@ -1,6 +1,7 @@
 # Bucket List — Save-Places-to-Visit Plan
 
-**Status**: Planning (nothing built). Drafted 2026-10-03.
+**Status**: Phase 1 COMPLETE (2026-10-03). Phases 2-5 not started.
+**Routes as built**: `#bucketlist` (list), `#bucketitem/{id}` (detail).
 **Area**: Life → new tile "Bucket List" (🧭)
 **Related docs**: `Checkin-Plan.md` (visited places / Foursquare / OSM search), `MyLife-Functional-Spec.md` Part 9 (Places) and Part 10b (LLM), `PwaPlan.md` (offline), `SecondBrain.md` (LLM actions)
 
@@ -234,7 +235,7 @@ This costs almost nothing (same parser, same review screen) and makes the featur
 
 | Phase | Scope | Result |
 |---|---|---|
-| **1 — Core** | `bucketList` CRUD, add/edit modal with location search + timing picker, list with filters/search, detail page, photos/facts, Life tile, route, AppHelp screen section | Usable manual wish list |
+| **1 — Core ✅ COMPLETE** | `bucketList` CRUD, add/edit modal with location search + timing picker, list with filters/search, detail page, photos/facts, Life tile, route, AppHelp screen section | Usable manual wish list |
 | **2 — Stacking & map** | Nominatim normalization to country/region/city, drill-down browse with counts, Leaflet map view, "Good now" month view, expired-badge logic | The "everything in Ireland" payoff |
 | **3 — LLM import** | Import modal (paste/gallery/camera + text hint), prompt, JSON parser, review screen, screenshot attached as photo, background geocode, **Paste JSON** + **Copy prompt** path | The "skip the screenshot graveyard" payoff |
 | **4 — Integrations** | Mark visited → journal/check-in link, Add to trip, calendar reminder, SecondBrain actions + help, global search | Wish list feeds the rest of the app |

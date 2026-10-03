@@ -153,7 +153,7 @@ function _pwaDismiss() {
  * List of top-level pages that map to nav links.
  * These pages clear the breadcrumb bar when shown.
  */
-const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals', 'actions', 'tags', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'devnotes',
+const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals', 'actions', 'tags', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'bucketlist', 'devnotes',
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
@@ -177,7 +177,7 @@ const ALL_PAGES = [
     'structure', 'structurething', 'structuresubthing',
     'journal-entry', 'journal-tracking', 'journal-categories',
     'collection', 'collectionitem', 'beneficiaries',
-    'place',
+    'place', 'bucketitem',
     'person', 'contact',
     'neighborhood', 'neighborhouse', 'neighborarchive',
     'notebook', 'note',
@@ -221,7 +221,7 @@ const THOUGHTS_PAGES = ['thoughts', 'top10lists', 'top10list-create', 'top10list
 // Settings pages — hide all section navbars (yard/house/life/thoughts)
 const SETTINGS_PAGES = ['settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'changepassword', 'backup', 'devnotes', 'devnote', 'sb-issues'];
 
-const LIFE_PAGES  = ['life', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
+const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
                      'neighbors', 'neighborhood', 'neighborhouse', 'neighborarchive',
                      'notes', 'notebook', 'note',
                      'health', 'health-visits', 'health-visit', 'health-visit-step2',
@@ -1106,6 +1106,13 @@ function handleRoute() {
         }
         showPage('place');
         loadPlaceDetailPage(id);
+    // ---------- Bucket List routes ----------
+    } else if (page === 'bucketlist') {
+        showPage('bucketlist');
+        loadBucketListPage();
+    } else if (page === 'bucketitem' && id) {
+        showPage('bucketitem');
+        loadBucketItemPage(id);
     // ---------- Help route ----------
     } else if (page === 'help') {
         showPage('help');
