@@ -20935,3 +20935,107 @@ a.legacy-fin-card:hover {
 @media (max-width: 480px) {
     .bl-two-col { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* ── Bucket List Phase 2: browse bar, view toggle, map ─────────── */
+.bl-browse-bar {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+.bl-browse-crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+.bl-browse-crumb {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    color: #0369a1;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+}
+.bl-browse-current { font-weight: 700; color: #0c4a6e; padding: 2px 4px; }
+.bl-browse-sep { color: #7dd3fc; }
+.bl-browse-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.bl-browse-chip {
+    background: #fff;
+    border: 1px solid #7dd3fc;
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #0c4a6e;
+}
+.bl-browse-chip:hover { background: #e0f2fe; }
+.bl-browse-count {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 5px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: #0284c7;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+}
+.bl-view-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.bl-view-row .bl-count-line { margin: 0; }
+.bl-view-toggle { display: flex; }
+.bl-view-btn {
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    border: 1px solid #0284c7;
+    background: #fff;
+    color: #0284c7;
+    cursor: pointer;
+}
+.bl-view-btn:first-child { border-radius: 6px 0 0 6px; }
+.bl-view-btn:last-child  { border-radius: 0 6px 6px 0; border-left: none; }
+.bl-view-active { background: #0284c7; color: #fff; }
+#blGoodNowBtn.bl-view-active { background: #16a34a; border-color: #16a34a; color: #fff; }
+.bl-map {
+    height: 60vh;
+    min-height: 320px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    z-index: 0;
+}
+.bl-map-status {
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-style: italic;
+    margin: 0 0 6px;
+}
+.bl-unplaced { margin-top: 10px; }
+.bl-unplaced-head {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+.bl-unplaced-link {
+    display: block;
+    padding: 4px 0;
+    color: #0369a1;
+    font-size: 0.9rem;
+}
+.bl-popup-name { font-weight: 700; font-size: 0.95rem; }
+.bl-popup-line { font-size: 0.8rem; color: #4b5563; margin-top: 3px; }

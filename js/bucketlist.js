@@ -62,7 +62,14 @@ var _blDetailMap   = null;   // Leaflet map on the detail page
 var _blSearchResults = [];   // location search results shown in the modal
 
 // Current list filters. status 'active' = Want + Planned.
-var _blFilters = { text: '', status: 'active', kind: '', priority: '', month: '', country: '', sort: 'priority' };
+var _blFilters = { text: '', status: 'active', kind: '', priority: '', month: '', sort: 'priority' };
+
+var _blView      = 'list';   // 'list' or 'map'
+var _blMap       = null;     // Leaflet map for the map view
+var _blCluster   = null;     // marker cluster layer on that map
+var _blLocating  = false;    // true while approximate positions are being geocoded
+var _blBrowse    = { country: '', region: '', city: '' };   // drill-down position ('' = not drilled)
+var _blEditGeoOrig = null;   // geo block of the item being edited (to keep its cached map position)
 
 // ============================================================
 // Small helpers
@@ -182,6 +189,23 @@ function _blNormalizeUrl(url) {
     return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url;
 }
 
+/** Canonical spelling for a country/region/city: reuse an existing item's spelling if one matches. */
+function _blCanonPlace(value, field) {
+    if (!value) return null;
+    var key = _blNorm(value);
+    for (var i = 0; i < _blItems.length; i++) {
+        if (_blItems[i].id === _blEditId) continue;
+        var existing = (_blItems[i].data.geo || {})[field];
+        if (existing && _blNorm(existing) === key) return existing.trim();
+    }
+    return value;
+}
+
+/** Signature of the text location, used to tell whether an edit changed where the item is. */
+function _blGeoSig(geo) {
+    return [geo.venue, geo.city, geo.region, geo.country].map(_blNorm).join('|');
+}
+
 /** Work out how precise a location is from which geo fields are filled in. */
 function _blPrecision(geo) {
     if (geo.lat != null && geo.lng != null) return 'exact';
@@ -207,10 +231,7 @@ async function loadBucketListPage() {
     _blWireListControls();
 
     try {
-        var snap = await userCol('bucketList').get();
-        _blItems = [];
-        snap.forEach(function(doc) { _blItems.push({ id: doc.id, data: doc.data() }); });
-        _blRebuildCountryOptions();
+        await _blLoadItems();
         _blRenderList();
     } catch (err) {
         console.error('Error loading bucket list:', err);
@@ -218,7 +239,14 @@ async function loadBucketListPage() {
     }
 }
 
-/** Hook up the Add button, search box and filter dropdowns (safe to call repeatedly). */
+/** Read every bucket list document into _blItems. */
+async function _blLoadItems() {
+    var snap = await userCol('bucketList').get();
+    _blItems = [];
+    snap.forEach(function(doc) { _blItems.push({ id: doc.id, data: doc.data() }); });
+}
+
+/** Hook up the Add button, search box, filter dropdowns and view toggle (safe to call repeatedly). */
 function _blWireListControls() {
     document.getElementById('blAddBtn').onclick = function() { _blOpenModal(null, null); };
 
@@ -231,7 +259,6 @@ function _blWireListControls() {
         blKindFilter    : 'kind',
         blPriorityFilter: 'priority',
         blMonthFilter   : 'month',
-        blCountryFilter : 'country',
         blSortSelect    : 'sort'
     };
     Object.keys(map).forEach(function(id) {
@@ -239,25 +266,69 @@ function _blWireListControls() {
         el.value = _blFilters[map[id]];
         el.onchange = function() { _blFilters[map[id]] = el.value; _blRenderList(); };
     });
+
+    // "Good now" shortcut toggles the Month filter between "now" and "any"
+    document.getElementById('blGoodNowBtn').onclick = function() {
+        _blFilters.month = (_blFilters.month === 'now') ? '' : 'now';
+        document.getElementById('blMonthFilter').value = _blFilters.month;
+        _blRenderList();
+    };
+
+    // List / Map toggle
+    document.getElementById('blViewListBtn').onclick = function() { _blSetView('list'); };
+    document.getElementById('blViewMapBtn').onclick  = function() { _blSetView('map'); };
 }
 
-/** Fill the Country filter from the countries present in the data. */
-function _blRebuildCountryOptions() {
-    var sel = document.getElementById('blCountryFilter');
-    var seen = {};
-    _blItems.forEach(function(it) {
-        var c = it.data.geo && it.data.geo.country;
-        if (c) seen[c] = true;
-    });
-    var countries = Object.keys(seen).sort(function(a, b) { return a.localeCompare(b); });
-    sel.innerHTML = '<option value="">All countries</option>' +
-        countries.map(function(c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
-    // If the remembered country no longer exists, reset it
-    if (_blFilters.country && !seen[_blFilters.country]) _blFilters.country = '';
-    sel.value = _blFilters.country;
+/** Switch between the list and the map. */
+function _blSetView(view) {
+    _blView = view;
+    _blRenderList();
 }
 
-/** Does this item pass the current filters? */
+// ---------- Filtering ----------
+
+/** Case/whitespace-insensitive key used to group places ("ireland" and "Ireland " are one). */
+function _blNorm(s) {
+    return (s || '').trim().toLowerCase();
+}
+
+/**
+ * Is this item "good" sometime in the next 60 days? Month-based items match if any month in the
+ * window is in their list; dated items match if their dates overlap the window (yearly items are
+ * checked against last, this and next year).
+ */
+function _blGoodNow(data) {
+    var t = data.timing;
+    if (!t || t.type === 'none' || !t.type) return false;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var end = new Date(today.getTime() + 60 * 86400000);
+
+    if (t.type === 'months') {
+        var windowMonths = {};
+        for (var d = new Date(today); d <= end; d = new Date(d.getTime() + 86400000)) {
+            windowMonths[d.getMonth() + 1] = true;
+        }
+        return (t.months || []).some(function(m) { return windowMonths[m]; });
+    }
+
+    var s = _blParseIso(t.startDate);
+    if (!s) return false;
+    var e = _blParseIso(t.type === 'range' ? t.endDate : t.startDate) || s;
+
+    if (!t.yearly) {
+        return new Date(s.y, s.m - 1, s.d) <= end && new Date(e.y, e.m - 1, e.d) >= today;
+    }
+    // Yearly: re-project the month/day window onto nearby years
+    var wraps = (e.m < s.m) || (e.m === s.m && e.d < s.d);   // e.g. Nov 28 – Jan 1
+    for (var y = today.getFullYear() - 1; y <= today.getFullYear() + 1; y++) {
+        var start = new Date(y, s.m - 1, s.d);
+        var stop  = new Date(y + (wraps ? 1 : 0), e.m - 1, e.d);
+        if (start <= end && stop >= today) return true;
+    }
+    return false;
+}
+
+/** Does this item pass the non-location filters (status, type, priority, month, text)? */
 function _blMatches(data) {
     var f = _blFilters;
     var status = data.status || 'want';
@@ -269,8 +340,11 @@ function _blMatches(data) {
     }
     if (f.kind && data.kind !== f.kind) return false;
     if (f.priority && String(data.priority || 2) !== f.priority) return false;
-    if (f.country && !(data.geo && data.geo.country === f.country)) return false;
-    if (f.month && _blMonthsOf(data.timing).indexOf(parseInt(f.month, 10)) === -1) return false;
+    if (f.month === 'now') {
+        if (!_blGoodNow(data)) return false;
+    } else if (f.month && _blMonthsOf(data.timing).indexOf(parseInt(f.month, 10)) === -1) {
+        return false;
+    }
 
     if (f.text) {
         var hay = [
@@ -282,13 +356,107 @@ function _blMatches(data) {
     return true;
 }
 
-/** Filter, sort and draw the list. */
+/** Is this item inside the country / region / city currently drilled into? */
+function _blInBrowse(data) {
+    var g = data.geo || {};
+    var b = _blBrowse;
+    if (b.country && _blNorm(g.country) !== _blNorm(b.country)) return false;
+    if (b.region  && _blNorm(g.region)  !== _blNorm(b.region))  return false;
+    if (b.city    && _blNorm(g.city)    !== _blNorm(b.city))    return false;
+    return true;
+}
+
+// ---------- Where browser (country → region → city) ----------
+
+/**
+ * Draw the drill-down bar: a crumb trail (All places › Ireland › Leinster) plus a chip for each
+ * place one level down, with a count. `pool` is every item that passes the non-location filters.
+ */
+function _blRenderBrowse(pool) {
+    var bar = document.getElementById('blBrowseBar');
+    var b = _blBrowse;
+
+    // Which level are we choosing from, and which items are candidates for it?
+    var level = !b.country ? 'country' : (!b.region ? 'region' : (!b.city ? 'city' : null));
+    var candidates = pool.filter(function(it) { return _blInBrowse(it.data); });
+
+    // Group candidates by the next level down; keep the first-seen spelling for display
+    var groups = {};
+    if (level) {
+        candidates.forEach(function(it) {
+            var raw = (it.data.geo || {})[level];
+            var key = _blNorm(raw);
+            if (!key) return;
+            if (!groups[key]) groups[key] = { name: raw.trim(), count: 0 };
+            groups[key].count++;
+        });
+    }
+    var chips = Object.keys(groups).map(function(k) { return groups[k]; })
+        .sort(function(a, b) { return b.count - a.count || a.name.localeCompare(b.name); });
+
+    // Nothing to browse and nothing drilled into → hide the bar
+    if (chips.length === 0 && !b.country) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    bar.classList.remove('hidden');
+    bar.innerHTML = '';
+
+    // Crumb trail
+    var crumbs = document.createElement('div');
+    crumbs.className = 'bl-browse-crumbs';
+    function addCrumb(label, onClick, isLast) {
+        if (crumbs.childNodes.length) {
+            var sep = document.createElement('span');
+            sep.className = 'bl-browse-sep';
+            sep.textContent = '›';
+            crumbs.appendChild(sep);
+        }
+        var el = document.createElement(isLast ? 'span' : 'button');
+        el.className = isLast ? 'bl-browse-current' : 'bl-browse-crumb';
+        el.textContent = label;
+        if (!isLast) { el.type = 'button'; el.onclick = onClick; }
+        crumbs.appendChild(el);
+    }
+    var trail = [];
+    if (b.country) trail.push({ label: b.country, set: { region: '', city: '' } });
+    if (b.region)  trail.push({ label: b.region,  set: { city: '' } });
+    if (b.city)    trail.push({ label: b.city,    set: {} });
+    addCrumb('All places', function() { _blBrowse = { country: '', region: '', city: '' }; _blRenderList(); }, trail.length === 0);
+    trail.forEach(function(step, i) {
+        addCrumb(step.label, function() {
+            Object.keys(step.set).forEach(function(k) { _blBrowse[k] = step.set[k]; });
+            _blRenderList();
+        }, i === trail.length - 1);
+    });
+    bar.appendChild(crumbs);
+
+    // Chips for the next level down
+    if (chips.length) {
+        var row = document.createElement('div');
+        row.className = 'bl-browse-chips';
+        chips.forEach(function(g) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'bl-browse-chip';
+            chip.innerHTML = escapeHtml(g.name) + ' <span class="bl-browse-count">' + g.count + '</span>';
+            chip.onclick = function() { _blBrowse[level] = g.name; _blRenderList(); };
+            row.appendChild(chip);
+        });
+        bar.appendChild(row);
+    }
+}
+
+// ---------- Rendering ----------
+
+/** Filter, sort and draw the list (or the map, depending on the current view). */
 function _blRenderList() {
     var container  = document.getElementById('blListContainer');
     var emptyState = document.getElementById('blEmptyState');
     var countEl    = document.getElementById('blCountLine');
 
-    var shown = _blItems.filter(function(it) { return _blMatches(it.data); });
+    // Pool = passes status/type/priority/month/text; shown = pool narrowed by the drill-down
+    var pool  = _blItems.filter(function(it) { return _blMatches(it.data); });
+    var shown = pool.filter(function(it) { return _blInBrowse(it.data); });
+
+    _blRenderBrowse(pool);
 
     shown.sort(function(a, b) {
         if (_blFilters.sort === 'name') return (a.data.name || '').localeCompare(b.data.name || '');
@@ -299,6 +467,13 @@ function _blRenderList() {
         return (a.data.name || '').localeCompare(b.data.name || '');
     });
 
+    // Highlight the active view button / Good-now button
+    document.getElementById('blViewListBtn').classList.toggle('bl-view-active', _blView === 'list');
+    document.getElementById('blViewMapBtn').classList.toggle('bl-view-active', _blView === 'map');
+    document.getElementById('blGoodNowBtn').classList.toggle('bl-view-active', _blFilters.month === 'now');
+    document.getElementById('blMapWrap').classList.toggle('hidden', _blView !== 'map');
+    container.classList.toggle('hidden', _blView === 'map');
+
     container.innerHTML = '';
     countEl.textContent = _blItems.length ? (shown.length + ' of ' + _blItems.length + ' items') : '';
 
@@ -307,10 +482,169 @@ function _blRenderList() {
             ? 'Nothing on your bucket list yet. Tap + Add to save your first place.'
             : 'No items match these filters.';
         emptyState.classList.remove('hidden');
+    } else {
+        emptyState.classList.add('hidden');
+    }
+
+    if (_blView === 'map') {
+        _blRenderMap(shown);
+    } else {
+        shown.forEach(function(it) { container.appendChild(_blRenderCard(it.id, it.data)); });
+    }
+}
+
+// ============================================================
+// Map view (Leaflet + marker clustering)
+// ============================================================
+
+/**
+ * Where should this item's pin go? Exact coordinates win; otherwise the approximate point we
+ * geocoded from its city/region/country. Returns { lat, lng, approx } or null.
+ */
+function _blPoint(data) {
+    var g = data.geo || {};
+    if (g.lat != null && g.lng != null) return { lat: g.lat, lng: g.lng, approx: false };
+    if (g.approxLat != null && g.approxLng != null) return { lat: g.approxLat, lng: g.approxLng, approx: true };
+    return null;
+}
+
+/** Popup content for a pin: name (link), location, timing. Built with DOM calls so text is escaped. */
+function _blPopupEl(id, data, approx) {
+    var kind = BL_KINDS[data.kind] || BL_KINDS.other;
+    var box = document.createElement('div');
+    box.className = 'bl-popup';
+    var a = document.createElement('a');
+    a.href = '#bucketitem/' + id;
+    a.textContent = kind.icon + ' ' + (data.name || '(unnamed)');
+    a.className = 'bl-popup-name';
+    box.appendChild(a);
+    var loc = _blLocationText(data.geo);
+    var timing = _blTimingText(data.timing);
+    [loc && ('📍 ' + loc), timing && ('🗓️ ' + timing), approx && 'Approximate pin (town/region center)']
+        .forEach(function(t) {
+            if (!t) return;
+            var line = document.createElement('div');
+            line.className = 'bl-popup-line';
+            line.textContent = t;
+            box.appendChild(line);
+        });
+    return box;
+}
+
+/** Draw the clustered map for the items currently shown; kick off geocoding for unplaced ones. */
+function _blRenderMap(shown) {
+    var status = document.getElementById('blMapStatus');
+    var unplacedEl = document.getElementById('blMapUnplaced');
+
+    if (typeof L === 'undefined' || !L.markerClusterGroup) {
+        status.textContent = 'The map library could not be loaded (are you offline?).';
         return;
     }
-    emptyState.classList.add('hidden');
-    shown.forEach(function(it) { container.appendChild(_blRenderCard(it.id, it.data)); });
+
+    if (!_blMap) {
+        _blMap = L.map('blMap').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(_blMap);
+    }
+    if (_blCluster) _blMap.removeLayer(_blCluster);
+    _blCluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50 });
+
+    var bounds = [];
+    var unplaced = [];
+    shown.forEach(function(it) {
+        var p = _blPoint(it.data);
+        if (!p) { unplaced.push(it); return; }
+        var marker = L.marker([p.lat, p.lng], { title: it.data.name || '', opacity: p.approx ? 0.7 : 1 });
+        marker.bindPopup(_blPopupEl(it.id, it.data, p.approx));
+        _blCluster.addLayer(marker);
+        bounds.push([p.lat, p.lng]);
+    });
+    _blMap.addLayer(_blCluster);
+
+    // The container was hidden until now, so Leaflet needs to re-measure it before fitting
+    setTimeout(function() {
+        _blMap.invalidateSize();
+        if (bounds.length) _blMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    }, 50);
+
+    // Items that still can't be pinned: list them below the map
+    unplacedEl.innerHTML = '';
+    if (unplaced.length) {
+        var head = document.createElement('div');
+        head.className = 'bl-unplaced-head';
+        head.textContent = 'Not on the map (' + unplaced.length + ') — no location to pin';
+        unplacedEl.appendChild(head);
+        unplaced.forEach(function(it) {
+            var link = document.createElement('a');
+            link.href = '#bucketitem/' + it.id;
+            link.className = 'bl-unplaced-link';
+            link.textContent = (BL_KINDS[it.data.kind] || BL_KINDS.other).icon + ' ' + (it.data.name || '(unnamed)');
+            unplacedEl.appendChild(link);
+        });
+    }
+    status.textContent = shown.length === 0 ? 'Nothing to show on the map with these filters.' : '';
+
+    _blLocateMissing(shown);
+}
+
+/**
+ * Geocode items that have a city/region/country but no pin yet (one request per second, as
+ * Nominatim asks). The approximate point is saved on the item (geo.approxLat/approxLng) so each
+ * item is only ever looked up once. A failed lookup is remembered (geo.approxFailed) so it isn't
+ * retried every time the map opens; editing the item's location clears that.
+ */
+async function _blLocateMissing(shown) {
+    if (_blLocating) return;
+    var todo = shown.filter(function(it) {
+        var g = it.data.geo || {};
+        if (_blPoint(it.data) || g.approxFailed) return false;
+        return !!(g.venue || g.city || g.region || g.country);
+    });
+    if (todo.length === 0) return;
+
+    _blLocating = true;
+    var status = document.getElementById('blMapStatus');
+    var placedAny = false;
+    try {
+        for (var i = 0; i < todo.length; i++) {
+            if (_blView !== 'map' || window.location.hash !== '#bucketlist') break;   // user moved on
+            status.textContent = 'Locating items on the map… (' + (i + 1) + ' of ' + todo.length + ')';
+            var it = todo[i];
+            var g = it.data.geo;
+            var query = [g.venue, g.city, g.region, g.country].filter(Boolean).join(', ');
+            var found = null;
+            try {
+                await _placesNominatimRateLimit();
+                var resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' +
+                                       encodeURIComponent(query), { headers: { 'Accept-Language': 'en' } });
+                if (resp.ok) found = (await resp.json())[0] || null;
+                else continue;           // temporary problem (rate limit, etc.): try again next time
+            } catch (netErr) { continue; }
+
+            var update = {};
+            if (found) {
+                g.approxLat = parseFloat(found.lat);
+                g.approxLng = parseFloat(found.lon);
+                update['geo.approxLat'] = g.approxLat;
+                update['geo.approxLng'] = g.approxLng;
+                if (!g.countryCode && found.address && found.address.country_code) {
+                    g.countryCode = found.address.country_code.toUpperCase();
+                    update['geo.countryCode'] = g.countryCode;
+                }
+                placedAny = true;
+            } else {
+                g.approxFailed = true;
+                update['geo.approxFailed'] = true;
+            }
+            try { await userCol('bucketList').doc(it.id).update(update); }
+            catch (saveErr) { console.warn('Could not save map position (read-only?):', saveErr); }
+        }
+    } finally {
+        _blLocating = false;
+        status.textContent = '';
+    }
+    if (placedAny && _blView === 'map' && window.location.hash === '#bucketlist') _blRenderList();
 }
 
 /** createdAt as milliseconds (Firestore Timestamp or missing). */
@@ -453,14 +787,15 @@ async function loadBucketItemPage(itemId) {
         infoEl.appendChild(table);
 
         // ── Leaflet map ──────────────────────────────────────────
-        if (geo.lat != null && geo.lng != null && typeof L !== 'undefined') {
+        var pin = _blPoint(data);
+        if (pin && typeof L !== 'undefined') {
             mapWrap.classList.remove('hidden');
             setTimeout(function() {
-                _blDetailMap = L.map('blDetailMap').setView([geo.lat, geo.lng], 13);
+                _blDetailMap = L.map('blDetailMap').setView([pin.lat, pin.lng], pin.approx ? 9 : 13);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }).addTo(_blDetailMap);
-                L.marker([geo.lat, geo.lng]).addTo(_blDetailMap);
+                L.marker([pin.lat, pin.lng], { opacity: pin.approx ? 0.7 : 1 }).addTo(_blDetailMap);
                 _blDetailMap.invalidateSize();
             }, 50);
         }
@@ -513,6 +848,7 @@ function _blOpenModal(id, data) {
     _blEditId = id;
     data = data || {};
     var geo = data.geo || {};
+    _blEditGeoOrig = data.geo || null;
     var timing = data.timing || { type: 'none', months: [], yearly: false };
 
     document.getElementById('blModalTitle').textContent = id ? 'Edit Bucket List Item' : 'Add to Bucket List';
@@ -723,6 +1059,9 @@ async function _blSave() {
         return;
     }
 
+    // Make sure we know the existing places so spellings can be matched (e.g. saving from a detail page)
+    if (_blItems.length === 0) { try { await _blLoadItems(); } catch (e) { /* non-fatal */ } }
+
     // Timing
     var type = document.getElementById('blTimingType').value;
     var timing = { type: type, months: [], season: null, startDate: null, endDate: null, yearly: false, label: null };
@@ -764,7 +1103,18 @@ async function _blSave() {
         lat        : _blModalGeo.lat,
         lng        : _blModalGeo.lng
     };
+    // Use the spelling already in the list for the same country/region/city, so "ireland" and
+    // "Ireland" can never become two separate groups
+    geo.country = _blCanonPlace(geo.country, 'country');
+    geo.region  = _blCanonPlace(geo.region,  'region');
+    geo.city    = _blCanonPlace(geo.city,    'city');
     geo.precision = _blPrecision(geo);
+
+    // Keep the cached map position if the text location didn't change (saves a re-lookup)
+    if (_blEditId && _blEditGeoOrig && geo.lat == null && _blGeoSig(_blEditGeoOrig) === _blGeoSig(geo)) {
+        if (_blEditGeoOrig.approxLat != null) { geo.approxLat = _blEditGeoOrig.approxLat; geo.approxLng = _blEditGeoOrig.approxLng; }
+        if (_blEditGeoOrig.approxFailed) geo.approxFailed = true;
+    }
 
     // Links
     var links = [];

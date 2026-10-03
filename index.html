@@ -15,10 +15,13 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=791">
+    <link rel="stylesheet" href="css/styles.css?v=792">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <!-- Leaflet.markercluster — groups nearby pins into numbered circles (Bucket List map) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 
     <!-- Cropper.js — client-side image cropping -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
@@ -800,6 +803,7 @@
                 <button class="btn btn-secondary btn-small back-btn" onclick="window.location.hash='#life'">&#8592; Back</button>
                 <h2>Bucket List</h2>
                 <div class="page-header-actions">
+                    <button class="btn btn-secondary btn-small" id="blGoodNowBtn" title="Things that are good in the next 60 days">🌿 Good now</button>
                     <button class="btn btn-primary btn-small" id="blAddBtn">+ Add</button>
                 </div>
             </div>
@@ -829,7 +833,6 @@
                     <option value="event">Event</option>
                     <option value="other">Other</option>
                 </select>
-                <select id="blCountryFilter" title="Country"><option value="">All countries</option></select>
                 <select id="blPriorityFilter" title="Priority">
                     <option value="">Any priority</option>
                     <option value="1">High</option>
@@ -838,6 +841,7 @@
                 </select>
                 <select id="blMonthFilter" title="Good in month">
                     <option value="">Any month</option>
+                    <option value="now">Good now (next 60 days)</option>
                     <option value="1">January</option><option value="2">February</option><option value="3">March</option>
                     <option value="4">April</option><option value="5">May</option><option value="6">June</option>
                     <option value="7">July</option><option value="8">August</option><option value="9">September</option>
@@ -849,8 +853,20 @@
                     <option value="name">Sort: Name A–Z</option>
                 </select>
             </div>
-            <p class="bl-count-line" id="blCountLine"></p>
+            <div class="bl-browse-bar hidden" id="blBrowseBar"></div>
+            <div class="bl-view-row">
+                <p class="bl-count-line" id="blCountLine"></p>
+                <div class="bl-view-toggle">
+                    <button type="button" class="bl-view-btn bl-view-active" id="blViewListBtn">List</button>
+                    <button type="button" class="bl-view-btn" id="blViewMapBtn">Map</button>
+                </div>
+            </div>
             <div class="card-list" id="blListContainer"></div>
+            <div id="blMapWrap" class="hidden">
+                <p class="bl-map-status" id="blMapStatus"></p>
+                <div id="blMap" class="bl-map"></div>
+                <div class="bl-unplaced" id="blMapUnplaced"></div>
+            </div>
             <p class="empty-state" id="blEmptyState">Loading...</p>
         </section>
 
@@ -11867,6 +11883,7 @@ export default {
 
     <!-- ========== SCRIPTS ========== -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="js/firebase-config.js?v=581"></script>
     <script src="js/auth.js?v=351"></script>
     <script src="js/zones.js?v=355"></script>
@@ -11919,7 +11936,7 @@ export default {
     <script src="js/secondbrain.js?v=542"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=358"></script>
-    <script src="js/bucketlist.js?v=2"></script>
+    <script src="js/bucketlist.js?v=3"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>

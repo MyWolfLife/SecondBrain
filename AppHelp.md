@@ -3426,14 +3426,23 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 ### Quick Help
 - Your wish list of places to visit: towns, countries, trails, waterfalls, bars, seasonal sights, events
 - **+ Add** saves one; search for the place to fill in its location and map pin automatically
-- The search box and filters narrow the list by status, type, country, priority, or month
+- The bar under the filters drills down **country → region → city**, with a count on each
+- **List / Map** switches to a map where nearby places group into numbered circles; tap a circle to zoom in
+- **Good now** shows what is worth doing in the next 60 days
+- The search box and filters narrow things by status, type, priority, or month
 - Tap an item to see its details, map, photos, and facts
 
 ### Details
 
 **The list:** by default it shows items marked **Want** or **Planned**, with the High-priority ones first. Use the status filter to see Visited, Dismissed, or everything. Each card shows the name, a priority badge, where it is, when it is best, and why you want to go.
 
-**Filters:** Type (waterfall, trail, bar...), Country (only countries you have saved items in), Priority, and **Month** — pick May to see everything that is good in May, including events whose dates fall in that month. The line above the list shows how many items match.
+**Filters:** Type (waterfall, trail, bar...), Priority, and **Month** — pick May to see everything that is good in May, including events whose dates fall in that month. The line above the list shows how many items match.
+
+**Browsing by place:** the light-blue bar under the filters starts with a chip for each country you have saved items in, with a count. Tap **Ireland** and it shows Ireland's regions; tap a region to see its cities. The trail at the top of the bar (All places › Ireland › Leinster) takes you back up. The list and the map both follow whatever place you have picked, so you can ask for everything in Ireland, or just Dublin, Ireland. Spelling differences like "ireland" and "Ireland" are treated as the same place.
+
+**Good now:** tap **🌿 Good now** (or choose it in the Month filter) to see items that are good any time in the next 60 days: seasonal ones whose months are coming up, and events whose dates overlap. Tap it again to turn it off.
+
+**Map:** tap **Map** next to the item count. Places close together are grouped into a circle showing how many are inside; zoom in or tap the circle and it splits into smaller groups until you see single pins. Tap a pin to see its name, place and timing, and tap the name to open it. The first time you open the map, items that only have a town, region, or country get a pin at that spot's center (a slightly faded pin marked "Approximate"); this takes about a second per item and is only done once. Items with no location at all are listed under the map as "Not on the map". The map needs an internet connection.
 
 **Adding an item:** **+ Add** opens the form. At minimum give it a name. Then, optionally:
 - **Where:** search for the place and tap a result to fill country, state, city, address, and coordinates; or type them in yourself. A whole country or town works fine without coordinates.
