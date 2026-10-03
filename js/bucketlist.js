@@ -69,6 +69,9 @@ var _blMap       = null;     // Leaflet map for the map view
 var _blCluster   = null;     // marker cluster layer on that map
 var _blLocating  = false;    // true while approximate positions are being geocoded
 var _blBrowse    = { country: '', region: '', city: '' };   // drill-down position ('' = not drilled)
+var _blKindTouched = false;  // user picked the Type themselves in this modal session — never auto-change it
+var _blKindAuto    = false;  // Type was set by the place search (so a later, better suggestion may replace it)
+var _blKindToken   = 0;      // guards against a slow AI answer landing after a newer search/selection
 var _blEditGeoOrig = null;   // geo block of the item being edited (to keep its cached map position)
 
 // ============================================================
@@ -875,6 +878,8 @@ function _blOpenModal(id, data) {
 
     document.getElementById('blNameInput').value = data.name || '';
     document.getElementById('blKindSelect').value = data.kind || 'other';
+    _blKindTouched = false; _blKindAuto = false; _blKindToken++;
+    document.getElementById('blKindSelect').onchange = function() { _blKindTouched = true; };   // fires only for the user's own change
     document.getElementById('blStatusSelect').value = data.status || 'want';
     document.getElementById('blPrioritySelect').value = String(data.priority || 2);
     document.getElementById('blVisitedDate').value = data.visitedDate || '';
@@ -1030,8 +1035,12 @@ function _blMapNominatim(item) {
     var a = item.address || {};
     var parts = (item.display_name || '').split(',').map(function(s) { return s.trim(); });
     var name = (item.namedetails && (item.namedetails.name || item.namedetails['name:en'])) || parts[0] || '';
-    // Administrative areas and generic "place" results are towns/regions, not a specific venue
-    var isArea = item.class === 'boundary' || item.class === 'place';
+    // Countries, regions and towns are "areas"; a national park, memorial or venue is a specific place
+    // even when OpenStreetMap files it under an administrative boundary.
+    var AREA_TYPES = ['country', 'state', 'region', 'province', 'county', 'state_district', 'city', 'town', 'village',
+                      'hamlet', 'municipality', 'suburb', 'borough', 'city_district', 'quarter', 'neighbourhood'];
+    var isArea = item.addresstype ? AREA_TYPES.indexOf(item.addresstype) !== -1
+                                   : (item.class === 'boundary' || item.class === 'place');
     return {
         name       : name,
         display    : parts.slice(1, 4).join(', ') || (a.country || ''),
@@ -1043,7 +1052,9 @@ function _blMapNominatim(item) {
         address    : item.display_name || '',
         lat        : parseFloat(item.lat),
         lng        : parseFloat(item.lon),
-        osmType    : item.type || ''
+        osmType    : item.type || '',
+        osmClass   : item.class || '',
+        addressType: item.addresstype || ''
     };
 }
 
@@ -1065,6 +1076,89 @@ function _blApplySearchResult(index) {
     var nameInput = document.getElementById('blNameInput');
     if (!nameInput.value.trim()) nameInput.value = r.name;
     document.getElementById('blLocResults').innerHTML = '';
+    _blAutoPickKind(r);
+}
+
+// ---------- Choosing the Type from a search result ----------
+
+/**
+ * Best-guess Type from OpenStreetMap's own tags (instant, free). Returns a BL_KINDS key or null.
+ */
+function _blKindFromOsm(cls, type, addressType) {
+    function has(list, v) { return list.indexOf(v) !== -1; }
+    if (addressType === 'country') return 'country';
+    if (has(['state', 'region', 'province', 'county', 'state_district'], addressType)) return 'region';
+    if (has(['city', 'town', 'village', 'hamlet', 'municipality', 'suburb', 'borough', 'city_district', 'quarter', 'neighbourhood'], addressType)) return 'town';
+    if (type === 'waterfall') return 'waterfall';
+    if (has(['national_park', 'nature_reserve', 'protected_area', 'park', 'garden', 'forest', 'wood', 'recreation_ground',
+             'lake', 'reservoir', 'river', 'stream', 'wetland', 'water', 'glacier', 'hot_spring'], type)) return 'park';
+    if ((cls === 'highway' && has(['path', 'footway', 'track', 'bridleway', 'cycleway', 'steps'], type)) || cls === 'route') return 'trail';
+    if (has(['bar', 'pub', 'biergarten', 'nightclub', 'brewery'], type)) return 'bar';
+    if (has(['restaurant', 'cafe', 'fast_food', 'food_court', 'ice_cream'], type)) return 'restaurant';
+    if (has(['peak', 'volcano', 'cliff', 'cave_entrance', 'beach', 'bay', 'rock', 'arch', 'ridge', 'saddle', 'viewpoint',
+             'attraction', 'memorial', 'monument', 'artwork', 'museum', 'castle', 'ruins', 'lighthouse', 'zoo', 'theme_park', 'aquarium'], type)) return 'scenic';
+    if (cls === 'tourism' || cls === 'historic') return 'scenic';
+    return null;
+}
+
+/**
+ * Ask the configured AI to pick the Type, giving it the list of categories and what we know about
+ * the place. Returns a BL_KINDS key, or null if no AI is configured or it gave an unusable answer.
+ */
+async function _blSuggestKindLlm(r) {
+    try {
+        var cfgDoc = await userCol('settings').doc('llm').get();
+        var cfg = cfgDoc.exists ? cfgDoc.data() : null;
+        if (!cfg || !cfg.provider || !cfg.apiKey) return null;
+        var llm = LLM_PROVIDERS[cfg.provider];
+        if (!llm) return null;
+        var prompt =
+            'Pick the single best category for this place on a personal travel bucket list.\n\n' +
+            'Categories:\n' +
+            '- country: a whole country\n' +
+            '- region: a state, province or large area\n' +
+            '- town: a city, town or village\n' +
+            '- park: a park, forest, lake, river or other nature area\n' +
+            '- trail: a hike, trail or route\n' +
+            '- waterfall: a waterfall\n' +
+            '- scenic: a viewpoint, landmark, monument, mountain, beach or other sight\n' +
+            '- bar: a bar, pub or brewery\n' +
+            '- restaurant: a restaurant or cafe\n' +
+            '- event: a festival, show or one-time/seasonal event\n' +
+            '- other: none of the above\n\n' +
+            'Place: ' + r.name + '\n' +
+            'Location: ' + (r.address || r.display || '') + '\n' +
+            'OpenStreetMap tag: ' + (r.osmClass || '?') + ' / ' + (r.osmType || '?') + '\n\n' +
+            'Reply with ONLY the category word.';
+        var reply = await chatCallOpenAICompat(llm, cfg.apiKey, prompt, cfg.model || llm.model);
+        var word = (reply || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+        return BL_KINDS[word] ? word : null;
+    } catch (err) {
+        console.warn('Type suggestion failed:', err);
+        return null;
+    }
+}
+
+/**
+ * After a place is picked from the search, set the Type: first from OpenStreetMap's tags (instant),
+ * then refined by the AI. Never touches a Type the user chose themselves, or one an existing item
+ * already has (only the default "Other" or our own earlier pick is replaced).
+ */
+async function _blAutoPickKind(r) {
+    var sel = document.getElementById('blKindSelect');
+    function canSet() { return !_blKindTouched && (sel.value === 'other' || _blKindAuto); }
+    if (!canSet()) return;
+    var token = ++_blKindToken;
+
+    var guess = _blKindFromOsm(r.osmClass, r.osmType, r.addressType);
+    if (guess) { sel.value = guess; _blKindAuto = true; }
+
+    var suggested = await _blSuggestKindLlm(r);
+    // Ignore the answer if the modal moved on (another search, user changed the Type, closed)
+    if (token !== _blKindToken || !suggested || !canSet()) return;
+    if (!document.getElementById('blModal').classList.contains('open')) return;
+    sel.value = suggested;
+    _blKindAuto = true;
 }
 
 // ---------- Save ----------
