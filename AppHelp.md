@@ -3426,6 +3426,7 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 ### Quick Help
 - Your wish list of places to visit: towns, countries, trails, waterfalls, bars, seasonal sights, events
 - **+ Add** saves one; search for the place to fill in its location and map pin automatically
+- **📷 Import** turns a screenshot of a reel or post into items: the AI suggests them, you review before anything is saved
 - The bar under the filters drills down **country → region → city**, with a count on each
 - **List / Map** switches to a map where nearby places group into numbered circles; tap a circle to zoom in
 - **Good now** shows what is worth doing in the next 60 days
@@ -3449,6 +3450,16 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - **When:** no specific time, one or more months (the season buttons tick the months for you), one date, or a date range. Tick **Repeats every year** for things like a yearly light show.
 - **Why / Notes / Tags:** your reason for wanting to go and anything else to remember.
 - **Website and other links:** keep the official site plus as many reel or video links as you like.
+
+**Importing from a screenshot:** tap **📷 Import**, then add the screenshot with **Paste** (or Ctrl+V), **Gallery** or **Camera**. You can add up to six, and type the caption or a hint such as "this is in Ireland" to help the AI. Tap **Read with AI** and wait about 10 to 20 seconds. You then get a review screen with one card per place the AI found:
+- Fix any name, type, country, state, city, or reason that is wrong
+- Untick places you do not want. Low-confidence guesses, places already on your list, and repeats start unticked
+- Each card shows what the AI saw in the image, so a bad read is easy to spot
+- Leave **Keep the screenshot(s) as photos** ticked to attach the screenshot to each saved place
+- Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
+One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. Items you import show on the map a moment after you first open it.
+
+**No AI key, or prefer your own chat app?** Tap **Copy prompt**, paste it into any chat app along with the screenshot, then copy the JSON it returns into the **Paste JSON** box and tap **Review this JSON**. The review screen works exactly the same way.
 
 **Expired events:** a one-time event whose dates have passed shows an **Expired** badge but stays on the list until you dismiss it.
 

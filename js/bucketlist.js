@@ -249,6 +249,7 @@ async function _blLoadItems() {
 /** Hook up the Add button, search box, filter dropdowns and view toggle (safe to call repeatedly). */
 function _blWireListControls() {
     document.getElementById('blAddBtn').onclick = function() { _blOpenModal(null, null); };
+    document.getElementById('blImportBtn').onclick = openBucketImportModal;
 
     var search = document.getElementById('blSearchInput');
     search.value = _blFilters.text;
@@ -612,15 +613,26 @@ async function _blLocateMissing(shown) {
             status.textContent = 'Locating items on the map… (' + (i + 1) + ' of ' + todo.length + ')';
             var it = todo[i];
             var g = it.data.geo;
-            var query = [g.venue, g.city, g.region, g.country].filter(Boolean).join(', ');
-            var found = null;
-            try {
-                await _placesNominatimRateLimit();
-                var resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' +
-                                       encodeURIComponent(query), { headers: { 'Accept-Language': 'en' } });
-                if (resp.ok) found = (await resp.json())[0] || null;
-                else continue;           // temporary problem (rate limit, etc.): try again next time
-            } catch (netErr) { continue; }
+            // First try the specific place (venue, or the item's own name for a trail/waterfall/bar
+            // etc. when we know the city or region), then fall back to just the city/region/country.
+            var specific = ['country', 'region', 'town'].indexOf(it.data.kind) === -1;
+            var lead = g.venue || ((specific && (g.city || g.region)) ? it.data.name : null);
+            var area = [g.city, g.region, g.country].filter(Boolean).join(', ');
+            var queries = [];
+            if (lead) queries.push([lead, area].filter(Boolean).join(', '));
+            if (lead && g.country && area !== g.country) queries.push(lead + ', ' + g.country);   // fewer words often matches better
+            if (area) queries.push(area);
+            var found = null, lookupFailed = false;
+            for (var q = 0; q < queries.length && !found; q++) {
+                try {
+                    await _placesNominatimRateLimit();
+                    var resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' +
+                                           encodeURIComponent(queries[q]), { headers: { 'Accept-Language': 'en' } });
+                    if (!resp.ok) { lookupFailed = true; break; }   // temporary problem: try again next time
+                    found = (await resp.json())[0] || null;
+                } catch (netErr) { lookupFailed = true; break; }
+            }
+            if (!found && lookupFailed) continue;
 
             var update = {};
             if (found) {

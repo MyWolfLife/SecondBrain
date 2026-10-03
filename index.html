@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=792">
+    <link rel="stylesheet" href="css/styles.css?v=793">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -803,6 +803,7 @@
                 <button class="btn btn-secondary btn-small back-btn" onclick="window.location.hash='#life'">&#8592; Back</button>
                 <h2>Bucket List</h2>
                 <div class="page-header-actions">
+                    <button class="btn btn-secondary btn-small" id="blImportBtn" title="Create items from a screenshot of a reel or post">📷 Import</button>
                     <button class="btn btn-secondary btn-small" id="blGoodNowBtn" title="Things that are good in the next 60 days">🌿 Good now</button>
                     <button class="btn btn-primary btn-small" id="blAddBtn">+ Add</button>
                 </div>
@@ -11323,6 +11324,66 @@ service firebase.storage {
         </div>
     </div>
 
+    <!-- ========== BUCKET LIST IMPORT (screenshot -> LLM -> review) MODAL ========== -->
+    <div class="modal-overlay" id="blImportModal">
+        <div class="modal modal-wide">
+            <h3 id="blImportTitle">Import from Screenshot</h3>
+
+            <!-- Pane 1: stage screenshots / text -->
+            <div id="blImportInputPane">
+                <p class="bl-import-intro">Add a screenshot of a reel, post or article. The AI reads it and suggests places for your bucket list. You review everything before anything is saved.</p>
+                <div class="bl-import-sources">
+                    <button type="button" class="btn btn-primary btn-small" id="blImportPasteBtn">&#128203; Paste</button>
+                    <button type="button" class="btn btn-primary btn-small" id="blImportGalleryBtn">&#128444; Gallery</button>
+                    <button type="button" class="btn btn-primary btn-small" id="blImportCameraBtn">&#128247; Camera</button>
+                </div>
+                <input type="file" id="blImportFileInput" accept="image/*" multiple class="hidden">
+                <div class="bl-thumbs" id="blImportThumbs"></div>
+                <div class="form-group">
+                    <label for="blImportHint">Caption or hint (optional)</label>
+                    <textarea id="blImportHint" class="settings-textarea" rows="2" placeholder="e.g. paste the caption or hashtags, or say 'this is in Ireland'"></textarea>
+                </div>
+                <p class="bl-import-status" id="blImportStatus"></p>
+                <div class="bl-import-actions">
+                    <button type="button" class="btn btn-primary" id="blImportRunBtn">Read with AI</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="blImportCopyPromptBtn">Copy prompt</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="blImportToggleJsonBtn">Paste JSON</button>
+                </div>
+                <textarea id="blImportPromptBox" class="settings-textarea hidden" rows="6" readonly></textarea>
+                <div id="blImportJsonWrap" class="hidden">
+                    <div class="form-group">
+                        <label for="blImportJson">JSON from another chat app (same format as the copied prompt asks for)</label>
+                        <textarea id="blImportJson" class="settings-textarea" rows="6" placeholder='{"items":[{"name":"..."}]}'></textarea>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-small" id="blImportUseJsonBtn">Review this JSON</button>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" id="blImportCancelBtn">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Pane 2: review -->
+            <div id="blImportReviewPane" class="hidden">
+                <p class="bl-import-intro">Check each place, fix anything that is wrong, and untick any you do not want. Low-confidence and duplicate items start unticked.</p>
+                <p class="bl-import-status hidden" id="blImportReviewNote"></p>
+                <div id="blImportReviewList"></div>
+                <div class="form-group hidden" id="blImportPhotoRow">
+                    <label class="bl-inline-check"><input type="checkbox" id="blImportKeepPhotos" checked> Keep the screenshot(s) as photos on each saved item</label>
+                </div>
+                <details class="bl-import-raw">
+                    <summary>Show the raw AI response</summary>
+                    <pre id="blImportRawText"></pre>
+                </details>
+                <p class="bl-import-status" id="blImportReviewStatus"></p>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" id="blImportBackBtn">&#8592; Back</button>
+                    <div style="flex:1;"></div>
+                    <button class="btn btn-primary" id="blImportSaveBtn">Add selected</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== OPENSTREETMAP HELP MODAL ========== -->
     <!-- ===== Foursquare / Cloudflare Setup Help Modal ===== -->
     <div class="modal-overlay" id="fsqHelpModal">
@@ -11936,7 +11997,8 @@ export default {
     <script src="js/secondbrain.js?v=542"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=358"></script>
-    <script src="js/bucketlist.js?v=3"></script>
+    <script src="js/bucketlist.js?v=5"></script>
+    <script src="js/bucketlist-import.js?v=2"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>
