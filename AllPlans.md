@@ -49,7 +49,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 
 | File | Area | What it covers |
 |------|------|---------------|
-| `saveplacesPlan.md` | Life → Want to Go | Wish list of places/events to visit (towns, trails, waterfalls, bars, seasonal sights). Geographic stacking (country → region → city), month/season/date timing, multiple links, and LLM import from a pasted reel screenshot that returns JSON records. Planning only |
+| `saveplacesPlan.md` | Life → Bucket List | Wish list of places/events to visit (towns, trails, waterfalls, bars, seasonal sights). Geographic stacking (country → region → city), month/season/date timing, multiple links, and LLM import from a pasted reel screenshot that returns JSON records. Planning only |
 | `Health.md` | Life → My Health | Original health feature plan — conditions, medications, care team, appointments |
 | `plan.md` | App-wide | Original build plan from Phase 0 onward — now mostly historical |
 | `HousePlan.md` | House | Interior section — floors, rooms, Things, SubThings, full feature parity with Yard |
