@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=795">
+    <link rel="stylesheet" href="css/styles.css?v=796">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -2751,6 +2751,7 @@
                 <!-- Health badge lives inside the h2 so it flows inline with the title -->
                 <h2 id="plantTitle">Plant <span id="plantHealthBadge" class="health-badge" style="display:none;"></span></h2>
                 <div class="page-header-actions">
+                    <button class="btn btn-secondary btn-small" id="askAiPlantBtn" title="Ask ChatGPT, Claude or Google about this plant">&#129302; Ask AI</button>
                     <button class="btn btn-secondary btn-small" id="editPlantNameBtn">Rename</button>
                     <button class="btn btn-secondary btn-small" id="movePlantBtn">Move</button>
                     <button class="btn btn-secondary btn-small" id="clonePlantBtn">Clone</button>
@@ -11338,21 +11339,22 @@ service firebase.storage {
         </div>
     </div>
 
-    <!-- ========== BUCKET LIST: ASK AI ABOUT IT MODAL ========== -->
-    <div class="modal-overlay" id="blAskModal">
+    <!-- ========== ASK AI MODAL (shared — askai.js) ========== -->
+    <!-- Shows a ready-made prompt about a record (plant, bucket list item, ...) to copy or open in a chat app -->
+    <div class="modal-overlay" id="askAiModal">
         <div class="modal modal-wide">
-            <h3>Ask an AI About This Place</h3>
-            <p class="bl-import-intro">A ready-made question with everything you have saved about this place. Copy it into any AI chat app, or open one with it already filled in.</p>
-            <textarea id="blAskText" class="settings-textarea bl-ask-text" rows="14" readonly></textarea>
-            <p class="bl-import-status" id="blAskStatus"></p>
-            <div class="bl-ask-buttons">
-                <button type="button" class="btn btn-primary btn-small" id="blAskCopyBtn">&#128203; Copy</button>
-                <button type="button" class="btn btn-secondary btn-small" id="blAskChatGptBtn">Open in ChatGPT</button>
-                <button type="button" class="btn btn-secondary btn-small" id="blAskClaudeBtn">Open in Claude</button>
-                <button type="button" class="btn btn-secondary btn-small" id="blAskGoogleBtn">Open in Google AI Mode</button>
+            <h3 id="askAiTitle">Ask an AI</h3>
+            <p class="bl-import-intro">A ready-made question with everything the app knows about this. Copy it into any AI chat app, or open one with it already filled in, then ask your own questions.</p>
+            <textarea id="askAiText" class="settings-textarea ask-ai-text" rows="14" readonly></textarea>
+            <p class="bl-import-status" id="askAiStatus"></p>
+            <div class="ask-ai-buttons">
+                <button type="button" class="btn btn-primary btn-small" id="askAiCopyBtn">&#128203; Copy</button>
+                <button type="button" class="btn btn-secondary btn-small" id="askAi_chatgpt">Open in ChatGPT</button>
+                <button type="button" class="btn btn-secondary btn-small" id="askAi_claude">Open in Claude</button>
+                <button type="button" class="btn btn-secondary btn-small" id="askAi_google">Open in Google AI Mode</button>
             </div>
             <div class="modal-buttons">
-                <button class="btn btn-secondary" id="blAskCloseBtn">Close</button>
+                <button class="btn btn-secondary" id="askAiCloseBtn">Close</button>
             </div>
         </div>
     </div>
@@ -12014,7 +12016,7 @@ export default {
     <script src="js/firebase-config.js?v=581"></script>
     <script src="js/auth.js?v=351"></script>
     <script src="js/zones.js?v=355"></script>
-    <script src="js/plants.js?v=354"></script>
+    <script src="js/plants.js?v=355"></script>
     <script src="js/problems.js?v=389"></script>
     <script src="js/facts.js?v=351"></script>
     <script src="js/projects.js?v=404"></script>
@@ -12065,7 +12067,8 @@ export default {
     <script src="js/places.js?v=358"></script>
     <script src="js/bucketlist.js?v=11"></script>
     <script src="js/bucketlist-import.js?v=7"></script>
-    <script src="js/bucketlist-links.js?v=5"></script>
+    <script src="js/bucketlist-links.js?v=6"></script>
+    <script src="js/askai.js?v=1"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>

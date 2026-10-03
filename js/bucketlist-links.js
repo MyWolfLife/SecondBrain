@@ -817,33 +817,7 @@ async function blBuildAskPrompt(itemId, data) {
     ].join('\n');
 }
 
-/** "🤖 Ask AI": show the full prompt with Copy / open-in-app buttons. */
-async function blOpenAskAi(itemId, data) {
-    var box = document.getElementById('blAskText');
-    var status = document.getElementById('blAskStatus');
-    box.value = 'Building the prompt…';
-    status.textContent = '';
-    openModal('blAskModal');
-    var prompt = await blBuildAskPrompt(itemId, data);
-    box.value = prompt;
-
-    document.getElementById('blAskCloseBtn').onclick = function() { closeModal('blAskModal'); };
-    document.getElementById('blAskCopyBtn').onclick = async function() {
-        try {
-            await navigator.clipboard.writeText(box.value);
-            status.textContent = 'Copied. Paste it into any AI chat app.';
-        } catch (e) {
-            box.focus();
-            box.select();
-            status.textContent = 'Could not copy automatically. The text is selected, so copy it by hand.';
-        }
-    };
-    // These apps accept a question in the web address and open with it already typed in
-    function openWith(base) {
-        try { if (navigator.clipboard) navigator.clipboard.writeText(box.value).catch(function() {}); } catch (e) { /* optional */ }
-        window.open(base + encodeURIComponent(box.value), '_blank', 'noopener');
-    }
-    document.getElementById('blAskChatGptBtn').onclick = function() { openWith('https://chatgpt.com/?q='); };
-    document.getElementById('blAskClaudeBtn').onclick  = function() { openWith('https://claude.ai/new?q='); };
-    document.getElementById('blAskGoogleBtn').onclick  = function() { openWith('https://www.google.com/search?udm=50&q='); };
+/** "🤖 Ask AI about it": the shared Ask AI dialog (askai.js) with the full prompt. */
+function blOpenAskAi(itemId, data) {
+    openAskAiModal('Ask an AI About This Place', blBuildAskPrompt(itemId, data));
 }

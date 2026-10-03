@@ -158,6 +158,8 @@ Each plant is an individual physical instance — 3 azalea bushes = 3 records. P
 
 **[Shared]**: Facts, Problems, Quick Task List, Activities, Photos, Calendar Events — all available on plant detail.
 
+**🤖 Ask AI** (header button, `askAiForPlant` in `js/askai.js`): opens the shared Ask AI dialog (`#askAiModal`) with a prompt saying the user wants to talk about this plant and ask questions, followed by everything recorded: name and common name, zone path, health status, care info and notes, the user's home (`settings/main.cityState`) and today's date, facts, open and resolved problems, quick tasks with checklist items, calendar events (with repeat and last-done), activity history newest first (up to 60, with product names), whole-zone activities for the zones it sits in (10 most recent per zone), weeds recorded in those zones, and a photo count with captions. It ends with how to help: summarize the plant and its condition, point out anything due for the season, then wait for questions and flag anything in the records that looks wrong. **Shared dialog** (`openAskAiModal(title, promptOrPromise)`): shows the prompt with Copy / Open in ChatGPT (`chatgpt.com/?q=`) / Open in Claude (`claude.ai/new?q=`) / Open in Google AI Mode (`google.com/search?udm=50&q=`); buttons are disabled until the prompt is built; opening an app also copies the prompt, and a prompt longer than 7,000 URL-encoded characters (`ASK_AI_MAX_URL_CHARS`) opens the app empty with a message to paste it. Reusable loaders: `askAiRelatedRecords(targetType, targetId)` / `askAiRelatedSections()`. The Bucket List's Ask AI button uses the same dialog.
+
 ### Weeds (`weeds.js`)
 Weeds are tracked by type (not by zone instance). Each weed type stores its treatment and zone assignments.
 

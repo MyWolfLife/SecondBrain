@@ -173,6 +173,7 @@ It is used by the in-app AI assistant to answer your questions.
 - Set health status (🟢 Healthy / 🟡 Struggling / 🔵 Dormant / 🔴 Dead) from the dropdown — saves instantly, no button needed
 - Tap **Log Activity** to record what you did; all sections (Photos, Facts, Problems, Tasks, Activities) are collapsible accordions
 - **Shortcut:** Tap **⚡ QuickLog** on the main screen and say "I pruned the big azalea" — no navigation needed
+- **🤖 Ask AI** builds a question with everything you have recorded about this plant (care info, problems, tasks, activities and products used, nearby weeds) so you can chat about it in ChatGPT, Claude, or Google. Tap **Copy**, or open one of them with it already filled in
 
 ### Details
 

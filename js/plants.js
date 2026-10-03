@@ -236,6 +236,9 @@ async function loadPlantDetail(plantId) {
         // Store current plant info for buttons
         window.currentPlant = { id: doc.id, ...plant };
 
+        // 🤖 Ask AI: a prompt with everything recorded about this plant (askai.js)
+        document.getElementById('askAiPlantBtn').onclick = function() { askAiForPlant(doc.id); };
+
         // Populate health status dropdown and update the header badge
         var healthSelect = document.getElementById('plantHealthStatusSelect');
         healthSelect.value = plant.healthStatus || '';

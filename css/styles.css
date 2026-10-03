@@ -21176,5 +21176,7 @@ a.legacy-fin-card:hover {
 .bl-near-sub { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
 .bl-near-added { font-size: 0.8rem; color: #166534; font-weight: 600; white-space: nowrap; }
 .bl-coming-more { display: inline-block; margin-top: 6px; font-size: 0.9rem; }
-.bl-ask-text { width: 100%; font-size: 0.85rem; font-family: inherit; }
-.bl-ask-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+/* Shared Ask AI dialog (askai.js) */
+.ask-ai-text { width: 100%; font-size: 0.85rem; font-family: inherit; }
+.ask-ai-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.ask-ai-buttons .btn:disabled { opacity: 0.5; }
