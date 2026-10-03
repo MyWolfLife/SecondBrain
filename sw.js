@@ -2,7 +2,13 @@
 // Caches all local static assets so the app loads offline.
 // IMPORTANT: Bump CACHE_NAME on every deploy so users get fresh files.
 
-var CACHE_NAME = 'bishop-v612';
+var CACHE_NAME = 'bishop-v613';
+
+// Web Share Target (Bucket List): the phone's share sheet POSTs a shared screenshot/text to
+// SHARE_PATH. We stash it in SHARE_CACHE and redirect into the app, which picks it up (see
+// bucketShareCheck in js/bucketlist-links.js). SHARE_CACHE is kept across SW updates.
+var SHARE_CACHE = 'bishop-share';
+var SHARE_PATH  = '/SecondBrain/share-target';
 
 var STATIC_ASSETS = [
     '/SecondBrain/',
@@ -97,7 +103,7 @@ self.addEventListener('activate', function(e) {
     e.waitUntil(
         caches.keys().then(function(keys) {
             return Promise.all(
-                keys.filter(function(k) { return k !== CACHE_NAME; })
+                keys.filter(function(k) { return k !== CACHE_NAME && k !== SHARE_CACHE; })
                     .map(function(k) { return caches.delete(k); })
             );
         })
@@ -113,8 +119,51 @@ self.addEventListener('message', function(e) {
 // Fetch: serve from cache when available, fall back to network.
 // ignoreSearch: true means js/app.js?v=506 matches the cached js/app.js entry.
 // External CDN requests (Firebase, Leaflet, etc.) always go to the network.
+/**
+ * Handle a share-sheet POST: save the shared images + text, then send the user into the app.
+ * Always redirects (even if saving fails) so the share never lands on an error page.
+ */
+async function handleShareTarget(request) {
+    try {
+        var form  = await request.formData();
+        var cache = await caches.open(SHARE_CACHE);
+
+        // Drop anything left over from an earlier share
+        var old = await cache.keys();
+        await Promise.all(old.map(function(k) { return cache.delete(k); }));
+
+        var files = form.getAll('images').filter(function(f) {
+            return f && typeof f === 'object' && f.type && f.type.indexOf('image/') === 0;
+        });
+        for (var i = 0; i < files.length; i++) {
+            await cache.put('/SecondBrain/__share/file-' + i, new Response(files[i], {
+                headers: { 'Content-Type': files[i].type, 'X-File-Name': encodeURIComponent(files[i].name || 'shared') }
+            }));
+        }
+        var meta = {
+            title    : String(form.get('title') || ''),
+            text     : String(form.get('text')  || ''),
+            url      : String(form.get('url')   || ''),
+            fileCount: files.length,
+            savedAt  : Date.now()
+        };
+        await cache.put('/SecondBrain/__share/meta', new Response(JSON.stringify(meta), {
+            headers: { 'Content-Type': 'application/json' }
+        }));
+    } catch (err) {
+        // fall through to the redirect; the app simply finds nothing to import
+    }
+    return Response.redirect(new URL('/SecondBrain/?share=1#bucketlist', self.location.origin).href, 303);
+}
+
 self.addEventListener('fetch', function(e) {
     var url = e.request.url;
+
+    // Share-sheet POST (Bucket List share target)
+    if (e.request.method === 'POST' && new URL(url).pathname === SHARE_PATH) {
+        e.respondWith(handleShareTarget(e.request));
+        return;
+    }
 
     // Skip non-GET requests and external CDN URLs
     if (e.request.method !== 'GET' || !url.includes('/SecondBrain/')) {

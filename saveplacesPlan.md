@@ -1,6 +1,6 @@
 # Bucket List — Save-Places-to-Visit Plan
 
-**Status**: Phases 1-4 COMPLETE (2026-10-03). Phase 5 (share target) not started.
+**Status**: ALL 5 PHASES COMPLETE (2026-10-03).
 **Routes as built**: `#bucketlist` (list), `#bucketitem/{id}` (detail).
 **Area**: Life → new tile "Bucket List" (🧭)
 **Related docs**: `Checkin-Plan.md` (visited places / Foursquare / OSM search), `MyLife-Functional-Spec.md` Part 9 (Places) and Part 10b (LLM), `PwaPlan.md` (offline), `SecondBrain.md` (LLM actions)
@@ -239,13 +239,15 @@ This costs almost nothing (same parser, same review screen) and makes the featur
 | **2 — Stacking & map ✅ COMPLETE** | Nominatim normalization to country/region/city, drill-down browse with counts, Leaflet map view, "Good now" month view, expired-badge logic | The "everything in Ireland" payoff |
 | **3 — LLM import ✅ COMPLETE** | Import modal (paste/gallery/camera + text hint), prompt, JSON parser, review screen, screenshot attached as photo, background geocode, **Paste JSON** + **Copy prompt** path | The "skip the screenshot graveyard" payoff |
 | **4 — Integrations ✅ COMPLETE** | Mark visited → journal/check-in link, Add to trip, calendar reminder, SecondBrain actions + help, global search | Wish list feeds the rest of the app |
-| **5 — Share target (stretch)** | PWA Web Share Target: share a screenshot or reel link from the phone's share sheet directly into Import | Capture in two taps, no screenshot step to forget |
+| **5 — Share target ✅ COMPLETE** | PWA Web Share Target: share a screenshot or reel link from the phone's share sheet directly into Import | Capture in two taps, no screenshot step to forget |
 
 Phase 5 note: a reel's **link alone can't be read by the LLM** (no fetching Instagram), so a shared link is saved as an item/`links[]` entry for manual completion, while a shared **image** goes through the §6 flow. It needs a `share_target` in `manifest.json` and a service-worker handler; scope it after the PWA install flow is confirmed solid on the phone.
 
 ---
 
 **As built (Phase 4)**: SecondBrain actions are `ADD_BUCKET_ITEM` and `QUERY_BUCKET_LIST`; "Mark visited" stays one-tap and a separate **Log visit in journal** button does the journal link (it marks the item visited when the entry is saved); "Add to trip" adds a trip **Location** (not an itinerary day) and sets the item to Planned; the calendar button offers the event itself or a reminder. Global search already covered the collection from Phase 1.
+
+**As built (Phase 5)**: Android Chrome only (no iOS support for Web Share Target). Shared images open the import dialog (the user still taps Read with AI); shared text/link opens the Add form; a shared link is kept on imported items as a "Shared link". Details in the functional spec, Part 1 → Share Target.
 
 ## 10. Housekeeping checklist (every phase, same commit as the code)
 

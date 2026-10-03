@@ -1248,6 +1248,8 @@ window.addEventListener('popstate', function() {
 function initApp() {
     initAppName().then(function() {
         handleRoute();
+        // A screenshot/link shared to the app from the phone's share sheet (Bucket List)
+        if (typeof bucketShareCheck === 'function') bucketShareCheck();
         // One-time repair of contacts missing parentPersonId (see contacts.js).
         // Runs after initAppName so window._settingsMain (which holds the
         // completion flag) is populated. Fire-and-forget - never blocks routing.

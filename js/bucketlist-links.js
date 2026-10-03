@@ -388,3 +388,65 @@ async function bucketListShowFiltered(q) {
     if (window.location.hash === '#bucketlist') loadBucketListPage();
     else window.location.hash = '#bucketlist';
 }
+
+// ============================================================
+// Share target (phone share sheet → Bucket List)
+// ============================================================
+
+/**
+ * If the app was just opened by the phone's share sheet (URL has ?share=1), collect what the
+ * service worker stashed and put it to use:
+ *   • shared image(s) → the screenshot import dialog, with any shared text as the caption hint
+ *   • only a link/text → the Add dialog pre-filled (name, the link under Other links, notes)
+ * Called from initApp() in app.js, so it only runs after sign-in.
+ */
+async function bucketShareCheck() {
+    if (!/[?&]share=1(&|$)/.test(window.location.search)) return;
+    // Remove ?share=1 straight away so a refresh doesn't replay the share
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
+    if (!window.caches) return;
+
+    var meta = null, files = [];
+    try {
+        var cache = await caches.open('bishop-share');
+        var metaRes = await cache.match('/SecondBrain/__share/meta');
+        if (!metaRes) return;
+        meta = await metaRes.json();
+        for (var i = 0; i < (meta.fileCount || 0); i++) {
+            var res = await cache.match('/SecondBrain/__share/file-' + i);
+            if (!res) continue;
+            var blob = await res.blob();
+            files.push(new File([blob], decodeURIComponent(res.headers.get('X-File-Name') || 'shared.jpg'), { type: blob.type }));
+        }
+        // One-shot: clear it so it can't be imported twice
+        var keys = await cache.keys();
+        await Promise.all(keys.map(function(k) { return cache.delete(k); }));
+    } catch (err) {
+        console.warn('Could not read the shared content:', err);
+        return;
+    }
+
+    // Android usually puts the link inside the text; pull it out
+    var combined = [meta.title, meta.text, meta.url].filter(Boolean).join('\n');
+    var urlMatch = (meta.url || meta.text || '').match(/https?:\/\/\S+/);
+    var sharedUrl = urlMatch ? urlMatch[0] : '';
+    var textNoUrl = (meta.text || '').replace(sharedUrl, '').trim();
+
+    if (files.length) {
+        openBucketImportModal();
+        await _blimpAddFiles(files);
+        _blimpSharedUrl = sharedUrl;   // kept as a link on each item that gets imported
+        // The AI can't open links, so leave the URL out of the hint text it sees
+        document.getElementById('blImportHint').value = [meta.title, textNoUrl].filter(Boolean).join(String.fromCharCode(10));
+        _blimpStatus('Shared screenshot ready. Tap Read with AI.');
+        return;
+    }
+    if (!combined.trim()) return;
+
+    var firstLine = (meta.title || textNoUrl.split('\n')[0] || '').trim().slice(0, 80);
+    _blOpenModal(null, {
+        name : firstLine,
+        notes: textNoUrl && textNoUrl !== firstLine ? textNoUrl : null,
+        links: sharedUrl ? [{ url: sharedUrl, label: 'Shared link' }] : []
+    });
+}

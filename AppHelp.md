@@ -3461,6 +3461,8 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
 One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. Items you import show on the map a moment after you first open it.
 
+**Sharing straight from your phone:** on an Android phone with Bishop installed to the home screen, you can skip the screenshot step. In Instagram, Photos, Maps, or any app, tap **Share**, choose **Bishop**, and the Import screen opens with your picture already loaded (the caption comes along as a hint, and a shared link is kept on each place you save). Tap **Read with AI** and review as usual. If you share only a link or some text, the **Add** form opens with it filled in so you can finish the details. Bishop must be installed (Add to Home Screen) and open at least once after an update before it shows up in the share list, and it can take a day for Android to pick up the change; reinstalling it speeds that up. iPhone does not offer this, so there you still take a screenshot and use **Paste** or **Gallery**.
+
 **No AI key, or prefer your own chat app?** Tap **Copy prompt**, paste it into any chat app along with the screenshot, then copy the JSON it returns into the **Paste JSON** box and tap **Review this JSON**. The review screen works exactly the same way.
 
 **Expired events:** a one-time event whose dates have passed shows an **Expired** badge but stays on the list until you dismiss it.

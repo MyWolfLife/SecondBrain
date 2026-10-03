@@ -19,6 +19,7 @@ var _blimpItems  = [];       // normalized records awaiting review
 var _blimpSource = 'llm-image';
 var _blimpRaw    = '';       // raw LLM text, shown in the review screen for prompt tuning
 var _blimpBusy   = false;
+var _blimpSharedUrl = '';   // link shared from the phone share sheet; saved on each imported item
 
 // ============================================================
 // Prompt
@@ -202,6 +203,7 @@ function openBucketImportModal() {
     _blimpItems = [];
     _blimpRaw = '';
     _blimpBusy = false;
+    _blimpSharedUrl = '';
 
     document.getElementById('blImportHint').value = '';
     document.getElementById('blImportJson').value = '';
@@ -579,6 +581,8 @@ async function _blimpSaveSelected() {
             });
             var doc = _blBuildDocFromItem(edited, _blimpSource,
                 (it.confidence + ' confidence' + (it.evidence ? ': ' + it.evidence : '')).slice(0, 300));
+            // A link shared along with the screenshot (e.g. the reel's URL) is kept on the item
+            if (_blimpSharedUrl) doc.links = [{ url: _blimpSharedUrl, label: 'Shared link' }];
             var ref = await userCol('bucketList').add(doc);
 
             // Keep the screenshot(s) on each saved item

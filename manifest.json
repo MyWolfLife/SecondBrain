@@ -6,6 +6,17 @@
   "scope": "/SecondBrain/",
   "display": "standalone",
   "orientation": "any",
+  "share_target": {
+    "action": "/SecondBrain/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "images", "accept": ["image/*"] }]
+    }
+  },
   "background_color": "#ffffff",
   "theme_color": "#16a34a",
   "icons": [
