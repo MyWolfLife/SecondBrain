@@ -249,6 +249,10 @@ Phase 5 note: a reel's **link alone can't be read by the LLM** (no fetching Inst
 
 **As built (Phase 5)**: Android Chrome only (no iOS support for Web Share Target). Shared images open the import dialog (the user still taps Read with AI); shared text/link opens the Add form; a shared link is kept on imported items as a "Shared link". Details in the functional spec, Part 1 → Share Target.
 
+## 9a. Improvements after launch (2026-10-03, all built)
+
+Fixes: tall screenshots are sliced so comment threads stay readable; Grok uses its vision model for screenshots; pins are looked up right after saving (not only when the map opens); near-duplicate names are caught (add form, import review, QuickLog). Features: Sort "Nearest to me" with a Within-miles filter; "Bucket List Nearby" on the trip page; check-in nudge to mark a nearby item visited; "Bucket List — coming up" on the Life page; full editing ("More details") on import review cards. Smaller: an imported screenshot is stored once for several items; leaving a trip undoes an automatic Planned; Tag filter. Plus two buttons on the item page: 🔎 Google (opens Google AI Mode with a question) and 🤖 Ask AI about it (a complete prompt to copy or open in ChatGPT / Claude / Google). Details in the functional spec, Part 8g.
+
 ## 10. Housekeeping checklist (every phase, same commit as the code)
 
 - `MyLife-Functional-Spec.md`: new Part for Bucket List + Firestore table row + routes; state which sections changed.

@@ -662,6 +662,7 @@ function handleRoute() {
     } else if (page === 'life') {
         showPage('life');
         loadLifePage();
+        if (typeof blRenderLifeComingUp === 'function') blRenderLifeComingUp();   // Bucket List items in season soon
     } else if (page === 'journal') {
         showPage('journal');
         loadJournalPage();

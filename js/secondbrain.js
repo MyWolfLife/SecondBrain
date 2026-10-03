@@ -957,6 +957,12 @@ function _sbShowConfirmation(result) {
 
     document.getElementById('sbConfirmFields').innerHTML   = _sbRenderConfirmFields(action, payload);
     document.getElementById('sbConfirmWarnings').innerHTML = _sbRenderWarnings(action, payload);
+    // The Bucket List duplicate warning needs the list loaded; load it and redraw the warnings
+    if (action === 'ADD_BUCKET_ITEM' && typeof _blLoadItems === 'function') {
+        _blLoadItems().then(function() {
+            if (_sbLastResult === result) document.getElementById('sbConfirmWarnings').innerHTML = _sbRenderWarnings(action, payload);
+        }).catch(function() {});
+    }
 
     // Photo preview strip
     _sbRenderConfirmPhotos();
@@ -1048,6 +1054,13 @@ function _sbRenderWarnings(action, payload) {
     if ((action === 'ADD_IMPORTANT_DATE' || action === 'LOG_INTERACTION') && p.personFound === false) {
         html += '<div class="sb-warning">⚠ "' + _sbEsc(p.personName || '') +
                 '" was not found in your People list. Confirming will create them as a new person.</div>';
+    }
+    if (action === 'ADD_BUCKET_ITEM' && typeof blFindSimilar === 'function') {
+        var blSimilar = blFindSimilar(p.name, { country: p.country, region: p.region, city: p.city }, null);
+        if (blSimilar) {
+            html += '<div class="sb-warning">⚠ ' + _sbEsc(_blNameWithPlace(blSimilar)) +
+                    ' is already on your Bucket List and looks like the same place.</div>';
+        }
     }
     if (action === 'LOG_ACTIVITY' && p.unknownChemicals && p.unknownChemicals.length) {
         p.unknownChemicals.forEach(function(c) {
@@ -2438,6 +2451,7 @@ async function _sbWrite(action, payload) {
             _blEditId = null;
             ref = await userCol('bucketList').add(_blBuildDocFromItem(bucketNorm, 'quicklog', null));
             newId = ref.id;
+            blLocateSoon(newId);   // map pin in the background
             // QuickLog photos (e.g. the screenshot) go straight onto the item
             await _sbSavePhotos('bucketItem', newId, '');
             return newId;

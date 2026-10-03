@@ -1083,6 +1083,7 @@ function _lpRenderDetailPage(page) {
                 ${_lpAccordionSection('itinerary', '📅 Itinerary', '', travel)}
                 ${_lpAccordionSection('receipts', '🧾 Receipts', '', false, '<span onclick="event.stopPropagation(); _lpOpenCurrencySetup()" title="Set up receipt currencies" style="cursor:pointer; color:#2563eb; border:1px solid #93c5fd; border-radius:50%; width:17px; height:17px; min-width:17px; display:inline-flex; align-items:center; justify-content:center; font-size:0.72em; line-height:1;">⚙️</span>')}
                 ${travel ? '' : _lpAccordionSection('locations', '📌 Locations', '', false)}
+                ${travel ? '' : _lpAccordionSection('bucketNearby', '🧭 Bucket List Nearby', '', false)}
                 ${travel ? '' : _lpAccordionSection('planning', '🗺️ Planning Board', '', false)}
                 ${travel ? '' : _lpAccordionSection('notes', '📓 Journal', '', false)}
                 ${travel ? '' : _lpAccordionSection('todos', '☑️ To-Do', '', false)}
@@ -1169,6 +1170,7 @@ const LP_ACC_HELP = {
     itinerary: { key: 'life-project-itinerary', title: 'Itinerary' },
     receipts:  { key: 'life-project-receipts',  title: 'Receipts' },
     locations: { key: 'life-project-locations', title: 'Locations' },
+    bucketNearby: { key: 'life-project-bucketnearby', title: 'Bucket List Nearby' },
     planning:  { key: 'life-project-planning',  title: 'Planning Board' },
     notes:     { key: 'life-project-journal',   title: 'Journal' },
     todos:     { key: 'life-project-todo',       title: 'To-Do' },
@@ -1232,6 +1234,7 @@ function _lpLoadAccordionContent(id) {
         case 'tripInfo':  return Promise.resolve(_lpLoadTripInfo());
         case 'people':    return _lpLoadPeople();
         case 'locations': return _lpLoadLocations();
+        case 'bucketNearby': return (typeof blLoadTripNearby === 'function') ? blLoadTripNearby(_lpCurrentProjectId) : Promise.resolve();
         case 'distances': return _lpLoadDistances();
         case 'todos':     return _lpLoadTodos();
         case 'planning':  return _lpLoadPlanningBoard();

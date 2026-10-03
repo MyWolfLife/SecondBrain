@@ -5,6 +5,8 @@
 //   • Add to trip           (Life Projects → project Locations)
 //   • Add to calendar       (Life Calendar event or reminder)
 //   • bucketListShowFiltered() — used by SecondBrain "show my bucket list" queries
+//   • Trip page "Bucket List nearby", check-in nudge, Life page "coming up"
+//   • Google (AI Mode) button and the full "Ask AI about it" prompt
 //
 // Depends on bucketlist.js (BL_KINDS, _bl* helpers), journal.js, life-projects.js, lifecalendar.js.
 // Plan document: saveplacesPlan.md §8
@@ -26,6 +28,8 @@ function _blAddIntegrationButtons(actionEl, itemId, data) {
             function() { blLogVisitInJournal(itemId, data); });
     makeBtn('🧳 Add to trip', function() { blOpenTripModal(itemId, data); });
     makeBtn('📅 Add to calendar', function() { blOpenCalendarModal(itemId, data); });
+    makeBtn('🔎 Google', function() { blOpenGoogle(data); });
+    makeBtn('🤖 Ask AI about it', function() { blOpenAskAi(itemId, data); });
 }
 
 // ============================================================
@@ -129,7 +133,7 @@ async function blOpenTripModal(itemId, data) {
     }
 }
 
-/** Copy the item into the chosen trip's Locations list and link the two. */
+/** "Add to trip" button in the trip picker dialog. */
 async function _blAddToTrip(itemId, data) {
     var select = document.getElementById('blTripSelect');
     var status = document.getElementById('blTripStatus');
@@ -141,41 +145,8 @@ async function _blAddToTrip(itemId, data) {
     addBtn.disabled = true;
     status.textContent = 'Adding…';
     try {
-        // Already a location with this name in the trip? Don't duplicate it.
-        var dup = await lpSub(projectId, 'projectLocations').where('name', '==', data.name).get();
-        if (!dup.empty) { status.textContent = 'A location named "' + data.name + '" is already in that trip.'; return; }
-
-        var geo = data.geo || {};
-        var notes = [];
-        if (data.why) notes.push(data.why);
-        var timing = _blTimingText(data.timing);
-        if (timing) notes.push('Best time: ' + timing);
-        if (data.notes) notes.push(data.notes);
-        notes.push('(From your Bucket List)');
-
-        // Same shape the Locations form saves (see _lpSaveLocation in life-projects.js).
-        // Only exact coordinates are copied; approximate map pins would skew drive-time lookups.
-        var locData = {
-            name   : data.name,
-            address: geo.address || _blLocationText(geo) || '',
-            phone  : '',
-            website: data.website || '',
-            contact: '',
-            notes  : notes.join('\n'),
-            lat    : geo.lat != null ? geo.lat : null,
-            lng    : geo.lng != null ? geo.lng : null
-        };
-        var locRef = await lpLocationsCol().add(Object.assign({}, locData, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
-        await lpSub(projectId, 'projectLocations').add(Object.assign({ locationId: locRef.id }, locData, { addedAt: firebase.firestore.FieldValue.serverTimestamp() }));
-
-        var update = {
-            trips    : firebase.firestore.FieldValue.arrayUnion({ projectId: projectId, title: title }),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        // Going on a trip means it's planned
-        if ((data.status || 'want') === 'want') update.status = 'planned';
-        await userCol('bucketList').doc(itemId).update(update);
-
+        var result = await blAddToTripCore(itemId, data, projectId, title);
+        if (result === 'duplicate') { status.textContent = 'A location named "' + data.name + '" is already in that trip.'; return; }
         closeModal('blTripModal');
         loadBucketItemPage(itemId);
     } catch (err) {
@@ -183,6 +154,87 @@ async function _blAddToTrip(itemId, data) {
         status.textContent = 'Could not add to the trip: ' + err.message;
     } finally {
         addBtn.disabled = false;
+    }
+}
+
+/**
+ * Copy a bucket list item into a trip's Locations and link the two. Used by the trip picker and by
+ * the trip page's "Bucket List nearby" section. Returns 'added' or 'duplicate'.
+ * The item moves from Want to Planned, flagged plannedByTrip so it can move back if it leaves the trip.
+ */
+async function blAddToTripCore(itemId, data, projectId, title) {
+    // Already a location with this name in the trip? Don't duplicate it.
+    var dup = await lpSub(projectId, 'projectLocations').where('name', '==', data.name).get();
+    if (!dup.empty) return 'duplicate';
+
+    var geo = data.geo || {};
+    var notes = [];
+    if (data.why) notes.push(data.why);
+    var timing = _blTimingText(data.timing);
+    if (timing) notes.push('Best time: ' + timing);
+    if (data.notes) notes.push(data.notes);
+    notes.push('(From your Bucket List)');
+
+    // Same shape the Locations form saves (see _lpSaveLocation in life-projects.js).
+    // Only exact coordinates are copied; approximate map pins would skew drive-time lookups.
+    var locData = {
+        name   : data.name,
+        address: geo.address || _blLocationText(geo) || '',
+        phone  : '',
+        website: data.website || '',
+        contact: '',
+        notes  : notes.join('\n'),
+        lat    : geo.lat != null ? geo.lat : null,
+        lng    : geo.lng != null ? geo.lng : null
+    };
+    var locRef = await lpLocationsCol().add(Object.assign({}, locData, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
+    var plRef = await lpSub(projectId, 'projectLocations').add(Object.assign({ locationId: locRef.id }, locData, { addedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+
+    var update = {
+        trips    : firebase.firestore.FieldValue.arrayUnion({ projectId: projectId, title: title, projectLocationId: plRef.id }),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    // Going on a trip means it's planned (remembered as automatic so leaving the trip can undo it)
+    if ((data.status || 'want') === 'want') { update.status = 'planned'; update.plannedByTrip = true; }
+    await userCol('bucketList').doc(itemId).update(update);
+    return 'added';
+}
+
+/**
+ * When an item's page opens, drop any trips it is no longer part of (the trip was deleted, or the
+ * location was unlinked/deleted on the trip page). If that leaves it in no trip and its "Planned"
+ * status came from a trip, it goes back to Want. Redraws the page only if something changed.
+ */
+async function _blReconcileTrips(itemId, data) {
+    var trips = data.trips || [];
+    if (!trips.length) return;
+    try {
+        var keep = [];
+        for (var i = 0; i < trips.length; i++) {
+            var t = trips[i];
+            var still = false;
+            var proj = await userCol('lifeProjects').doc(t.projectId).get();
+            if (proj.exists) {
+                if (t.projectLocationId) {
+                    still = (await lpSub(t.projectId, 'projectLocations').doc(t.projectLocationId).get()).exists;
+                } else {
+                    // Older links (before the location id was recorded): match by name
+                    still = !(await lpSub(t.projectId, 'projectLocations').where('name', '==', data.name).get()).empty;
+                }
+            }
+            if (still) keep.push(t);
+        }
+        if (keep.length === trips.length) return;
+
+        var update = { trips: keep, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (keep.length === 0 && data.status === 'planned' && data.plannedByTrip) {
+            update.status = 'want';
+            update.plannedByTrip = false;
+        }
+        await userCol('bucketList').doc(itemId).update(update);
+        if (window.location.hash === '#bucketitem/' + itemId) loadBucketItemPage(itemId);
+    } catch (err) {
+        console.warn('Could not check trips for this item:', err);
     }
 }
 
@@ -449,4 +501,349 @@ async function bucketShareCheck() {
         notes: textNoUrl && textNoUrl !== firstLine ? textNoUrl : null,
         links: sharedUrl ? [{ url: sharedUrl, label: 'Shared link' }] : []
     });
+}
+
+// ============================================================
+// Shared screenshot (one imported screenshot shown on several items)
+// ============================================================
+
+/**
+ * Show screenshots that were imported along with this item but are stored on another item from the
+ * same import (photos.alsoTargetIds). Tapping one toggles a larger view.
+ */
+async function _blLoadSharedPhotos(itemId) {
+    var wrap = document.getElementById('blSharedPhotos');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    try {
+        var snap = await userCol('photos').where('alsoTargetIds', 'array-contains', itemId).get();
+        if (snap.empty) return;
+        var head = document.createElement('div');
+        head.className = 'bl-unplaced-head';
+        head.textContent = 'Screenshot shared with other places from the same import (tap to enlarge)';
+        wrap.appendChild(head);
+        snap.forEach(function(doc) {
+            var img = document.createElement('img');
+            img.className = 'bl-shared-photo';
+            img.src = doc.data().imageData;
+            img.alt = doc.data().caption || 'Imported screenshot';
+            img.onclick = function() { img.classList.toggle('bl-shared-photo--big'); };
+            wrap.appendChild(img);
+        });
+    } catch (err) {
+        console.warn('Could not load shared screenshots:', err);
+    }
+}
+
+// ============================================================
+// Trip page: "Bucket List nearby"
+// ============================================================
+
+var BL_TRIP_NEARBY_MILES = 100;
+
+/**
+ * Fill the trip page's "Bucket List nearby" section (life-projects.js accordion 'bucketNearby'):
+ * Want/Planned items within 100 miles of any of the trip's locations that have coordinates,
+ * nearest first, each with a one-tap "+ Add" to the trip's Locations.
+ */
+async function blLoadTripNearby(projectId) {
+    var body = document.getElementById('lpBody_bucketNearby');
+    if (!body) return;
+    var refs = (typeof _lpLocations !== 'undefined' ? _lpLocations : []).filter(function(l) { return l.lat != null && l.lng != null; });
+    if (!refs.length) {
+        body.innerHTML = '<p class="bl-near-msg">Add a location with coordinates to this trip (Locations → Find a place) and Bucket List places near it will show here.</p>';
+        return;
+    }
+    body.innerHTML = '<p class="bl-near-msg">Looking for nearby Bucket List places…</p>';
+
+    try {
+        await _blLoadItems();
+        var active = _blItems.filter(function(it) { var s = it.data.status || 'want'; return s === 'want' || s === 'planned'; });
+        // Items without a pin yet get one first (about a second each, done once)
+        var statusEl = body.querySelector('.bl-near-msg');
+        await blEnsurePins(active, statusEl, function() { return !!document.getElementById('lpBody_bucketNearby'); });
+
+        var rows = [];
+        active.forEach(function(it) {
+            var p = _blPoint(it.data);
+            if (!p) return;
+            var best = null;
+            refs.forEach(function(l) {
+                var mi = _blMiles({ lat: l.lat, lng: l.lng }, p);
+                if (!best || mi < best.mi) best = { mi: mi, loc: l.name };
+            });
+            if (best && best.mi <= BL_TRIP_NEARBY_MILES) rows.push({ it: it, mi: best.mi, loc: best.loc });
+        });
+        rows.sort(function(a, b) { return a.mi - b.mi; });
+
+        if (!rows.length) {
+            body.innerHTML = '<p class="bl-near-msg">No Bucket List places within ' + BL_TRIP_NEARBY_MILES + ' miles of this trip’s locations.</p>';
+            return;
+        }
+        var title = (typeof _lpCurrentProject !== 'undefined' && _lpCurrentProject) ? (_lpCurrentProject.title || '') : '';
+        body.innerHTML = '';
+        rows.forEach(function(r) {
+            var inTrip = (r.it.data.trips || []).some(function(t) { return t.projectId === projectId; });
+            var row = document.createElement('div');
+            row.className = 'bl-near-row';
+            var info = document.createElement('div');
+            info.className = 'bl-near-info';
+            var a = document.createElement('a');
+            a.href = '#bucketitem/' + r.it.id;
+            a.textContent = (BL_KINDS[r.it.data.kind] || BL_KINDS.other).icon + ' ' + r.it.data.name;
+            var sub = document.createElement('div');
+            sub.className = 'bl-near-sub';
+            var timing = _blTimingText(r.it.data.timing);
+            sub.textContent = _blMilesLabel(r.mi) + ' from ' + r.loc + (timing ? ' · ' + timing : '');
+            info.appendChild(a);
+            info.appendChild(sub);
+            row.appendChild(info);
+            if (inTrip) {
+                var done = document.createElement('span');
+                done.className = 'bl-near-added';
+                done.textContent = '✓ In this trip';
+                row.appendChild(done);
+            } else {
+                var btn = document.createElement('button');
+                btn.className = 'btn btn-primary btn-small';
+                btn.textContent = '+ Add';
+                btn.onclick = async function() {
+                    btn.disabled = true;
+                    btn.textContent = 'Adding…';
+                    try {
+                        var res = await blAddToTripCore(r.it.id, r.it.data, projectId, title);
+                        btn.textContent = res === 'duplicate' ? 'Already a location' : '✓ Added';
+                        if (typeof _lpLoadLocations === 'function') _lpLoadLocations();   // refresh the Locations section
+                    } catch (err) {
+                        console.error('Add to trip failed:', err);
+                        btn.disabled = false;
+                        btn.textContent = '+ Add';
+                        alert('Could not add it: ' + err.message);
+                    }
+                };
+                row.appendChild(btn);
+            }
+            body.appendChild(row);
+        });
+    } catch (err) {
+        console.error('Bucket List nearby failed:', err);
+        body.innerHTML = '<p class="bl-near-msg">Could not load Bucket List places.</p>';
+    }
+}
+
+// ============================================================
+// Check-in nudge
+// ============================================================
+
+var BL_CHECKIN_RADIUS_MILES = 0.5;
+
+/**
+ * After a check-in is saved (journal.js), see whether a Want/Planned item has its pin within half a
+ * mile; if so, offer to mark it Visited and link it to the check-in's journal entry.
+ * Town/region/country items are skipped (their pin is just a center point).
+ */
+async function blCheckinNudge(lat, lng, journalEntryId, date) {
+    if (lat == null || lng == null) return;
+    try {
+        await _blLoadItems();
+        var best = null;
+        _blItems.forEach(function(it) {
+            var s = it.data.status || 'want';
+            if (s !== 'want' && s !== 'planned') return;
+            if (['country', 'region', 'town'].indexOf(it.data.kind) !== -1) return;
+            var p = _blPoint(it.data);
+            if (!p) return;
+            var mi = _blMiles({ lat: lat, lng: lng }, p);
+            if (mi <= BL_CHECKIN_RADIUS_MILES && (!best || mi < best.mi)) best = { it: it, mi: mi };
+        });
+        if (!best) return;
+        if (!confirm('🗺️ "' + best.it.data.name + '" is on your Bucket List.\n\nMark it as visited?')) return;
+        var update = { status: 'visited', visitedDate: date || _blTodayIso(), plannedByTrip: false,
+                       updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (!best.it.data.visitedJournalId && journalEntryId) update.visitedJournalId = journalEntryId;
+        await userCol('bucketList').doc(best.it.id).update(update);
+    } catch (err) {
+        console.warn('Bucket List check-in nudge failed:', err);
+    }
+}
+
+// ============================================================
+// Life page: "Bucket List — coming up"
+// ============================================================
+
+/**
+ * Under the Life page's Coming Up section: Want/Planned items that are in season or happening now,
+ * or whose season/dates start within 30 days. Soonest first, up to 8.
+ */
+async function blRenderLifeComingUp() {
+    var section = document.getElementById('lifeBucketSection');
+    if (!section) return;
+    section.innerHTML = '';
+    section.style.display = 'none';
+    try {
+        await _blLoadItems();
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        var thisMonth = today.getMonth() + 1;
+        var rows = [];
+        _blItems.forEach(function(it) {
+            var s = it.data.status || 'want';
+            if (s !== 'want' && s !== 'planned') return;
+            var t = it.data.timing;
+            if (!t || !t.type || t.type === 'none') return;
+            var label = null, sortKey = null;
+            if (t.type === 'months') {
+                if ((t.months || []).length === 12) return;   // year-round: never "coming up"
+                if ((t.months || []).indexOf(thisMonth) !== -1) { label = 'In season now'; sortKey = 0; }
+            } else {
+                var win = _blNextWindow(t);
+                if (win && win.start <= today && (!win.end || win.end >= today)) { label = 'Happening now'; sortKey = 0; }
+            }
+            if (!label) {
+                var next = _blNextWindow(t);
+                if (!next) return;
+                var days = Math.round((next.start - today) / 86400000);
+                if (days < 0 || days > 30) return;
+                label = days === 0 ? 'Starts today' : days === 1 ? 'Starts tomorrow' : 'Starts in ' + days + ' days';
+                sortKey = days;
+            }
+            rows.push({ it: it, label: label, sortKey: sortKey });
+        });
+        if (!rows.length) return;
+        rows.sort(function(a, b) { return a.sortKey - b.sortKey || (a.it.data.priority || 2) - (b.it.data.priority || 2); });
+
+        var html = '<h3 class="life-calendar-heading">🗺️ Bucket List — coming up</h3>';
+        rows.slice(0, 8).forEach(function(r) {
+            var g = r.it.data.geo || {};
+            var where = g.city || g.region || g.country || '';
+            var timing = _blTimingText(r.it.data.timing);
+            html += '<div class="life-cal-item">' +
+                        '<div class="life-cal-info">' +
+                            '<a class="life-cal-label life-cal-event-link" href="#bucketitem/' + encodeURIComponent(r.it.id) + '">' + escapeHtml(r.it.data.name) + '</a>' +
+                            '<span class="life-cal-age">' + escapeHtml([where, timing].filter(Boolean).join(' · ')) + '</span>' +
+                        '</div>' +
+                        '<span class="life-cal-days">' + escapeHtml(r.label) + '</span>' +
+                    '</div>';
+        });
+        if (rows.length > 8) html += '<a class="bl-coming-more" href="#bucketlist" onclick="_blFilters.month=\'now\'">See all ' + rows.length + ' →</a>';
+        section.innerHTML = html;
+        section.style.display = '';
+    } catch (err) {
+        console.warn('Bucket List coming up failed:', err);
+    }
+}
+
+// ============================================================
+// Google and "Ask an AI"
+// ============================================================
+
+/** A short natural-language question for Google (sent in the web address, so kept brief). */
+function blGoogleQuestion(data) {
+    var loc = _blLocationText(data.geo || {});
+    var timing = _blTimingText(data.timing);
+    return 'Tell me about ' + data.name + (loc ? ' in ' + loc : '') + ': what it is, why people visit, the best time to go' +
+           (timing ? ' (I was thinking ' + timing + ')' : '') +
+           ', how long to spend there, costs or tickets, tips, and what else is nearby.';
+}
+
+/** "🔎 Google": open Google's AI Mode with the question already typed in (and copy it, just in case). */
+function blOpenGoogle(data) {
+    var q = blGoogleQuestion(data);
+    try { if (navigator.clipboard) navigator.clipboard.writeText(q).catch(function() {}); } catch (e) { /* optional */ }
+    // udm=50 opens Google's AI Mode; where that isn't available Google shows normal results for the same question
+    window.open('https://www.google.com/search?udm=50&q=' + encodeURIComponent(q), '_blank', 'noopener');
+}
+
+/**
+ * Build a complete prompt for any AI chat app: everything known about the item (including facts and
+ * saved links), where the user lives, and a list of what to cover.
+ */
+async function blBuildAskPrompt(itemId, data) {
+    var geo = data.geo || {};
+    var kind = BL_KINDS[data.kind] || BL_KINDS.other;
+    var home = '';
+    var facts = [];
+    try {
+        var main = await userCol('settings').doc('main').get();
+        home = (main.exists && main.data().cityState) ? main.data().cityState.trim() : '';
+        var fsnap = await userCol('facts').where('targetType', '==', 'bucketItem').where('targetId', '==', itemId).get();
+        fsnap.forEach(function(d) { var f = d.data(); if (f.label || f.value) facts.push((f.label || '') + ': ' + (f.value || '')); });
+    } catch (e) { /* the prompt still works without these */ }
+
+    var about = [];
+    function add(label, value) { if (value) about.push('- ' + label + ': ' + value); }
+    add('Name', data.name);
+    add('Type', kind.label);
+    add('Location', _blLocationText(geo));
+    add('Address', geo.address);
+    if (geo.lat != null && geo.lng != null) add('Coordinates', geo.lat + ', ' + geo.lng);
+    add('Best time (my note)', _blTimingText(data.timing));
+    add('Why I saved it', data.why);
+    add('My notes', data.notes);
+    add('Tags', (data.tags || []).join(', '));
+    add('Website', data.website);
+    (data.links || []).forEach(function(l) { add('Link I saved' + (l.label ? ' (' + l.label + ')' : ''), l.url); });
+    facts.forEach(function(f) { add('Fact I recorded', f); });
+    var status = BL_STATUSES[data.status || 'want'] || 'Want';
+    add('Status', status + (data.visitedDate ? ' (visited ' + _blFmtDate(data.visitedDate, true) + ')' : '') +
+                   ', priority ' + (BL_PRIORITIES[data.priority || 2] || 'Medium'));
+    if (data.trips && data.trips.length) add('Part of my trip(s)', data.trips.map(function(t) { return t.title; }).join(', '));
+
+    var me = [];
+    if (home) me.push('- I live near: ' + home);
+    me.push("- Today's date: " + _blFmtDate(_blTodayIso(), true));
+
+    return [
+        'This place is on my travel bucket list. Tell me everything useful about it so I can decide when and how to go.',
+        '',
+        'WHAT I ALREADY HAVE',
+        about.join('\n'),
+        '',
+        'ABOUT ME',
+        me.join('\n'),
+        '',
+        'PLEASE COVER',
+        '1. What it is and what makes it special (2-3 sentences).',
+        '2. The best time to visit: months or season, day of week and time of day, crowds and weather.' +
+            (_blTimingText(data.timing) ? ' Tell me if my "best time" note is right.' : ''),
+        '3. Getting there' + (home ? ' from where I live' : '') + ': distance, drive or flight time, nearest airport and town, and parking.',
+        '4. Costs: entry fees, passes, reservations or timed tickets, and how far ahead to book.',
+        '5. How long to spend there, with a suggested half-day or full-day plan.',
+        '6. Practical tips: difficulty and accessibility, what to bring, seasonal closures, pets, photography.',
+        '7. Other things within about an hour that are worth combining with it, one line each.',
+        '8. A few places to stay and eat nearby, across budgets.',
+        '9. Anything that has changed recently or that I should double-check before going.',
+        '',
+        'If you are unsure about something, especially prices, opening hours or dates, say so rather than guessing, and tell me where to check.'
+    ].join('\n');
+}
+
+/** "🤖 Ask AI": show the full prompt with Copy / open-in-app buttons. */
+async function blOpenAskAi(itemId, data) {
+    var box = document.getElementById('blAskText');
+    var status = document.getElementById('blAskStatus');
+    box.value = 'Building the prompt…';
+    status.textContent = '';
+    openModal('blAskModal');
+    var prompt = await blBuildAskPrompt(itemId, data);
+    box.value = prompt;
+
+    document.getElementById('blAskCloseBtn').onclick = function() { closeModal('blAskModal'); };
+    document.getElementById('blAskCopyBtn').onclick = async function() {
+        try {
+            await navigator.clipboard.writeText(box.value);
+            status.textContent = 'Copied. Paste it into any AI chat app.';
+        } catch (e) {
+            box.focus();
+            box.select();
+            status.textContent = 'Could not copy automatically. The text is selected, so copy it by hand.';
+        }
+    };
+    // These apps accept a question in the web address and open with it already typed in
+    function openWith(base) {
+        try { if (navigator.clipboard) navigator.clipboard.writeText(box.value).catch(function() {}); } catch (e) { /* optional */ }
+        window.open(base + encodeURIComponent(box.value), '_blank', 'noopener');
+    }
+    document.getElementById('blAskChatGptBtn').onclick = function() { openWith('https://chatgpt.com/?q='); };
+    document.getElementById('blAskClaudeBtn').onclick  = function() { openWith('https://claude.ai/new?q='); };
+    document.getElementById('blAskGoogleBtn').onclick  = function() { openWith('https://www.google.com/search?udm=50&q='); };
 }

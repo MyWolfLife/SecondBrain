@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=794">
+    <link rel="stylesheet" href="css/styles.css?v=795">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -852,8 +852,18 @@
                     <option value="priority">Sort: Priority</option>
                     <option value="newest">Sort: Newest</option>
                     <option value="name">Sort: Name A–Z</option>
+                    <option value="near">Sort: Nearest to me</option>
                 </select>
+                <select id="blNearFilter" class="hidden" title="Distance">
+                    <option value="">Any distance</option>
+                    <option value="25">Within 25 miles</option>
+                    <option value="50">Within 50 miles</option>
+                    <option value="100">Within 100 miles</option>
+                    <option value="250">Within 250 miles</option>
+                </select>
+                <select id="blTagFilter" class="hidden" title="Tag"><option value="">All tags</option></select>
             </div>
+            <p class="bl-map-status" id="blNearStatus"></p>
             <div class="bl-browse-bar hidden" id="blBrowseBar"></div>
             <div class="bl-view-row">
                 <p class="bl-count-line" id="blCountLine"></p>
@@ -903,6 +913,8 @@
             </div>
             <div id="blPhotoContainer"></div>
             <p class="empty-state" id="blPhotoEmptyState">No photos yet.</p>
+            <!-- Screenshot stored on another item from the same import (bucketlist-links.js) -->
+            <div id="blSharedPhotos" class="bl-shared-photos"></div>
         </section>
 
         <!-- Page: Settings Hub -->
@@ -7563,6 +7575,8 @@ service firebase.storage {
             <div id="lifeCalendarSection" style="display:none; margin-top:24px;">
                 <div id="lifeCalendarContainer"></div>
             </div>
+            <!-- Bucket List items in season / happening in the next 30 days (bucketlist-links.js) -->
+            <div id="lifeBucketSection" style="display:none; margin-top:24px;"></div>
         </section>
 
         <!-- ═══════════════════════════════════════════════════════════
@@ -11324,6 +11338,25 @@ service firebase.storage {
         </div>
     </div>
 
+    <!-- ========== BUCKET LIST: ASK AI ABOUT IT MODAL ========== -->
+    <div class="modal-overlay" id="blAskModal">
+        <div class="modal modal-wide">
+            <h3>Ask an AI About This Place</h3>
+            <p class="bl-import-intro">A ready-made question with everything you have saved about this place. Copy it into any AI chat app, or open one with it already filled in.</p>
+            <textarea id="blAskText" class="settings-textarea bl-ask-text" rows="14" readonly></textarea>
+            <p class="bl-import-status" id="blAskStatus"></p>
+            <div class="bl-ask-buttons">
+                <button type="button" class="btn btn-primary btn-small" id="blAskCopyBtn">&#128203; Copy</button>
+                <button type="button" class="btn btn-secondary btn-small" id="blAskChatGptBtn">Open in ChatGPT</button>
+                <button type="button" class="btn btn-secondary btn-small" id="blAskClaudeBtn">Open in Claude</button>
+                <button type="button" class="btn btn-secondary btn-small" id="blAskGoogleBtn">Open in Google AI Mode</button>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="blAskCloseBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== BUCKET LIST: ADD TO TRIP MODAL ========== -->
     <div class="modal-overlay" id="blTripModal">
         <div class="modal">
@@ -12011,7 +12044,7 @@ export default {
     <script src="js/garage.js?v=537"></script>
     <script src="js/structures.js?v=537"></script>
     <script src="js/moveThings.js?v=350"></script>
-    <script src="js/journal.js?v=553"></script>
+    <script src="js/journal.js?v=554"></script>
     <script src="js/contacts.js?v=550"></script>
     <script src="js/neighbors.js?v=8"></script>
     <script src="js/favorites.js?v=1"></script>
@@ -12020,19 +12053,19 @@ export default {
     <script src="js/health.js?v=386"></script>
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
-    <script src="js/life-projects.js?v=483"></script>
+    <script src="js/life-projects.js?v=484"></script>
     <script src="js/exercise.js?v=115"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2/dist/zip.min.js"></script>
     <script src="js/chat.js?v=350"></script>
-    <script src="js/secondbrain.js?v=544"></script>
+    <script src="js/secondbrain.js?v=545"></script>
     <script src="js/sbissues.js?v=350"></script>
     <script src="js/places.js?v=358"></script>
-    <script src="js/bucketlist.js?v=10"></script>
-    <script src="js/bucketlist-import.js?v=6"></script>
-    <script src="js/bucketlist-links.js?v=4"></script>
+    <script src="js/bucketlist.js?v=11"></script>
+    <script src="js/bucketlist-import.js?v=7"></script>
+    <script src="js/bucketlist-links.js?v=5"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>
@@ -12061,7 +12094,7 @@ export default {
     <script src="js/analyzer-news.js?v=1"></script>
     <script src="js/analyzer-holdingshealth.js?v=4"></script>
     <script src="js/private.js?v=579"></script>
-    <script src="js/app.js?v=690"></script>
+    <script src="js/app.js?v=691"></script>
     <script src="js/offline-sync.js?v=3"></script>
 
 </body>

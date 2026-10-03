@@ -1421,6 +1421,11 @@ async function saveJournalEntry() {
                 }
             }
 
+            // Checked in somewhere on the Bucket List? Offer to mark it visited (bucketlist-links.js)
+            if (isCheckinEntry && !sourceBucketId && _journalCheckinVenue && typeof blCheckinNudge === 'function') {
+                await blCheckinNudge(_journalCheckinVenue.lat, _journalCheckinVenue.lng, ref.id, date);
+            }
+
             if (mentionedIds.length > 0) {
                 await _syncJournalMentionInteractions(ref.id, date, text, mentionedIds);
             }

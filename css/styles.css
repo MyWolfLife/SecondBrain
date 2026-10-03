@@ -21138,3 +21138,43 @@ a.legacy-fin-card:hover {
     padding: 8px;
     border-radius: 6px;
 }
+
+/* ── Bucket List: improvements round (near me, trip nearby, shared screenshot, ask AI) ── */
+.bl-thumb-parts {
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 1px 5px;
+    border-radius: 6px;
+}
+.bl-rev-more { margin-top: 8px; font-size: 0.9rem; }
+.bl-rev-more summary { cursor: pointer; color: #0369a1; font-weight: 600; margin-bottom: 6px; }
+.bl-rev-months { margin-bottom: 8px; }
+.bl-shared-photos { margin-top: 8px; }
+.bl-shared-photo {
+    display: block;
+    max-width: 160px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    cursor: zoom-in;
+    margin-top: 6px;
+}
+.bl-shared-photo--big { max-width: 100%; cursor: zoom-out; }
+.bl-near-msg { color: #6b7280; font-size: 0.9rem; font-style: italic; }
+.bl-near-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    border-bottom: 1px solid #eef2f7;
+}
+.bl-near-info { flex: 1; min-width: 0; }
+.bl-near-info a { font-weight: 600; }
+.bl-near-sub { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+.bl-near-added { font-size: 0.8rem; color: #166534; font-weight: 600; white-space: nowrap; }
+.bl-coming-more { display: inline-block; margin-top: 6px; font-size: 0.9rem; }
+.bl-ask-text { width: 100%; font-size: 0.85rem; font-family: inherit; }
+.bl-ask-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }

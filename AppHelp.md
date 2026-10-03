@@ -1855,6 +1855,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ### Quick Help
 - The Life home page -- a tile grid linking to Journal, Contacts, Health, Notes, Calendar, Projects, and Checklists
 - The **Coming Up** section below the tiles shows birthdays, anniversaries, and upcoming life events in the next 30 days
+- **Bucket List — coming up** shows bucket list places that are in season now or start within 30 days (fall color, light shows, festivals)
 - Today's events show a clickable address and phone number so you can navigate or call without digging
 
 ### Details
@@ -2071,6 +2072,16 @@ This is your list of real places for the trip -- hotels, restaurants, parks, wha
 **Locations** (planning mode only, 📌): Real-world places linked to this project. Add by searching your existing locations, tapping **🔍 Find a place** to look one up (type a city/area, then the place name, and pick from the results — it fills in the name, address, and map coordinates for you, then tries to add the phone and website automatically for you to review), or entering a new one by hand (with an optional "Add to Planning Board"). The Find-a-place picker has a **Foursquare / OpenStreetMap** toggle — switch to **OpenStreetMap** for trails, lakes, parks, and other natural features that Foursquare doesn't cover (great for national-park trips). Each location has **Coordinates (lat, lng)** fields with a **📍 Get lat/lng** button that looks the coordinates up from the address — handy for filling in coordinates on a location you added before (just Edit it, tap Get lat/lng, and Save; no need to delete and re-add). Coordinates are what let the **🚗 Calculate** button in Distances work. Tip: if you copy a "lat, lng" pair from Google Maps (like `51.16796, -115.56148`) and paste it into the **latitude** box, the app automatically splits it and drops the longitude into its own box. Clicking into the latitude box selects whatever's already there, so you can just click and paste to replace it. Tapping a location's **address** opens it in Google Maps — if the location has coordinates saved, the map drops a pin on those exact coordinates (better for lakes, trailheads, and other spots whose address text alone geocodes poorly); otherwise it searches the address text. Row actions: Edit, **Unlink** (removes it from this project but keeps the global record), and **Delete** (removes the global record).
 
 **Bulk import** (**⬆ Import** button): paste an exported list of places — e.g. a **Google My Maps CSV** — or **📄 Load file…** to load a `.csv`/`.txt`/`.kml`, then tap **✨ Convert with AI**. The app uses AI to read whatever format it's in (it even knows a Google My Maps `POINT` is longitude-then-latitude), skips anything that isn't a single place, and looks up an **address for each point** (this takes about a second per point, so you'll see a "Looking up addresses…" counter). You then get a **checklist to confirm** before anything is saved: each row shows the name, coordinates, and found address; rows with bad coordinates are flagged and can't be selected, and any place whose name already exists in the project is flagged and left unchecked so you don't get duplicates. Tick **Add imported locations to the Planning Board** to also drop each one onto the board (pick which group; it's added as an "idea" activity linked to the location), then tap **Import selected**. Imported places have their coordinates, so they work with Distances and the map links right away.
+
+---
+
+## screen:life-project-bucketnearby
+
+These are places from your Bucket List that are close to this trip, so you don't forget the waterfall or bar you saved months ago when you are about to be right next to it.
+
+---
+
+**Bucket List Nearby** (planning mode only, 🧭): lists the places on your Bucket List (Want or Planned) that are within 100 miles of any of this trip's **Locations** that have map coordinates, closest first. Each line shows how far it is and from which location (for example "4 mi from Helen cabin"), plus its best time if you set one. Tap the name to open it, or **+ Add** to add it to this trip's Locations (it is then marked Planned on your Bucket List). Places already in the trip show "✓ In this trip". If the trip has no locations with coordinates yet, add one with **Find a place** in Locations first. Bucket List places without a map pin are looked up the first time, which takes about a second each.
 
 ---
 
@@ -3110,6 +3121,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - **Place / Check-in:** Attach a place to the entry. The Check-In button opens a GPS-based picker to find nearby venues (Foursquare-powered) or search by name. After check-in, the venue is locked to the entry. Check-in entries show a "checked in" badge in the feed.
   - **Checking in somewhere you're not right now** (e.g. a trip you took last week): type a city, area, or ZIP into the **location box** first (like "Little Rock, AR" or "72205"), then search by name. **International places work too** — include the country, e.g. "Calgary, Canada" or "Calgary, Alberta". The search looks across that whole area — so a venue on the edge of town still shows up, and big landmarks like a major airport are found too. Short queries work best ("hartsfield" beats "hartsfield international airport"). Leave the location box on "Current location" to search around your GPS position instead.
   - **Foursquare vs. OpenStreetMap**: the two radio buttons under the search box pick the data source. **Foursquare** (default) is best for businesses — restaurants, hotels, shops. **OpenStreetMap** is best for **trails, lakes, parks, and natural features** Foursquare doesn't list (e.g. "Rundle Forebay"). If a place won't come up on Foursquare, switch to OpenStreetMap and search again by name. (OpenStreetMap is name-search only — no GPS "nearby" list — and the location box acts as a soft area hint.)
+  - **Bucket List places:** if you check in within half a mile of a place on your Bucket List, the app asks whether to mark it visited, and links it to this entry.
   - **Can't find the place at all?** Tap **📍 Save Coordinates** in the picker instead of searching — it immediately checks you in at your exact GPS position, no name or search needed. Use it for a spot in the woods, a creek bend, a trailhead, where you parked — anywhere that doesn't have a searchable name. This doesn't create a place record (nothing shows up in your Places list), it's flagged as a coordinate pin on the journal entry itself. In the feed, that entry shows its lat/lng as a link — tap it to open the exact spot directly in Google Maps in a new tab. Editing that entry later shows the same "📍 Coordinates saved" display (with a Change Location button) instead of a blank "Check In" prompt — the coordinates are always safely stored on the entry either way. Tapping **Change Location** on a coordinates check-in searches for named places *around the coordinates you already saved* (not wherever your phone happens to be when you tap it), and hides the "Save Coordinates" option there, since that one always grabs your current physical position — useful for a live check-in, not for adjusting an old entry later.
 
 **@Mentions:**
@@ -3432,12 +3444,19 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - The bar under the filters drills down **country → region → city**, with a count on each
 - **List / Map** switches to a map where nearby places group into numbered circles; tap a circle to zoom in
 - **Good now** shows what is worth doing in the next 60 days
+- **Sort: Nearest to me** puts the closest places first and shows how far each one is; pick a distance like "Within 50 miles" to see only what is near you
 - The search box and filters narrow things by status, type, priority, or month
 - Tap a line to open the item and see its details, map, photos, and facts (**Edit** is at the top of that page)
 
 ### Details
 
 **The list:** by default it shows items marked **Want** or **Planned**, with the High-priority ones first. Use the status filter to see Visited, Dismissed, or everything. Each item is one line: its name, then the city (or the state, or the country if that is all you have). Tap a line to open the item, where you will find the priority, when it is best, your reason, the map, and the **Edit** button.
+
+**Nearest to me:** choose **Sort: Nearest to me** and allow location access. Each line then shows its distance ("Amicalola Falls · Dawsonville · 57 mi"), closest first, and a **Within** box appears so you can limit it to 25, 50, 100, or 250 miles. Handy when you are travelling. Places without a map pin yet are looked up for you, which takes about a second each the first time.
+
+**Tags:** once you have tagged items, a **Tag** filter appears with every tag you use.
+
+**Duplicates:** when you add a place whose name looks like one already on your list ("Amicalola Falls State Park" vs "Amicalola Falls" in the same area), the app asks before saving a second copy.
 
 **Filters:** Type (waterfall, trail, bar...), Priority, and **Month** — pick May to see everything that is good in May, including events whose dates fall in that month. The line above the list shows how many items match.
 
@@ -3453,11 +3472,12 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - **Why / Notes / Tags:** your reason for wanting to go and anything else to remember.
 - **Website and other links:** keep the official site plus as many reel or video links as you like.
 
-**Importing from a screenshot:** tap **📷 Import**, then add the screenshot with **Paste** (or Ctrl+V), **Gallery** or **Camera**. You can add up to six, and type the caption or a hint such as "this is in Ireland" to help the AI. Tap **Read with AI** and wait about 10 to 20 seconds. You then get a review screen with one card per place the AI found:
+**Importing from a screenshot:** tap **📷 Import**, then add the screenshot with **Paste** (or Ctrl+V), **Gallery** or **Camera**. Long scrolling screenshots (a whole comment thread) work: they are read in slices so the text stays sharp, and the thumbnail shows how many parts. You can add up to six, and type the caption or a hint such as "this is in Ireland" to help the AI. Tap **Read with AI** and wait about 10 to 20 seconds. You then get a review screen with one card per place the AI found:
 - Fix any name, type, country, state, city, or reason that is wrong
 - Untick places you do not want. Low-confidence guesses, places already on your list, and repeats start unticked
 - Each card shows what the AI saw in the image, so a bad read is easy to spot
-- Leave **Keep the screenshot(s) as photos** ticked to attach the screenshot to each saved place
+- Open **More details** on a card to set when to go, notes, tags, and the website before saving
+- Leave **Keep the screenshot(s) as photos** ticked to keep the screenshot with the saved places (it is stored once and shown on each of them)
 - Any web links you pasted into the caption box (a Facebook or Instagram reel, a YouTube video) are saved on each place under Other links. The AI cannot open links, so it only reads the screenshot and the text, not the link
 - Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
 One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. For well-known places it fills in the state and nearest town from what it already knows, even if the screenshot doesn't say. It also reads the location tag under the account name and comments that say where a place is, and ignores things like like-counts and music credits. Anything it is unsure of is marked medium or low confidence. Items you import show on the map a moment after you first open it.
@@ -3484,6 +3504,8 @@ One post can name several places, so you may get several cards. The AI is told n
 - **📓 Log visit in journal** writes a journal entry about the visit and marks the place Visited
 - **🧳 Add to trip** puts it on a vacation trip's Locations list
 - **📅 Add to calendar** puts the event, or a reminder before the best time, on your Life Calendar
+- **🔎 Google** opens Google's AI search with a question about this place already typed in
+- **🤖 Ask AI about it** builds a detailed question with everything you have saved, to copy or open in ChatGPT, Claude, or Google
 - A map appears when the item has coordinates; **Open in Maps** opens it in Google Maps
 - Attach photos (such as the screenshot that gave you the idea) and facts
 - **Edit** changes any field; **Back** returns to the list
@@ -3499,6 +3521,14 @@ One post can name several places, so you may get several cards. The AI is told n
 **Add to trip:** pick one of your vacation trips and the place is added to that trip's **Locations** list, with your reason, best time, and website filled in. The item moves to **Planned** and a **Trips** line on this page links to the trip. A place is only copied with map coordinates when it has exact ones; if the trip needs drive times, open the location there and use **Get lat/lng**. You need at least one active vacation under Life → Projects.
 
 **Add to calendar:** for an event with dates you can put the event itself on your **Life Calendar** (yearly events use the next time around), or just a reminder before it starts. For something good in certain months (like fall color) you get a reminder before the season begins, 1 week to 2 months ahead (2 weeks by default). The reminder never lands in the past, and it syncs to Google Calendar if that is connected. If the item has no "When", set one first with **Edit**.
+
+**Google:** opens Google in a new tab, in its AI Mode, already asking what the place is, why people go, the best time, how long to spend, costs, tips, and what is nearby. The question is also copied, in case you want to paste it somewhere else.
+
+**Ask AI about it:** shows a ready-made question that includes everything you have saved about the place (where it is, your reason, notes, links, facts, best time) plus your home town, and asks for the best time to go, how to get there, costs and booking, how long to stay, tips, nearby sights, and places to stay and eat. Tap **Copy**, or **Open in ChatGPT**, **Open in Claude**, or **Open in Google AI Mode** to start a chat with it already filled in.
+
+**Leaving a trip:** if you remove this place from a trip's Locations (or delete the trip), it drops off the Trips line next time you open it, and if the trip had made it **Planned** it goes back to **Want**. A Planned you set yourself is left alone.
+
+**Shared screenshot:** when one screenshot produced several places, it is kept once and shown under Photos on each of them.
 
 **Photos and facts:** work like on any other record. Photos are compressed before saving. Facts are free-form label and value pairs such as "Height: 729 ft" or "Parking: lower lot".
 

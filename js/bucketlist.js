@@ -66,7 +66,8 @@ function blPlaceRules() {
 }
 
 /**
- * Load the AI settings (Settings → LLM). Returns { apiKey, model, endpoint } or null when not set up.
+ * Load the AI settings (Settings → LLM). Returns { apiKey, model, endpoint, provider, customModel }
+ * or null when not set up. customModel is true when the user typed their own model name.
  */
 async function blLoadLlm() {
     var doc = await userCol('settings').doc('llm').get();
@@ -74,7 +75,8 @@ async function blLoadLlm() {
     if (!cfg || !cfg.provider || !cfg.apiKey) return null;
     var llm = (typeof LLM_PROVIDERS !== 'undefined') ? LLM_PROVIDERS[cfg.provider] : null;
     if (!llm) return null;
-    return { apiKey: cfg.apiKey, model: cfg.model || llm.model, endpoint: llm.endpoint };
+    return { apiKey: cfg.apiKey, model: cfg.model || llm.model, endpoint: llm.endpoint,
+             provider: cfg.provider, customModel: !!cfg.model };
 }
 
 /**
@@ -137,7 +139,10 @@ var _blDetailMap   = null;   // Leaflet map on the detail page
 var _blSearchResults = [];   // location search results shown in the modal
 
 // Current list filters. status 'active' = Want + Planned.
-var _blFilters = { text: '', status: 'active', kind: '', priority: '', month: '', sort: 'priority' };
+var _blFilters = { text: '', status: 'active', kind: '', priority: '', month: '', tag: '', sort: 'priority', within: '' };
+var _blHere       = null;    // the user's position {lat, lng} for "Nearest to me"
+var _blHereAsked  = false;   // position already requested (don't prompt repeatedly)
+var _blEditOrigStatus = null; // status of the item when the edit form opened
 
 var _blView      = 'list';   // 'list' or 'map'
 var _blMap       = null;     // Leaflet map for the map view
@@ -310,6 +315,7 @@ async function loadBucketListPage() {
 
     try {
         await _blLoadItems();
+        _blRebuildTagOptions();
         _blRenderList();
     } catch (err) {
         console.error('Error loading bucket list:', err);
@@ -338,12 +344,19 @@ function _blWireListControls() {
         blKindFilter    : 'kind',
         blPriorityFilter: 'priority',
         blMonthFilter   : 'month',
-        blSortSelect    : 'sort'
+        blTagFilter     : 'tag',
+        blSortSelect    : 'sort',
+        blNearFilter    : 'within'
     };
     Object.keys(map).forEach(function(id) {
         var el = document.getElementById(id);
         el.value = _blFilters[map[id]];
-        el.onchange = function() { _blFilters[map[id]] = el.value; _blRenderList(); };
+        el.onchange = function() {
+            _blFilters[map[id]] = el.value;
+            // Picking "Nearest to me" gets a fresh position
+            if (id === 'blSortSelect' && el.value === 'near') { _blHere = null; _blHereAsked = false; }
+            _blRenderList();
+        };
     });
 
     // "Good now" shortcut toggles the Month filter between "now" and "any"
@@ -419,6 +432,7 @@ function _blMatches(data) {
     }
     if (f.kind && data.kind !== f.kind) return false;
     if (f.priority && String(data.priority || 2) !== f.priority) return false;
+    if (f.tag && (data.tags || []).indexOf(f.tag) === -1) return false;
     if (f.month === 'now') {
         if (!_blGoodNow(data)) return false;
     } else if (f.month && _blMonthsOf(data.timing).indexOf(parseInt(f.month, 10)) === -1) {
@@ -537,7 +551,27 @@ function _blRenderList() {
 
     _blRenderBrowse(pool);
 
+    // "Nearest to me": distance from the user to each item's pin (exact, or approximate)
+    var distances = {};
+    var nearMode = _blFilters.sort === 'near';
+    var nearCandidates = shown;
+    document.getElementById('blNearFilter').classList.toggle('hidden', !nearMode);
+    if (!nearMode) document.getElementById('blNearStatus').textContent = '';
+    if (nearMode && !_blHere) _blRequestHere();
+    if (nearMode && _blHere) {
+        shown.forEach(function(it) { var p = _blPoint(it.data); if (p) distances[it.id] = _blMiles(_blHere, p); });
+        var maxMi = parseInt(_blFilters.within, 10);
+        if (maxMi) shown = shown.filter(function(it) { return distances[it.id] != null && distances[it.id] <= maxMi; });
+    }
+
     shown.sort(function(a, b) {
+        if (nearMode && _blHere) {
+            var da = distances[a.id], db = distances[b.id];
+            if (da == null && db == null) return (a.data.name || '').localeCompare(b.data.name || '');
+            if (da == null) return 1;   // no pin yet: after everything with a distance
+            if (db == null) return -1;
+            return da - db;
+        }
         if (_blFilters.sort === 'name') return (a.data.name || '').localeCompare(b.data.name || '');
         if (_blFilters.sort === 'newest') return _blCreatedMs(b.data) - _blCreatedMs(a.data);
         // Default: priority (High first), then name
@@ -568,7 +602,13 @@ function _blRenderList() {
     if (_blView === 'map') {
         _blRenderMap(shown);
     } else {
-        shown.forEach(function(it) { container.appendChild(_blRenderCard(it.id, it.data)); });
+        shown.forEach(function(it) { container.appendChild(_blRenderCard(it.id, it.data, distances[it.id])); });
+        // Items without a pin can't be measured yet: look them up, then redraw
+        if (nearMode && _blHere) {
+            blEnsurePins(nearCandidates, document.getElementById('blNearStatus'), function() {
+                return _blFilters.sort === 'near' && _blView === 'list' && window.location.hash === '#bucketlist';
+            }).then(function(placed) { if (placed && window.location.hash === '#bucketlist') _blRenderList(); });
+        }
     }
 }
 
@@ -667,74 +707,205 @@ function _blRenderMap(shown) {
     _blLocateMissing(shown);
 }
 
-/**
- * Geocode items that have a city/region/country but no pin yet (one request per second, as
- * Nominatim asks). The approximate point is saved on the item (geo.approxLat/approxLng) so each
- * item is only ever looked up once. A failed lookup is remembered (geo.approxFailed) so it isn't
- * retried every time the map opens; editing the item's location clears that.
- */
+/** Map view: look up pins for the shown items that don't have one yet, then redraw. */
 async function _blLocateMissing(shown) {
-    if (_blLocating) return;
-    var todo = shown.filter(function(it) {
-        var g = it.data.geo || {};
-        if (_blPoint(it.data) || g.approxFailed) return false;
-        return !!(g.venue || g.city || g.region || g.country);
+    var placed = await blEnsurePins(shown, document.getElementById('blMapStatus'), function() {
+        return _blView === 'map' && window.location.hash === '#bucketlist';
     });
-    if (todo.length === 0) return;
+    if (placed && _blView === 'map' && window.location.hash === '#bucketlist') _blRenderList();
+}
+
+/**
+ * Look up an approximate map pin for one item from its venue/name and city/region/country, and
+ * save it on the item (geo.approxLat/approxLng). One request per second, as Nominatim asks.
+ * Tries the specific place first (the venue, or the item's own name for a trail/waterfall/bar etc.
+ * when the city or region is known), then "name, country", then just the city/region/country.
+ * A definite "no match" is remembered (geo.approxFailed) so it isn't retried every time.
+ * @param it  { id, data } — data.geo is updated in place
+ * @returns 'placed' | 'failed' (no match) | 'skipped' (already has a pin / nothing to look up) | 'error' (try later)
+ */
+async function blGeocodeItem(it) {
+    var g = it.data.geo || (it.data.geo = {});
+    if (_blPoint(it.data) || g.approxFailed) return 'skipped';
+    if (!(g.venue || g.city || g.region || g.country)) return 'skipped';
+
+    var specific = ['country', 'region', 'town'].indexOf(it.data.kind) === -1;
+    var lead = g.venue || ((specific && (g.city || g.region)) ? it.data.name : null);
+    var area = [g.city, g.region, g.country].filter(Boolean).join(', ');
+    var queries = [];
+    if (lead) queries.push([lead, area].filter(Boolean).join(', '));
+    if (lead && g.country && area !== g.country) queries.push(lead + ', ' + g.country);   // fewer words often matches better
+    if (area) queries.push(area);
+
+    var found = null, lookupFailed = false;
+    for (var q = 0; q < queries.length && !found; q++) {
+        try {
+            await _placesNominatimRateLimit();
+            var resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' +
+                                   encodeURIComponent(queries[q]), { headers: { 'Accept-Language': 'en' } });
+            if (!resp.ok) { lookupFailed = true; break; }   // temporary problem: try again next time
+            found = (await resp.json())[0] || null;
+        } catch (netErr) { lookupFailed = true; break; }
+    }
+    if (!found && lookupFailed) return 'error';
+
+    var update = {};
+    if (found) {
+        g.approxLat = parseFloat(found.lat);
+        g.approxLng = parseFloat(found.lon);
+        update['geo.approxLat'] = g.approxLat;
+        update['geo.approxLng'] = g.approxLng;
+        if (!g.countryCode && found.address && found.address.country_code) {
+            g.countryCode = found.address.country_code.toUpperCase();
+            update['geo.countryCode'] = g.countryCode;
+        }
+    } else {
+        g.approxFailed = true;
+        update['geo.approxFailed'] = true;
+    }
+    try { await userCol('bucketList').doc(it.id).update(update); }
+    catch (saveErr) { console.warn('Could not save map position (read-only?):', saveErr); }
+    return found ? 'placed' : 'failed';
+}
+
+/**
+ * Make sure every item in `items` that can have a pin has one, one lookup at a time.
+ * statusEl (optional) shows progress; keepGoing (optional) is checked before each lookup so the
+ * loop stops when the user moves on. Returns true if any new pin was placed.
+ */
+async function blEnsurePins(items, statusEl, keepGoing) {
+    if (_blLocating) return false;
+    var todo = items.filter(function(it) {
+        var g = it.data.geo || {};
+        return !_blPoint(it.data) && !g.approxFailed && !!(g.venue || g.city || g.region || g.country);
+    });
+    if (todo.length === 0) return false;
 
     _blLocating = true;
-    var status = document.getElementById('blMapStatus');
     var placedAny = false;
     try {
         for (var i = 0; i < todo.length; i++) {
-            if (_blView !== 'map' || window.location.hash !== '#bucketlist') break;   // user moved on
-            status.textContent = 'Locating items on the map… (' + (i + 1) + ' of ' + todo.length + ')';
-            var it = todo[i];
-            var g = it.data.geo;
-            // First try the specific place (venue, or the item's own name for a trail/waterfall/bar
-            // etc. when we know the city or region), then fall back to just the city/region/country.
-            var specific = ['country', 'region', 'town'].indexOf(it.data.kind) === -1;
-            var lead = g.venue || ((specific && (g.city || g.region)) ? it.data.name : null);
-            var area = [g.city, g.region, g.country].filter(Boolean).join(', ');
-            var queries = [];
-            if (lead) queries.push([lead, area].filter(Boolean).join(', '));
-            if (lead && g.country && area !== g.country) queries.push(lead + ', ' + g.country);   // fewer words often matches better
-            if (area) queries.push(area);
-            var found = null, lookupFailed = false;
-            for (var q = 0; q < queries.length && !found; q++) {
-                try {
-                    await _placesNominatimRateLimit();
-                    var resp = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' +
-                                           encodeURIComponent(queries[q]), { headers: { 'Accept-Language': 'en' } });
-                    if (!resp.ok) { lookupFailed = true; break; }   // temporary problem: try again next time
-                    found = (await resp.json())[0] || null;
-                } catch (netErr) { lookupFailed = true; break; }
-            }
-            if (!found && lookupFailed) continue;
-
-            var update = {};
-            if (found) {
-                g.approxLat = parseFloat(found.lat);
-                g.approxLng = parseFloat(found.lon);
-                update['geo.approxLat'] = g.approxLat;
-                update['geo.approxLng'] = g.approxLng;
-                if (!g.countryCode && found.address && found.address.country_code) {
-                    g.countryCode = found.address.country_code.toUpperCase();
-                    update['geo.countryCode'] = g.countryCode;
-                }
-                placedAny = true;
-            } else {
-                g.approxFailed = true;
-                update['geo.approxFailed'] = true;
-            }
-            try { await userCol('bucketList').doc(it.id).update(update); }
-            catch (saveErr) { console.warn('Could not save map position (read-only?):', saveErr); }
+            if (keepGoing && !keepGoing()) break;
+            if (statusEl) statusEl.textContent = 'Locating places on the map… (' + (i + 1) + ' of ' + todo.length + ')';
+            if (await blGeocodeItem(todo[i]) === 'placed') placedAny = true;
         }
     } finally {
         _blLocating = false;
-        status.textContent = '';
+        if (statusEl) statusEl.textContent = '';
     }
-    if (placedAny && _blView === 'map' && window.location.hash === '#bucketlist') _blRenderList();
+    return placedAny;
+}
+
+/**
+ * Look up a pin for one item in the background right after it is saved, so its page shows a map
+ * without waiting for the Map view. Refreshes the item page if it is the one being viewed.
+ */
+function blLocateSoon(id) {
+    setTimeout(async function() {
+        try {
+            var snap = await userCol('bucketList').doc(id).get();
+            if (!snap.exists) return;
+            var result = await blGeocodeItem({ id: id, data: snap.data() });
+            if (result === 'placed' && window.location.hash === '#bucketitem/' + id) loadBucketItemPage(id);
+        } catch (err) {
+            console.warn('Background pin lookup failed:', err);
+        }
+    }, 0);
+}
+
+// ---------- Distance ----------
+
+/** Straight-line distance in miles between two {lat, lng} points (haversine formula). */
+function _blMiles(a, b) {
+    var R = 3958.8;   // Earth radius in miles
+    var toRad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * toRad, dLng = (b.lng - a.lng) * toRad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** "0.4 mi", "12 mi", "1,240 mi". */
+function _blMilesLabel(mi) {
+    if (mi < 0.1) return 'under 0.1 mi';
+    if (mi < 1) return mi.toFixed(1) + ' mi';
+    return Math.round(mi).toLocaleString() + ' mi';
+}
+
+/** Ask the browser for the user's position once, then redraw the list sorted by distance. */
+function _blRequestHere() {
+    if (_blHereAsked) return;
+    _blHereAsked = true;
+    var st = document.getElementById('blNearStatus');
+    if (!navigator.geolocation) { st.textContent = 'Location is not available on this device.'; return; }
+    st.textContent = 'Finding your location…';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        _blHere = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        st.textContent = '';
+        if (window.location.hash === '#bucketlist') _blRenderList();
+    }, function() {
+        st.textContent = 'Could not get your location (permission denied or unavailable), so the list is in the usual order.';
+    }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+}
+
+// ---------- Near-duplicates ----------
+
+// Generic words left out when comparing names ("Amicalola Falls State Park" ~ "Amicalola Falls")
+var BL_NAME_FILLER = ['the', 'a', 'an', 'of', 'and', 'at', 'state', 'national', 'park', 'memorial', 'historic',
+                      'site', 'recreation', 'area', 'preserve', 'monument', 'visitor', 'center', 'centre'];
+
+/** A comparable form of a name: lowercase words without punctuation or generic filler words. */
+function _blNameKey(name) {
+    return (name || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+        .split(' ').filter(function(w) { return w && BL_NAME_FILLER.indexOf(w) === -1; }).join(' ');
+}
+
+/**
+ * Find an existing item that is probably the same place: the names match once generic words are
+ * dropped (or one name contains the other), and the places don't contradict each other.
+ * geo: { country, region, city } of the new item (any may be blank). Returns { id, data } or null.
+ */
+function blFindSimilar(name, geo, excludeId) {
+    var key = _blNameKey(name);
+    if (!key) return null;
+    geo = geo || {};
+    function compatible(a, b) { return !_blNorm(a) || !_blNorm(b) || _blNorm(a) === _blNorm(b); }
+    for (var i = 0; i < _blItems.length; i++) {
+        var it = _blItems[i];
+        if (it.id === excludeId) continue;
+        var other = _blNameKey(it.data.name);
+        if (!other) continue;
+        var shorter = key.length <= other.length ? key : other;
+        var longer  = key.length <= other.length ? other : key;
+        var nameMatch = key === other ||
+            (shorter.length >= 5 && (' ' + longer + ' ').indexOf(' ' + shorter + ' ') !== -1);
+        if (!nameMatch) continue;
+        var g = it.data.geo || {};
+        if (compatible(geo.country, g.country) && compatible(geo.region, g.region) && compatible(geo.city, g.city)) return it;
+    }
+    return null;
+}
+
+/** "Name (City)" for messages about an existing item. */
+function _blNameWithPlace(it) {
+    var g = it.data.geo || {};
+    var where = g.city || g.region || g.country;
+    return '"' + (it.data.name || '') + '"' + (where ? ' (' + where + ')' : '');
+}
+
+// ---------- Tag filter ----------
+
+/** Fill the Tag filter from the tags used on the list (hidden when there are none). */
+function _blRebuildTagOptions() {
+    var sel = document.getElementById('blTagFilter');
+    var seen = {};
+    _blItems.forEach(function(it) { (it.data.tags || []).forEach(function(t) { if (t) seen[t] = true; }); });
+    var tags = Object.keys(seen).sort();
+    sel.innerHTML = '<option value="">All tags</option>' +
+        tags.map(function(t) { return '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
+    if (_blFilters.tag && !seen[_blFilters.tag]) _blFilters.tag = '';
+    sel.value = _blFilters.tag || '';
+    sel.classList.toggle('hidden', tags.length === 0);
 }
 
 /** createdAt as milliseconds (Firestore Timestamp or missing). */
@@ -755,8 +926,11 @@ function _blBadgesHtml(data) {
     return badges.join('');
 }
 
-/** One list line: name plus its most specific place (city, else state/region, else country). Tap to open. */
-function _blRenderCard(id, data) {
+/**
+ * One list line: name plus its most specific place (city, else state/region, else country), and the
+ * distance when sorting by "Nearest to me". Tap to open.
+ */
+function _blRenderCard(id, data, miles) {
     var geo = data.geo || {};
     var where = geo.city || geo.region || geo.country || '';
     if (where.trim().toLowerCase() === (data.name || '').trim().toLowerCase()) where = '';   // e.g. a country item named after itself
@@ -774,10 +948,11 @@ function _blRenderCard(id, data) {
     nameEl.className = 'bl-line-name';
     nameEl.textContent = data.name || '(unnamed)';
     text.appendChild(nameEl);
-    if (where) {
+    var extra = [where, miles != null ? _blMilesLabel(miles) : ''].filter(Boolean).join(' \u00b7 ');
+    if (extra) {
         var whereEl = document.createElement('span');
         whereEl.className = 'bl-line-where';
-        whereEl.textContent = ' \u00b7 ' + where;
+        whereEl.textContent = ' \u00b7 ' + extra;
         text.appendChild(whereEl);
     }
     row.appendChild(text);
@@ -898,6 +1073,10 @@ async function loadBucketItemPage(itemId) {
         // ── Facts & photos (shared modules) ──────────────────────
         loadFacts('bucketItem', itemId, 'blFactsContainer', 'blFactsEmptyState');
         loadPhotos('bucketItem', itemId, 'blPhotoContainer', 'blPhotoEmptyState');
+        // A screenshot imported for several items is stored once and shown on each (bucketlist-links.js)
+        if (typeof _blLoadSharedPhotos === 'function') _blLoadSharedPhotos(itemId);
+        // Drop trips this item was removed from (and undo the automatic "Planned")
+        if (typeof _blReconcileTrips === 'function') _blReconcileTrips(itemId, data);
 
     } catch (err) {
         console.error('Error loading bucket item:', err);
@@ -921,7 +1100,7 @@ function _blStatusButton(itemId, newStatus, label, primary) {
     btn.className = 'btn btn-small ' + (primary ? 'btn-primary' : 'btn-secondary');
     btn.textContent = label;
     btn.onclick = async function() {
-        var update = { status: newStatus, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        var update = { status: newStatus, plannedByTrip: false, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
         if (newStatus === 'visited') update.visitedDate = _blTodayIso();
         try {
             await userCol('bucketList').doc(itemId).update(update);
@@ -944,6 +1123,7 @@ function _blOpenModal(id, data) {
     data = data || {};
     var geo = data.geo || {};
     _blEditGeoOrig = data.geo || null;
+    _blEditOrigStatus = data.status || 'want';
     var timing = data.timing || { type: 'none', months: [], yearly: false };
 
     document.getElementById('blModalTitle').textContent = id ? 'Edit Bucket List Item' : 'Add to Bucket List';
@@ -1293,6 +1473,12 @@ async function _blSave() {
         if (_blEditGeoOrig.approxFailed) geo.approxFailed = true;
     }
 
+    // Probably already on the list? (add mode only)
+    if (!_blEditId) {
+        var similar = blFindSimilar(name, geo, null);
+        if (similar && !confirm(_blNameWithPlace(similar) + ' is already on your Bucket List and looks like the same place.\n\nSave this one anyway?')) return;
+    }
+
     // Links
     var links = [];
     document.querySelectorAll('#blLinksContainer .bl-link-row').forEach(function(row) {
@@ -1325,13 +1511,18 @@ async function _blSave() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
 
+    // A status changed by hand is no longer the automatic "Planned" from a trip
+    if (_blEditId && status !== _blEditOrigStatus) payload.plannedByTrip = false;
+
     try {
         if (_blEditId) {
             await userCol('bucketList').doc(_blEditId).update(payload);
+            blLocateSoon(_blEditId);
         } else {
             payload.source = 'manual';
             payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await userCol('bucketList').add(payload);
+            var newRef = await userCol('bucketList').add(payload);
+            blLocateSoon(newRef.id);   // map pin in the background
         }
         closeModal('blModal');
         // Refresh whichever page is showing
@@ -1353,11 +1544,19 @@ async function _blConfirmDelete(id) {
     if (!id) return;
     if (!confirm('Delete this item, including its photos and facts? This cannot be undone.\n\n(Tip: use Dismiss instead to hide it but keep it.)')) return;
     try {
-        var types = ['photos', 'facts'];
-        for (var i = 0; i < types.length; i++) {
-            var snap = await userCol(types[i]).where('targetType', '==', 'bucketItem').where('targetId', '==', id).get();
-            for (var j = 0; j < snap.docs.length; j++) { await snap.docs[j].ref.delete(); }
+        // Photos: a screenshot shared with other items (alsoTargetIds) moves to the next item instead
+        var own = await userCol('photos').where('targetType', '==', 'bucketItem').where('targetId', '==', id).get();
+        for (var i = 0; i < own.docs.length; i++) {
+            var also = own.docs[i].data().alsoTargetIds || [];
+            if (also.length) await own.docs[i].ref.update({ targetId: also[0], alsoTargetIds: also.slice(1) });
+            else await own.docs[i].ref.delete();
         }
+        var sharedIn = await userCol('photos').where('alsoTargetIds', 'array-contains', id).get();
+        for (var k = 0; k < sharedIn.docs.length; k++) {
+            await sharedIn.docs[k].ref.update({ alsoTargetIds: firebase.firestore.FieldValue.arrayRemove(id) });
+        }
+        var facts = await userCol('facts').where('targetType', '==', 'bucketItem').where('targetId', '==', id).get();
+        for (var j = 0; j < facts.docs.length; j++) { await facts.docs[j].ref.delete(); }
         await userCol('bucketList').doc(id).delete();
         // Changing the hash triggers the router; if we're already on the list, reload it directly
         if (window.location.hash === '#bucketlist') loadBucketListPage();

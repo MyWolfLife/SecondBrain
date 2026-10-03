@@ -14,7 +14,12 @@
 
 var BL_IMPORT_MAX_IMAGES = 6;
 
-var _blimpImages = [];       // staged screenshots: [{ file, llmData }]  (llmData = base64 sized for the LLM)
+var _blimpImages = [];       // staged screenshots: [{ file, llmParts }]  (llmParts = base64 image(s) sized for the AI;
+                            // a tall scrolling screenshot is cut into several overlapping parts so its text stays readable)
+var BL_IMPORT_MAX_PARTS = 16;  // most image parts sent in one AI call
+// xAI's default chat model can't read images, so screenshots go to its vision model (same model the
+// prescription scanner uses). Only used when the user hasn't typed their own model name in Settings.
+var BL_GROK_VISION_MODEL = 'grok-2-vision-1212';
 var _blimpItems  = [];       // normalized records awaiting review
 var _blimpSource = 'llm-image';
 var _blimpRaw    = '';       // raw LLM text, shown in the review screen for prompt tuning
@@ -351,6 +356,45 @@ function _blimpStatus(msg) {
     document.getElementById('blImportStatus').textContent = msg || '';
 }
 
+/** Load an image file into an <img> element (resolves once it has decoded). */
+function _blimpLoadImage(file) {
+    return new Promise(function(resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function() { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = function(e) { URL.revokeObjectURL(url); reject(e); };
+        img.src = url;
+    });
+}
+
+/**
+ * Prepare one screenshot for the AI. A normal phone screenshot becomes one image. A tall scrolling
+ * capture (e.g. a long comments thread) would shrink to an unreadable strip if sent whole, so it is
+ * cut into overlapping slices, each about as tall as a phone screen, and each slice is sent separately.
+ * Returns an array of base64 image data URLs.
+ */
+async function _blimpPrepareForAi(file) {
+    var opts = { maxDimension: 1400, maxBase64: 450000 };   // clearer than stored photos: overlay text is small
+    var img = await _blimpLoadImage(file);
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var sliceH = Math.round(w * 1.8);                      // roughly one phone screen
+    if (h <= sliceH * 1.3) return [await compressImage(file, opts)];
+
+    var parts = [];
+    var step = Math.round(sliceH * 0.9);                   // 10% overlap so no line of text is cut in half
+    for (var y = 0; y < h && parts.length < 8; y += step) {
+        var partH = Math.min(sliceH, h - y);
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = partH;
+        canvas.getContext('2d').drawImage(img, 0, y, w, partH, 0, 0, w, partH);
+        var blob = await new Promise(function(r) { canvas.toBlob(r, 'image/jpeg', 0.92); });
+        parts.push(await compressImage(new File([blob], 'part.jpg', { type: 'image/jpeg' }), opts));
+        if (y + partH >= h) break;
+    }
+    return parts;
+}
+
 /** Compress and stage image files (up to the limit). */
 async function _blimpAddFiles(files) {
     files = Array.from(files || []).filter(function(f) { return f.type && f.type.indexOf('image/') === 0; });
@@ -360,9 +404,7 @@ async function _blimpAddFiles(files) {
     _blimpStatus('Preparing image' + (files.length > 1 ? 's' : '') + '…');
     for (var i = 0; i < files.length && i < room; i++) {
         try {
-            // Larger/clearer than the stored-photo size: reel screenshots are mostly small overlay text
-            var llmData = await compressImage(files[i], { maxDimension: 1400, maxBase64: 450000 });
-            _blimpImages.push({ file: files[i], llmData: llmData });
+            _blimpImages.push({ file: files[i], llmParts: await _blimpPrepareForAi(files[i]) });
         } catch (e) {
             console.error('Import image error:', e);
         }
@@ -379,8 +421,15 @@ function _blimpRenderThumbs() {
         var box = document.createElement('div');
         box.className = 'bl-thumb';
         var im = document.createElement('img');
-        im.src = img.llmData;
+        im.src = img.llmParts[0];
         im.alt = 'Screenshot ' + (i + 1);
+        if (img.llmParts.length > 1) {
+            // A tall screenshot that will be read in several parts
+            var badge = document.createElement('span');
+            badge.className = 'bl-thumb-parts';
+            badge.textContent = img.llmParts.length + ' parts';
+            box.appendChild(badge);
+        }
         var rm = document.createElement('button');
         rm.type = 'button';
         rm.className = 'bl-thumb-remove';
@@ -473,9 +522,14 @@ async function _blimpRunAi() {
         // Instructions go in the system message; the user's text and the screenshots in the user message
         var parts = await _blimpBuildPromptParts(hint);
         var content = [{ type: 'text', text: parts.user }];
-        _blimpImages.forEach(function(img) {
-            content.push({ type: 'image_url', image_url: { url: img.llmData } });
+        var imageParts = [];
+        _blimpImages.forEach(function(img) { imageParts = imageParts.concat(img.llmParts); });
+        if (imageParts.length > BL_IMPORT_MAX_PARTS) imageParts = imageParts.slice(0, BL_IMPORT_MAX_PARTS);
+        imageParts.forEach(function(url) {
+            content.push({ type: 'image_url', image_url: { url: url } });
         });
+        // Grok's default model can't see images; use its vision model unless the user chose a model
+        if (imageParts.length && conf.provider === 'grok' && !conf.customModel) conf.model = BL_GROK_VISION_MODEL;
 
         _blimpRaw = await blCallLlm(conf, parts.system, content, true);   // JSON mode, retried without if unsupported
         var parsed = _blimpParseResponse(_blimpRaw);
@@ -527,13 +581,52 @@ function _blimpKindOptions(selected) {
     }).join('');
 }
 
-/** Existing item with the same name (case-insensitive), or null. */
-function _blimpFindDuplicate(name) {
-    var key = _blNorm(name);
-    for (var i = 0; i < _blItems.length; i++) {
-        if (_blNorm(_blItems[i].data.name) === key) return _blItems[i].data.name;
-    }
-    return null;
+/** The "When" / notes / tags / website editors shown under "More details" on a review card. */
+function _blimpMoreDetailsHtml(it) {
+    var t = it.timing || {};
+    var monthBoxes = BL_MONTH_NAMES.map(function(m, i) {
+        var checked = (t.months || []).indexOf(i + 1) !== -1 ? ' checked' : '';
+        return '<label><input type="checkbox" class="bl-rev-month" value="' + (i + 1) + '"' + checked + '> ' + m + '</label>';
+    }).join('');
+    function opt(v, label) { return '<option value="' + v + '"' + (t.type === v ? ' selected' : '') + '>' + label + '</option>'; }
+    return '<details class="bl-rev-more"><summary>More details (when, notes, tags, website)</summary>' +
+        '<div class="form-group"><label>Best time</label><select class="bl-rev-ttype">' +
+            opt('none', 'No specific time') + opt('months', 'Month(s) or season') + opt('date', 'One date') + opt('range', 'Date range') +
+        '</select></div>' +
+        '<div class="bl-month-grid bl-rev-months">' + monthBoxes + '</div>' +
+        '<div class="bl-two-col">' +
+            '<div class="form-group"><label>Date / start</label><input type="date" class="bl-rev-start"></div>' +
+            '<div class="form-group"><label>End</label><input type="date" class="bl-rev-end"></div>' +
+        '</div>' +
+        '<label class="bl-inline-check"><input type="checkbox" class="bl-rev-yearly"' + (t.yearly ? ' checked' : '') + '> Repeats every year</label>' +
+        '<div class="form-group"><label>Note about the timing</label><input type="text" class="bl-rev-tlabel"></div>' +
+        '<div class="form-group"><label>Notes</label><textarea class="settings-textarea bl-rev-notes" rows="2"></textarea></div>' +
+        '<div class="form-group"><label>Tags (comma separated)</label><input type="text" class="bl-rev-tags"></div>' +
+        '<div class="form-group"><label>Website</label><input type="text" class="bl-rev-website"></div>' +
+    '</details>';
+}
+
+/** Read the "More details" editors back into timing/notes/tags/website (same cleanup as AI output). */
+function _blimpReadMoreDetails(card) {
+    var months = Array.from(card.querySelectorAll('.bl-rev-month:checked')).map(function(c) { return parseInt(c.value, 10); });
+    var timing = _blimpTiming({
+        type     : card.querySelector('.bl-rev-ttype').value,
+        months   : months,
+        startDate: card.querySelector('.bl-rev-start').value || null,
+        endDate  : card.querySelector('.bl-rev-end').value || null,
+        yearly   : card.querySelector('.bl-rev-yearly').checked,
+        label    : card.querySelector('.bl-rev-tlabel').value
+    });
+    var tags = card.querySelector('.bl-rev-tags').value.split(',').map(function(t) { return t.trim().toLowerCase(); })
+        .filter(function(t, i, arr) { return t && arr.indexOf(t) === i; });
+    var website = _blNormalizeUrl(card.querySelector('.bl-rev-website').value);
+    if (website && !/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(website)) website = '';
+    return {
+        timing : timing,
+        notes  : card.querySelector('.bl-rev-notes').value.trim() || null,
+        tags   : tags,
+        website: website || null
+    };
 }
 
 /** Build the editable review cards. */
@@ -547,9 +640,12 @@ function _blimpRenderReview(message) {
 
     var seenInBatch = {};
     _blimpItems.forEach(function(it, idx) {
-        // Duplicate = already on the list, or repeated earlier in this same import
-        var dup = _blimpFindDuplicate(it.name) ? 'Already on your list' : (seenInBatch[_blNorm(it.name)] ? 'Repeated in this import' : null);
-        seenInBatch[_blNorm(it.name)] = true;
+        // Duplicate = probably already on the list (near-match on name, same place), or repeated in this import
+        var similar = blFindSimilar(it.name, { country: it.country, region: it.region, city: it.city }, null);
+        var batchKey = _blNameKey(it.name);
+        var dup = similar ? 'Looks like ' + _blNameWithPlace(similar) + ', already on your list'
+                          : (seenInBatch[batchKey] ? 'Repeated in this import' : null);
+        seenInBatch[batchKey] = true;
         var checked = it.confidence !== 'low' && !dup;   // low confidence and duplicates start unchecked
         var timing = _blTimingText(it.timing);
 
@@ -560,7 +656,7 @@ function _blimpRenderReview(message) {
             '<div class="bl-rev-head">' +
                 '<label class="bl-rev-check"><input type="checkbox" class="bl-rev-include"' + (checked ? ' checked' : '') + '> Add</label>' +
                 '<span class="bl-badge bl-conf-' + it.confidence + '">' + escapeHtml(it.confidence) + ' confidence</span>' +
-                (dup ? '<span class="bl-badge bl-badge--expired">' + dup + '</span>' : '') +
+                (dup ? '<span class="bl-badge bl-badge--expired">' + escapeHtml(dup) + '</span>' : '') +
             '</div>' +
             '<div class="form-group"><label>Name</label><input type="text" class="bl-rev-name"></div>' +
             '<div class="bl-two-col">' +
@@ -573,18 +669,22 @@ function _blimpRenderReview(message) {
             '</div>' +
             '<div class="form-group"><label>Why</label><textarea class="settings-textarea bl-rev-why" rows="2"></textarea></div>' +
             '<div class="bl-rev-meta">' +
-                (timing ? '<div>🗓️ ' + escapeHtml(timing) + ' <span class="bl-rev-hint">(editable after saving)</span></div>' : '') +
-                (it.notes ? '<div>📝 ' + escapeHtml(it.notes) + '</div>' : '') +
-                (it.website ? '<div>🔗 ' + escapeHtml(it.website) + '</div>' : '') +
-                (it.tags.length ? '<div>🏷️ ' + escapeHtml(it.tags.join(', ')) + '</div>' : '') +
+                (timing ? '<div>🗓️ ' + escapeHtml(timing) + '</div>' : '') +
                 (it.evidence ? '<div class="bl-rev-evidence">Seen in image: ' + escapeHtml(it.evidence) + '</div>' : '') +
-            '</div>';
+            '</div>' +
+            _blimpMoreDetailsHtml(it);
         // Set values via properties (not HTML) so quotes in the text can't break the markup
         card.querySelector('.bl-rev-name').value = it.name;
         card.querySelector('.bl-rev-country').value = it.country || '';
         card.querySelector('.bl-rev-region').value = it.region || '';
         card.querySelector('.bl-rev-city').value = it.city || '';
         card.querySelector('.bl-rev-why').value = it.why || '';
+        card.querySelector('.bl-rev-start').value = (it.timing && it.timing.startDate) || '';
+        card.querySelector('.bl-rev-end').value = (it.timing && it.timing.endDate) || '';
+        card.querySelector('.bl-rev-tlabel').value = (it.timing && it.timing.label) || '';
+        card.querySelector('.bl-rev-notes').value = it.notes || '';
+        card.querySelector('.bl-rev-tags').value = (it.tags || []).join(', ');
+        card.querySelector('.bl-rev-website').value = it.website || '';
         list.appendChild(card);
     });
 
@@ -668,6 +768,7 @@ async function _blimpSaveSelected() {
             for (var p = 0; p < _blimpImages.length; p++) photoData.push(await compressImage(_blimpImages[p].file));
         }
 
+        var savedIds = [];
         for (var i = 0; i < cards.length; i++) {
             status.textContent = 'Saving ' + (i + 1) + ' of ' + cards.length + '…';
             var card = cards[i];
@@ -681,26 +782,30 @@ async function _blimpSaveSelected() {
                 region : card.querySelector('.bl-rev-region').value.trim() || null,
                 city   : card.querySelector('.bl-rev-city').value.trim() || null,
                 why    : card.querySelector('.bl-rev-why').value.trim() || null
-            });
+            }, _blimpReadMoreDetails(card));
             var doc = _blBuildDocFromItem(edited, _blimpSource,
                 (it.confidence + ' confidence' + (it.evidence ? ': ' + it.evidence : '')).slice(0, 300));
             // Links shared or pasted with the screenshot (e.g. the reel's URL) are kept on the item
             if (_blimpLinks.length) doc.links = _blimpLinks.map(function(l) { return { url: l.url, label: l.label }; });
             var ref = await userCol('bucketList').add(doc);
-
-            // Keep the screenshot(s) on each saved item
-            for (var k = 0; k < photoData.length; k++) {
-                await userCol('photos').add({
-                    targetType: 'bucketItem',
-                    targetId  : ref.id,
-                    imageData : photoData[k],
-                    caption   : 'Imported screenshot',
-                    takenAt   : new Date().toISOString(),
-                    createdAt : firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
+            savedIds.push(ref.id);
+            blLocateSoon(ref.id);   // map pin in the background
             // Refresh our local copy so the next card's spelling matches this one
             await _blLoadItems();
+        }
+
+        // Keep the screenshot(s): stored ONCE, on the first saved item, and shown on the others too
+        // (alsoTargetIds) instead of saving a copy per item
+        for (var k = 0; k < photoData.length; k++) {
+            await userCol('photos').add({
+                targetType   : 'bucketItem',
+                targetId     : savedIds[0],
+                alsoTargetIds: savedIds.slice(1),
+                imageData    : photoData[k],
+                caption      : 'Imported screenshot',
+                takenAt      : new Date().toISOString(),
+                createdAt    : firebase.firestore.FieldValue.serverTimestamp()
+            });
         }
 
         status.textContent = '';
