@@ -21185,3 +21185,7 @@ a.legacy-fin-card:hover {
 .ask-ai-picture-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
 .ask-ai-picture-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
 .ask-ai-picture-hint { font-size: 0.8rem; color: #6b7280; }
+
+/* Ask AI: data file to attach */
+.ask-ai-file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; }
+.ask-ai-file-name { font-weight: 600; font-size: 0.9rem; word-break: break-all; }

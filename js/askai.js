@@ -31,8 +31,10 @@ var ASK_AI_TARGETS = {
  * `pictureOrPromise` (optional) is the record's picture as a data URL (or a Promise for one, or
  * null): the "Send picture" checkbox copies it to the clipboard when a chat app is opened, because
  * a web link can only carry text.
+ * `fileOrPromise` (optional) is { name, text } — a data file to attach in the chat (e.g. a whole trip
+ * as JSON). The dialog offers "Download" and "Copy file contents" for it.
  */
-async function openAskAiModal(title, promptOrPromise, pictureOrPromise) {
+async function openAskAiModal(title, promptOrPromise, pictureOrPromise, fileOrPromise) {
     var box = document.getElementById('askAiText');
     var status = document.getElementById('askAiStatus');
     var picRow = document.getElementById('askAiPictureRow');
@@ -77,6 +79,29 @@ async function openAskAiModal(title, promptOrPromise, pictureOrPromise) {
 
     openModal('askAiModal');
 
+    // Data file to attach (if any)
+    var fileRow = document.getElementById('askAiFileRow');
+    _askAiFile = null;
+    fileRow.classList.add('hidden');
+    Promise.resolve(fileOrPromise).then(function(file) {
+        if (!file || !file.text) return;
+        _askAiFile = file;
+        var kb = file.text.length / 1024;
+        document.getElementById('askAiFileName').textContent = file.name + ' (' + (kb > 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(kb)) + ' KB') + ')';
+        fileRow.classList.remove('hidden');
+    }).catch(function() { /* the prompt reports build errors */ });
+    document.getElementById('askAiFileDownloadBtn').onclick = function() {
+        if (!_askAiFile) return;
+        _askAiDownload(_askAiFile.name, _askAiFile.text);
+        status.textContent = 'Downloaded ' + _askAiFile.name + '. In the chat app, use the attach button (paperclip or +) to add it, along with the question.';
+    };
+    document.getElementById('askAiFileCopyBtn').onclick = async function() {
+        if (!_askAiFile) return;
+        status.textContent = (await _askAiCopy(_askAiFile.text))
+            ? 'File contents copied. If attaching the file doesn’t work, paste this into the chat after the question.'
+            : 'Could not copy the file contents. Use Download instead.';
+    };
+
     // Picture (if any) loads alongside the prompt
     Promise.resolve(pictureOrPromise).then(function(pic) {
         _askAiPicture = pic || null;
@@ -97,6 +122,20 @@ async function openAskAiModal(title, promptOrPromise, pictureOrPromise) {
 }
 
 var _askAiPicture = null;   // data URL of the picture offered by "Send picture" (or null)
+var _askAiFile    = null;   // { name, text } data file offered for attaching (or null)
+
+/** Save text as a file (browser download). */
+function _askAiDownload(filename, text) {
+    var blob = new Blob([text], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+}
 
 /** Copy text to the clipboard. Returns true on success. */
 async function _askAiCopy(text) {
@@ -162,7 +201,9 @@ function _askAiOpenIn(key, text, statusEl, withPicture) {
     _askAiCopy(text);   // best effort, so the prompt is on the clipboard either way
     if (fits) {
         window.open(t.withPrompt + encoded, '_blank', 'noopener');
-        statusEl.textContent = '';
+        statusEl.textContent = _askAiFile
+            ? t.label + ' opened with your question. Now attach ' + _askAiFile.name + ' there (paperclip or + button). Tap Download file first if you haven’t.'
+            : '';
     } else {
         window.open(t.empty, '_blank', 'noopener');
         statusEl.textContent = 'This prompt is too long to pass straight to ' + t.label + ', so it was copied. Paste it into the chat box there.' +

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=797">
+    <link rel="stylesheet" href="css/styles.css?v=798">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -11358,6 +11358,13 @@ service firebase.storage {
             <h3 id="askAiTitle">Ask an AI</h3>
             <p class="bl-import-intro">A ready-made question with everything the app knows about this. Copy it into any AI chat app, or open one with it already filled in, then ask your own questions.</p>
             <textarea id="askAiText" class="settings-textarea ask-ai-text" rows="14" readonly></textarea>
+            <!-- Data file to attach in the chat (e.g. a whole trip as JSON) — shown only when the caller provides one -->
+            <div class="ask-ai-file-row hidden" id="askAiFileRow">
+                <span class="ask-ai-file-name">&#128206; <span id="askAiFileName"></span></span>
+                <button type="button" class="btn btn-primary btn-small" id="askAiFileDownloadBtn">&#11015;&#65039; Download file</button>
+                <button type="button" class="btn btn-secondary btn-small" id="askAiFileCopyBtn">&#128203; Copy file contents</button>
+                <span class="ask-ai-picture-hint">attach the file in the chat app along with the question</span>
+            </div>
             <!-- "Send picture": a web link can only carry text, so the picture is copied for the user to paste into the chat -->
             <div class="ask-ai-picture-row hidden" id="askAiPictureRow">
                 <img id="askAiPictureThumb" class="ask-ai-picture-thumb" alt="Picture to send">
@@ -12074,7 +12081,7 @@ export default {
     <script src="js/health.js?v=386"></script>
     <script src="js/notes.js?v=548"></script>
     <script src="js/lifecalendar.js?v=411"></script>
-    <script src="js/life-projects.js?v=484"></script>
+    <script src="js/life-projects.js?v=485"></script>
     <script src="js/exercise.js?v=115"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -12087,7 +12094,7 @@ export default {
     <script src="js/bucketlist.js?v=11"></script>
     <script src="js/bucketlist-import.js?v=7"></script>
     <script src="js/bucketlist-links.js?v=7"></script>
-    <script src="js/askai.js?v=5"></script>
+    <script src="js/askai.js?v=6"></script>
     <script src="js/thoughts.js?v=548"></script>
     <script src="js/top10lists.js?v=465"></script>
     <script src="js/memories.js?v=473"></script>

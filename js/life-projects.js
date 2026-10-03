@@ -624,6 +624,7 @@ function _lpRenderDetailPage(page) {
                 <span style="background:${st.color};color:#fff;font-size:0.75em;padding:2px 10px;border-radius:12px;">${st.label}</span>
                 <button class="btn btn-small" onclick="_lpOpenPrintChoiceModal()" title="Print to PDF, or save the whole trip as a standalone HTML file">🖨️ Print</button>
                 <button class="btn btn-small" onclick="_lpOpenExportModal()" title="Export this project to a JSON file you can share">⬇️ Export</button>
+                <button class="btn btn-small" onclick="_lpAskAi()" title="Ask ChatGPT, Claude or Google about this trip">🤖 Ask AI</button>
                 <button class="btn btn-small" onclick="_lpToggleMode()" id="lpModeToggle" title="Switch mode">
                     ${p.mode === 'travel' ? '🧳 Travel' : '📝 Planning'}
                 </button>
@@ -7801,6 +7802,102 @@ async function _lpBuildExportData(includePhotos, onProgress) {
         },
         locations, distances, bookings, days, planningGroups, todoItems, packingItems, projectNotes, projectPhotos, receipts, receiptCurrencies
     };
+}
+
+// ============================================================
+// Ask AI about this trip
+//
+// Builds a JSON file of the whole project (everything except pictures) for the user to attach in
+// ChatGPT / Claude / Google, plus a short prompt explaining it. Uses the shared Ask AI dialog
+// (askai.js), which offers the file for download and its contents for copying.
+// ============================================================
+
+/** "🤖 Ask AI" button in the project header. */
+function _lpAskAi() {
+    if (!_lpCurrentProject) return;
+    var build = _lpBuildAiExport();
+    openAskAiModal('Ask an AI About ' + (_lpCurrentProject.title || 'This Trip'),
+        build.then(_lpAskAiPrompt),
+        null,
+        build.then(function(b) { return { name: b.filename, text: b.json }; }));
+}
+
+/**
+ * The trip as plain data for an AI: the normal export without any pictures, plus the parts that
+ * export leaves out on purpose — receipts (amounts, dates, categories; no images) and who is going.
+ */
+async function _lpBuildAiExport() {
+    const projectId = _lpCurrentProjectId;
+    const p = _lpCurrentProject;
+    const data = await _lpBuildExportData(false, function() {});
+
+    const rSnap = await lpSub(projectId, 'receipts').get();
+    data.receipts = rSnap.docs.map(function(doc) {
+        const d = doc.data();
+        return {
+            description: d.description || '', date: d.date || '', category: d.category || 'Other',
+            amount: d.amount != null ? d.amount : null, currencyName: d.currencyName || '',
+            localAmount: d.localAmount != null ? d.localAmount : null, rate: d.rate != null ? d.rate : 1
+        };
+    });
+    data.people = (p.people || []).map(function(x) { return { name: x.name || '', notes: x.notes || '' }; });
+
+    // Leftover picture fields (always empty here) only add noise for the AI
+    delete data.projectPhotos;
+    data.includesPhotos = false;
+    data.purpose = 'Everything from a trip in the Bishop planner, for an AI assistant (pictures left out)';
+
+    const json = JSON.stringify(data, null, 2);
+    return { data: data, json: json, filename: _lpSlugify(p.title) + '-for-ai.json' };
+}
+
+/** The short prompt that goes with the attached trip file. */
+async function _lpAskAiPrompt(b) {
+    const p = b.data.project;
+    const travel = p.mode === 'travel';
+    let home = '';
+    try {
+        const main = await userCol('settings').doc('main').get();
+        home = (main.exists && main.data().cityState) ? main.data().cityState.trim() : '';
+    } catch (e) { /* optional */ }
+    const dates = [p.startDate, p.endDate].filter(Boolean).join(' to ');
+    // "3 bookings" / "1 booking"
+    const n = function(arr, one, many) { const c = (arr || []).length; return c + ' ' + (c === 1 ? one : many); };
+    const contents = [
+        n(b.data.days, 'itinerary day', 'itinerary days'),
+        n(b.data.bookings, 'booking', 'bookings'),
+        n(b.data.locations, 'location', 'locations'),
+        n(b.data.planningGroups, 'planning-board group', 'planning-board groups'),
+        n(b.data.todoItems, 'to-do', 'to-dos'),
+        n(b.data.packingItems, 'packing item', 'packing items'),
+        n(b.data.projectNotes, 'note', 'notes'),
+        n(b.data.receipts, 'receipt', 'receipts'),
+        n(b.data.people, 'person', 'people')
+    ].join(', ');
+
+    return [
+        (travel ? 'I am on a trip right now and I would like your help with it.' : 'I am planning a trip and I would like your help with it.') +
+        ' I have attached a file named "' + b.filename + '" with everything from my trip planner, in JSON: the trip dates, the day-by-day itinerary, bookings (times, confirmation numbers, costs and payment status), locations with coordinates and the travel times between them, my planning-board ideas, to-do and packing lists, notes, receipts, and who is going. Pictures are not included.',
+        '',
+        'THE TRIP',
+        '- Name: ' + (p.title || ''),
+        dates ? '- Dates: ' + dates : '',
+        p.description ? '- Description: ' + p.description : '',
+        '- What the file contains: ' + contents,
+        '',
+        'ABOUT ME',
+        home ? '- I live near: ' + home : '',
+        "- Today's date: " + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        '',
+        'HOW TO HELP ME',
+        '- Read the whole file first. Then give me a short overview: where and when, what is already booked, and anything that looks off, such as nights with no lodging, overlapping or very tight timing, long drives between back-to-back plans, bookings not yet paid or confirmed, and unfinished to-dos.',
+        travel
+            ? '- I am travelling now, so focus on today and the next few days: what is coming up, what I need (tickets, confirmation numbers, addresses), and practical tips.'
+            : '- Then help me plan: fill gaps, balance the days, and point out things worth adding or dropping.',
+        '- After that I will ask you questions. Answer from the file whenever you can, and tell me when something is not in it.',
+        '- If you cannot open the attached file, tell me and I will paste its contents instead.',
+        '- Say when you are unsure (opening hours, prices, travel times) rather than guessing.'
+    ].filter(function(l) { return l !== ''; }).join('\n').replace(/\n(THE TRIP|ABOUT ME|HOW TO HELP ME)\n/g, '\n\n$1\n');
 }
 
 /** Lowercase, hyphenated filename stem from a project title. */

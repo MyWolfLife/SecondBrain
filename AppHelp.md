@@ -1921,6 +1921,7 @@ Both reuse locations already in your account (matched by name) rather than dupli
 - The **Planning ⇄ Travel mode** toggle in the header changes what's shown -- Planning shows everything; Travel strips it down to what you need on the trip
 - **⬇️ Export** in the header downloads this project as a `.json` file, so it can be handed to someone else or kept as a backup -- see **Export** below
 - **🖨️ Print** in the header asks **Print to PDF** or **Save as HTML**, then does that -- see **Print / Save as PDF / Save as HTML** below
+- **🤖 Ask AI** in the header gets an AI's help with the trip: it makes a file with everything in the trip (itinerary, bookings with confirmation numbers and costs, locations and drive times, ideas, to-dos, packing list, notes, receipts, and who is going -- no pictures). Tap **Download file**, then open ChatGPT, Claude, or Google from the same window, and attach the file there with the paperclip or + button. The question already explains it is your trip and asks the AI to look it over (missing lodging nights, tight timing, unpaid bookings) before you ask your own questions. In Travel mode it focuses on today and the next few days. If attaching doesn't work, **Copy file contents** and paste it into the chat instead
 - The **search box** at the top filters every section at once -- days, bookings, to-dos, packing, and notes
 - **Trip Info** shows a **cost rollup** totaling booking costs plus itinerary item costs
 - Most editing happens in a shared item modal -- Cancel/Save at the bottom, and **Delete lives inside the edit modal**
