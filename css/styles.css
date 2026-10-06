@@ -5385,6 +5385,18 @@ a.ar-target-link:hover {
 .llm-model-form { display: flex; flex-wrap: wrap; gap: 8px; }
 .llm-model-form input { flex: 1 1 160px; min-width: 0; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
 
+.llm-model-form input[type="number"] { flex: 1 1 130px; }
+.llm-model-browse-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 6px; flex-wrap: wrap; }
+.llm-model-check { display: flex; align-items: center; gap: 4px; font-size: 0.9rem; }
+.llm-browse-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+.llm-usage-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.llm-usage-controls .settings-select { width: auto; }
+.llm-usage-total { font-size: 1.05rem; margin: 8px 0; }
+.llm-usage-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-bottom: 14px; }
+.llm-usage-table th, .llm-usage-table td { text-align: right; padding: 5px 6px; border-bottom: 1px solid #eee; }
+.llm-usage-table th:first-child, .llm-usage-table td:first-child { text-align: left; overflow-wrap: anywhere; }
+.llm-usage-table-wrap { overflow-x: auto; }
+
 /* ===== Chat Page ===== */
 .chat-no-config {
     padding: 24px;

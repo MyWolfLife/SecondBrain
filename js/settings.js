@@ -721,7 +721,7 @@ var STORAGE_GROUPS = [
     { label: 'Health',             cols: ['allergies','appointments','bloodWorkRecords','checklistRuns','checklistTemplates','concernUpdates','concerns','conditions','distances','emergencyInfo','eyePrescriptions','healthAppointments','healthCareTeam','healthConditionLogs','healthVisits','insurancePolicies','medications','supplements','vaccinations','vitals'] },
     { label: 'Life / Calendar',    cols: ['bucketList','lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups'] },
     { label: 'Thoughts',           cols: ['top10categories','top10lists','memories','memoryLinks','memoryTags','views','viewCategories'] },
-    { label: 'Misc / Settings',    cols: ['sbIssues','settings'] }
+    { label: 'Misc / Settings',    cols: ['llmUsage','sbIssues','settings'] }
 ];
 
 /**
@@ -887,7 +887,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'legacyLetters', 'legacyMeta',
 
     // Misc
-    'sbIssues', 'settings',
+    'sbIssues', 'settings', 'llmUsage',
 
     // Credentials
     'credentials', 'credentialCategories',
@@ -1634,7 +1634,9 @@ function renderLlmModelSelect(selectedId) {
     var models   = _llmModels.filter(function(m) { return m.provider === provider; });
     // Never lose a model that is saved on the account but missing from the list.
     if (provider && selectedId && !models.some(function(m) { return m.id === selectedId; })) {
-        var extra = { id: selectedId, label: 'saved', provider: provider };
+        var kp = LLM_KNOWN_PRICES[selectedId];   // pre-fill the published price when we know it
+        var extra = { id: selectedId, label: 'saved', provider: provider,
+            inputPrice: kp ? kp[0] : null, cachedPrice: kp ? kp[1] : null, outputPrice: kp ? kp[2] : null };
         _llmModels.push(extra);
         models.push(extra);
     }
@@ -1660,6 +1662,12 @@ function toggleLlmModelManager() {
     renderLlmModelList();
 }
 
+/** "$2.50 in / $10.00 out per 1M" or "no price" for the model list. */
+function llmPriceText(m) {
+    if (m.inputPrice == null || m.outputPrice == null) return 'no price';
+    return '$' + m.inputPrice + ' in / $' + m.outputPrice + ' out per 1M';
+}
+
 /** Draw the list of models (with Edit / Delete) for the current provider. */
 function renderLlmModelList() {
     var provider = document.getElementById('llmProvider').value;
@@ -1673,12 +1681,10 @@ function renderLlmModelList() {
         var name = document.createElement('span');
         name.className = 'llm-model-name';
         name.textContent = m.id;
-        if (m.label) {
-            var note = document.createElement('span');
-            note.className = 'llm-model-note';
-            note.textContent = '  ' + m.label;
-            name.appendChild(note);
-        }
+        var note = document.createElement('span');
+        note.className = 'llm-model-note';
+        note.textContent = '  ' + (m.label ? m.label + ' \u00b7 ' : '') + llmPriceText(m);
+        name.appendChild(note);
         var edit = document.createElement('button');
         edit.type = 'button'; edit.className = 'btn btn-secondary btn-sm'; edit.textContent = 'Edit';
         edit.onclick = function() { editLlmModel(index); };
@@ -1690,16 +1696,22 @@ function renderLlmModelList() {
     });
     if (!any) {
         var empty = document.createElement('li');
-        empty.textContent = 'No models yet. Add one below.';
+        empty.textContent = 'No models yet. Add one below, or use Browse available models.';
         list.appendChild(empty);
     }
 }
 
+function _llmPriceInput(id) { return document.getElementById(id).value.trim(); }
+
 /** Load one model into the form for editing. */
 function editLlmModel(index) {
+    var m = _llmModels[index];
     _llmModelEditIndex = index;
-    document.getElementById('llmModelIdInput').value    = _llmModels[index].id;
-    document.getElementById('llmModelLabelInput').value = _llmModels[index].label || '';
+    document.getElementById('llmModelIdInput').value          = m.id;
+    document.getElementById('llmModelLabelInput').value       = m.label || '';
+    document.getElementById('llmModelInPriceInput').value     = m.inputPrice  == null ? '' : m.inputPrice;
+    document.getElementById('llmModelCachedPriceInput').value = m.cachedPrice == null ? '' : m.cachedPrice;
+    document.getElementById('llmModelOutPriceInput').value    = m.outputPrice == null ? '' : m.outputPrice;
     document.getElementById('llmModelAddBtn').textContent = 'Save changes';
     document.getElementById('llmModelCancelBtn').classList.remove('hidden');
     document.getElementById('llmModelIdInput').focus();
@@ -1708,10 +1720,17 @@ function editLlmModel(index) {
 /** Clear the form and go back to "add" mode. */
 function cancelLlmModelEdit() {
     _llmModelEditIndex = -1;
-    document.getElementById('llmModelIdInput').value    = '';
-    document.getElementById('llmModelLabelInput').value = '';
+    ['llmModelIdInput', 'llmModelLabelInput', 'llmModelInPriceInput', 'llmModelCachedPriceInput', 'llmModelOutPriceInput']
+        .forEach(function(id) { document.getElementById(id).value = ''; });
     document.getElementById('llmModelAddBtn').textContent = 'Add model';
     document.getElementById('llmModelCancelBtn').classList.add('hidden');
+}
+
+/** Parse a price box: blank means "not set"; returns undefined when the text is not a valid price. */
+function _llmParsePrice(text) {
+    if (text === '') return null;
+    var n = Number(text);
+    return (isFinite(n) && n >= 0) ? n : undefined;
 }
 
 /** Add a new model, or save changes to the one being edited. */
@@ -1719,22 +1738,27 @@ async function saveLlmModelEntry() {
     var provider = document.getElementById('llmProvider').value;
     var id    = document.getElementById('llmModelIdInput').value.trim();
     var label = document.getElementById('llmModelLabelInput').value.trim();
+    var inP   = _llmParsePrice(_llmPriceInput('llmModelInPriceInput'));
+    var cacheP = _llmParsePrice(_llmPriceInput('llmModelCachedPriceInput'));
+    var outP  = _llmParsePrice(_llmPriceInput('llmModelOutPriceInput'));
     if (!provider) { alert('Select a provider first.'); return; }
     if (!id)       { alert('Enter the model ID.'); return; }
     if (/\s/.test(id)) { alert('A model ID cannot contain spaces.'); return; }
+    if (inP === undefined || cacheP === undefined || outP === undefined) { alert('Prices must be numbers, zero or more (dollars per 1 million tokens).'); return; }
+    if ((inP === null) !== (outP === null)) { alert('Enter both the input and output price, or leave both blank.'); return; }
     var duplicate = _llmModels.some(function(m, i) {
         return m.provider === provider && m.id === id && i !== _llmModelEditIndex;
     });
     if (duplicate) { alert('That model is already in the list.'); return; }
 
     var selected = document.getElementById('llmModel').value;
+    var entry = { id: id, label: label, provider: provider, inputPrice: inP, cachedPrice: cacheP, outputPrice: outP };
     if (_llmModelEditIndex >= 0) {
         var oldId = _llmModels[_llmModelEditIndex].id;
-        _llmModels[_llmModelEditIndex].id    = id;
-        _llmModels[_llmModelEditIndex].label = label;
+        _llmModels[_llmModelEditIndex] = entry;
         if (selected === oldId) selected = id;   // keep the renamed model selected
     } else {
-        _llmModels.push({ id: id, label: label, provider: provider });
+        _llmModels.push(entry);
     }
     cancelLlmModelEdit();
     renderLlmModelSelect(selected);
@@ -1761,9 +1785,103 @@ async function deleteLlmModel(index) {
 async function persistLlmModels() {
     try {
         await userCol('settings').doc('llm').set({ models: _llmModels }, { merge: true });
+        if (window.llmUsageResetConfig) window.llmUsageResetConfig();   // usage log re-reads prices
     } catch (err) {
         alert('Could not save the model list: ' + err.message);
     }
+}
+
+// ---- Browse the models the provider's API says this key can use ----
+
+// Published prices in dollars per 1 million tokens: [input, cached input, output].
+// Copied from OpenAI's pricing page on 2026-10-06 and used only to pre-fill the form; always verify.
+var LLM_KNOWN_PRICES = {
+    'gpt-6-astra': [10, 1, 50], 'gpt-6.1-sol': [2, 0.1, 10], 'gpt-6-sol': [2, 0.2, 10], 'gpt-6-luna': [0.1, 0.01, 0.5],
+    'gpt-5.6-sol': [4, 0.4, 20], 'gpt-5.6-terra': [2, 0.2, 12], 'gpt-5.6-luna': [0.2, 0.02, 1.2],
+    'gpt-5.5': [5, 0.5, 30], 'gpt-5.5-pro': [30, null, 180], 'gpt-5.4': [2.5, 0.25, 15],
+    'gpt-5.4-mini': [0.75, 0.075, 4.5], 'gpt-5.4-nano': [0.2, 0.02, 1.25], 'gpt-5.4-pro': [30, null, 180],
+    'gpt-5.2': [1.75, 0.175, 14], 'gpt-5.2-pro': [21, null, 168], 'gpt-5.1': [1.25, 0.125, 10],
+    'gpt-5': [1.25, 0.125, 10], 'gpt-5-mini': [0.25, 0.025, 2], 'gpt-5-nano': [0.05, 0.005, 0.4], 'gpt-5-pro': [15, null, 120],
+    'gpt-4.1': [2, 0.5, 8], 'gpt-4.1-mini': [0.4, 0.1, 1.6], 'gpt-4.1-nano': [0.1, 0.025, 0.4],
+    'gpt-4o': [2.5, 1.25, 10], 'gpt-4o-mini': [0.15, 0.075, 0.6],
+    'o1': [15, 7.5, 60], 'o1-pro': [150, null, 600], 'o3': [2, 0.5, 8], 'o3-pro': [20, null, 80],
+    'o4-mini': [1.1, 0.275, 4.4], 'o3-mini': [1.1, 0.55, 4.4]
+};
+var _llmBrowseIds = [];   // model IDs returned by the provider's API
+
+/** Ask the provider which models this key can use, then show them to pick from. */
+async function browseLlmModels() {
+    var provider = document.getElementById('llmProvider').value;
+    var apiKey   = document.getElementById('llmApiKey').value.trim();
+    if (!provider) { alert('Select a provider first.'); return; }
+    if (!apiKey)   { alert('Enter your API key first.'); return; }
+    var status = document.getElementById('llmBrowseStatus');
+    var btn    = document.getElementById('llmBrowseBtn');
+    btn.disabled = true;
+    status.textContent = 'Asking ' + (provider === 'openai' ? 'OpenAI' : 'xAI') + '\u2026';
+    try {
+        var resp = await fetch(provider === 'openai' ? 'https://api.openai.com/v1/models' : 'https://api.x.ai/v1/models',
+                               { headers: { Authorization: 'Bearer ' + apiKey } });
+        var data = await resp.json().catch(function() { return {}; });
+        if (!resp.ok) throw new Error((data.error && data.error.message) || resp.statusText);
+        _llmBrowseIds = (data.data || []).map(function(m) { return m.id; }).sort();
+        document.getElementById('llmBrowsePanel').classList.remove('hidden');
+        status.textContent = _llmBrowseIds.length + ' models available to this key.';
+        renderLlmBrowse();
+    } catch (err) {
+        status.textContent = 'Could not load models: ' + err.message;
+    }
+    btn.disabled = false;
+}
+
+/** Draw the available-models list, honoring the filter box and checkboxes. */
+function renderLlmBrowse() {
+    var provider  = document.getElementById('llmProvider').value;
+    var text      = document.getElementById('llmBrowseFilter').value.trim().toLowerCase();
+    var hideDated = document.getElementById('llmBrowseHideDated').checked;
+    var chatOnly  = document.getElementById('llmBrowseChatOnly').checked;
+    var have = {};
+    _llmModels.forEach(function(m) { if (m.provider === provider) have[m.id] = true; });
+    var list = document.getElementById('llmBrowseList');
+    list.innerHTML = '';
+    var shown = 0;
+    _llmBrowseIds.forEach(function(id) {
+        if (text && id.toLowerCase().indexOf(text) < 0) return;
+        if (hideDated && (/-\d{4}-\d{2}-\d{2}$/.test(id) || /-\d{4}$/.test(id))) return;
+        if (chatOnly && provider === 'openai' &&
+            (!/^(gpt|o\d|chatgpt)/.test(id) || /audio|realtime|tts|transcribe|image|embedding|moderation|search-preview|codex|live/.test(id))) return;
+        shown++;
+        var li = document.createElement('li');
+        var name = document.createElement('span');
+        name.className = 'llm-model-name';
+        name.textContent = id;
+        var known = LLM_KNOWN_PRICES[id];
+        var note = document.createElement('span');
+        note.className = 'llm-model-note';
+        note.textContent = '  ' + (known ? '$' + known[0] + ' in / $' + known[2] + ' out' : 'price unknown');
+        name.appendChild(note);
+        var add = document.createElement('button');
+        add.type = 'button'; add.className = 'btn btn-secondary btn-sm';
+        if (have[id]) { add.textContent = 'Added'; add.disabled = true; }
+        else { add.textContent = 'Add'; add.onclick = function() { addBrowsedLlmModel(id); }; }
+        li.appendChild(name); li.appendChild(add);
+        list.appendChild(li);
+    });
+    document.getElementById('llmBrowseCount').textContent = shown + ' shown';
+}
+
+/** Add a model picked from the browse list, pre-filling the published price when known. */
+async function addBrowsedLlmModel(id) {
+    var provider = document.getElementById('llmProvider').value;
+    if (_llmModels.some(function(m) { return m.provider === provider && m.id === id; })) return;
+    var known = LLM_KNOWN_PRICES[id];
+    _llmModels.push({ id: id, label: '', provider: provider,
+        inputPrice: known ? known[0] : null, cachedPrice: known ? known[1] : null, outputPrice: known ? known[2] : null });
+    renderLlmModelSelect(document.getElementById('llmModel').value);
+    renderLlmModelList();
+    renderLlmBrowse();
+    await persistLlmModels();
+    if (!known) document.getElementById('llmBrowseStatus').textContent = id + ' added with no price. Use Edit to enter its prices so costs can be estimated.';
 }
 
 /**
@@ -1919,6 +2037,13 @@ async function loadLlmSettings() {
             document.getElementById('llmApiKey').value   = d.apiKey   || '';
             if (Array.isArray(d.models) && d.models.length) {
                 _llmModels = d.models.filter(function(m) { return m && m.id && m.provider; });
+                // Entries saved before prices existed: fill in the published price when we know it.
+                _llmModels.forEach(function(m) {
+                    var kp = LLM_KNOWN_PRICES[m.id];
+                    if (kp && m.inputPrice == null && m.outputPrice == null) {
+                        m.inputPrice = kp[0]; m.cachedPrice = kp[1]; m.outputPrice = kp[2];
+                    }
+                });
             }
             renderLlmModelSelect(d.model || '');   // also adds a saved model missing from the list
             updateLlmModelVisibility(); // re-renders the picker for the provider, calls updateLlmHelpBtn

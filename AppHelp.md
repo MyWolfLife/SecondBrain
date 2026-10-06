@@ -626,6 +626,8 @@ The **Ask AI** button on every Help screen lets you ask questions about the app 
 3. Choose a provider: **OpenAI** or **Grok (xAI)**
 4. Paste your API key
 5. Pick a **Model** from the dropdown, or leave it on **(provider default)**. Tap **Manage models** to add your own (type the exact model ID from your provider, such as `gpt-6-luna`), edit one, or delete one. List changes save right away.
+   - Each model can have **input, cached-input and output prices** (dollars per 1 million tokens). They are only used to estimate cost in **AI Usage & Cost**.
+   - **Browse available models** asks your provider which models your key can use. Filter the list, then tap **Add** on the ones you want. Known OpenAI prices are filled in for you; check them against your provider's pricing page, and enter prices yourself for any model that shows "price unknown" (tap **Edit**).
 6. Tap **Save AI Settings**
 
 **Supported providers:**
@@ -638,6 +640,14 @@ The **Ask AI** button on every Help screen lets you ask questions about the app 
 - Once configured, Ask AI works across Help screens AND the SecondBrain / QuickLog AI features.
 - If you see an error like "LLM not configured", come back to Settings and verify your key is saved correctly.
 - You can switch providers or update your key at any time.
+
+### AI Usage & Cost
+
+In **Settings → General Settings → AI Usage & Cost** you can see every AI call the app has made: which model, how many tokens went in and out, which feature used it, and an estimated cost.
+
+- Pick a range (Today up to All time). Totals appear at the top, then tables by model, by feature, and your most recent calls.
+- Cost is an **estimate** from the prices saved under AI Chat → Manage models. Calls to a model with no saved price are counted but show no cost. Web-search fees from the provider are not included.
+- **Clear log** deletes the whole history (it asks first).
 
 ### Stock Analyzer (FMP)
 

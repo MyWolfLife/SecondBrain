@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=488">
+    <link rel="stylesheet" href="css/styles.css?v=489">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -1117,13 +1117,29 @@
                             <button type="button" class="btn btn-secondary btn-sm" id="llmModelManageBtn" onclick="toggleLlmModelManager()">Manage models</button>
                         </div>
                         <div class="llm-model-manager hidden" id="llmModelManager">
-                            <p class="accordion-desc">Models you can pick for this provider. Use the exact model ID from your provider (for example <code>gpt-6-luna</code>).</p>
+                            <p class="accordion-desc">Models you can pick for this provider. Prices are dollars per 1 million tokens and are used only to estimate cost in AI Usage.</p>
                             <ul class="llm-model-list" id="llmModelList"></ul>
                             <div class="llm-model-form">
-                                <input type="text" id="llmModelIdInput" placeholder="Model ID" autocapitalize="off" autocomplete="off" spellcheck="false">
-                                <input type="text" id="llmModelLabelInput" placeholder="Note (optional, e.g. cheap, fast)">
+                                <input type="text" id="llmModelIdInput" placeholder="Model ID (exact, e.g. gpt-6-luna)" autocapitalize="off" autocomplete="off" spellcheck="false">
+                                <input type="text" id="llmModelLabelInput" placeholder="Note (optional)">
+                                <input type="number" id="llmModelInPriceInput" placeholder="Input $/1M" min="0" step="any" inputmode="decimal">
+                                <input type="number" id="llmModelCachedPriceInput" placeholder="Cached input $/1M (optional)" min="0" step="any" inputmode="decimal">
+                                <input type="number" id="llmModelOutPriceInput" placeholder="Output $/1M" min="0" step="any" inputmode="decimal">
                                 <button type="button" class="btn btn-primary btn-sm" id="llmModelAddBtn" onclick="saveLlmModelEntry()">Add model</button>
                                 <button type="button" class="btn btn-secondary btn-sm hidden" id="llmModelCancelBtn" onclick="cancelLlmModelEdit()">Cancel</button>
+                            </div>
+                            <div class="llm-model-browse-row">
+                                <button type="button" class="btn btn-secondary btn-sm" id="llmBrowseBtn" onclick="browseLlmModels()">Browse available models</button>
+                                <span class="llm-model-note" id="llmBrowseStatus"></span>
+                            </div>
+                            <div class="hidden" id="llmBrowsePanel">
+                                <div class="llm-model-form">
+                                    <input type="text" id="llmBrowseFilter" placeholder="Filter (e.g. luna, mini)" oninput="renderLlmBrowse()" autocapitalize="off" autocomplete="off" spellcheck="false">
+                                    <label class="llm-model-check"><input type="checkbox" id="llmBrowseHideDated" checked onchange="renderLlmBrowse()"> Hide dated versions</label>
+                                    <label class="llm-model-check"><input type="checkbox" id="llmBrowseChatOnly" checked onchange="renderLlmBrowse()"> Chat models only</label>
+                                    <span class="llm-model-note" id="llmBrowseCount"></span>
+                                </div>
+                                <ul class="llm-model-list llm-browse-list" id="llmBrowseList"></ul>
                             </div>
                         </div>
                     </div>
@@ -1144,6 +1160,28 @@
                     <div class="settings-save-row" style="margin-top:8px;">
                         <a href="#sb-issues" class="btn btn-secondary btn-sm">🐛 View QuickLog Issues</a>
                     </div>
+                </div>
+            </div>
+
+            <!-- AI Usage -->
+            <div class="settings-card accordion-card">
+                <button class="accordion-header" onclick="toggleAccordion(this); renderLlmUsage();">
+                    <span>AI Usage &amp; Cost</span><span class="accordion-chevron">&#9658;</span>
+                </button>
+                <div class="accordion-body">
+                    <p class="accordion-desc">Every AI call the app makes is logged with its model and token counts. Cost is an estimate from the prices you entered under AI Chat &rarr; Manage models. It does not include web-search tool fees.</p>
+                    <div class="llm-usage-controls">
+                        <select id="llmUsageRange" class="settings-select" onchange="renderLlmUsage()">
+                            <option value="1">Today</option>
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="0">All time</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="renderLlmUsage()">Refresh</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearLlmUsage()">Clear log</button>
+                    </div>
+                    <div id="llmUsageBody"></div>
                 </div>
             </div>
 
@@ -12069,7 +12107,8 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=488"></script>
+    <script src="js/settings.js?v=490"></script>
+    <script src="js/llm-usage.js?v=3"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
     <script src="js/floorplan.js?v=487"></script>
