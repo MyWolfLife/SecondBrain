@@ -1977,7 +1977,7 @@ Your itinerary is your day-by-day plan -- what you're doing on each day of the t
 
 ---
 
-**Import / Edit Day:** Expand a day in Planning mode and tap **✨ Import / Edit Day**. Paste plans for an empty day, or describe changes to an existing day. When there are items, **Clear items** starts unchecked: your current items are included for editing. Check it to draft a replacement. Nothing is removed or saved until you choose **Apply to day**. New places are looked up on the web (address, phone, website, sources). Check the warnings and any "Uncertain match" places, especially chains like Hilton, before applying.
+**Import / Edit Day:** Expand a day in Planning mode and tap **✨ Import / Edit Day**. Paste plans for an empty day, or describe changes to an existing day. When there are items, **Clear items** starts unchecked: your current items are included for editing. Check it to draft a replacement. Nothing is removed or saved until you choose **Apply to day**. Use the **AI model** dropdown to choose which model handles this request. It starts on your default from Settings → AI Chat; picking another one affects only this request and shows the model's price per 1 million tokens so you can weigh cost against quality. New places are looked up on the web (address, phone, website, sources). Check the warnings and any "Uncertain match" places, especially chains like Hilton, before applying.
 
 New draft items are numbered internally by the app, so repeated or unusual AI item identifiers do not prevent creating a day. If a revision repeats the same existing item, the draft stays unchanged and a message asks you to have the AI keep each existing item once and add extra stops as new items.
 
