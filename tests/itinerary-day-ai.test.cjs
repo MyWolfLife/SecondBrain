@@ -30,8 +30,13 @@ const explicit = {id:'travel',title:'Walk',type:'travel',locationId:'park',toLoc
 result = validate({items:[old,explicit,{id:'b',title:'Lunch',locationId:'cafe'}],locations:[],warnings:[]},state);
 assert.equal(result.items.length,3, 'No duplicate travel');
 assert.throws(()=>validate({items:[{id:'x',title:'Broken',locationId:'missing'}],locations:[],warnings:[]},state),/unknown location/);
-assert.throws(()=>validate({items:[{id:'x',title:'One'},{id:'x',title:'Two'}],locations:[],warnings:[]},state),/duplicate/);
-assert.throws(()=>validate({items:[{id:"x');bad()",title:'Unsafe'}],locations:[],warnings:[]},state),/invalid item/);
+result = validate({items:[{id:'new:item',title:'Wake up'},{id:'new:item',title:'Leave home'},{id:"x');bad()",title:'Park'},{id:12,title:'Lunch'},{id:null,title:'Hotel'}],locations:[],warnings:[]},state);
+assert.equal(result.items.length,5);
+assert.equal(new Set(result.items.map(item=>item.id)).size,5);
+assert.ok(result.items.every(item=>/^[\w-]+$/.test(item.id)));
+const revised = validate({items:result.items.map(item=>({id:item.id,title:item.title+' revised'})),locations:[],warnings:[]},state,result);
+assert.deepEqual(revised.items.map(item=>item.id),result.items.map(item=>item.id));
+assert.throws(()=>validate({items:[{id:'a',title:'One'},{id:'a',title:'Two'}],locations:[],warnings:[]},state,{items:[old],locations:[]}),/reused an existing item/);
 assert.throws(()=>validate({items:[],locations:[null],warnings:[]},state),/location/);
 const loc = {key:'new:hotel',name:'Hilton',lat:95,lng:10,website:'javascript:alert(1)',uncertain:false,sources:[]};
 result = validate({items:[{id:'hotel',title:'Hotel',locationId:loc.key}],locations:[loc],warnings:[]},state,undefined,false);

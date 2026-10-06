@@ -61,10 +61,11 @@ const assert = require('node:assert/strict');
             assert.equal(request.store,false);
             prompts.push(request.input[0].content);
             requestNumber++;
+            const latestIds = await page.evaluate(() => Object.fromEntries((_lpDayAi.draft?.items || []).map(item => [item.title, item.id])));
             const items = [
                 {id:'original',title:'Park visit',type:'activity',locationId:fixture.linkId,time:'09:00'},
-                {id:'drive',title:'Drive to dinner',type:'drive',locationId:fixture.linkId,toLocationId:'new:dinner'},
-                {id:'dinner',title:'Dinner',type:'activity',activitySubType:'eat',locationId:'new:dinner',time:requestNumber>1?'17:00':'',duration:requestNumber>1?'90 min':''}
+                {id:latestIds['Drive to dinner'] || 'new:item',title:'Drive to dinner',type:'drive',locationId:fixture.linkId,toLocationId:'new:dinner'},
+                {id:latestIds.Dinner || 'new:item',title:'Dinner',type:'activity',activitySubType:'eat',locationId:'new:dinner',time:requestNumber>1?'17:00':'',duration:requestNumber>1?'90 min':''}
             ];
             const draft = {items,locations:[{key:'new:dinner',name:'Fixture Dinner '+fixture.projectId,address:'123 Test Street',phone:'555-0100',website:'https://example.com',lat:33.5,lng:-84.3,uncertain:true,reason:'Confirm the branch',sources:['https://example.com']}],warnings:['Check dinner location']};
             const content = requestNumber === 3 ? '{invalid' : JSON.stringify(clearResponse ? {items:[],locations:[],warnings:[]} : draft);
@@ -76,11 +77,14 @@ const assert = require('node:assert/strict');
         assert.ok(prompts[0].includes('MODE: CHANGE'));
         assert.ok(prompts[0].includes('retained-booking'));
         assert.equal(await page.locator('.lp-day-ai-items > li').count(),3);
+        const initialIds = await page.evaluate(()=>_lpDayAi.draft.items.map(item=>item.id));
+        assert.equal(new Set(initialIds).size,3);
         await page.locator('#lpDayAiPrompt').fill('Dinner reservations at 5pm for 90 min.');
         await page.locator('#lpDayAiGenerate').click();
         await page.waitForFunction(() => _lpDayAi?.history.length === 1 && !_lpDayAi.busy);
         assert.ok(prompts[1].includes('Keep the park and add dinner afterwards.'));
         assert.ok(prompts[1].includes('new:dinner'));
+        assert.deepEqual(await page.evaluate(()=>_lpDayAi.draft.items.map(item=>item.id)),initialIds);
         assert.ok((await page.locator('#lpDayAiReview').innerText()).includes('17:00 · 90 min'));
         await page.locator('#lpDayAiPrompt').fill('An intentionally invalid response test');
         await page.locator('#lpDayAiGenerate').click();
