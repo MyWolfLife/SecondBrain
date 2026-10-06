@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=487">
+    <link rel="stylesheet" href="css/styles.css?v=488">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -1112,10 +1112,20 @@
                     </div>
                     <div class="form-group hidden" id="llmModelGroup">
                         <label for="llmModel">Model</label>
-                        <select id="llmModel" class="settings-select">
-                            <option value="gpt-4o-mini">gpt-4o-mini (faster, cheaper)</option>
-                            <option value="gpt-5.4-mini">gpt-5.4-mini (newer)</option>
-                        </select>
+                        <div class="api-key-row">
+                            <select id="llmModel" class="settings-select"></select>
+                            <button type="button" class="btn btn-secondary btn-sm" id="llmModelManageBtn" onclick="toggleLlmModelManager()">Manage models</button>
+                        </div>
+                        <div class="llm-model-manager hidden" id="llmModelManager">
+                            <p class="accordion-desc">Models you can pick for this provider. Use the exact model ID from your provider (for example <code>gpt-6-luna</code>).</p>
+                            <ul class="llm-model-list" id="llmModelList"></ul>
+                            <div class="llm-model-form">
+                                <input type="text" id="llmModelIdInput" placeholder="Model ID" autocapitalize="off" autocomplete="off" spellcheck="false">
+                                <input type="text" id="llmModelLabelInput" placeholder="Note (optional, e.g. cheap, fast)">
+                                <button type="button" class="btn btn-primary btn-sm" id="llmModelAddBtn" onclick="saveLlmModelEntry()">Add model</button>
+                                <button type="button" class="btn btn-secondary btn-sm hidden" id="llmModelCancelBtn" onclick="cancelLlmModelEdit()">Cancel</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="llmApiKey">API Key</label>
@@ -12059,7 +12069,7 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=487"></script>
+    <script src="js/settings.js?v=488"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
     <script src="js/floorplan.js?v=487"></script>
@@ -12082,7 +12092,7 @@ export default {
     <script src="js/notes.js?v=487"></script>
     <script src="js/lifecalendar.js?v=487"></script>
     <script src="js/life-projects.js?v=487"></script>
-    <script src="js/life-projects-day-ai.js?v=493"></script>
+    <script src="js/life-projects-day-ai.js?v=494"></script>
     <script src="js/exercise.js?v=487"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>

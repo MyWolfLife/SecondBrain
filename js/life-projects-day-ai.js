@@ -111,7 +111,7 @@ Newest instruction: ${JSON.stringify(instruction)}`;
 async function _lpDayAiRequest(prompt, requireSearch) {
     const doc = await userCol('settings').doc('llm').get();
     const cfg = doc.exists && doc.data();
-    if (!cfg?.apiKey || !['openai', 'xai'].includes(cfg.provider)) throw new Error('Configure an AI provider and API key in Settings → AI first.');
+    if (!cfg?.apiKey || !['openai', 'grok', 'xai'].includes(cfg.provider)) throw new Error('Configure an AI provider and API key in Settings → AI first.');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 180000);
     try {

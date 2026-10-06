@@ -2,7 +2,7 @@
 // Caches all local static assets so the app loads offline.
 // IMPORTANT: Bump CACHE_NAME on every deploy so users get fresh files.
 
-var CACHE_NAME = 'bishop-v625';
+var CACHE_NAME = 'bishop-v626';
 
 // Web Share Target (Bucket List): the phone's share sheet POSTs a shared screenshot/text to
 // SHARE_PATH. We stash it in SHARE_CACHE and redirect into the app, which picks it up (see

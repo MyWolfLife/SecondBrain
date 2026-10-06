@@ -101,8 +101,9 @@ When a new service worker activates (after a deploy), the app defers the page re
 
 ### LLM Configuration (`settings.js`)
 - Stored in `userCol('settings').doc('llm')` — behind auth, not in localStorage
-- Fields: `provider` (openai / xai), `apiKey`, `model` (optional override)
+- Fields: `provider` (openai / grok), `apiKey`, `model` (optional override), `models` (the user's model list: `[{id, label, provider}]`)
 - Default models: `gpt-4o-mini` (OpenAI), `grok-3` (xAI)
+- **Model list (Settings → General Settings → AI Chat)**: the Model dropdown shows the models saved for the chosen provider plus "(provider default)" (blank). **Manage models** opens an add/edit/delete panel (model ID + optional note); each change saves to `settings/llm.models` immediately (merge, so key/provider are untouched). A saved `model` that is missing from the list is added automatically so it is never blanked. Seed list for a new account: `gpt-4o-mini`, `gpt-5.4-mini`. **Save AI Settings** now writes provider, key, chosen model and list with merge. The Test button uses the chosen model (Grok falls back to `grok-3-mini` when blank). Import / Edit Day accepts provider `grok` (previously only `xai`, which the settings screen never saved).
 - Both use the OpenAI-compatible API format (`/v1/chat/completions`)
 
 ---

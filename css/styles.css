@@ -5376,6 +5376,15 @@ a.ar-target-link:hover {
     background: #fff;
 }
 
+/* ===== Settings — LLM model manager ===== */
+.llm-model-manager { margin-top: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
+.llm-model-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.llm-model-list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eee; }
+.llm-model-list .llm-model-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.llm-model-list .llm-model-note { color: #777; font-size: 0.85rem; }
+.llm-model-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.llm-model-form input { flex: 1 1 160px; min-width: 0; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+
 /* ===== Chat Page ===== */
 .chat-no-config {
     padding: 24px;

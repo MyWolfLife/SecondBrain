@@ -1600,20 +1600,170 @@ function handleRestoreFile(file, expectType) {
 // LLM Settings
 // ============================================================
 
+// The user's list of models, kept in the settings/llm document as `models`.
+// Each entry: { id: 'gpt-6-luna', label: 'cheap, fast', provider: 'openai' | 'grok' }
+var LLM_DEFAULT_MODELS = [
+    { id: 'gpt-4o-mini',  label: 'faster, cheaper', provider: 'openai' },
+    { id: 'gpt-5.4-mini', label: 'newer',           provider: 'openai' }
+];
+var _llmModels = LLM_DEFAULT_MODELS.map(function(m) { return Object.assign({}, m); });
+var _llmModelEditIndex = -1;   // index in _llmModels being edited, or -1 when adding
+
 /**
- * Show or hide the model picker depending on the selected provider.
- * Only OpenAI has a model choice right now.
+ * Show the model picker once a provider is chosen, and refresh its choices.
  * Also updates the Help button state.
  */
 function updateLlmModelVisibility() {
     var provider = document.getElementById('llmProvider').value;
     var modelGroup = document.getElementById('llmModelGroup');
-    if (provider === 'openai') {
+    if (provider) {
         modelGroup.classList.remove('hidden');
     } else {
         modelGroup.classList.add('hidden');
     }
+    cancelLlmModelEdit();
+    renderLlmModelSelect(document.getElementById('llmModel').value);
+    renderLlmModelList();
     updateLlmHelpBtn();
+}
+
+/** Fill the Model dropdown with the saved models for the current provider. */
+function renderLlmModelSelect(selectedId) {
+    var provider = document.getElementById('llmProvider').value;
+    var select   = document.getElementById('llmModel');
+    var models   = _llmModels.filter(function(m) { return m.provider === provider; });
+    // Never lose a model that is saved on the account but missing from the list.
+    if (provider && selectedId && !models.some(function(m) { return m.id === selectedId; })) {
+        var extra = { id: selectedId, label: 'saved', provider: provider };
+        _llmModels.push(extra);
+        models.push(extra);
+    }
+    select.innerHTML = '';
+    // Leaving the model blank makes each feature use its own default model.
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '(provider default)';
+    select.appendChild(blank);
+    models.forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.label ? m.id + ' (' + m.label + ')' : m.id;
+        select.appendChild(opt);
+    });
+    select.value = selectedId || '';
+}
+
+/** Show/hide the add-edit-delete panel. */
+function toggleLlmModelManager() {
+    document.getElementById('llmModelManager').classList.toggle('hidden');
+    cancelLlmModelEdit();
+    renderLlmModelList();
+}
+
+/** Draw the list of models (with Edit / Delete) for the current provider. */
+function renderLlmModelList() {
+    var provider = document.getElementById('llmProvider').value;
+    var list = document.getElementById('llmModelList');
+    list.innerHTML = '';
+    var any = false;
+    _llmModels.forEach(function(m, index) {
+        if (m.provider !== provider) return;
+        any = true;
+        var li = document.createElement('li');
+        var name = document.createElement('span');
+        name.className = 'llm-model-name';
+        name.textContent = m.id;
+        if (m.label) {
+            var note = document.createElement('span');
+            note.className = 'llm-model-note';
+            note.textContent = '  ' + m.label;
+            name.appendChild(note);
+        }
+        var edit = document.createElement('button');
+        edit.type = 'button'; edit.className = 'btn btn-secondary btn-sm'; edit.textContent = 'Edit';
+        edit.onclick = function() { editLlmModel(index); };
+        var del = document.createElement('button');
+        del.type = 'button'; del.className = 'btn btn-secondary btn-sm'; del.textContent = 'Delete';
+        del.onclick = function() { deleteLlmModel(index); };
+        li.appendChild(name); li.appendChild(edit); li.appendChild(del);
+        list.appendChild(li);
+    });
+    if (!any) {
+        var empty = document.createElement('li');
+        empty.textContent = 'No models yet. Add one below.';
+        list.appendChild(empty);
+    }
+}
+
+/** Load one model into the form for editing. */
+function editLlmModel(index) {
+    _llmModelEditIndex = index;
+    document.getElementById('llmModelIdInput').value    = _llmModels[index].id;
+    document.getElementById('llmModelLabelInput').value = _llmModels[index].label || '';
+    document.getElementById('llmModelAddBtn').textContent = 'Save changes';
+    document.getElementById('llmModelCancelBtn').classList.remove('hidden');
+    document.getElementById('llmModelIdInput').focus();
+}
+
+/** Clear the form and go back to "add" mode. */
+function cancelLlmModelEdit() {
+    _llmModelEditIndex = -1;
+    document.getElementById('llmModelIdInput').value    = '';
+    document.getElementById('llmModelLabelInput').value = '';
+    document.getElementById('llmModelAddBtn').textContent = 'Add model';
+    document.getElementById('llmModelCancelBtn').classList.add('hidden');
+}
+
+/** Add a new model, or save changes to the one being edited. */
+async function saveLlmModelEntry() {
+    var provider = document.getElementById('llmProvider').value;
+    var id    = document.getElementById('llmModelIdInput').value.trim();
+    var label = document.getElementById('llmModelLabelInput').value.trim();
+    if (!provider) { alert('Select a provider first.'); return; }
+    if (!id)       { alert('Enter the model ID.'); return; }
+    if (/\s/.test(id)) { alert('A model ID cannot contain spaces.'); return; }
+    var duplicate = _llmModels.some(function(m, i) {
+        return m.provider === provider && m.id === id && i !== _llmModelEditIndex;
+    });
+    if (duplicate) { alert('That model is already in the list.'); return; }
+
+    var selected = document.getElementById('llmModel').value;
+    if (_llmModelEditIndex >= 0) {
+        var oldId = _llmModels[_llmModelEditIndex].id;
+        _llmModels[_llmModelEditIndex].id    = id;
+        _llmModels[_llmModelEditIndex].label = label;
+        if (selected === oldId) selected = id;   // keep the renamed model selected
+    } else {
+        _llmModels.push({ id: id, label: label, provider: provider });
+    }
+    cancelLlmModelEdit();
+    renderLlmModelSelect(selected);
+    renderLlmModelList();
+    await persistLlmModels();
+}
+
+/** Remove a model from the list (after confirming). */
+async function deleteLlmModel(index) {
+    var m = _llmModels[index];
+    if (!confirm('Delete model "' + m.id + '" from the list?')) return;
+    var selected = document.getElementById('llmModel').value;
+    _llmModels.splice(index, 1);
+    cancelLlmModelEdit();
+    renderLlmModelSelect(selected === m.id ? '' : selected);
+    renderLlmModelList();
+    await persistLlmModels();
+}
+
+/**
+ * Save only the model list. The provider, key and chosen model are saved
+ * by the Save AI Settings button, so this uses merge to leave them alone.
+ */
+async function persistLlmModels() {
+    try {
+        await userCol('settings').doc('llm').set({ models: _llmModels }, { merge: true });
+    } catch (err) {
+        alert('Could not save the model list: ' + err.message);
+    }
 }
 
 /**
@@ -1669,7 +1819,7 @@ async function testLlmKey() {
         model    = document.getElementById('llmModel').value || 'gpt-4o-mini';
     } else {
         endpoint = 'https://api.x.ai/v1/chat/completions';
-        model    = 'grok-3-mini';
+        model    = document.getElementById('llmModel').value || 'grok-3-mini';
     }
 
     try {
@@ -1767,10 +1917,11 @@ async function loadLlmSettings() {
             var d = doc.data();
             document.getElementById('llmProvider').value = d.provider || '';
             document.getElementById('llmApiKey').value   = d.apiKey   || '';
-            if (d.model) {
-                document.getElementById('llmModel').value = d.model;
+            if (Array.isArray(d.models) && d.models.length) {
+                _llmModels = d.models.filter(function(m) { return m && m.id && m.provider; });
             }
-            updateLlmModelVisibility(); // also calls updateLlmHelpBtn
+            renderLlmModelSelect(d.model || '');   // also adds a saved model missing from the list
+            updateLlmModelVisibility(); // re-renders the picker for the provider, calls updateLlmHelpBtn
         }
     } catch (err) {
         console.error('Error loading LLM settings:', err);
@@ -1786,9 +1937,7 @@ async function saveLlmSettings() {
     var savedMsg  = document.getElementById('llmSavedMsg');
     var provider  = document.getElementById('llmProvider').value;
     var apiKey    = document.getElementById('llmApiKey').value.trim();
-    var model     = (provider === 'openai')
-                        ? document.getElementById('llmModel').value
-                        : '';   // Grok has only one model; leave blank to use default
+    var model     = document.getElementById('llmModel').value;   // blank = provider default
 
     if (!provider) {
         alert('Please select an LLM provider.');
@@ -1808,8 +1957,9 @@ async function saveLlmSettings() {
             provider  : provider,
             apiKey    : apiKey,
             model     : model,
+            models    : _llmModels,
             updatedAt : firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
 
         saveBtn.disabled    = false;
         saveBtn.textContent = 'Save AI Settings';

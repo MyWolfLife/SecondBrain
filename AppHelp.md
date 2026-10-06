@@ -625,8 +625,8 @@ The **Ask AI** button on every Help screen lets you ask questions about the app 
 2. Scroll to the **AI / LLM** section
 3. Choose a provider: **OpenAI** or **Grok (xAI)**
 4. Paste your API key
-5. Optionally set a specific model (or leave blank to use the default)
-6. Tap **Save**
+5. Pick a **Model** from the dropdown, or leave it on **(provider default)**. Tap **Manage models** to add your own (type the exact model ID from your provider, such as `gpt-6-luna`), edit one, or delete one. List changes save right away.
+6. Tap **Save AI Settings**
 
 **Supported providers:**
 - **OpenAI** — uses `gpt-4o` by default. Get a key at [platform.openai.com](https://platform.openai.com)
