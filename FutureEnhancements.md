@@ -2,6 +2,11 @@
 
 Items that are out of scope for current work but should be revisited later.
 
+## Life Projects: Itinerary Travel-Time Research and Map Feature
+
+- Revisit automatic travel-duration research for Import / Edit Day. The current feature researches locations only; travel durations come from user instructions or derivable stated times.
+- Define the user's itinerary map feature after the day import/edit feature is complete. Requirements have not yet been discussed.
+
 ---
 
 ## Firebase SDK: Migrate Offline Persistence to `FirestoreSettings.cache`

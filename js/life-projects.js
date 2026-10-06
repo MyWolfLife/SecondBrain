@@ -3408,6 +3408,7 @@ function _lpDayCard(d) {
                 </div>
                 ${items.length === 0 ? '<p style="color:#bbb; font-size:0.85em; margin:4px 0;">No items yet.</p>' : ''}
                 <button class="btn btn-small" style="margin-top:6px;" onclick="_lpAddItem('${d.id}')">+ Add Item</button>
+                ${!_lpIsTravelMode() ? `<button class="btn btn-small" style="margin-top:6px;" onclick="_lpOpenDayAi('${d.id}')">✨ Import / Edit Day</button>` : ''}
             </div>
             `}
         </div>
@@ -3897,11 +3898,13 @@ function _lpBuildDayItemsHtml(dayId, items) {
     let html = '';
     let lastTimelineItem = null;
     for (const item of items) {
+        // Explicit movement already connects its endpoints; do not add another travel summary.
+        if (['drive', 'flight', 'travel'].includes(item.type)) lastTimelineItem = null;
         if (item.onTimeline && lastTimelineItem) {
             html += _lpTravelRow(lastTimelineItem, item);
         }
         html += _lpItemRow(dayId, item);
-        if (item.onTimeline) lastTimelineItem = item;
+        if (item.onTimeline && !['drive', 'flight', 'travel'].includes(item.type)) lastTimelineItem = item;
     }
     return html;
 }
@@ -8580,6 +8583,7 @@ async function _lpBuildPrintDocument(onProgress) {
         let html = '';
         let lastTimeline = null;
         (items || []).forEach((item, idx) => {
+            if (['drive', 'flight', 'travel'].includes(item.type)) lastTimeline = null;
             const hasTravelLine = item.onTimeline && lastTimeline;
             if (hasTravelLine) {
                 html += travelLineHtml(lastTimeline, item);
@@ -8589,7 +8593,7 @@ async function _lpBuildPrintDocument(onProgress) {
                 html += '<hr class="item-sep">';
             }
             html += itemHtml(item);
-            if (item.onTimeline) lastTimeline = item;
+            if (item.onTimeline && !['drive', 'flight', 'travel'].includes(item.type)) lastTimeline = item;
         });
         return html;
     }
