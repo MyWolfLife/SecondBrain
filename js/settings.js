@@ -721,7 +721,7 @@ var STORAGE_GROUPS = [
     { label: 'Health',             cols: ['allergies','appointments','bloodWorkRecords','checklistRuns','checklistTemplates','concernUpdates','concerns','conditions','distances','emergencyInfo','eyePrescriptions','healthAppointments','healthCareTeam','healthConditionLogs','healthVisits','insurancePolicies','medications','supplements','vaccinations','vitals'] },
     { label: 'Life / Calendar',    cols: ['bucketList','lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups'] },
     { label: 'Thoughts',           cols: ['top10categories','top10lists','memories','memoryLinks','memoryTags','views','viewCategories'] },
-    { label: 'Misc / Settings',    cols: ['llmUsage','sbIssues','settings'] }
+    { label: 'Misc / Settings',    cols: ['llmBalanceLog','llmUsage','sbIssues','settings'] }
 ];
 
 /**
@@ -887,7 +887,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'legacyLetters', 'legacyMeta',
 
     // Misc
-    'sbIssues', 'settings', 'llmUsage',
+    'sbIssues', 'settings', 'llmUsage', 'llmBalanceLog',
 
     // Credentials
     'credentials', 'credentialCategories',

@@ -5397,6 +5397,15 @@ a.ar-target-link:hover {
 .llm-usage-table th:first-child, .llm-usage-table td:first-child { text-align: left; overflow-wrap: anywhere; }
 .llm-usage-table-wrap { overflow-x: auto; }
 
+.llm-balance-warning { background: #ffebee; border-left-color: #c62828; }
+.llm-balance-warning .backup-reminder-icon { color: #c62828; }
+.llm-balance-row { padding: 8px 0; border-bottom: 1px solid #eee; }
+.llm-balance-title { font-weight: 600; }
+.llm-balance-low { color: #c62828; }
+.llm-balance-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.llm-balance-field { display: flex; gap: 6px; }
+.llm-balance-field input { width: 120px; min-width: 0; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+
 /* ===== Chat Page ===== */
 .chat-no-config {
     padding: 24px;

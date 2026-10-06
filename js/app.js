@@ -442,6 +442,7 @@ function handleRoute() {
         showPage('main');
         if (typeof favRenderHomeSection === 'function') favRenderHomeSection();
         if (typeof backupReminderRender === 'function') backupReminderRender();
+        if (typeof llmBalanceBannerRender === 'function') llmBalanceBannerRender();
     } else if (page === 'weeds') {
         showPage('weeds');
         loadWeedsList();

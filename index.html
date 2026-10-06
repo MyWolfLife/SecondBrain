@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=489">
+    <link rel="stylesheet" href="css/styles.css?v=490">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -269,6 +269,8 @@
         <section class="page hidden" id="page-main">
             <!-- Backup reminder banner (desktop only) - populated by settings.js -->
             <div id="backupReminder"></div>
+            <!-- AI credit low warning (home screen only) - populated by llm-usage.js -->
+            <div id="llmBalanceWarning"></div>
 
             <!-- QuickLog natural-language command button -->
             <button class="sb-home-btn" id="sbHomeBtn">⚡ QuickLog — Tell me something</button>
@@ -1170,6 +1172,7 @@
                 </button>
                 <div class="accordion-body">
                     <p class="accordion-desc">Every AI call the app makes is logged with its model and token counts. Cost is an estimate from the prices you entered under AI Chat &rarr; Manage models. It does not include web-search tool fees.</p>
+                    <div id="llmBalanceBox"></div>
                     <div class="llm-usage-controls">
                         <select id="llmUsageRange" class="settings-select" onchange="renderLlmUsage()">
                             <option value="1">Today</option>
@@ -12107,8 +12110,8 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=490"></script>
-    <script src="js/llm-usage.js?v=3"></script>
+    <script src="js/settings.js?v=491"></script>
+    <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
     <script src="js/floorplan.js?v=487"></script>
@@ -12173,7 +12176,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=487"></script>
+    <script src="js/app.js?v=488"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

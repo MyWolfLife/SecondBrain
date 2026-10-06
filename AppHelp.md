@@ -649,6 +649,10 @@ In **Settings → General Settings → AI Usage & Cost** you can see every AI ca
 - Cost is an **estimate** from the prices saved under AI Chat → Manage models. Calls to a model with no saved price are counted but show no cost. Web-search fees from the provider are not included.
 - **Clear log** deletes the whole history (it asks first).
 
+**Prepaid credit warning:** At the top of this section, type the balance your provider shows (for example OpenAI's billing page) and tap **Set balance**. From then on the app subtracts the estimated cost of each AI call. When the estimate falls below your **Warn below $** amount (starts at $1), a red warning appears on the **home screen** with an **Update balance** button.
+- After you add money with your provider, type the amount in **Funds added** and tap **Add funds** (or type the new total under **Balance now** and tap **Set balance**). The warning goes away.
+- The balance is an estimate. It leaves out web-search fees, so it can run slightly high; re-enter the real balance from your provider now and then. The *Recent balance changes* list shows what the app thought you had each time you reset it.
+
 ### Stock Analyzer (FMP)
 
 The Stock Analyzer can use **Financial Modeling Prep (FMP)** for faster price data — and, on paid FMP tiers, stock screening and analyst data.

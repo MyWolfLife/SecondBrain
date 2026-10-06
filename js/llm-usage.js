@@ -150,6 +150,7 @@ async function renderLlmUsage() {
     var body = document.getElementById('llmUsageBody');
     if (!body) return;
     body.textContent = 'Loading…';
+    renderLlmBalance();
     try {
         var days = Number(document.getElementById('llmUsageRange').value);
         var query = userCol('llmUsage').orderBy('createdAt', 'desc');
@@ -232,4 +233,408 @@ async function clearLlmUsage() {
     } catch (err) {
         alert('Could not clear the log: ' + err.message);
     }
+}
+
+// ============================================================
+// Prepaid credit balance
+// You enter what your provider's dashboard says you have left. The app then subtracts the
+// estimated cost of every logged call made since that moment and warns on the home page
+// when the estimate drops below your threshold (default $1). Entering a new balance (or
+// adding funds) starts the count again. The estimate leaves out web-search fees, so it
+// drifts a little; re-enter the real balance now and then. Stored in settings/llmBalance:
+//   { openai: { amount, asOf (ISO), threshold }, grok: { ... } }
+// Each change is also written to the `llmBalanceLog` collection (with the estimate it replaced).
+// ============================================================
+
+var LLM_BALANCE_PROVIDERS = [{ id: 'openai', name: 'OpenAI' }, { id: 'grok', name: 'Grok (xAI)' }];
+var LLM_BALANCE_DEFAULT_THRESHOLD = 1;
+var _llmBalanceCfg = null;     // cached settings/llmBalance data
+var _llmBalanceCache = {};     // provider -> { at: ms, status }, kept for 60s
+
+function _llmBalanceReset() { _llmBalanceCfg = null; _llmBalanceCache = {}; }
+
+/** "$0.62" or "-$0.10". */
+function _llmFmtMoney(n) { return (n < 0 ? '-' : '') + _llmFmtCost(Math.abs(n)); }
+
+async function _llmBalanceLoadCfg() {
+    if (_llmBalanceCfg) return _llmBalanceCfg;
+    try {
+        var doc = await userCol('settings').doc('llmBalance').get();
+        _llmBalanceCfg = doc.exists ? doc.data() : {};
+    } catch (e) {
+        _llmBalanceCfg = {};
+    }
+    return _llmBalanceCfg;
+}
+
+/**
+ * Where a provider's balance stands now: { amount, asOf, threshold, spent, remaining, unpriced },
+ * or null when no balance has been entered for it.
+ */
+async function llmBalanceStatus(provider, fresh) {
+    var hit = _llmBalanceCache[provider];
+    if (!fresh && hit && Date.now() - hit.at < 60000) return hit.status;
+    var cfg = await _llmBalanceLoadCfg();
+    var b = cfg[provider];
+    if (!b || typeof b.amount !== 'number' || !b.asOf) return null;
+
+    var snap = await userCol('llmUsage').where('createdAt', '>=', new Date(b.asOf)).get();
+    var models = await _llmUsageLoadModels();
+    var spent = 0, unpriced = 0;
+    snap.forEach(function(d) {
+        var e = d.data();
+        if (e.provider !== provider) return;
+        var cost = e.estCost;
+        if (cost == null) cost = llmUsageCost(_llmUsageFindPrice(models, e.provider, e.model || ''), e.inputTokens || 0, e.cachedTokens || 0, e.outputTokens || 0);
+        if (cost == null) unpriced++; else spent += cost;
+    });
+    var status = { amount: b.amount, asOf: b.asOf, threshold: b.threshold != null ? b.threshold : LLM_BALANCE_DEFAULT_THRESHOLD,
+        spent: spent, remaining: b.amount - spent, unpriced: unpriced };
+    _llmBalanceCache[provider] = { at: Date.now(), status: status };
+    return status;
+}
+
+/**
+ * Record a new balance. mode 'set' = the number your provider's dashboard shows now;
+ * mode 'add' = funds you just added on top of the estimated remaining balance.
+ */
+async function llmBalanceUpdate(provider, value, mode) {
+    var entered = Number(value);
+    if (value === '' || !isFinite(entered) || entered < 0) { alert('Enter a dollar amount (zero or more).'); return; }
+    var before = await llmBalanceStatus(provider, true);
+    var amount = mode === 'add' ? Math.max(before ? before.remaining : 0, 0) + entered : entered;
+    amount = Math.round(amount * 1e6) / 1e6;
+    var threshold = before ? before.threshold : LLM_BALANCE_DEFAULT_THRESHOLD;
+    var asOf = new Date().toISOString();
+    try {
+        var update = {}; update[provider] = { amount: amount, asOf: asOf, threshold: threshold };
+        await userCol('settings').doc('llmBalance').set(update, { merge: true });
+        await userCol('llmBalanceLog').add({
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(), provider: provider, mode: mode,
+            amount: amount, added: mode === 'add' ? entered : null,
+            previousEstimate: before ? before.remaining : null   // what the app thought was left, to see how far it drifts
+        });
+    } catch (err) {
+        alert('Could not save the balance: ' + err.message);
+        return;
+    }
+    _llmBalanceReset();
+    await renderLlmBalance();
+}
+
+/** Change the "warn me below $" amount for a provider that already has a balance. */
+async function llmBalanceSetThreshold(provider, value) {
+    var n = Number(value);
+    if (value === '' || !isFinite(n) || n < 0) { alert('Enter a dollar amount (zero or more).'); return; }
+    var cfg = await _llmBalanceLoadCfg();
+    if (!cfg[provider]) { alert('Set a balance first.'); return; }
+    var update = {}; update[provider] = Object.assign({}, cfg[provider], { threshold: n });
+    try { await userCol('settings').doc('llmBalance').set(update, { merge: true }); }
+    catch (err) { alert('Could not save: ' + err.message); return; }
+    _llmBalanceReset();
+    await renderLlmBalance();
+}
+
+/** The balance section at the top of Settings -> AI Usage & Cost. */
+async function renderLlmBalance() {
+    var box = document.getElementById('llmBalanceBox');
+    if (!box) return;
+    var frag = document.createDocumentFragment();
+    var heading = document.createElement('h4');
+    heading.textContent = 'Prepaid credit';
+    frag.appendChild(heading);
+    var help = document.createElement('p');
+    help.className = 'accordion-desc';
+    help.textContent = 'Enter the balance your provider shows. The app subtracts each logged call from it and warns on the home screen when the estimate gets low. Use “Add funds” after you top up.';
+    frag.appendChild(help);
+
+    for (var i = 0; i < LLM_BALANCE_PROVIDERS.length; i++) {
+        var p = LLM_BALANCE_PROVIDERS[i];
+        frag.appendChild(_llmBalanceRow(p, await llmBalanceStatus(p.id, true)));
+    }
+
+    // Last few changes, newest first.
+    try {
+        var snap = await userCol('llmBalanceLog').orderBy('createdAt', 'desc').limit(5).get();
+        if (!snap.empty) {
+            var h = document.createElement('h4'); h.textContent = 'Recent balance changes'; frag.appendChild(h);
+            frag.appendChild(_llmUsageTable(['When', 'Provider', 'New balance', 'Estimate it replaced'], snap.docs.map(function(d) {
+                var e = d.data();
+                return [e.createdAt && e.createdAt.toDate ? e.createdAt.toDate().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
+                    e.provider, '$' + Number(e.amount).toFixed(2) + (e.added ? ' (added $' + Number(e.added).toFixed(2) + ')' : ''),
+                    e.previousEstimate == null ? '—' : _llmFmtMoney(e.previousEstimate)];
+            })));
+        }
+    } catch (e) { /* history is optional */ }
+    box.innerHTML = '';
+    box.appendChild(frag);
+}
+
+function _llmBalanceRow(p, st) {
+    var row = document.createElement('div');
+    row.className = 'llm-balance-row';
+    var title = document.createElement('div');
+    title.className = 'llm-balance-title';
+    title.textContent = p.name + ': ' + (st ? 'about ' + _llmFmtMoney(st.remaining) + ' left' : 'no balance entered');
+    if (st && st.remaining < st.threshold) title.classList.add('llm-balance-low');
+    row.appendChild(title);
+    if (st) {
+        var detail = document.createElement('div');
+        detail.className = 'llm-model-note';
+        detail.textContent = 'Started at $' + st.amount.toFixed(2) + ' on ' + new Date(st.asOf).toLocaleDateString() +
+            ', spent about ' + _llmFmtCost(st.spent) + (st.unpriced ? ' (' + st.unpriced + ' call(s) with no price are not counted)' : '');
+        row.appendChild(detail);
+    }
+    function field(placeholder, buttonText, handler) {
+        var wrap = document.createElement('span');
+        wrap.className = 'llm-balance-field';
+        var input = document.createElement('input');
+        input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.placeholder = placeholder;
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn btn-secondary btn-sm'; btn.textContent = buttonText;
+        btn.onclick = function() { handler(input.value); };
+        wrap.appendChild(input); wrap.appendChild(btn);
+        return wrap;
+    }
+    var controls = document.createElement('div');
+    controls.className = 'llm-balance-controls';
+    controls.appendChild(field('Balance now $', 'Set balance', function(v) { llmBalanceUpdate(p.id, v, 'set'); }));
+    if (st) {
+        controls.appendChild(field('Funds added $', 'Add funds', function(v) { llmBalanceUpdate(p.id, v, 'add'); }));
+        var t = field('Warn below $', 'Save', function(v) { llmBalanceSetThreshold(p.id, v); });
+        t.querySelector('input').value = st.threshold;
+        controls.appendChild(t);
+    }
+    row.appendChild(controls);
+    return row;
+}
+
+/** Home-screen warning when an estimated balance is under its threshold. Called only from the #main route. */
+async function llmBalanceBannerRender() {
+    var el = document.getElementById('llmBalanceWarning');
+    if (!el) return;
+    try {
+        var messages = [];
+        for (var i = 0; i < LLM_BALANCE_PROVIDERS.length; i++) {
+            var p = LLM_BALANCE_PROVIDERS[i];
+            var st = await llmBalanceStatus(p.id);
+            if (st && st.remaining < st.threshold) {
+                messages.push(st.remaining <= 0
+                    ? p.name + ' credit is probably used up (estimated ' + _llmFmtMoney(st.remaining) + ').'
+                    : p.name + ' credit is low: about ' + _llmFmtMoney(st.remaining) + ' left (estimate).');
+            }
+        }
+        el.innerHTML = '';
+        if (!messages.length) return;
+        var box = document.createElement('div');
+        box.className = 'backup-reminder llm-balance-warning';
+        var icon = document.createElement('span'); icon.className = 'backup-reminder-icon'; icon.innerHTML = '&#9888;';
+        var text = document.createElement('span'); text.className = 'backup-reminder-text'; text.textContent = messages.join(' ');
+        var link = document.createElement('a'); link.href = '#settings-general'; link.className = 'btn btn-primary backup-reminder-btn';
+        link.textContent = 'Update balance';
+        box.appendChild(icon); box.appendChild(text); box.appendChild(link);
+        el.appendChild(box);
+    } catch (e) { /* the warning is best-effort */ }
+}
+
+// ============================================================
+// Prepaid credit balance
+// You enter what your provider's dashboard says you have left. The app then subtracts the
+// estimated cost of every logged call made since that moment and warns on the home page
+// when the estimate drops below your threshold (default $1). Entering a new balance (or
+// adding funds) starts the count again. The estimate leaves out web-search fees, so it
+// drifts a little; re-enter the real balance now and then. Stored in settings/llmBalance:
+//   { openai: { amount, asOf (ISO), threshold }, grok: { ... } }
+// Each change is also written to the `llmBalanceLog` collection (with the estimate it replaced).
+// ============================================================
+
+var LLM_BALANCE_PROVIDERS = [{ id: 'openai', name: 'OpenAI' }, { id: 'grok', name: 'Grok (xAI)' }];
+var LLM_BALANCE_DEFAULT_THRESHOLD = 1;
+var _llmBalanceCfg = null;     // cached settings/llmBalance data
+var _llmBalanceCache = {};     // provider -> { at: ms, status }, kept for 60s
+
+function _llmBalanceReset() { _llmBalanceCfg = null; _llmBalanceCache = {}; }
+
+/** "$0.62" or "-$0.10". */
+function _llmFmtMoney(n) { return (n < 0 ? '-' : '') + _llmFmtCost(Math.abs(n)); }
+
+async function _llmBalanceLoadCfg() {
+    if (_llmBalanceCfg) return _llmBalanceCfg;
+    try {
+        var doc = await userCol('settings').doc('llmBalance').get();
+        _llmBalanceCfg = doc.exists ? doc.data() : {};
+    } catch (e) {
+        _llmBalanceCfg = {};
+    }
+    return _llmBalanceCfg;
+}
+
+/**
+ * Where a provider's balance stands now: { amount, asOf, threshold, spent, remaining, unpriced },
+ * or null when no balance has been entered for it.
+ */
+async function llmBalanceStatus(provider, fresh) {
+    var hit = _llmBalanceCache[provider];
+    if (!fresh && hit && Date.now() - hit.at < 60000) return hit.status;
+    var cfg = await _llmBalanceLoadCfg();
+    var b = cfg[provider];
+    if (!b || typeof b.amount !== 'number' || !b.asOf) return null;
+
+    var snap = await userCol('llmUsage').where('createdAt', '>=', new Date(b.asOf)).get();
+    var models = await _llmUsageLoadModels();
+    var spent = 0, unpriced = 0;
+    snap.forEach(function(d) {
+        var e = d.data();
+        if (e.provider !== provider) return;
+        var cost = e.estCost;
+        if (cost == null) cost = llmUsageCost(_llmUsageFindPrice(models, e.provider, e.model || ''), e.inputTokens || 0, e.cachedTokens || 0, e.outputTokens || 0);
+        if (cost == null) unpriced++; else spent += cost;
+    });
+    var status = { amount: b.amount, asOf: b.asOf, threshold: b.threshold != null ? b.threshold : LLM_BALANCE_DEFAULT_THRESHOLD,
+        spent: spent, remaining: b.amount - spent, unpriced: unpriced };
+    _llmBalanceCache[provider] = { at: Date.now(), status: status };
+    return status;
+}
+
+/**
+ * Record a new balance. mode 'set' = the number your provider's dashboard shows now;
+ * mode 'add' = funds you just added on top of the estimated remaining balance.
+ */
+async function llmBalanceUpdate(provider, value, mode) {
+    var entered = Number(value);
+    if (value === '' || !isFinite(entered) || entered < 0) { alert('Enter a dollar amount (zero or more).'); return; }
+    var before = await llmBalanceStatus(provider, true);
+    var amount = mode === 'add' ? Math.max(before ? before.remaining : 0, 0) + entered : entered;
+    amount = Math.round(amount * 1e6) / 1e6;
+    var threshold = before ? before.threshold : LLM_BALANCE_DEFAULT_THRESHOLD;
+    var asOf = new Date().toISOString();
+    try {
+        var update = {}; update[provider] = { amount: amount, asOf: asOf, threshold: threshold };
+        await userCol('settings').doc('llmBalance').set(update, { merge: true });
+        await userCol('llmBalanceLog').add({
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(), provider: provider, mode: mode,
+            amount: amount, added: mode === 'add' ? entered : null,
+            previousEstimate: before ? before.remaining : null   // what the app thought was left, to see how far it drifts
+        });
+    } catch (err) {
+        alert('Could not save the balance: ' + err.message);
+        return;
+    }
+    _llmBalanceReset();
+    await renderLlmBalance();
+}
+
+/** Change the "warn me below $" amount for a provider that already has a balance. */
+async function llmBalanceSetThreshold(provider, value) {
+    var n = Number(value);
+    if (value === '' || !isFinite(n) || n < 0) { alert('Enter a dollar amount (zero or more).'); return; }
+    var cfg = await _llmBalanceLoadCfg();
+    if (!cfg[provider]) { alert('Set a balance first.'); return; }
+    var update = {}; update[provider] = Object.assign({}, cfg[provider], { threshold: n });
+    try { await userCol('settings').doc('llmBalance').set(update, { merge: true }); }
+    catch (err) { alert('Could not save: ' + err.message); return; }
+    _llmBalanceReset();
+    await renderLlmBalance();
+}
+
+/** The balance section at the top of Settings -> AI Usage & Cost. */
+async function renderLlmBalance() {
+    var box = document.getElementById('llmBalanceBox');
+    if (!box) return;
+    var frag = document.createDocumentFragment();
+    var heading = document.createElement('h4');
+    heading.textContent = 'Prepaid credit';
+    frag.appendChild(heading);
+    var help = document.createElement('p');
+    help.className = 'accordion-desc';
+    help.textContent = 'Enter the balance your provider shows. The app subtracts each logged call from it and warns on the home screen when the estimate gets low. Use “Add funds” after you top up.';
+    frag.appendChild(help);
+
+    for (var i = 0; i < LLM_BALANCE_PROVIDERS.length; i++) {
+        var p = LLM_BALANCE_PROVIDERS[i];
+        frag.appendChild(_llmBalanceRow(p, await llmBalanceStatus(p.id, true)));
+    }
+
+    // Last few changes, newest first.
+    try {
+        var snap = await userCol('llmBalanceLog').orderBy('createdAt', 'desc').limit(5).get();
+        if (!snap.empty) {
+            var h = document.createElement('h4'); h.textContent = 'Recent balance changes'; frag.appendChild(h);
+            frag.appendChild(_llmUsageTable(['When', 'Provider', 'New balance', 'Estimate it replaced'], snap.docs.map(function(d) {
+                var e = d.data();
+                return [e.createdAt && e.createdAt.toDate ? e.createdAt.toDate().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
+                    e.provider, '$' + Number(e.amount).toFixed(2) + (e.added ? ' (added $' + Number(e.added).toFixed(2) + ')' : ''),
+                    e.previousEstimate == null ? '—' : _llmFmtMoney(e.previousEstimate)];
+            })));
+        }
+    } catch (e) { /* history is optional */ }
+    box.innerHTML = '';
+    box.appendChild(frag);
+}
+
+function _llmBalanceRow(p, st) {
+    var row = document.createElement('div');
+    row.className = 'llm-balance-row';
+    var title = document.createElement('div');
+    title.className = 'llm-balance-title';
+    title.textContent = p.name + ': ' + (st ? 'about ' + _llmFmtMoney(st.remaining) + ' left' : 'no balance entered');
+    if (st && st.remaining < st.threshold) title.classList.add('llm-balance-low');
+    row.appendChild(title);
+    if (st) {
+        var detail = document.createElement('div');
+        detail.className = 'llm-model-note';
+        detail.textContent = 'Started at $' + st.amount.toFixed(2) + ' on ' + new Date(st.asOf).toLocaleDateString() +
+            ', spent about ' + _llmFmtCost(st.spent) + (st.unpriced ? ' (' + st.unpriced + ' call(s) with no price are not counted)' : '');
+        row.appendChild(detail);
+    }
+    function field(placeholder, buttonText, handler) {
+        var wrap = document.createElement('span');
+        wrap.className = 'llm-balance-field';
+        var input = document.createElement('input');
+        input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.placeholder = placeholder;
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn btn-secondary btn-sm'; btn.textContent = buttonText;
+        btn.onclick = function() { handler(input.value); };
+        wrap.appendChild(input); wrap.appendChild(btn);
+        return wrap;
+    }
+    var controls = document.createElement('div');
+    controls.className = 'llm-balance-controls';
+    controls.appendChild(field('Balance now $', 'Set balance', function(v) { llmBalanceUpdate(p.id, v, 'set'); }));
+    if (st) {
+        controls.appendChild(field('Funds added $', 'Add funds', function(v) { llmBalanceUpdate(p.id, v, 'add'); }));
+        var t = field('Warn below $', 'Save', function(v) { llmBalanceSetThreshold(p.id, v); });
+        t.querySelector('input').value = st.threshold;
+        controls.appendChild(t);
+    }
+    row.appendChild(controls);
+    return row;
+}
+
+/** Home-screen warning when an estimated balance is under its threshold. Called only from the #main route. */
+async function llmBalanceBannerRender() {
+    var el = document.getElementById('llmBalanceWarning');
+    if (!el) return;
+    try {
+        var messages = [];
+        for (var i = 0; i < LLM_BALANCE_PROVIDERS.length; i++) {
+            var p = LLM_BALANCE_PROVIDERS[i];
+            var st = await llmBalanceStatus(p.id);
+            if (st && st.remaining < st.threshold) {
+                messages.push(st.remaining <= 0
+                    ? p.name + ' credit is probably used up (estimated ' + _llmFmtMoney(st.remaining) + ').'
+                    : p.name + ' credit is low: about ' + _llmFmtMoney(st.remaining) + ' left (estimate).');
+            }
+        }
+        el.innerHTML = '';
+        if (!messages.length) return;
+        var box = document.createElement('div');
+        box.className = 'backup-reminder llm-balance-warning';
+        var icon = document.createElement('span'); icon.className = 'backup-reminder-icon'; icon.innerHTML = '&#9888;';
+        var text = document.createElement('span'); text.className = 'backup-reminder-text'; text.textContent = messages.join(' ');
+        var link = document.createElement('a'); link.href = '#settings-general'; link.className = 'btn btn-primary backup-reminder-btn';
+        link.textContent = 'Update balance';
+        box.appendChild(icon); box.appendChild(text); box.appendChild(link);
+        el.appendChild(box);
+    } catch (e) { /* the warning is best-effort */ }
 }
