@@ -42,6 +42,7 @@ I am either doing all at once ... or split up over the day
 | **Workouts** | A routine you built from exercises |
 | **Workout History** | Workouts you've actually done (each one = a dated record) |
 | **Activities** | Unchanged — the existing cardio/activity log (walks, runs, golf…) |
+| **Programs** | *(later)* A multi-week plan made of workouts (Week 1 → Week 10, getting harder). Hub card shows "Coming soon" until built (D6) |
 
 ## 3. Organized: The Three Building Blocks
 
@@ -227,7 +228,7 @@ What the good apps do, and what we'd take:
 3. ~~**Pictures**~~ — ✅ decided (D4): both. Camera, gallery, paste, and grab-frames-from-video.
    - 3b. Animated GIFs from the web (common for exercise demos): flattening them loses the motion. Option: keep a small GIF as-is and play it instead of the flipbook. Decide when building Phase 1.
 4. ~~**Naming**~~ — ✅ decided (D5): section → **Fitness**; **Exercises** (library), **Workouts** (built routines), **Workout History** (ones you've done).
-5. **Programs** — YAYOG's real power is multi-week programs (Week 1 → Week 10, getting harder). In scope eventually, or just individual workouts?
+5. ~~**Programs**~~ — ✅ decided (D6): yes, eventually. Start with workouts; a "Programs — Coming soon" card goes on the hub in Phase 1 as a reminder.
 6. **Activity log integration** — when a workout finishes, auto-create the Exercise Activity entry, or ask first? What calorie estimate?
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
 8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
@@ -238,7 +239,7 @@ What the good apps do, and what we'd take:
 
 | Phase | Scope |
 |---|---|
-| 1 | Exercise library (CRUD, frames, cues, video link) + Workout builder (steps, sets, rest, circuits) |
+| 1 | Exercise library (CRUD, frames, cues, video link) + Workout builder (steps, sets, rest, circuits) + Exercise → Fitness rename + hub cards (Exercises, Workouts, disabled **Programs — Coming soon**) |
 | 2 | **Guided player** — countdown, flipbook, up-next, spoken cues, beeps, wake lock, pause/skip, **voice commands** (§4.1a) |
 | 3 | Self-paced mode + session logging (target vs. actual) + summary + "last time" + auto Exercise Activity |
 | 4 | Throughout-the-day mode + in-progress card on hub/home |
@@ -254,3 +255,4 @@ What the good apps do, and what we'd take:
 - **D3 (2026-10-21)** — **Sets can differ.** Each set of an exercise has its own reps (or time) and weight — e.g. 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb — or they can all be the same (3 × 10 @ 25 lb). Builder offers a one-line quick entry and an expandable per-set view. Stored as a `sets[]` array always.
 - **D4 (2026-10-21)** — **Pictures come from anywhere**: own photos (camera/gallery) and web images (paste, or saved then picked from gallery). Plus a new **grab frames from a video** tool to make motion frames easily. Video itself not stored.
 - **D5 (2026-10-21)** — **Names**: rename the section **Exercise → Fitness** (display only; code/routes/data untouched). Inside it: **Exercises** (library), **Workouts** (routines), **Workout History** (done), **Activities** (existing log, unchanged). User priority: words must be obvious.
+- **D6 (2026-10-21)** — **Programs later, workouts first.** Programs (multi-week plans built from workouts) are wanted eventually. Phase 1 adds a greyed-out "Programs — Coming soon" card on the Fitness hub as a reminder. Design workouts as standalone, reusable pieces so a program can just reference them by ID later.
