@@ -158,6 +158,16 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 | My Legacy | Not shareable yet | Can add later |
 | Journal, Vault, Thoughts/Memories/My Thoughts, My Health, Exercise data, Stock Analyzer, Places, Bucket List, SecondBrain history, other settings | **No Share button** — always private | |
 
+## 3e. Roles (S12)
+
+| Can… | View | Edit | Owner |
+|---|---|---|---|
+| See everything in it | ✓ | ✓ | ✓ |
+| Add / change / delete things inside it (rooms, photos, activities…) | | ✓ | ✓ |
+| Change who it's shared with / their role | | | ✓ |
+| Delete the whole thing (entire house) | | | ✓ |
+| Un-share it (pulls it back to the owner's private area) | | | ✓ |
+
 ## 4. Big Questions (to discuss)
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
@@ -195,3 +205,4 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **S9 (2026-10-21)** — **Individual notes are shareable** (not whole notebooks, for now). Received notes show in a "Shared with me" notebook. Checklists already shareable per template.
 - **S10 (2026-10-21)** — **API keys are shareable per key** with chosen people. Caveat accepted: whoever can use a key can technically see it (browser app). AI usage log records who made each call.
 - **S11 (2026-10-21)** — **Who-did-it stamps.** Every doc in a shared container gets `createdBy`, `createdAt`, `updatedBy`, `updatedAt` (uid → shown as the person's name). Detail screens and activity/history lines show "Added by X · date" / "Last changed by X" on shared items only (private items stay uncluttered).
+- **S12 (2026-10-21)** — **Roles: View / Edit / Owner** (§3e). Only the owner changes the guest list, deletes the whole shared thing, or un-shares it. Editors fully maintain what's inside.
