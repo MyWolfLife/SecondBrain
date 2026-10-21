@@ -52,6 +52,8 @@ users/{uid}/journal/…            ← private data stays where it is
 
 ## 3a. Section Map (S2 — decided)
 
+> ⚠️ **Updated by S7/S8**: "Shared" below now means *shareable* — nothing is shared until you press Share. See §3d for exactly where each Share button lives.
+
 **Rule: things attached to something live where it lives.** Photos, facts, problems, activities, quick tasks, calendar events attached to a plant/room/vehicle go wherever that plant/room/vehicle goes. So the decision is only made per *section*, never per photo.
 
 | | Section | Notes |
@@ -84,6 +86,8 @@ users/{uid}/journal/…            ← private data stays where it is
 | 🏠 / 🔀 | **Health for others** (tracked contacts — not "Me") | Shared (S4). **Concerns** get the per-item 🔒/🏠 flag; conditions, meds, visits, etc. are shared. Your own ("Me") health stays private |
 
 ## 3b. Per-Item Private/Shared Flag (S3)
+
+> ⚠️ **Updated by S7**: the 🔒/🏠 switch became the **Share button** (people + role) described in §3c. The ideas below still hold — sharing *moves* the item for real security, attached things come along, links across the line show "🔒 Private item", new credentials default to private.
 
 Some sections mix both: Credentials, and Concerns in Health for others. Each item gets a **🔒 Private / 🏠 Shared** switch.
 
@@ -195,7 +199,7 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **Disconnect** someone → they're removed from every guest list you own, instantly. Things they shared with you disappear from your view (still theirs).
 - A **"Shared with me"** page lists everything others have shared with you, with the owner and your role.
 
-## 4. Big Questions (to discuss)
+## 4. Questions — all answered
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
 2. **Mixed sections**: e.g. Exercise — the Exercises/Workouts *library* shared, but each person's **Workout History, Activities, Daily Metrics** private. Probably common.
