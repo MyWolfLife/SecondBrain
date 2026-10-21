@@ -21752,3 +21752,5 @@ body.wo-playing .offline-banner { display: none !important; }
     75%  { opacity: 1; }
     100% { opacity: 0; }
 }
+
+.wo-link-btn--light { color: #fff; }

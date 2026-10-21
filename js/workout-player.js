@@ -802,7 +802,7 @@ function _woPlayerOnDone(results) {
     var done = results.filter(function(r) { return r.status === 'done'; }).length;
     var skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
     var totalWork = R.workPhaseCount();
-    _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), endedAt: Date.now() };
+    _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), startedAt: R.startedAt, endedAt: Date.now() };
     window._woFinished = _woP.finished;
 
     var mins = Math.max(1, Math.round(R.elapsedMs() / 60000));
@@ -816,8 +816,150 @@ function _woPlayerOnDone(results) {
                     '<div><strong>' + done + '</strong> of ' + totalWork + ' sets done</div>' +
                     (skipped ? '<div><strong>' + skipped + '</strong> skipped</div>' : '') +
                 '</div>' +
-                '<a href="#workouts" class="wo-bigbtn wo-bigbtn--link">Back to Workouts</a>' +
+                '<div class="wo-tap-hint" id="woSaveStatus">Saving your workout…</div>' +
             '</div></div>' +
         '</div>';
     if (typeof woVoiceOnEnd === 'function') { try { woVoiceOnEnd(_woP); } catch (e) {} }
+    _woPlayerSaveAndGo();   // writes Workout History + the linked Activity, then opens the Finished Workout screen
+}
+
+// ─── 5. Saving a finished workout (chunk 2.6) ─────────────────────────────────
+//
+// When a run ends (all the way through, or ✕ End) it is written to Workout History
+// (`workoutSessions`, personal) and a linked Activity (`exerciseActivities`, type "Workout")
+// is created so it flows into Daily Metrics and the Summary grids. Calories start blank — the
+// Finished Workout screen (#workout-done/:id) is where the watch number is entered.
+
+function _woISODate(ms)  { return new Date(ms).toISOString(); }
+
+/** YYYY-MM-DDTHH:MM:00 in local time (the format the Activity form uses). */
+function _woLocalDateTime(dateISO, ms) {
+    var d = new Date(ms);
+    var hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+    // A back-dated workout has no real clock time, so use midday
+    return dateISO + 'T' + (dateISO === _woTodayISO() ? hh + ':' + mm : '12:00') + ':00';
+}
+
+/** One set line per work phase, in timeline order. Phases never reached (ended early) are logged as skipped. */
+function woSetLinesFromRun(phases, results) {
+    var byIndex = {};
+    results.forEach(function(r) { byIndex[r.index] = r; });
+    var lines = [];
+    phases.forEach(function(p, i) {
+        if (p.kind !== 'work') return;
+        var r = byIndex[i], done = !!(r && r.status === 'done');
+        lines.push({
+            exerciseId: p.exerciseId, exerciseName: p.exerciseName, measure: p.measure,
+            section: p.section || 'main', side: p.side || null,
+            targetAmount: p.amount, targetWeight: p.weight,
+            actualAmount: done ? p.amount : null, actualWeight: done ? p.weight : null,
+            doneAt: done ? _woISODate(r.doneAt) : null,
+            skipped: !done, manual: false
+        });
+    });
+    return lines;
+}
+
+/** The id of the built-in "Workout" activity type, creating it if this account hasn't visited the Activities pages yet. */
+async function _woWorkoutTypeId() {
+    var find = async function() {
+        var s = await userCol('exerciseTypes').where('name', '==', 'Workout').limit(1).get();
+        return s.empty ? null : s.docs[0].id;
+    };
+    var id = await find();
+    if (id) return id;
+    await seedExerciseTypesIfNeeded();   // empty account → seeds every default type (incl. Workout)
+    await _exEnsureWorkoutType();        // existing account missing it → adds it
+    return await find();
+}
+
+/**
+ * Saves the finished run. Returns {sessionId, activityId (or null if the Activity could not be created)}.
+ * The history record is written first so a problem creating the Activity can never lose the workout.
+ */
+async function woSaveFinishedWorkout(fin) {
+    var sess = fin.session;
+    var durationMinutes = Math.max(0.1, Math.round(fin.elapsedMs / 6000) / 10);
+    var sets = woSetLinesFromRun(fin.phases, fin.results);
+
+    var sessionRef = await userCol('workoutSessions').add({
+        workoutId:       sess.workoutId,
+        workoutName:     sess.workoutName,
+        date:            sess.date,
+        mode:            sess.mode || 'guided',
+        status:          'done',
+        startedAt:       _woISODate(fin.startedAt || (fin.endedAt - fin.elapsedMs)),
+        finishedAt:      _woISODate(fin.endedAt),
+        durationMinutes: durationMinutes,
+        calories:        null,
+        notes:           '',
+        rating:          null,
+        sets:            sets,
+        activityId:      null,
+        createdAt:       firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    var activityId = null;
+    try {
+        var typeId = await _woWorkoutTypeId();
+        if (!typeId) throw new Error('Workout activity type not found');
+        var actRef = await userCol('exerciseActivities').add({
+            typeId:           typeId,
+            activityDate:     _woLocalDateTime(sess.date, fin.startedAt || (fin.endedAt - fin.elapsedMs)),
+            durationMinutes:  durationMinutes,
+            miles:            null,
+            runMiles:         null,
+            withDogs:         null,
+            calories:         null,
+            comment:          '',
+            workoutSessionId: sessionRef.id,
+            workoutName:      sess.workoutName,
+            createdAt:        firebase.firestore.FieldValue.serverTimestamp()
+        });
+        activityId = actRef.id;
+        await sessionRef.update({ activityId: activityId });
+    } catch (err) {
+        console.error('Workouts: could not create the linked Activity:', err);
+    }
+    return { sessionId: sessionRef.id, activityId: activityId };
+}
+
+/** Called from the completion screen: saves, then opens the Finished Workout screen. */
+async function _woPlayerSaveAndGo() {
+    var fin = window._woFinished;
+    if (!fin) return;
+    var status = document.getElementById('woSaveStatus');
+    if (status) status.textContent = 'Saving your workout…';
+    try {
+        var saved = await woSaveFinishedWorkout(fin);
+        window._woFinished = null;                       // saved — never save the same run twice
+        location.hash = '#workout-done/' + saved.sessionId;
+    } catch (err) {
+        console.error('Workouts: save failed:', err);
+        if (status) status.innerHTML = 'Could not save the workout. <button type="button" class="wo-link-btn wo-link-btn--light" id="woSaveRetry">Try again</button>';
+        var retry = document.getElementById('woSaveRetry');
+        if (retry) retry.addEventListener('click', _woPlayerSaveAndGo);
+    }
+}
+
+// ─── 6. Finished Workout screen (#workout-done/:id) — minimal until chunk 2.7 ─
+
+async function loadWorkoutDonePage(id) {
+    _woSetChrome([['Workouts', '#workouts'], ['Finished workout']]);
+    var el = document.getElementById('page-workout-done');
+    el.innerHTML = '<div class="page-header"><h2>Finished workout</h2></div><div class="ex-status">Loading…</div>';
+    try {
+        var doc = await userCol('workoutSessions').doc(id).get();
+        if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout record not found.</div>'; return; }
+        var w = doc.data();
+        var done = (w.sets || []).filter(function(s) { return !s.skipped; }).length;
+        el.innerHTML =
+            '<div class="page-header"><h2>' + _woEsc(w.workoutName) + '</h2></div>' +
+            '<div class="ex-form"><div class="wo-banner">✓ Saved — ' + _woEsc(w.date) + ' · ' + w.durationMinutes + ' min · ' + done + ' of ' + (w.sets || []).length + ' sets done' +
+            (w.activityId ? '' : ' · (the Activity entry could not be created)') + '</div>' +
+            '<div class="ex-form-actions"><a href="#workouts" class="btn btn-primary">Back to Workouts</a></div></div>';
+    } catch (err) {
+        console.error('Workouts: failed to load finished workout:', err);
+        el.innerHTML = '<div class="ex-status">Could not load this record.</div>';
+    }
 }

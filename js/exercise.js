@@ -547,7 +547,7 @@ function _exBuildTable(activities, showStats) {
     var tbody = document.createElement('tbody');
     activities.forEach(function(a) {
         var type     = _exTypes[a.typeId] || {};
-        var typeName = (type.name || '?') + (a.withDogs ? ' 🐾' : '');
+        var typeName = (a.workoutName ? 'Workout: ' + a.workoutName : (type.name || '?')) + (a.withDogs ? ' 🐾' : '');
         var dur      = exFmtDuration(a.durationMinutes);
         var isMeters = _exIsMeters(type);
         // For split-miles types show walked + run total; for meters show raw value; otherwise miles
@@ -606,7 +606,7 @@ function _exBuildCards(activities) {
 
     activities.forEach(function(a) {
         var type     = _exTypes[a.typeId] || {};
-        var typeName = (type.name || '?') + (a.withDogs ? ' 🐾' : '');
+        var typeName = (a.workoutName ? 'Workout: ' + a.workoutName : (type.name || '?')) + (a.withDogs ? ' 🐾' : '');
         var dur      = exFmtDuration(a.durationMinutes) || '—';
         var dateStr  = exFmtDayShort(a.activityDate) + ' ' + exFmtDateShort(a.activityDate);
 

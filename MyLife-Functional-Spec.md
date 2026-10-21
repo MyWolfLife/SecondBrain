@@ -1259,7 +1259,7 @@ Full-screen takeover (fixed, above the app header; the app's top banners are hid
 - **Rest / Switch sides / Get ready**: big countdown plus an **UP NEXT** card (small flipbook, name, "Set x of y · Right side · 10 reps @ 25 lb"). A **Tap-when-ready** rest shows "REST — TAP WHEN READY" and an **I'M READY** button (or tap anywhere).
 - **Controls**: ⏮ back, ⏸/▶ pause (dims the screen "PAUSED"), ⏭ skip, **+15s** (timed phases). Desktop keys: Space = pause/resume, ← back, → skip, Enter = done.
 - **Layouts**: portrait stacks picture / countdown / controls; short landscape screens (phone propped sideways) put the picture on the left and the countdown on the right, fitting within ~375 px of height.
-- **Completion**: "🎉 Workout complete" with minutes, "N of M sets done" (each side of an each-side set counts separately here) and skipped count, plus **Back to Workouts**; the run is stashed in `window._woFinished` (`{session, phases, results, elapsedMs, endedAt}`) for saving (chunk 2.6 — nothing is saved yet).
+- **Completion**: "🎉 Workout complete" with minutes, "N of M sets done" (each side of an each-side set counts separately) and skipped count, then "Saving your workout…" — the run is saved automatically (see Saving a finished workout) and the app opens the Finished Workout screen. If saving fails, "Could not save the workout. Try again" keeps the run in `window._woFinished` so nothing is lost.
 - Leaving the page (any navigation) stops the player and discards the run. Sound and screen-awake support live in `js/workout-voice.js` (below), reached through the hooks `woVoiceOnPhase / woVoiceOnTick / woVoiceOnEnd`, which the player calls if defined.
 
 #### Spoken cues, beeps and wake lock (`js/workout-voice.js`, chunk 2.4)
@@ -1288,6 +1288,15 @@ Hands-free control of the guided player by speaking. Uses the browser's built-in
 - **Ignores itself**: results that arrive while the app is speaking (and for 0.6 s after) are discarded, so "Up next…" can't trigger "next". Duplicate results within 1.2 s are ignored.
 - **Mic button** (🎙️) in the player's top bar: 🎙️ = on (highlighted while listening), 🎙️✕ = muted (tap to turn on), 🎙️⚠ = microphone blocked (tap to try again). Chrome stops listening after silence; the app silently restarts it. Hidden when voice commands are off or unsupported.
 - Not built (plan stretch goal): "change weight 30" / "did 10".
+
+#### Saving a finished workout (`woSaveFinishedWorkout` in `js/workout-player.js`, chunk 2.6)
+Runs when a workout ends — all the way through **or** via ✕ End (or "end workout" by voice). Two writes, history first so a problem with the Activity can never lose the workout:
+1. **Workout History record** — `workoutSessions` (personal, always `userCol`; never the shared library): `workoutId`, `workoutName` (snapshot), `date` (the Start-screen date), `mode:'guided'`, `status:'done'`, `startedAt`, `finishedAt` (ISO), `durationMinutes` (1 decimal, excludes paused time), `calories: null`, `notes: ''`, `rating: null`, `activityId`, `createdAt`, and **`sets[]`** — one line per work phase in timeline order: `{exerciseId, exerciseName, measure, section, side ('left'|'right'|null), targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual:false}`. A set marked Done logs actual = target; Skipped sets and sets never reached (ended early) are logged `skipped: true` with null actuals; each side of an each-side set is its own line. Set numbers are **not stored** — they are computed from line order when displayed.
+2. **Linked Activity** — `exerciseActivities` entry of the built-in **Workout** type (created on the spot if the account hasn't got it yet): `typeId`, `activityDate` (Start-screen date; time = when the workout started, or 12:00 for a back-dated workout), `durationMinutes`, `calories: null`, `miles/runMiles: null`, `withDogs: null`, `comment: ''`, plus **`workoutSessionId`** and **`workoutName`**; its id is written back to the session as `activityId`. Calories start **blank** (enter the watch number on the Finished Workout screen).
+After saving, the app opens `#workout-done/:sessionId`. (Leaving the player before the workout ends discards it — nothing is saved.) **Activities list**: workout-created activities show **"Workout: <name>"** in the Activity column (desktop table and mobile cards); the type grids/summaries still count them under the single "Workout" type.
+
+#### Finished Workout screen (`#workout-done/:id`, `loadWorkoutDonePage`) — minimal until chunk 2.7
+Shows "✓ Saved — date · N min · X of Y sets done" (and a note if the Activity entry could not be created) with **Back to Workouts**. The editable screen (calories, notes, rating, per-set lines) is chunk 2.7.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
@@ -1491,7 +1500,7 @@ Types with `withDogs = true`: Running, Trail Running, Walking, Hiking
 Split-miles UI (Walked Miles + Run Miles fields) is shown when `runWalkRole === 'split'`.
 
 ### Data Model
-**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — stores meters for meter-unit types; "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for split-role types), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt`
+**`exerciseActivities`** (per-user): `typeId`, `durationMinutes` (decimal, nullable), `miles` (nullable — stores meters for meter-unit types; "Walked Miles" for split-miles types), `runMiles` (nullable — "Run Miles", only for split-role types), `withDogs` (nullable bool), `calories` (nullable), `comment`, `activityDate` (ISO datetime), `createdAt` Workout-created activities also carry `workoutSessionId` and `workoutName` (Fitness → Workouts, chunk 2.6).
 
 **`exerciseTypes`** (per-user): `name`, `tracksMiles`, `runWalkRole`, `withDogs`, `isDefault`, `archived`, `createdAt`
 

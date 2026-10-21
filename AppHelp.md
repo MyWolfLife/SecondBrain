@@ -4850,7 +4850,17 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Your screen stays on while the workout runs (if your browser allows it)
 - **Voice commands** (Chrome; turn on at the Start screen): say **done** or **next** when you finish a set, **pause**, **go**, **ready** (end a rest early), **skip**, **back**, **more time** (+15 sec), **repeat**, **what's next**, **how long**, or **end workout** (it asks you to say yes or no). A flash on screen and a chime confirm each command. Say just the word — long sentences are ignored. The **🎙️** button at the top mutes/unmutes listening; if it shows ⚠ your microphone is blocked — allow it in the browser and tap the button
 - Loud music right next to the phone can drown out commands — speak up or tap
-- Saving the finished workout is coming in the next update
+- When the workout ends (or you tap **✕ End**) it is **saved automatically** to your history and added to your Activities as **Workout: <name>** — then you land on the finished-workout screen
+
+---
+
+## screen:workout-done
+
+**What this screen is for:** The record of a workout you just finished.
+
+### Quick Help
+- Your workout was saved automatically and added to your Activities
+- Adding calories from your watch, notes, and editing individual sets are coming in the next update
 
 ---
 
@@ -4972,6 +4982,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Miles Summary Card** (below the filter): shows mileage totals for the selected month — same card as on Daily Metrics. For the current month it shows pacing and an estimated month-end total; for past months it shows final vs goal.
 - **Manage Types** link lets you rename or delete custom activity types
 - Tap any row to view or edit that activity
+- Workouts you finished in Fitness → Workouts appear as **Workout: <workout name>**
 
 ### Columns explained (desktop)
 - **Date** — date of the activity (no time shown)
