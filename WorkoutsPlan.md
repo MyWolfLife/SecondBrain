@@ -43,6 +43,7 @@ A reusable catalog of movements. Built once, used in many workouts.
 | Name | "Push-up", "Goblet Squat" |
 | Instructions / cues | Free text. How to do it, form cues ("elbows at 45°, squeeze glutes") |
 | Pictures (frames) | **2–4 photos that together show the motion** — start / middle / end. In the player these auto-cycle like a flipbook so you see the movement. Ordered. |
+| Picture sources (D4) | All of these feed the same frame list, mix and match: 📷 **Camera** (take it now), 🖼️ **Gallery** (photo on the device, incl. web images you saved), 📋 **Paste** (right-click a web image → Copy image → Paste — already exists in the app's photo code), 🎞️ **Grab frames from a video** (new — see below) |
 | Video link | Optional URL (YouTube etc.) — a "watch demo" link, not embedded playback. Free, no storage cost. |
 | Default measure | **Reps** or **Time** |
 | Default amount | e.g. 10 reps, or 30 sec |
@@ -196,6 +197,8 @@ What the good apps do, and what we'd take:
   - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
   - `workoutSessions` — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, sets[] {exerciseId, setNumber, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped}, notes, rating, activityId (link to the `exerciseActivities` entry)
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
+- **Frames from a video** (D4): pick a short video (record yourself doing 1 rep, or a saved clip) → app shows it with a scrubber → you tap "Grab frame" at start / middle / end (or "Auto: 3 evenly spaced") → each frame is drawn onto a canvas and compressed like any other photo. All in the browser, nothing uploaded, the video itself is **not** stored. Easiest way to get clean motion frames — one video instead of a friend taking 3 photos at the right instant.
+- **Paste from web**: reuse `triggerPasteUpload` in `photos.js`. Note: a plain "paste an image URL" box mostly won't work — most sites block other pages from reading their images (CORS), so we can't compress them. Copy image → Paste gets around that.
 - **Name clash to avoid**: "Exercise" already means the whole section, and `exerciseTypes` are cardio activity types (Walk, Run…). Library items need a distinct name in code (`workoutExercises`) and maybe in the UI too (see Q4).
 - **Timers**: timestamp-based (store "phase ends at" time, not a ticking counter) so a pause, a background tab, or a screen flicker never drifts the clock
 - **Voice out**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
@@ -211,7 +214,8 @@ What the good apps do, and what we'd take:
 1. ~~**Reps in Guided mode**~~ — ✅ decided (D1): a step is reps **or** time, never both; reps steps wait for a tap.
    - 1b. ✅ decided (D2): voice commands are built in from day one (§4.1a).
 2. ~~**Weight tracking depth**~~ — ✅ decided (D3): every set has its own reps/time and weight; quick entry when they're all the same.
-3. **Pictures** — will you take your own photos (yourself doing the move), or pull images from the web? Affects whether we need an "add from URL" option.
+3. ~~**Pictures**~~ — ✅ decided (D4): both. Camera, gallery, paste, and grab-frames-from-video.
+   - 3b. Animated GIFs from the web (common for exercise demos): flattening them loses the motion. Option: keep a small GIF as-is and play it instead of the flipbook. Decide when building Phase 1.
 4. **Naming** — call the library items "Exercises" (clear, but overlaps the section name) or something like "Moves"?
 5. **Programs** — YAYOG's real power is multi-week programs (Week 1 → Week 10, getting harder). In scope eventually, or just individual workouts?
 6. **Activity log integration** — when a workout finishes, auto-create the Exercise Activity entry, or ask first? What calorie estimate?
@@ -238,3 +242,4 @@ What the good apps do, and what we'd take:
 - **D1 (2026-10-21)** — Each exercise step is measured by **reps or time, not both**. Timed steps count down and auto-advance in Guided mode; reps steps wait for the user to tap Done (whole screen = Done button). No "time window" or seconds-per-rep estimates. Estimated workout length uses a rough seconds-per-rep figure for display only.
 - **D2 (2026-10-21)** — **Voice commands are part of the Guided player from the start** (not a later add-on). Say "Done"/"Next" to advance, plus pause/resume/skip/back/more time/repeat/what's next/how long. Tap anywhere is always the backup. Starter word list in §4.1a.
 - **D3 (2026-10-21)** — **Sets can differ.** Each set of an exercise has its own reps (or time) and weight — e.g. 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb — or they can all be the same (3 × 10 @ 25 lb). Builder offers a one-line quick entry and an expandable per-set view. Stored as a `sets[]` array always.
+- **D4 (2026-10-21)** — **Pictures come from anywhere**: own photos (camera/gallery) and web images (paste, or saved then picked from gallery). Plus a new **grab frames from a video** tool to make motion frames easily. Video itself not stored.
