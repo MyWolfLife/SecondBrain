@@ -168,7 +168,7 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 | Delete the whole thing (entire house) | | | ✓ |
 | Un-share it (pulls it back to the owner's private area) | | | ✓ |
 
-## 3f. Behind-the-Scenes Defaults (PROPOSAL — under review)
+## 3f. Behind-the-Scenes Defaults (S13 — decided)
 
 **Moving data when you first press Share** (answers Q3):
 - The first time you share something private (e.g. the House), the app **copies** it and everything attached into its new shared container, checks the copy, then removes the private original. Progress bar while it runs.
@@ -186,14 +186,23 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - The read-only lock stays **per person**: it only locks *your own other devices*, never other people's. Your wife can keep editing the shared house while you're away.
 - You **can** edit shared things while offline (e.g. the vacation itinerary). They sync when you're back. If you both changed the *same field* of the *same item*, the later sync wins — rare in practice.
 
+## 3g. Connecting People (PROPOSAL — under review)
+
+- **Settings → Sharing → People** lists everyone you're connected with.
+- **"Invite someone"** makes a short code (e.g. `K7Q-2MX`) — **single use, expires in 7 days**. Text it to them.
+- They sign in to their own account → **Settings → Sharing → "Enter invite code"** → you're connected (both directions). They pick which of their Contacts records is "you" and vice versa (links to S5).
+- Connected people then show up in every Share dialog.
+- **Disconnect** someone → they're removed from every guest list you own, instantly. Things they shared with you disappear from your view (still theirs).
+- A **"Shared with me"** page lists everything others have shared with you, with the owner and your role.
+
 ## 4. Big Questions (to discuss)
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
 2. **Mixed sections**: e.g. Exercise — the Exercises/Workouts *library* shared, but each person's **Workout History, Activities, Daily Metrics** private. Probably common.
-3. **Moving existing data**: everything is in the user's personal area today. Need a one-time "move this section to the Home space" migration tool.
+3. ~~**Moving existing data**~~ — ✅ S13 (§3f).
 4. ~~**Settings/keys**~~ — ✅ S10: settings personal; each API key shareable with chosen people.
-5. **Backup** (`js/settings.js`): back up personal + every space you belong to?
-6. **Offline Trip Mode lock**: currently per user — how does it behave on shared data?
+5. ~~**Backup**~~ — ✅ S13 (§3f).
+6. ~~**Offline Trip Mode lock**~~ — ✅ S13 (§3f).
 7. ~~**Who did it**~~ — ✅ S11: stamp and show added-by / last-changed-by on shared items.
 8. **Cost**: still free tier — no change expected.
 9. ~~**"Me" in shared data**~~ — ✅ S5: each member is linked to a real person record in shared Contacts; "Me" = the person linked to whoever is logged in.
@@ -224,3 +233,4 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **S10 (2026-10-21)** — **API keys are shareable per key** with chosen people. Caveat accepted: whoever can use a key can technically see it (browser app). AI usage log records who made each call.
 - **S11 (2026-10-21)** — **Who-did-it stamps.** Every doc in a shared container gets `createdBy`, `createdAt`, `updatedBy`, `updatedAt` (uid → shown as the person's name). Detail screens and activity/history lines show "Added by X · date" / "Last changed by X" on shared items only (private items stay uncluttered).
 - **S12 (2026-10-21)** — **Roles: View / Edit / Owner** (§3e). Only the owner changes the guest list, deletes the whole shared thing, or un-shares it. Editors fully maintain what's inside.
+- **S13 (2026-10-21)** — **Behind-the-scenes defaults approved** (§3f): first share copies → verifies → removes private original, with an automatic backup first; backup covers what you own (+ optional "shared with me"); Offline Trip Mode downloads shared things too, locks only your own devices, offline edits to shared things sync later (last write wins per field).
