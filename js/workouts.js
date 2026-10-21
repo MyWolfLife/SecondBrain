@@ -393,7 +393,7 @@ function _woRenderExerciseList() {
         if (e.eachSide) meta += ' · each side';
         var equip = (e.equipment || []).length ? ' · ' + _woEsc(e.equipment.join(', ')) : '';
         return '<a href="#workout-exercise/' + e.id + '" class="wo-card' + (e.archived ? ' wo-card--archived' : '') + '">' +
-                   '<div class="wo-thumb" data-ex-id="' + e.id + '">🤸</div>' +
+                   '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name">' + _woEsc(e.name) + '</div>' +
                        '<div class="wo-badges">' +
@@ -410,6 +410,7 @@ function _woRenderExerciseList() {
 // ─── Exercise editor (#workout-exercise/new, #workout-exercise/:id) ───────────
 
 var _woEdit = null;   // working copy of the exercise being edited
+var _woJustAdded = false;   // show the 'added — now add pictures' banner on the next editor load
 
 async function loadWorkoutExercisePage(id) {
     var isNew = (id === 'new');
@@ -535,7 +536,7 @@ function _woRenderExerciseEditor() {
 
             '<div class="ex-form-group" id="woeFramesGroup">' +
                 '<label class="ex-label">Pictures</label>' +
-                '<p class="wo-hint">' + (isNew ? 'Save the exercise first, then add the pictures that show the motion.' : 'Picture frames are added in the next update.') + '</p>' +
+                '<p class="wo-hint">' + (isNew ? 'Add the exercise first — you will then be able to add the pictures that show the motion.' : 'Loading…') + '</p>' +
             '</div>' +
 
             '<div class="ex-form-actions">' +
@@ -574,6 +575,22 @@ function _woRenderExerciseEditor() {
     if (arch) arch.addEventListener('click', _woArchiveExercise);
     var del = document.getElementById('woeDelete');
     if (del) del.addEventListener('click', _woDeleteExercise);
+
+    // Pictures (existing exercises only — a new one has no id to attach frames to yet)
+    if (!isNew) {
+        _woLoadFrames().then(_woRenderFrames).catch(function(err) {
+            console.error('Workouts: failed to load frames:', err);
+            var g = document.getElementById('woeFramesGroup');
+            if (g) g.innerHTML = '<label class="ex-label">Pictures</label><p class="wo-hint">Could not load pictures.</p>';
+        });
+        if (_woJustAdded) {
+            _woJustAdded = false;
+            var banner = document.createElement('div');
+            banner.className = 'wo-banner';
+            banner.textContent = '✓ Exercise added. Add its pictures below, or go back to Exercises when you are done.';
+            el.querySelector('.ex-form').insertBefore(banner, el.querySelector('.ex-form').firstChild);
+        }
+    }
 }
 
 function _woUpdateAmountLabel() {
@@ -653,7 +670,10 @@ async function _woSaveExercise() {
         } else {
             data.isSeeded  = false;
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await woLibCol('workoutExercises').add(data);
+            var ref = await woLibCol('workoutExercises').add(data);
+            _woJustAdded = true;
+            location.hash = '#workout-exercise/' + ref.id;     // straight on to adding pictures
+            return;
         }
         location.hash = '#workout-exercises';
     } catch (err) {
@@ -677,12 +697,220 @@ async function _woArchiveExercise() {
 async function _woDeleteExercise() {
     if (!confirm('Delete "' + _woEdit.name + '"? This cannot be undone. (Archive it instead to hide it but keep it in existing workouts.)')) return;
     try {
-        await woLibCol('workoutExercises').doc(_woEdit.id).delete();
+        var frames = await woLibCol('photos').where('targetType', '==', 'workoutExercise').where('targetId', '==', _woEdit.id).get();
+        var batch = db.batch();
+        frames.forEach(function(d) { batch.delete(d.ref); });
+        batch.delete(woLibCol('workoutExercises').doc(_woEdit.id));
+        await batch.commit();
         location.hash = '#workout-exercises';
     } catch (err) {
         console.error('Workouts: delete exercise failed:', err);
         alert('Failed to delete. Please try again.');
     }
+}
+
+// ─── Exercise frames: the pictures that show the motion (chunk 1.5) ───────────
+//
+// Each frame is one photo doc in the `photos` collection (targetType 'workoutExercise',
+// targetId = exercise id, frameOrder = position). The first frame is also copied onto the
+// exercise doc as a small `thumbData` so the list can show thumbnails without extra queries.
+
+var WO_FRAME_MAX_DIM    = 720;      // px, longest side
+var WO_FRAME_MAX_BASE64 = 150000;   // ~110 KB — several frames per exercise stay light
+var WO_FLIP_MS          = 800;      // flipbook speed (ms per frame)
+
+var _woFrames    = [];     // [{id, imageData, frameOrder}] in display order
+var _woFlipTimer = null;
+
+async function _woLoadFrames() {
+    var snap = await woLibCol('photos')
+        .where('targetType', '==', 'workoutExercise')
+        .where('targetId', '==', _woEdit.id).get();
+    _woFrames = snap.docs.map(function(d) {
+        var p = d.data();
+        return { id: d.id, imageData: p.imageData, frameOrder: p.frameOrder || 0 };
+    });
+    _woFrames.sort(function(a, b) { return a.frameOrder - b.frameOrder; });
+}
+
+function _woRenderFrames() {
+    var group = document.getElementById('woeFramesGroup');
+    if (!group) return;
+    clearInterval(_woFlipTimer);
+
+    var strip = _woFrames.map(function(f, i) {
+        return '<div class="wo-frame">' +
+                   '<img src="' + f.imageData + '" alt="Frame ' + (i + 1) + '">' +
+                   '<div class="wo-frame-num">' + (i + 1) + '</div>' +
+                   '<div class="wo-frame-btns">' +
+                       '<button type="button" class="wo-frame-btn" data-act="left"  data-id="' + f.id + '"' + (i === 0 ? ' disabled' : '') + ' title="Move earlier">◀</button>' +
+                       '<button type="button" class="wo-frame-btn" data-act="right" data-id="' + f.id + '"' + (i === _woFrames.length - 1 ? ' disabled' : '') + ' title="Move later">▶</button>' +
+                       '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" data-id="' + f.id + '" title="Delete frame">✕</button>' +
+                   '</div>' +
+               '</div>';
+    }).join('');
+
+    group.innerHTML =
+        '<label class="ex-label">Pictures <span class="wo-hint">2–4 frames that show the motion: start, middle, end</span></label>' +
+        (_woFrames.length
+            ? '<div class="wo-flip-wrap"><img id="woeFlip" class="wo-flip" alt="Preview"><div class="wo-hint">Preview — how the player will show it</div></div>' +
+              '<div class="wo-frame-strip">' + strip + '</div>'
+            : '<p class="wo-hint">No pictures yet.</p>') +
+        '<div class="wo-frame-actions">' +
+            '<button type="button" class="btn btn-secondary btn-small" id="woeFrameCamera">📷 Camera</button>' +
+            '<button type="button" class="btn btn-secondary btn-small" id="woeFrameGallery">🖼️ Gallery</button>' +
+            '<button type="button" class="btn btn-secondary btn-small" id="woeFramePaste">📋 Paste</button>' +
+        '</div>' +
+        '<div id="woeFrameStatus" class="wo-hint"></div>';
+
+    document.getElementById('woeFrameCamera').addEventListener('click', function() { _woPickFrameFile(true); });
+    document.getElementById('woeFrameGallery').addEventListener('click', function() { _woPickFrameFile(false); });
+    document.getElementById('woeFramePaste').addEventListener('click', _woPasteFrame);
+    group.querySelectorAll('.wo-frame-btn').forEach(function(b) {
+        b.addEventListener('click', function() {
+            var act = this.getAttribute('data-act'), id = this.getAttribute('data-id');
+            if (act === 'del') _woDeleteFrame(id); else _woMoveFrame(id, act === 'left' ? -1 : 1);
+        });
+    });
+
+    _woStartFlipbook();
+}
+
+/** Cycles the preview <img> through the frames; stops itself when the page is left. */
+function _woStartFlipbook() {
+    var img = document.getElementById('woeFlip');
+    if (!img || !_woFrames.length) return;
+    var i = 0;
+    img.src = _woFrames[0].imageData;
+    if (_woFrames.length < 2) return;
+    _woFlipTimer = setInterval(function() {
+        var el = document.getElementById('woeFlip');
+        if (!el) { clearInterval(_woFlipTimer); return; }
+        i = (i + 1) % _woFrames.length;
+        el.src = _woFrames[i].imageData;
+    }, WO_FLIP_MS);
+}
+
+function _woFrameStatus(msg) {
+    var el = document.getElementById('woeFrameStatus');
+    if (el) el.textContent = msg || '';
+}
+
+/** Camera (forces the camera on phones) or gallery picker (multiple allowed). */
+function _woPickFrameFile(useCamera) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (useCamera) input.capture = 'environment';
+    else           input.multiple = true;
+    input.addEventListener('change', async function() {
+        var files = Array.prototype.slice.call(input.files || []);
+        if (!files.length) return;
+        await _woAddFrameFiles(files);
+    });
+    input.click();
+}
+
+async function _woPasteFrame() {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+        alert('Clipboard paste is not supported in this browser. Try Gallery instead.');
+        return;
+    }
+    try {
+        var items = await navigator.clipboard.read();
+        var blob = null;
+        for (var i = 0; i < items.length && !blob; i++) {
+            var type = items[i].types.find(function(t) { return t.startsWith('image/'); });
+            if (type) blob = await items[i].getType(type);
+        }
+        if (!blob) {
+            alert('No image on the clipboard.\n\nIn Chrome: right-click an image and choose "Copy image", then click Paste here.');
+            return;
+        }
+        await _woAddFrameFiles([new File([blob], 'pasted' + (blob.type === 'image/png' ? '.png' : '.jpg'), { type: blob.type })]);
+    } catch (err) {
+        if (err.name === 'NotAllowedError') alert('Clipboard access was denied.\n\nClick "Allow" when the browser asks, then try again.');
+        else { console.error('Workouts: paste frame failed:', err); alert('Could not read the clipboard. Try Gallery instead.'); }
+    }
+}
+
+/** One file → optional crop first; several files → added straight away. */
+async function _woAddFrameFiles(files) {
+    try {
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            if (files.length === 1 && typeof showCropPreview === 'function') {
+                try { file = await showCropPreview(file); }
+                catch (e) { return; }                      // user cancelled
+            }
+            _woFrameStatus('Adding picture…');
+            var dataUrl = await compressImage(file, { maxDimension: WO_FRAME_MAX_DIM, maxBase64: WO_FRAME_MAX_BASE64 });
+            await woAddFrameData(dataUrl);
+        }
+    } catch (err) {
+        console.error('Workouts: add frame failed:', err);
+        alert('Could not add the picture. Please try again.');
+    }
+    _woFrameStatus('');
+}
+
+/** Saves one already-compressed frame (also used by the video/GIF grabber). */
+async function woAddFrameData(dataUrl) {
+    var next = _woFrames.length ? _woFrames[_woFrames.length - 1].frameOrder + 1 : 0;
+    var ref = await woLibCol('photos').add({
+        targetType: 'workoutExercise',
+        targetId:   _woEdit.id,
+        imageData:  dataUrl,
+        caption:    '',
+        frameOrder: next,
+        createdAt:  firebase.firestore.FieldValue.serverTimestamp()
+    });
+    _woFrames.push({ id: ref.id, imageData: dataUrl, frameOrder: next });
+    await _woAfterFramesChanged();
+}
+
+async function _woMoveFrame(id, dir) {
+    var i = _woFrames.findIndex(function(f) { return f.id === id; });
+    var j = i + dir;
+    if (i < 0 || j < 0 || j >= _woFrames.length) return;
+    var a = _woFrames[i], b = _woFrames[j];
+    try {
+        var batch = db.batch();
+        batch.update(woLibCol('photos').doc(a.id), { frameOrder: b.frameOrder });
+        batch.update(woLibCol('photos').doc(b.id), { frameOrder: a.frameOrder });
+        await batch.commit();
+        var t = a.frameOrder; a.frameOrder = b.frameOrder; b.frameOrder = t;
+        _woFrames.sort(function(x, y) { return x.frameOrder - y.frameOrder; });
+        await _woAfterFramesChanged();
+    } catch (err) {
+        console.error('Workouts: move frame failed:', err);
+        alert('Could not reorder. Please try again.');
+    }
+}
+
+async function _woDeleteFrame(id) {
+    if (!confirm('Delete this picture?')) return;
+    try {
+        await woLibCol('photos').doc(id).delete();
+        _woFrames = _woFrames.filter(function(f) { return f.id !== id; });
+        await _woAfterFramesChanged();
+    } catch (err) {
+        console.error('Workouts: delete frame failed:', err);
+        alert('Could not delete. Please try again.');
+    }
+}
+
+/** Keeps the exercise's list thumbnail in sync with its first frame, then redraws. */
+async function _woAfterFramesChanged() {
+    try {
+        var thumb = _woFrames.length ? await _compressToThumb(_woFrames[0].imageData) : null;
+        await woLibCol('workoutExercises').doc(_woEdit.id).update({
+            thumbData: thumb !== null ? thumb : firebase.firestore.FieldValue.delete()
+        });
+    } catch (err) {
+        console.error('Workouts: thumbnail update failed:', err);
+    }
+    _woRenderFrames();
 }
 
 // ─── Workouts (placeholders until chunk 1.7) ──────────────────────────────────

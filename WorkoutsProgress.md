@@ -12,8 +12,8 @@
 | 1.2 | Seed muscles/exercises, Workout activity type | ✅ done |
 | 1.3 | Exercises list + filters | ✅ done |
 | 1.4 | Exercise editor | ✅ done |
-| 1.5 | Frames (camera/gallery/paste) + flipbook | ⏳ next |
-| 1.6 | Frames from video / GIF | ⬜ |
+| 1.5 | Frames (camera/gallery/paste) + flipbook | ✅ done |
+| 1.6 | Frames from video / GIF | ⏳ next |
 | 1.7 | Workouts list + builder (basic) | ⬜ |
 | 1.8 | Builder advanced (custom sets, circuits, inline new exercise, push/pull) | ⬜ |
 | 2.1 | Timeline engine | ⬜ |
@@ -25,7 +25,7 @@
 | 2.7 | Finished Workout screen | ⬜ |
 
 ## Next up
-1.5 — Frames (camera/gallery/paste) + flipbook. Hook points already in place: `.wo-thumb[data-ex-id]` placeholder on list cards (fill with first frame), `#woeFramesGroup` placeholder in the editor, `_woEdit` working copy, `woLibCol()`. New exercises have no id until saved (editor says "save first"). Reuse `compressImage` / `triggerPasteUpload` patterns in `js/photos.js`; frames go in `photos` with `targetType: 'workoutExercise'` + `frameOrder`.
+1.6 — Frames from video / GIF. Add a **🎞️ From video / GIF** button to the frame actions in `_woRenderFrames()` (js/workouts.js); the grabber ends by calling `woAddFrameData(dataUrl)` per frame (already exists; it compresses nothing itself, so draw frames to a canvas ≤`WO_FRAME_MAX_DIM` and `toDataURL('image/jpeg', ~0.7)` first, keeping under `WO_FRAME_MAX_BASE64`). GIF: Chrome `ImageDecoder` (feature-detect). Video: `<video>` + scrubber + canvas capture.
 
 **Open TODO from 1.4**: Delete exercise currently has no check for use in workouts — add in 1.7 (store `exerciseIds[]` on each workout doc and query `array-contains`).
 
@@ -36,7 +36,8 @@
 - Seeding pattern: `seedExerciseTypesIfNeeded()` / `_exEnsureMixedRunType()` in `exercise.js`.
 - Backup list: `BACKUP_DATA_COLLECTIONS` in `js/settings.js` (~839); `photos` already included.
 - Photo helpers in `js/photos.js`: `compressImage(file, opts)`, `triggerPasteUpload`, `handlePhotoFile`.
-- Current versions after 1.4: `sw.js` CACHE_NAME `bishop-v632`; `exercise.js?v=489`, `workouts.js?v=3`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
+- Current versions after 1.5: `sw.js` CACHE_NAME `bishop-v633`; `exercise.js?v=489`, `workouts.js?v=4`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
 - **Preview gotcha**: after changing scripts, the preview may serve stale files. Run `location.reload()` (a hash-only `navigate` does NOT reload) and confirm `[...document.scripts]` shows the new `?v=` numbers before testing.
 - Preview: `preview_start` name `bishop-dev`; log in with the test account (memory `reference_test_account.md`) via `form_input` on the email/password refs then click Sign In; then drive pages with `location.hash` in `javascript_tool`. `node` is NOT installed, so syntax-check by loading in the preview and reading console errors. A 404 console error about a script fetch is the service worker path and is pre-existing.
+- Test frames in preview without file pickers: build canvases and call `woAddFrameData(canvas.toDataURL(...))` while on `#workout-exercise/:id`; `compressImage(new File([blob],'x.png'),{maxDimension:..,maxBase64:..})` can be called directly. File-picker/camera/paste buttons can't be driven in the preview, so they are only code-reviewed.
 - Python edit scripts: write to the scratchpad and run with `python`; read/write with `newline=''` is fine (git normalizes CRLF).

@@ -21337,3 +21337,58 @@ a.legacy-fin-card:hover {
 .wo-chip-toggle[data-state="also"] { background: #ccfbf1; border-color: #5eead4; color: #0f766e; }
 .wo-add-equip { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .wo-add-equip input { flex: 1; max-width: 240px; }
+
+/* Exercise frames (editor) */
+.wo-banner {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+}
+.wo-flip-wrap { margin: 8px 0; text-align: left; }
+.wo-flip {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+    background: #f3f4f6;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+.wo-frame-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+.wo-frame { position: relative; width: 108px; }
+.wo-frame img {
+    width: 108px;
+    height: 81px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    display: block;
+}
+.wo-frame-num {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    padding: 0 7px;
+}
+.wo-frame-btns { display: flex; gap: 4px; margin-top: 4px; }
+.wo-frame-btn {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    padding: 3px 0;
+    cursor: pointer;
+}
+.wo-frame-btn:disabled { opacity: 0.35; cursor: default; }
+.wo-frame-btn--del { color: #b91c1c; }
+.wo-frame-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }

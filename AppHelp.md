@@ -4783,7 +4783,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Uses weight** adds a default weight; **Each side** is for one-arm / one-leg moves (the workout player will run it twice)
 - **What it works**: tap a muscle once for ★ main target, again for also-works, again to clear
 - **Archive** hides an exercise from lists but keeps it in workouts that already use it; **Delete** removes it for good
-- Pictures that show the motion are coming in the next update
+- **Pictures**: after you add an exercise you can add 2–4 pictures that show the motion (start, middle, end). Use 📷 Camera, 🖼️ Gallery (pick several at once), or 📋 Paste (in Chrome: right-click a web image → Copy image, then tap Paste). The preview plays them like a flipbook — that is how the workout player will show the move
+- Use ◀ ▶ under a picture to change its order and ✕ to delete it
 
 ---
 
