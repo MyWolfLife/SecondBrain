@@ -101,7 +101,7 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 
 **Moving whole sections later**: the same move tool that brings House/Yard/etc. into the space can move any section later (e.g. My Legacy), and back again.
 
-## 3c. REVISED DIRECTION (PROPOSAL, under discussion 2026-10-21) — Share Like Google Drive, Built on Spaces
+## 3c. Direction (S7 — decided) — Share Like Google Drive, Built on Spaces
 
 The user's wish list goes beyond one Home space:
 - Share **different things with different people** (house with wife, baseball cards with son, albums with nobody)
@@ -129,6 +129,32 @@ The user's wish list goes beyond one Home space:
 - S2 section map: still the guide for **what makes sense to share** and what stays private, but nothing is shared until you press Share.
 - S3/S4 per-item flag: becomes the Share button on items (credential, concern, collection, life project…).
 - S5 ("Me" = real person) and S6 (no merging): unchanged.
+
+## 3d. What Gets Its Own Share Button (PROPOSAL — under review)
+
+The **unit of sharing** = the thing that gets one guest list. Everything inside/attached to it comes along.
+
+| Section | Share button is on… | Why |
+|---|---|---|
+| House | The **whole house** (floors, rooms, things, floor plans, breaker panels) | Rooms make no sense alone; a second house = a second unit |
+| Yard | The **whole yard** (zones, plants, weeds; chemicals & saved actions come along) | Same as house |
+| Garage | The **whole garage** | |
+| Structures | **Each structure** (shed, barn…) | They're independent buildings |
+| Vehicles | **Each vehicle** (+ its mileage logs) | Son might get "his" truck only |
+| Collections | **Each collection** | Baseball cards yes, albums no |
+| Contacts | The **whole contact list** | Sharing contact-by-contact would be tedious; per-contact "keep private" could come later |
+| Neighbors | **Each neighborhood** | |
+| Life Projects | **Each project** | A trip with wife vs. a family trip |
+| Calendar | **Each calendar** — you can have several ("My calendar", "Family", "Us"), like Google Calendar; new events pick which calendar | Events attached to a plant/room/car still follow their parent |
+| Budgets | **Each budget** | |
+| Investments | The **whole investments section** | Accounts/snapshots/groups are tightly linked |
+| Insurance | The **whole insurance list** | |
+| Checklists | **Each checklist template** (its runs come along) | |
+| Credentials | **Each credential** | Default private |
+| Health for others | **Each person's health** (e.g. son's), and **each concern** can be kept private | |
+| Workouts | The **whole library** (exercises + workouts + muscles) | Workouts reference exercises — sharing one without the other breaks |
+| My Legacy | Not shareable yet | Can add later |
+| Journal, Vault, Thoughts, My Health, Exercise data, Stock Analyzer, Places, Bucket List, SecondBrain, settings | **No Share button** — always private | |
 
 ## 4. Big Questions (to discuss)
 
@@ -162,3 +188,4 @@ The user's wish list goes beyond one Home space:
 - **S4 (2026-10-21)** — **Health for others is shared**, except **Concerns**, which get the per-item flag (default Shared). The user's own ("Me") health stays private.
 - **S5 (2026-10-21)** — **"Me" becomes a real person.** Each space member is linked to their own person record in the shared Contacts (`spaces/{id}.members[] {uid, personId}`). Shared items store that personId instead of `null`. The UI still says "Me" for the logged-in member's own person. Migration converts `personId: null` → the owner's person record when moving credentials/health into the space.
 - **S6 (2026-10-21)** — **No merging needed.** The user is the only one with data today. Migration = move the owner's sections into the space; other members join empty and see the shared data. (Test account stays separate and isolated.)
+- **S7 (2026-10-21)** — **Drive-style sharing built on spaces** (§3c): Share button on shareable things → pick connected people → **Can edit** or **Can view**. Each shared thing gets its own guest-list container; changing people/roles never moves data. People connect once via invite code. Sections get a "which one" switcher when you can see more than one (e.g. My House / Dad's House). Read-only enforced by Firestore rules.
