@@ -1,6 +1,6 @@
 # WorkoutsPlan.md — Workouts Feature
 
-**Status**: 🗣️ Discussion / planning — nothing built yet
+**Status**: ✅ Planning complete (2026-10-21) — ready to code Phase 1. Nothing built yet.
 **Area**: Life → Exercise → Workouts
 **Started**: 2026-10-21
 
@@ -54,7 +54,7 @@ A reusable catalog of movements. Built once, used in many workouts.
 | Name | "Push-up", "Goblet Squat" |
 | Instructions / cues | Free text. How to do it, form cues ("elbows at 45°, squeeze glutes") |
 | Pictures (frames) | **2–4 photos that together show the motion** — start / middle / end. In the player these auto-cycle like a flipbook so you see the movement. Ordered. |
-| Picture sources (D4) | All of these feed the same frame list, mix and match: 📷 **Camera** (take it now), 🖼️ **Gallery** (photo on the device, incl. web images you saved), 📋 **Paste** (right-click a web image → Copy image → Paste — already exists in the app's photo code), 🎞️ **Grab frames from a video** (new — see below) |
+| Picture sources (D4) | All of these feed the same frame list, mix and match: 📷 **Camera** (take it now), 🖼️ **Gallery** (photo on the device, incl. web images you saved), 📋 **Paste** (right-click a web image → Copy image → Paste — already exists in the app's photo code), 🎞️ **Grab frames from a video or GIF** (new — see §7) |
 | Video link | Optional URL (YouTube etc.) — a "watch demo" link, not embedded playback. Free, no storage cost. |
 | Default measure | **Reps** or **Time** |
 | Default amount | e.g. 10 reps, or 30 sec |
@@ -333,6 +333,7 @@ What the good apps do, and what we'd take:
   - `workoutSessions` (= Workout History) — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, durationMinutes, calories, sets[] {exerciseId, exerciseName (snapshot), measure, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual (true if added on the edit screen)}, notes, rating, activityId (link to the `exerciseActivities` entry). Array order = display order; set numbers are computed, not stored.
   - `exerciseActivities` gets two new optional fields: `workoutSessionId` and `workoutName` (snapshot, so the list can show "Workout: Upper Body" without an extra lookup). Activity `typeId` = the new seeded **Workout** type (added to the default types list in `exercise.js`; also seeded into existing accounts that don't have it). When present, the Activity edit screen shows the read-only workout summary + Edit Workout button.
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
+- **Frames from a GIF** (D20): load a GIF → Chrome's built-in image decoder (`ImageDecoder`) reads its frames → app picks 3–4 evenly spaced (user can adjust) → each saved as a normal compressed frame. Feature-detected; hidden on browsers without it. Same picker screen as frames-from-video.
 - **Frames from a video** (D4): pick a short video (record yourself doing 1 rep, or a saved clip) → app shows it with a scrubber → you tap "Grab frame" at start / middle / end (or "Auto: 3 evenly spaced") → each frame is drawn onto a canvas and compressed like any other photo. All in the browser, nothing uploaded, the video itself is **not** stored. Easiest way to get clean motion frames — one video instead of a friend taking 3 photos at the right instant.
 - **Paste from web**: reuse `triggerPasteUpload` in `photos.js`. Note: a plain "paste an image URL" box mostly won't work — most sites block other pages from reading their images (CORS), so we can't compress them. Copy image → Paste gets around that.
 - **Naming in code** (D5): the section rename to "Fitness" is **display text only** (hub title, Life tile, breadcrumbs, spec/help wording). Routes (`#exercise…`), Firestore collections (`exercise…`), and `exercise.js` stay as-is — renaming them would break saved data and links for no user benefit. Library collection is `workoutExercises` in code (avoids confusion with the existing cardio `exerciseTypes`), shown as "Exercises" in the UI. Rename lands with Phase 1.
@@ -347,13 +348,13 @@ What the good apps do, and what we'd take:
 
 ---
 
-## 8. Open Questions (to discuss, one at a time)
+## 8. Open Questions — all answered
 
 1. ~~**Reps in Guided mode**~~ — ✅ decided (D1): a step is reps **or** time, never both; reps steps wait for a tap.
    - 1b. ✅ decided (D2): voice commands are built in from day one (§4.1a).
 2. ~~**Weight tracking depth**~~ — ✅ decided (D3): every set has its own reps/time and weight; quick entry when they're all the same.
 3. ~~**Pictures**~~ — ✅ decided (D4): both. Camera, gallery, paste, and grab-frames-from-video.
-   - 3b. Animated GIFs from the web (common for exercise demos): flattening them loses the motion. Option: keep a small GIF as-is and play it instead of the flipbook. Decide when building Phase 1.
+   - 3b. ~~Animated GIFs~~ — ✅ decided (D20): convert a GIF into 3–4 frames (like the video tool).
 4. ~~**Naming**~~ — ✅ decided (D5): section → **Fitness**; **Exercises** (library), **Workouts** (built routines), **Workout History** (ones you've done).
 5. ~~**Programs**~~ — ✅ decided (D6): yes, eventually. Start with workouts; a "Programs — Coming soon" card goes on the hub in Phase 1 as a reminder.
 6. ~~**Activity log integration**~~ — ✅ decided (D7): auto-create, then land on the Finished Workout screen to enter watch calories. See §5.
@@ -370,11 +371,11 @@ What the good apps do, and what we'd take:
 
 ---
 
-## 9. Proposed Phasing (draft — will firm up after questions)
+## 9. Phasing
 
 | Phase | Scope |
 |---|---|
-| 1 | Exercise library (CRUD, frames, cues, video link) + Workout builder (steps, sets, rest, circuits) + Exercise → Fitness rename + hub cards (Exercises, Workouts, disabled **Programs — Coming soon**) |
+| 1 | Exercise library (CRUD, frames incl. from video/GIF, cues, video link, targets, push/pull, 20-exercise seed) + Workout builder (steps, sets, rest, circuits) + Exercise → Fitness rename + hub cards (Exercises, Workouts, disabled **Programs — Coming soon**) |
 | 2 | **Guided player** — countdown, flipbook, up-next, spoken cues, beeps, wake lock, pause/skip, **voice commands** (§4.1a) |
 | 3 | Self-paced mode + session logging (target vs. actual) + summary + "last time" + auto Exercise Activity |
 | 4 | Throughout-the-day mode + in-progress card on hub/home |
@@ -404,3 +405,4 @@ What the good apps do, and what we'd take:
 - **D17 (2026-10-21)** — **Each exercise is Push, Pull, Both, or Neither.** Builder shows badges + a push/pull tally and gently suggests alternating pushes and pulls on the same area.
 - **D18 (2026-10-21)** — **No reminders for throughout-the-day workouts.** The in-progress card on the hub is enough.
 - **D19 (2026-10-21)** — **Progression per §5a**: each workout step keeps Base + Current numbers (no workout copies); progresses per workout step, not per exercise; level-up suggested after N successful sessions in a row (default 10, settable); double progression for uniform weighted sets, +weight for custom set patterns, +rep bodyweight, +5 sec timed; 4+ weeks off → "Welcome back" with Comeback at 60% ramping ~10%/session back to previous best. Based on double-progression and return-from-layoff research.
+- **D20 (2026-10-21)** — **GIFs become frames.** A web GIF is converted into 3–4 still frames (Chrome `ImageDecoder`) and stored like any other frame; no raw GIF storage.
