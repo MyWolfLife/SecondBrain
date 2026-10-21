@@ -111,7 +111,7 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 6. **Offline Trip Mode lock**: currently per user — how does it behave on shared data?
 7. **Who did it**: stamp `createdBy`/`updatedBy` on shared docs so you can see who logged what?
 8. **Cost**: still free tier — no change expected.
-9. **"Me" in shared data**: today `personId: null` means "Me" (credentials, health). In a shared space "Me" is ambiguous — whose? Shared items need to point at a real person record instead.
+9. ~~**"Me" in shared data**~~ — ✅ S5: each member is linked to a real person record in shared Contacts; "Me" = the person linked to whoever is logged in.
 10. **Wife's existing account data**: if she has already entered data in her own account, how does it merge with yours in the space (duplicates of the same house/contacts)?
 
 ---
@@ -131,3 +131,4 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 - **S2 (2026-10-21)** — **Section map approved** (§3a): shared list and private list as proposed; Calendar shared; My Legacy private for now (movable later).
 - **S3 (2026-10-21)** — **Per-item 🔒/🏠 flag** for Credentials (default Private; existing ones start Private). The flag moves the item between areas — real security, not a label. Pattern in §3b, reusable for other sections later.
 - **S4 (2026-10-21)** — **Health for others is shared**, except **Concerns**, which get the per-item flag (default Shared). The user's own ("Me") health stays private.
+- **S5 (2026-10-21)** — **"Me" becomes a real person.** Each space member is linked to their own person record in the shared Contacts (`spaces/{id}.members[] {uid, personId}`). Shared items store that personId instead of `null`. The UI still says "Me" for the logged-in member's own person. Migration converts `personId: null` → the owner's person record when moving credentials/health into the space.
