@@ -126,7 +126,7 @@ Each exercise is tagged with everything it works. Two levels — tag the **muscl
 | **Lower Body** | Glutes, Hips, Quads, Hamstrings, Calves |
 
 - One exercise → many tags (a burpee hits Cardio + Chest + Quads + Shoulders)
-- **Main vs. also-works** (proposed, see Q13): tap a muscle once = ★ main target, tap again = also works, again = off
+- **Main vs. also-works** (D15): in the exercise editor, muscles show as chips — tap once = ★ main target, tap again = also works, tap again = off. Filters list ★ main matches first, then also-works.
 - The muscle list is seeded but editable (add "Adductors", "Neck", etc.)
 - **"What works my calves?"** — Exercises library has a target filter:
   - Pick an **area** (Lower Body) → every exercise touching any muscle in it
@@ -324,7 +324,7 @@ What the good apps do, and what we'd take:
 10. **Create exercises while building a workout** — "+ New exercise" inline in the workout builder (like the inline new Activity Type), vs. only from the Exercises library page?
 11. **Throughout-the-day reminders** — should an open day-long workout nudge you (e.g. ntfy push every couple of hours), or just sit on the hub card?
 12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
-13. **Main vs. also-works targets** — mark each muscle as ★ main or secondary, or just a flat list of tags?
+13. ~~**Main vs. also-works targets**~~ — ✅ decided (D15): yes, ★ main vs. also-works.
 
 ---
 
@@ -357,3 +357,4 @@ What the good apps do, and what we'd take:
 - **D12 (2026-10-21)** — **Music plays from another app** during workouts; our spoken cues and beeps play over it. No in-app music.
 - **D13 (2026-10-21)** — **Seed a 20-exercise starter library** (§3.1a) — bodyweight + dumbbell, cues, defaults, no pictures. Editable; more can be added any time.
 - **D14 (2026-10-21)** — **Exercises are tagged with targets**: specific muscles (and/or Cardio), many per exercise. Areas (Upper Body / Core / Lower Body / Cardio) roll up automatically. Library filter answers "what works my calves?" by muscle or by area.
+- **D15 (2026-10-21)** — **Targets are ★ main or also-works.** Tap-to-cycle chips in the editor; filters rank main matches first.
