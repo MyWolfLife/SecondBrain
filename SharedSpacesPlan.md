@@ -186,7 +186,7 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - The read-only lock stays **per person**: it only locks *your own other devices*, never other people's. Your wife can keep editing the shared house while you're away.
 - You **can** edit shared things while offline (e.g. the vacation itinerary). They sync when you're back. If you both changed the *same field* of the *same item*, the later sync wins — rare in practice.
 
-## 3g. Connecting People (PROPOSAL — under review)
+## 3g. Connecting People (S14 — decided)
 
 - **Settings → Sharing → People** lists everyone you're connected with.
 - **"Invite someone"** makes a short code (e.g. `K7Q-2MX`) — **single use, expires in 7 days**. Text it to them.
@@ -210,16 +210,47 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 
 ---
 
-## 5. Rough Phasing (very early)
+## 5. Technical Design (first pass)
 
-1. Spaces infrastructure: `spaces` collection, membership, invite code, security rules, `dataCol()` helper
-2. First shared section as the pilot — candidate: **Workouts library** (new, so no migration needed)
-3. Migration tool + move House/Yard/etc. one section at a time
-4. Per-section "lives in" setting UI
+**Firestore layout**
+```
+users/{uid}/…                         ← private data (unchanged)
+users/{uid}/connections/{otherUid}    ← connected people (+ which contact is them)
+invites/{code}                        ← single-use, 7-day invite codes {fromUid, expiresAt, usedBy}
+shares/{shareId}                      ← one per shared thing ("guest list" container)
+    ownerUid, kind ('house'|'collection'|'credential'|…), title,
+    members: { uid: 'owner' | 'edit' | 'view' }, memberUids: [uid…]
+shares/{shareId}/{collectionName}/…   ← the shared data itself, same collection names as today
+```
+
+**Security rules** (move them out of the Firebase console into a `firestore.rules` file in this repo so they're versioned)
+- `users/{uid}/**` → only that uid (as today)
+- `shares/{id}` doc → read if in `memberUids`; write only owner
+- `shares/{id}/**` → read if member; write if role is `owner` or `edit` (one rule lookup of the parent share doc)
+- `invites/{code}` → create by signed-in user; redeem once, before expiry
+
+**App code**
+- Today every feature calls `userCol('rooms')`. New helper **`dataCol(name, shareId)`** → returns `shares/{shareId}/{name}` when the thing is shared, else `userCol(name)`. Each section knows its current `shareId` (null = private) — set by the **"which one" switcher** (My House / Dad's House).
+- Features are converted one section at a time; untouched sections keep using `userCol()`.
+- Lists of per-item shareables (collections, credentials, notes…) = private query + one query per share of that kind, merged, with an owner/role badge on the left.
+- **View-only**: the section hides add/edit/delete when your role is `view` (the rules block it anyway).
+- Writes in shares stamp `createdBy/updatedBy` (S11).
+- Existing safety wrapper (`_guardFirestoreRef`, Offline Trip Mode lock) applies to `dataCol()` too.
+
+## 6. Phasing
+
+| Phase | Scope |
+|---|---|
+| 1 | **Foundation**: `firestore.rules` in repo, `shares` + `invites` + `connections`, Settings → Sharing (invite, enter code, people list, disconnect, link contacts), `dataCol()` helper, "Shared with me" page |
+| 2 | **Share dialog + move engine**: Share button UI (people + role), first-share copy → verify → delete with auto-backup, un-share reverse, owner-only controls, who-did-it stamps |
+| 3 | **Pilot: Workouts library** (new feature, no old data) — proves the whole loop end to end |
+| 4 | **Whole-section shares**: House, Yard, Garage, Contacts, Investments, Insurance + the "which one" switcher |
+| 5 | **Per-item shares**: Collections, Vehicles, Structures, Neighborhoods, Life Projects, Budgets, Checklists, Calendars, Credentials, Notes, Health-for-others/Concerns, API keys |
+| 6 | Backup "include shared with me", Offline Trip Mode for shares, polish |
 
 ---
 
-## 6. Decisions Log
+## 7. Decisions Log
 
 - **S1 (2026-10-21)** — **Member-list spaces with invite codes**, enforced by Firestore security rules on the server. Each person keeps their own login; no shared username/password. Multiple spaces supported; owner can remove members.
 - **S2 (2026-10-21)** — **Section map approved** (§3a): shared list and private list as proposed; Calendar shared; My Legacy private for now (movable later).
@@ -234,3 +265,4 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **S11 (2026-10-21)** — **Who-did-it stamps.** Every doc in a shared container gets `createdBy`, `createdAt`, `updatedBy`, `updatedAt` (uid → shown as the person's name). Detail screens and activity/history lines show "Added by X · date" / "Last changed by X" on shared items only (private items stay uncluttered).
 - **S12 (2026-10-21)** — **Roles: View / Edit / Owner** (§3e). Only the owner changes the guest list, deletes the whole shared thing, or un-shares it. Editors fully maintain what's inside.
 - **S13 (2026-10-21)** — **Behind-the-scenes defaults approved** (§3f): first share copies → verifies → removes private original, with an automatic backup first; backup covers what you own (+ optional "shared with me"); Offline Trip Mode downloads shared things too, locks only your own devices, offline edits to shared things sync later (last write wins per field).
+- **S14 (2026-10-21)** — **Connecting people** (§3g): single-use invite code, 7-day expiry, entered in Settings → Sharing; connection is two-way; disconnect removes the person from all your guest lists; "Shared with me" page.
