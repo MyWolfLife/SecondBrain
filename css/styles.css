@@ -21726,3 +21726,29 @@ a.legacy-fin-card:hover {
 body.wo-playing .first-run-banner,
 body.wo-playing .pwa-install-banner,
 body.wo-playing .offline-banner { display: none !important; }
+
+/* Voice commands: mic button + on-screen confirmation */
+.wo-mic--live { background: rgba(255, 255, 255, 0.38); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
+.wo-flash {
+    position: fixed;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    z-index: 1600;
+    background: rgba(15, 23, 42, 0.88);
+    color: #fff;
+    border-radius: 18px;
+    padding: 14px 34px;
+    font-size: clamp(1.8rem, 9vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    opacity: 0;
+}
+.wo-flash--show { animation: woFlash 0.95s ease-out forwards; }
+@keyframes woFlash {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    15%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; }
+}

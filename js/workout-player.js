@@ -717,6 +717,7 @@ function _woPlayerRender() {
             '<div class="wo-player-top">' +
                 '<span class="wo-player-name">' + _woEsc(_woP.session.workoutName) + (showSection ? ' · ' + _woSectionLabel(p.section) : '') + '</span>' +
                 '<span class="wo-player-left" id="woTimeLeft"></span>' +
+                (typeof woCommandsButtonHtml === 'function' ? woCommandsButtonHtml(_woP) : '') +
                 '<button type="button" class="wo-end-btn" id="woMute" title="Spoken cues on/off">' + (_woP.session.voiceCues ? '🔊' : '🔇') + '</button>' +
                 '<button type="button" class="wo-end-btn" id="woEnd" title="End workout">✕ End</button>' +
             '</div>' +
@@ -744,6 +745,7 @@ function _woPlayerRender() {
     document.getElementById('woPause').addEventListener('click', _woPlayerTogglePause);
     var plus = document.getElementById('woPlus'); if (plus) plus.addEventListener('click', function() { R.addTime(15); });
     document.getElementById('woEnd').addEventListener('click', _woPlayerEndClicked);
+    if (typeof woCommandsBindUi === 'function') woCommandsBindUi();
     document.getElementById('woMute').addEventListener('click', function() {
         _woP.session.voiceCues = !_woP.session.voiceCues;
         this.textContent = _woP.session.voiceCues ? '🔊' : '🔇';

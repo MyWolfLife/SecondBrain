@@ -4848,7 +4848,9 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Prop your phone up sideways or upright — both work. Leaving this screen stops the workout
 - **Sound**: short beeps count you in (3-2-1) and a higher/lower beep marks the start of an exercise/rest. A voice announces each exercise, your reps and weight, what is coming up next, and when to switch sides. Tap **🔊/🔇** at the top to mute the voice (beeps stay)
 - Your screen stays on while the workout runs (if your browser allows it)
-- Voice commands and saving the finished workout are coming in the next updates
+- **Voice commands** (Chrome; turn on at the Start screen): say **done** or **next** when you finish a set, **pause**, **go**, **ready** (end a rest early), **skip**, **back**, **more time** (+15 sec), **repeat**, **what's next**, **how long**, or **end workout** (it asks you to say yes or no). A flash on screen and a chime confirm each command. Say just the word — long sentences are ignored. The **🎙️** button at the top mutes/unmutes listening; if it shows ⚠ your microphone is blocked — allow it in the browser and tap the button
+- Loud music right next to the phone can drown out commands — speak up or tap
+- Saving the finished workout is coming in the next update
 
 ---
 

@@ -13,12 +13,15 @@
 
 var _woV = {
     started: false, phase: -1, said: {}, lastSection: null,
-    speaking: false, completeSpoken: false,
+    speaking: false, lastSpeechEnd: 0, completeSpoken: false,
     audio: null, wake: null, visHandler: null, unlockHandler: null
 };
 
 /** True while the app is talking — voice commands (chunk 2.5) pause listening so the app can't hear itself. */
-function woIsSpeaking() { return _woV.speaking; }
+function woIsSpeaking() {
+    // also true for a moment after speech ends, so the tail of the app's own voice isn't heard as a command
+    return _woV.speaking || (Date.now() - _woV.lastSpeechEnd) < 600;
+}
 
 // ─── Speech ───────────────────────────────────────────────────────────────────
 
@@ -42,7 +45,7 @@ function woSpeak(text) {
         var voice = _woPickVoice();
         if (voice) u.voice = voice;
         u.onstart = function() { _woV.speaking = true; };
-        u.onend   = u.onerror = function() { _woV.speaking = false; };
+        u.onend   = u.onerror = function() { _woV.speaking = false; _woV.lastSpeechEnd = Date.now(); };
         window.speechSynthesis.speak(u);
     } catch (e) { console.error('Workouts: speech failed:', e); }
 }
@@ -153,6 +156,7 @@ function _woVStart(ctx) {
     document.addEventListener('visibilitychange', _woV.visHandler);
     // Preload the voice list (some browsers fill it in lazily)
     if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
+    if (typeof woCommandsStart === 'function') woCommandsStart(ctx);   // voice commands (workout-commands.js)
 }
 
 function woVoiceOnPhase(p, index, ctx) {
@@ -189,6 +193,7 @@ function woVoiceOnEnd(ctx) {
 
 /** Stops everything: wake lock, listeners, and (when leaving early) any speech in progress. */
 function _woVStop(cancelSpeech) {
+    if (typeof woCommandsStop === 'function') woCommandsStop();
     _woReleaseWake();
     if (_woV.unlockHandler) document.removeEventListener('pointerdown', _woV.unlockHandler);
     if (_woV.visHandler)    document.removeEventListener('visibilitychange', _woV.visHandler);

@@ -1268,6 +1268,27 @@ Full-screen takeover (fixed, above the app header; the app's top banners are hid
 - **Screen stays on** during the workout via the Screen Wake Lock API (`navigator.wakeLock`); re-requested whenever the page becomes visible again; released when the workout ends or you leave. If the browser doesn't support it or refuses, the workout still runs (the screen may dim).
 - `woIsSpeaking()` reports whether the app is talking (used by voice commands, chunk 2.5, so the mic ignores the app's own voice).
 
+#### Voice commands (`js/workout-commands.js`, chunk 2.5)
+Hands-free control of the guided player by speaking. Uses the browser's built-in speech recognition (`SpeechRecognition` / `webkitSpeechRecognition` — free, no key; **Chrome** on desktop/Chromebook/Android; Chrome sends the audio to Google to turn it into text, so it needs a connection; iPhone Safari is unreliable, so tapping is the fallback). Only runs when "Voice commands" is ticked on the Start screen and the browser supports it; first use asks for microphone permission.
+- **Words** (each has synonyms; only a **short exact phrase** counts — up to 4 words, with "ok/hey/please/now" ignored around it; a command word inside a longer sentence or a lyric is ignored):
+  | Say | Does |
+  |---|---|
+  | **done** · next · finished · I'm done | finish the set / tap rest, or end a timed phase early |
+  | **pause** · stop · hold on · wait | pause the clock |
+  | **go** · resume · start · continue | resume (only when paused) |
+  | **ready** · I'm ready · let's go | end a rest / switch / get-ready early (ignored during an exercise) |
+  | **skip** | skip this step (logged as skipped) |
+  | **back** · previous · go back | previous phase |
+  | **more time** · add time · plus fifteen | +15 seconds on a timed phase |
+  | **repeat** · say again · what | repeats the current cue out loud |
+  | **what's next** | says the next exercise |
+  | **how long** · time left | says seconds left in this step and about how many minutes are left |
+  | **end workout** · quit | asks "End the workout? Say yes or no." — **yes** ends it, **no** (or any other command, or 10 s of silence) carries on |
+- **Feedback**: a chime and a big on-screen label ("DONE ✓", "PAUSE", "+15 SEC"…) flash for each recognised command. Spoken answers (repeat, what's next, how long, end-confirm) are said even when 🔊 spoken cues are muted.
+- **Ignores itself**: results that arrive while the app is speaking (and for 0.6 s after) are discarded, so "Up next…" can't trigger "next". Duplicate results within 1.2 s are ignored.
+- **Mic button** (🎙️) in the player's top bar: 🎙️ = on (highlighted while listening), 🎙️✕ = muted (tap to turn on), 🎙️⚠ = microphone blocked (tap to try again). Chrome stops listening after silence; the app silently restarts it. Hidden when voice commands are off or unsupported.
+- Not built (plan stretch goal): "change weight 30" / "did 10".
+
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
 
