@@ -112,7 +112,7 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 7. **Who did it**: stamp `createdBy`/`updatedBy` on shared docs so you can see who logged what?
 8. **Cost**: still free tier — no change expected.
 9. ~~**"Me" in shared data**~~ — ✅ S5: each member is linked to a real person record in shared Contacts; "Me" = the person linked to whoever is logged in.
-10. **Wife's existing account data**: if she has already entered data in her own account, how does it merge with yours in the space (duplicates of the same house/contacts)?
+10. ~~**Wife's existing account data**~~ — ✅ S6: none; only the user has data. No merge tool needed.
 
 ---
 
@@ -132,3 +132,4 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 - **S3 (2026-10-21)** — **Per-item 🔒/🏠 flag** for Credentials (default Private; existing ones start Private). The flag moves the item between areas — real security, not a label. Pattern in §3b, reusable for other sections later.
 - **S4 (2026-10-21)** — **Health for others is shared**, except **Concerns**, which get the per-item flag (default Shared). The user's own ("Me") health stays private.
 - **S5 (2026-10-21)** — **"Me" becomes a real person.** Each space member is linked to their own person record in the shared Contacts (`spaces/{id}.members[] {uid, personId}`). Shared items store that personId instead of `null`. The UI still says "Me" for the logged-in member's own person. Migration converts `personId: null` → the owner's person record when moving credentials/health into the space.
+- **S6 (2026-10-21)** — **No merging needed.** The user is the only one with data today. Migration = move the owner's sections into the space; other members join empty and see the shared data. (Test account stays separate and isolated.)
