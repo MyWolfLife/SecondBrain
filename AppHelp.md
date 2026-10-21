@@ -5000,6 +5000,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Manage Types** link lets you rename or delete custom activity types
 - Tap any row to view or edit that activity
 - Workouts you finished in Fitness → Workouts appear as **Workout: <workout name>**
+- Tap a **Workout:** row to see a summary of what you did. Calories, time and date for those are changed on the workout itself — tap **Edit Workout**. **Delete** asks whether to also delete the workout record
 
 ### Columns explained (desktop)
 - **Date** — date of the activity (no time shown)

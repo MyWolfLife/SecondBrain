@@ -900,6 +900,11 @@ async function loadExerciseActivityPage(id) {
             }
         }
 
+        // An activity that came from a finished workout is shown as a read-only summary (see workout-history.js)
+        if (existing && existing.workoutSessionId && typeof woRenderActivityWorkoutSummary === 'function') {
+            if (await woRenderActivityWorkoutSummary(el, _exEditId, existing)) return;
+        }
+
         _exBuildActivityForm(existing);
 
     } catch (err) {

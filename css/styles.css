@@ -21801,3 +21801,9 @@ body.wo-playing .offline-banner { display: none !important; }
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
 }
+
+/* Activity screen for a workout-created activity */
+.wo-readonly { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 0.95rem; }
+.wo-ro-label { display: inline-block; min-width: 82px; color: #6b7280; font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.wo-ro-list { margin: 6px 0 0 18px; padding: 0; }
+.wo-ro-list li { margin: 3px 0; }

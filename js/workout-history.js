@@ -445,3 +445,80 @@ function _woRenderHistList() {
     });
     list.innerHTML = html;
 }
+
+// ─── Activity screen for workout-created activities (chunks 3.4 + 3.5) ────────
+//
+// An Activity that came from a finished workout (it carries workoutSessionId) is not edited
+// here — the workout record is the source of truth for calories, duration and date. This
+// read-only summary offers "Edit Workout" and a delete that asks about the linked record.
+// Called by loadExerciseActivityPage(); returns false when the record is gone, so the normal
+// Activity form shows instead (an ordinary activity).
+
+async function woRenderActivityWorkoutSummary(el, activityId, act) {
+    var doc = await userCol('workoutSessions').doc(act.workoutSessionId).get();
+    if (!doc.exists) return false;
+    var w = doc.data();
+
+    // Compact list: each exercise once (in order) with the sets that were done
+    var order = [], byEx = {};
+    (w.sets || []).forEach(function(s) {
+        if (!byEx[s.exerciseId]) { byEx[s.exerciseId] = { name: s.exerciseName, parts: [] }; order.push(s.exerciseId); }
+        if (s.skipped || s.actualAmount == null) return;
+        byEx[s.exerciseId].parts.push(woFmtAmount(s.measure, s.actualAmount, s.actualWeight) + (s.side ? ' (' + s.side + ')' : ''));
+    });
+    var list = order.map(function(id) {
+        var e = byEx[id];
+        return '<li><strong>' + _woEsc(e.name) + '</strong> — ' + (e.parts.length ? _woEsc(e.parts.join(', ')) : '<em>skipped</em>') + '</li>';
+    }).join('');
+
+    var date = (act.activityDate || '').substring(0, 10), time = (act.activityDate || '').substring(11, 16);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span><a href="#exercise">Fitness</a>' +
+        '<span class="separator">&rsaquo;</span><a href="#exercise-activities">Activities</a>' +
+        '<span class="separator">&rsaquo;</span><span>Workout</span>';
+
+    el.innerHTML =
+        '<div class="page-header"><h2>Workout: ' + _woEsc(w.workoutName) + '</h2></div>' +
+        '<div class="ex-form">' +
+            '<div class="wo-banner">This activity comes from a workout. Calories, time and date are edited on the workout — tap <strong>Edit Workout</strong>.</div>' +
+            '<div class="wo-readonly">' +
+                '<div><span class="wo-ro-label">Date</span> ' + _woEsc(_woFmtLongDate(date)) + (time ? ' · ' + _woEsc(time) : '') + '</div>' +
+                '<div><span class="wo-ro-label">Duration</span> ' + (act.durationMinutes != null ? _woEsc(act.durationMinutes) + ' min' : '—') + '</div>' +
+                '<div><span class="wo-ro-label">Calories</span> ' + (act.calories != null ? _woEsc(act.calories) : '<em>not entered yet</em>') + '</div>' +
+            '</div>' +
+            '<div class="ex-form-group"><label class="ex-label">What you did</label><ul class="wo-ro-list">' + (list || '<li><em>No sets recorded</em></li>') + '</ul></div>' +
+            '<div class="ex-form-actions">' +
+                '<a href="#workout-done/' + act.workoutSessionId + '" class="btn btn-primary">Edit Workout</a>' +
+                '<a href="#exercise-activities" class="btn btn-secondary">Back</a>' +
+                '<button type="button" class="btn btn-danger" id="woActDelete">Delete</button>' +
+            '</div>' +
+        '</div>';
+
+    document.getElementById('woActDelete').addEventListener('click', function() {
+        var ov = _woGrabOverlay(
+            '<h3>Delete this activity?</h3>' +
+            '<p>It is linked to a workout record in your Workout History. Also delete that workout?</p>' +
+            '<div class="ex-form-actions">' +
+                '<button type="button" class="btn btn-danger" id="woActDelBoth">Delete both</button>' +
+                '<button type="button" class="btn btn-secondary" id="woActDelOne">Only the activity</button>' +
+                '<button type="button" class="btn btn-secondary" id="woActDelCancel">Cancel</button>' +
+            '</div>' +
+            '<p class="wo-hint">“Only the activity” keeps the workout in your history (you can use <strong>Create Activity</strong> on it later to link a new one).</p>');
+        var go = async function(alsoWorkout) {
+            _woCloseGrabber();
+            try {
+                if (alsoWorkout) await userCol('workoutSessions').doc(act.workoutSessionId).delete();
+                else await userCol('workoutSessions').doc(act.workoutSessionId).update({ activityId: null });
+                await userCol('exerciseActivities').doc(activityId).delete();
+                location.hash = '#exercise-activities';
+            } catch (err) {
+                console.error('Workouts: delete activity failed:', err);
+                alert('Failed to delete. Please try again.');
+            }
+        };
+        ov.querySelector('#woActDelBoth').addEventListener('click', function() { go(true); });
+        ov.querySelector('#woActDelOne').addEventListener('click',  function() { go(false); });
+        ov.querySelector('#woActDelCancel').addEventListener('click', _woCloseGrabber);
+    });
+    return true;
+}
