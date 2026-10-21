@@ -29,6 +29,7 @@ const EXERCISE_DEFAULT_TYPES = [
     { name: 'Mowing',         tracksMiles: true,  withDogs: false, runWalkRole: 'walk',  distanceUnit: 'miles'  },
     { name: 'Yard Work',       tracksMiles: true,  withDogs: false, runWalkRole: 'walk',  distanceUnit: 'miles'  },
     { name: 'Weights',         tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
+    { name: 'Workout',         tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },  // created by Fitness → Workouts
     { name: 'Elliptical',      tracksMiles: false, withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
     { name: 'Row Machine',     tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'meters' },
     { name: 'Bike',            tracksMiles: true,  withDogs: false, runWalkRole: null,    distanceUnit: 'miles'  },
@@ -87,6 +88,25 @@ async function _exEnsureMixedRunType() {
         });
     } catch (err) {
         console.error('Exercise: failed to ensure Mixed Run type:', err);
+    }
+}
+
+// One-time migration: add the "Workout" type (used by Fitness → Workouts) to accounts seeded before it existed.
+// Skips an empty collection — seedExerciseTypesIfNeeded() will include it there.
+async function _exEnsureWorkoutType() {
+    try {
+        var any = await userCol('exerciseTypes').limit(1).get();
+        if (any.empty) return;
+        var snap = await userCol('exerciseTypes').where('name', '==', 'Workout').limit(1).get();
+        if (!snap.empty) return;
+        await userCol('exerciseTypes').add({
+            name: 'Workout', tracksMiles: false, withDogs: false,
+            runWalkRole: null, distanceUnit: 'miles',
+            isDefault: true, archived: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (err) {
+        console.error('Exercise: failed to ensure Workout type:', err);
     }
 }
 
@@ -263,7 +283,7 @@ async function loadExerciseActivitiesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureWorkoutType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
     var _exNow = new Date();
     _exSelMonth  = _exNow.getMonth();
     _exSelYear   = _exNow.getFullYear();
@@ -839,7 +859,7 @@ function _exToggleSummary() {
 
 async function loadExerciseActivityPage(id) {
     window.scrollTo(0, 0);
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureWorkoutType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
 
     _exEditId         = (id === 'new') ? null : id;
     _exSelectedTypeId = null;
@@ -1471,7 +1491,7 @@ async function loadExerciseTypesPage() {
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
-    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
+    seedExerciseTypesIfNeeded(); _exEnsureMixedRunType(); _exEnsureWorkoutType(); _exEnsureMilesOnDistanceTypes(); _exEnsureRunWalkRole(); _exEnsureMowingWalkRole(); _exEnsureYardWorkWalkRole(); _exEnsureDistanceUnit();
     var el = document.getElementById('page-exercise-types');
     if (!el) return;
 

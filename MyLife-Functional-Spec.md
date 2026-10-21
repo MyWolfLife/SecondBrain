@@ -1199,6 +1199,8 @@ Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
 ### Workouts (`js/workouts.js`) — build in progress
 Routes: `#workout-exercises`, `#workout-exercise/:id|new`, `#workouts`, `#workout/:id|new`. Breadcrumbs: Life › Fitness › Exercises | Workouts › New/Edit. Library data goes through `woLibCol(name)` (currently `userCol`) so it can move to a shared space later (`SharedSpacesPlan.md`). Pages are placeholders until chunks 1.3+ land; full feature description will be written here as each chunk ships.
 
+**Seed data (chunk 1.2)** — `woEnsureSeeded()` runs the first time a Workouts page loads and writes, in one batch: **19 muscles** into `workoutMuscles` (doc id = slug such as `calves`; fields `name`, `area` = cardio/upper/core/lower, `sortOrder`) and **20 starter exercises** into `workoutExercises` (fields `name`, `instructions` (cues, one per line), `measure` 'reps'|'time', `defaultAmount` (reps or seconds), `usesWeight`, `defaultWeight`, `eachSide`, `equipment[]`, `targets[]` {muscleId, main}, `pushPull` 'push'|'pull'|'both'|'neither', `videoUrl`, `archived`, `isSeeded`, `createdAt`) plus a flag doc `workoutMeta/seed`, so it happens exactly once (deleting exercises later does not re-seed). Area is looked up from the muscle, never stored on an exercise. Backup list includes `workoutMuscles`, `workoutExercises`, `workouts`, `workoutSessions`, `workoutMeta`.
+
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
 
@@ -1381,7 +1383,7 @@ Lists all non-archived types, sorted built-ins first (alphabetical) then custom 
 
 Flag icons: 📏 = tracks miles, 📐 = tracks meters, 🏃 = run miles, 🚶 = walk miles, 🏃🚶 = split (walked + run separately), 🐾 = with-dogs option.
 
-Seeded on first visit to any exercise page (15 built-in defaults). Each type has:
+Seeded on first visit to any exercise page (16 built-in defaults, including **Workout** — used for activities created by Fitness → Workouts; accounts seeded earlier get it added once by `_exEnsureWorkoutType()`). Each type has:
 - `name`, `tracksMiles` (bool), `distanceUnit` ('miles'|'meters'), `runWalkRole` ('run'|'walk'|'split'|null), `withDogs` (bool), `isDefault` (bool), `archived` (bool)
 
 `distanceUnit` controls distance field label and pace display:

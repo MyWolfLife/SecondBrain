@@ -4946,6 +4946,7 @@ The AI matches your description to a known activity type (Running, Walking, Weig
 
 ### Quick Help
 - **Built-in types** (Running, Walking, Hiking, etc.) are shown with a "built-in" badge — they can't be renamed or deleted
+- **Workout** is a built-in type used automatically when you finish a workout from Fitness → Workouts
 - **Custom types** you've added have **Edit** and **Delete** buttons
 - **Edit**: rename the type and change its goals role (Run / Walk / Split / Neither) — all past activities automatically reflect the updated name
 - **Delete**: hides the type from the activity dropdown; your past activity history is preserved
