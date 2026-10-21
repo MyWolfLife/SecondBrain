@@ -177,7 +177,7 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 ### 5.1 Finished Workout screen (`#workout-done/:id` — edit screen for a Workout History record)
 **Top — summary** (editable):
 - Workout name, date, start time, duration
-- **Calories burned** ← from your watch (the main reason you land here)
+- **Calories burned** ← from your watch (the main reason you land here) — starts **blank**, no estimate (D10)
 - Notes, effort rating (1–5)
 - Totals (read-only, computed): sets, reps, volume (reps × weight), any PRs 🏆
 
@@ -207,6 +207,7 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 
 ### 5.3 Workout History list
 - Every finished workout, newest first; tap one → Finished Workout screen (5.1)
+- Workouts with no calories entered show a small **"No calories"** badge (left side of the card) as a reminder
 - The Activities list row for a workout links there too
 
 ---
@@ -268,7 +269,7 @@ What the good apps do, and what we'd take:
 6. ~~**Activity log integration**~~ — ✅ decided (D7): auto-create, then land on the Finished Workout screen to enter watch calories. See §5.
    - 6a. ~~**Which Activity type?**~~ — ✅ decided (D8): one new seeded type **"Workout"**, list shows **"Workout: [name]"**.
    - 6b. ~~**Deleting**~~ — ✅ decided (D9): ask "Also delete the linked …?" with a choice; keeping it unlinks it. See §5.4.
-   - 6c. **Calories before you edit**: leave blank until you enter them, or put in an estimate? Proposal: blank — your watch number is the real one.
+   - 6c. ~~**Calories before you edit**~~ — ✅ decided (D10): blank until entered; "No calories" badge as a reminder.
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
 8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
 
@@ -298,3 +299,4 @@ What the good apps do, and what we'd take:
 - **D7 (2026-10-21)** — **Finishing a workout auto-creates a linked Activity** and lands on the Finished Workout edit screen to enter watch calories. Every set is its own editable/deletable line; lines can be added manually (pick exercise, enter values) and reordered. Activity screen shows a read-only summary + Edit Workout button; the workout record is the source of truth and pushes calories/duration/date to the Activity.
 - **D8 (2026-10-21)** — **Activity type**: one new built-in type **"Workout"** (not a type per workout, not "PW:"). Activities list shows **"Workout: [name]"**. Summary grids get a single combined Workout row; per-workout breakdown is a possible later add.
 - **D9 (2026-10-21)** — **Deleting linked records gives a choice**: "Also delete the linked Activity/Workout?" → Delete both / Only this one. Keeping one unlinks it cleanly (orphan Activity becomes normal; orphan Workout offers "Create Activity"). User expects to usually delete both but wants the option.
+- **D10 (2026-10-21)** — **Calories start blank** on a finished workout (and its Activity) until the user enters the watch number — no estimate. Workout History cards show a "No calories" badge as a reminder.
