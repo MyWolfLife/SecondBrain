@@ -4846,7 +4846,9 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Buttons: ⏮ back, ⏸ pause, ⏭ skip, **+15s** for a bit more time. On a computer: Space = pause, ← back, → skip, Enter = done
 - **✕ End** stops the workout early
 - Prop your phone up sideways or upright — both work. Leaving this screen stops the workout
-- Spoken cues, voice commands and saving the finished workout are coming in the next updates
+- **Sound**: short beeps count you in (3-2-1) and a higher/lower beep marks the start of an exercise/rest. A voice announces each exercise, your reps and weight, what is coming up next, and when to switch sides. Tap **🔊/🔇** at the top to mute the voice (beeps stay)
+- Your screen stays on while the workout runs (if your browser allows it)
+- Voice commands and saving the finished workout are coming in the next updates
 
 ---
 
