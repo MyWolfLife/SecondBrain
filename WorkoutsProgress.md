@@ -37,6 +37,14 @@
 ## Next up
 **Phases 1–5 are complete.** The user asked for Phase 5 only — **do NOT start Phase 6** unless they ask (Phase 6 = Programs, EMOM/AMRAP/Tabata presets, AI workout builder, SecondBrain action + help entry per CLAUDE.md). Other open items: Shared Spaces (SharedSpacesPlan.md) is a separate later effort; known gaps — leaving the guided/self-paced player mid-workout discards the run; the "in progress" card isn't on the app's home screen; voice, speech and wake lock are untested on real hardware; editing set lines on the Finished screen doesn't re-run progression or personal records; completing a scheduled workout's calendar event doesn't create a workout record.
 
+## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
+Discuss first, then build. Open questions already prepared:
+- **Programs** (needs a full planning conversation): fixed multi-week plan (YAYOG-style) vs rotation of own workouts? scheduling (fixed weekdays vs "next in list")? weekly difficulty ramp vs the §5a progression? missed days / breaks? build-your-own vs starters? where it lives (greyed Programs tile on the Fitness hub).
+- **Presets** (EMOM / AMRAP / Tabata / Ladder): which ones? AMRAP counts rounds not sets (needs player + record changes) — tap "round done"?
+- **AI workout builder**: only existing exercises or may invent new ones? use recent history / muscle balance?
+- **SecondBrain action**: log a past workout only, or also start one? (Follow the 7-step new-action checklist in memory + SB_HELP_ACTIONS.)
+Fix anything the user finds while testing before starting Phase 6.
+
 ## Notes for the next session (code facts learned)
 - Routing: `js/app.js` — add page names to `ALL_PAGES` (~line 195), `LIFE_PAGES` (~224), `TOP_LEVEL_PAGES` (~158, only for nav-link pages), then an `else if (page === ...)` branch in the router (~795, Exercise routes) calling `showPage()` + a loader. Page shells are `<section class="page hidden" id="page-NAME">` in `index.html` (~7655).
 - Fitness hub is `loadExercisePage()` in `js/exercise.js` (~210); Life tile label is in `index.html` ~7631; breadcrumbs say "Exercise" in 12 places in `exercise.js` (display-only rename to "Fitness").
