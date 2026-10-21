@@ -941,25 +941,3 @@ async function _woPlayerSaveAndGo() {
         if (retry) retry.addEventListener('click', _woPlayerSaveAndGo);
     }
 }
-
-// ─── 6. Finished Workout screen (#workout-done/:id) — minimal until chunk 2.7 ─
-
-async function loadWorkoutDonePage(id) {
-    _woSetChrome([['Workouts', '#workouts'], ['Finished workout']]);
-    var el = document.getElementById('page-workout-done');
-    el.innerHTML = '<div class="page-header"><h2>Finished workout</h2></div><div class="ex-status">Loading…</div>';
-    try {
-        var doc = await userCol('workoutSessions').doc(id).get();
-        if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout record not found.</div>'; return; }
-        var w = doc.data();
-        var done = (w.sets || []).filter(function(s) { return !s.skipped; }).length;
-        el.innerHTML =
-            '<div class="page-header"><h2>' + _woEsc(w.workoutName) + '</h2></div>' +
-            '<div class="ex-form"><div class="wo-banner">✓ Saved — ' + _woEsc(w.date) + ' · ' + w.durationMinutes + ' min · ' + done + ' of ' + (w.sets || []).length + ' sets done' +
-            (w.activityId ? '' : ' · (the Activity entry could not be created)') + '</div>' +
-            '<div class="ex-form-actions"><a href="#workouts" class="btn btn-primary">Back to Workouts</a></div></div>';
-    } catch (err) {
-        console.error('Workouts: failed to load finished workout:', err);
-        el.innerHTML = '<div class="ex-status">Could not load this record.</div>';
-    }
-}

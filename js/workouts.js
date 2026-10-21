@@ -1730,10 +1730,11 @@ function _woUpdateBuilderSummary() {
 
 // ----- Exercise picker overlay (also hosts the inline "+ New exercise" form) -----
 
-var _woPick = { text: '', area: '', pp: '', circuit: null };
+var _woPick = { text: '', area: '', pp: '', circuit: null, onPick: null };
 
-function _woOpenExercisePicker(circuitIndex) {
-    _woPick = { text: '', area: '', pp: '', circuit: circuitIndex };
+/** onPick (optional): called with the chosen exercise instead of adding a builder step — used by other screens. */
+function _woOpenExercisePicker(circuitIndex, onPick) {
+    _woPick = { text: '', area: '', pp: '', circuit: circuitIndex, onPick: onPick || null };
     var ov = _woGrabOverlay(
         '<h3>' + (circuitIndex === null ? 'Add exercise' : 'Add exercise to circuit') + '</h3>' +
         '<div class="ex-toolbar-row">' +
@@ -1783,9 +1784,15 @@ function _woRenderPicker() {
     list.querySelectorAll('.wo-pick-row').forEach(function(b) {
         b.addEventListener('click', function() {
             var ex = _woExMap[this.getAttribute('data-id')];
-            if (ex) _woAddExerciseStep(ex);
+            if (ex) _woPickChosen(ex);
         });
     });
+}
+
+/** An exercise was chosen in the picker: hand it to the caller's callback, or add it to the builder. */
+function _woPickChosen(ex) {
+    if (_woPick.onPick) { var cb = _woPick.onPick; _woCloseGrabber(); cb(ex); }
+    else _woAddExerciseStep(ex);
 }
 
 /** Appends an exercise to the workout (or to the circuit the picker was opened for). */
@@ -1838,7 +1845,7 @@ function _woShowInlineNewExercise() {
     document.getElementById('woiWeight').addEventListener('change', function() {
         document.getElementById('woiWeightRow').classList.toggle('hidden', !this.checked);
     });
-    document.getElementById('woiBack').addEventListener('click', function() { _woOpenExercisePicker(_woPick.circuit); });
+    document.getElementById('woiBack').addEventListener('click', function() { _woOpenExercisePicker(_woPick.circuit, _woPick.onPick); });
     document.getElementById('woiSave').addEventListener('click', _woSaveInlineExercise);
     document.getElementById('woiName').focus();
 }
@@ -1867,7 +1874,7 @@ async function _woSaveInlineExercise() {
         data.id = ref.id;
         _woExercises.push(data);
         _woExMap[data.id] = data;
-        _woAddExerciseStep(data);
+        _woPickChosen(data);
     } catch (err) {
         console.error('Workouts: inline exercise save failed:', err);
         alert('Failed to create the exercise. Please try again.');

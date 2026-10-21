@@ -21754,3 +21754,30 @@ body.wo-playing .offline-banner { display: none !important; }
 }
 
 .wo-link-btn--light { color: #fff; }
+
+/* Finished workout screen */
+.wo-rating { display: flex; gap: 8px; }
+.wo-rate-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.wo-rate-btn--on { background: #0d9488; border-color: #0d9488; color: #fff; }
+.wo-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 6px;
+    border-bottom: 1px solid #f3f4f6;
+}
+.wo-line--skipped .wo-line-name { color: #9ca3af; }
+.wo-line--skipped { background: #fafafa; }
+.wo-line-btns { margin-left: 0; }
+.wo-line-name { flex: 1 1 180px; font-weight: 600; min-width: 0; }
+.wo-line-set { font-weight: 400; color: #6b7280; font-size: 0.82rem; }
+.wo-line-vals input { width: 64px; }
