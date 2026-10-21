@@ -107,6 +107,8 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 
 ## 3c. Direction (S7 — decided) — Share Like Google Drive, Built on Spaces
 
+> **Clarification**: "Like Google Drive" describes only the *Share button experience*. **No data ever goes to Google Drive** — everything (private and shared) stays in Firebase Firestore. Drive is file storage and can't do the app's queries, real-time sync, or security rules.
+
 The user's wish list goes beyond one Home space:
 - Share **different things with different people** (house with wife, baseball cards with son, albums with nobody)
 - **Read/write vs. read-only** (son can view the house info but not change it)
