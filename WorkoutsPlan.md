@@ -249,6 +249,7 @@ What the good apps do, and what we'd take:
 - **Paste from web**: reuse `triggerPasteUpload` in `photos.js`. Note: a plain "paste an image URL" box mostly won't work — most sites block other pages from reading their images (CORS), so we can't compress them. Copy image → Paste gets around that.
 - **Naming in code** (D5): the section rename to "Fitness" is **display text only** (hub title, Life tile, breadcrumbs, spec/help wording). Routes (`#exercise…`), Firestore collections (`exercise…`), and `exercise.js` stay as-is — renaming them would break saved data and links for no user benefit. Library collection is `workoutExercises` in code (avoids confusion with the existing cardio `exerciseTypes`), shown as "Exercises" in the UI. Rename lands with Phase 1.
 - **Timers**: timestamp-based (store "phase ends at" time, not a ticking counter) so a pause, a background tab, or a screen flicker never drifts the clock
+- **Music (D12)**: assume music is playing from another app. Voice cues should be loud/clear and preceded by a short beep so they cut through; Android usually lowers the music briefly while our voice speaks. Voice commands may need a louder/closer voice over music — test early.
 - **Voice out**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
 - **Voice in**: `SpeechRecognition` / `webkitSpeechRecognition` with `continuous` + `interimResults`; auto-restart on `end`; suspend while `speechSynthesis.speaking`; match the final transcript against a synonym table (short phrases only). Feature-detect and hide the mic UI when unsupported. Command table lives in one place in code so new words are easy to add.
 - **Wake Lock**: `navigator.wakeLock.request('screen')` — supported on Chrome/Android/Chromebook and iOS Safari 16.4+
@@ -272,7 +273,11 @@ What the good apps do, and what we'd take:
    - 6b. ~~**Deleting**~~ — ✅ decided (D9): ask "Also delete the linked …?" with a choice; keeping it unlinks it. See §5.4.
    - 6c. ~~**Calories before you edit**~~ — ✅ decided (D10): blank until entered; "No calories" badge as a reminder.
 7. ~~**Who uses it**~~ — ✅ decided (D11): user + wife on separate accounts; library shared, history personal. Sharing mechanism → `SharedSpacesPlan.md`.
-8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
+8. ~~**Music**~~ — ✅ decided (D12): yes, music from another app; our voice + beeps play over it.
+9. **Starter library** — seed a set of common exercises (push-up, squat, plank, lunge…) with names, cues and reps/time defaults but no pictures? Or start empty?
+10. **Create exercises while building a workout** — "+ New exercise" inline in the workout builder (like the inline new Activity Type), vs. only from the Exercises library page?
+11. **Throughout-the-day reminders** — should an open day-long workout nudge you (e.g. ntfy push every couple of hours), or just sit on the hub card?
+12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
 
 ---
 
@@ -302,3 +307,4 @@ What the good apps do, and what we'd take:
 - **D9 (2026-10-21)** — **Deleting linked records gives a choice**: "Also delete the linked Activity/Workout?" → Delete both / Only this one. Keeping one unlinks it cleanly (orphan Activity becomes normal; orphan Workout offers "Create Activity"). User expects to usually delete both but wants the option.
 - **D10 (2026-10-21)** — **Calories start blank** on a finished workout (and its Activity) until the user enters the watch number — no estimate. Workout History cards show a "No calories" badge as a reminder.
 - **D11 (2026-10-21)** — **Shared library, personal history.** User and wife will each have accounts. **Exercises + Workouts (and their pictures)** should be shared between them; **Workout History, Activities, Daily Metrics** stay personal. Sharing itself is a bigger app-wide design (`SharedSpacesPlan.md`). Workouts doesn't wait for it: build on personal storage now, routed through a helper so the library can move to a shared space later with minimal change.
+- **D12 (2026-10-21)** — **Music plays from another app** during workouts; our spoken cues and beeps play over it. No in-app music.
