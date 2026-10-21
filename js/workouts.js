@@ -760,12 +760,14 @@ function _woRenderFrames() {
             '<button type="button" class="btn btn-secondary btn-small" id="woeFrameCamera">📷 Camera</button>' +
             '<button type="button" class="btn btn-secondary btn-small" id="woeFrameGallery">🖼️ Gallery</button>' +
             '<button type="button" class="btn btn-secondary btn-small" id="woeFramePaste">📋 Paste</button>' +
+            '<button type="button" class="btn btn-secondary btn-small" id="woeFrameVideo">🎞️ From video' + (_woGrabSupportsGif() ? ' / GIF' : '') + '</button>' +
         '</div>' +
         '<div id="woeFrameStatus" class="wo-hint"></div>';
 
     document.getElementById('woeFrameCamera').addEventListener('click', function() { _woPickFrameFile(true); });
     document.getElementById('woeFrameGallery').addEventListener('click', function() { _woPickFrameFile(false); });
     document.getElementById('woeFramePaste').addEventListener('click', _woPasteFrame);
+    document.getElementById('woeFrameVideo').addEventListener('click', _woOpenGrabber);
     group.querySelectorAll('.wo-frame-btn').forEach(function(b) {
         b.addEventListener('click', function() {
             var act = this.getAttribute('data-act'), id = this.getAttribute('data-id');
@@ -911,6 +913,212 @@ async function _woAfterFramesChanged() {
         console.error('Workouts: thumbnail update failed:', err);
     }
     _woRenderFrames();
+}
+
+// ─── Frames from a video or GIF (chunk 1.6) ───────────────────────────────────
+//
+// 🎞️ From video / GIF opens a picker overlay.
+//   Video: pick a clip (e.g. phone video of one rep) → scrub → "Grab frame" at start / middle / end,
+//          or "Auto 3 frames" (evenly spaced). The clip is never stored — only the grabbed stills.
+//   GIF:   pick a GIF → Chrome's ImageDecoder reads its frames → app offers 4 evenly spaced
+//          stills (tap to select/deselect) → Add. Hidden if the browser has no ImageDecoder.
+
+var _woGrab = null;   // {kind:'video'|'gif', url, video, gifFrames:[{dataUrl, on}], grabbed:[dataUrl]}
+
+function _woGrabSupportsGif() { return typeof ImageDecoder !== 'undefined'; }
+
+function _woOpenGrabber() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = _woGrabSupportsGif() ? 'video/*,image/gif' : 'video/*';
+    input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        if (file.type === 'image/gif') _woGrabStartGif(file);
+        else                           _woGrabStartVideo(file);
+    });
+    input.click();
+}
+
+function _woGrabOverlay(innerHtml) {
+    _woCloseGrabber();
+    var ov = document.createElement('div');
+    ov.id = 'woGrabOverlay';
+    ov.className = 'wo-grab-overlay';
+    ov.innerHTML = '<div class="wo-grab-box">' + innerHtml + '</div>';
+    document.body.appendChild(ov);
+    return ov;
+}
+
+function _woCloseGrabber() {
+    var ov = document.getElementById('woGrabOverlay');
+    if (ov) ov.remove();
+    if (_woGrab && _woGrab.url) URL.revokeObjectURL(_woGrab.url);
+    _woGrab = null;
+}
+
+/** Draws the current video frame (or any image source) to a canvas → compressed JPEG data URL. */
+function _woCanvasToFrame(source, w, h) {
+    var scale = Math.min(1, WO_FRAME_MAX_DIM / Math.max(w, h));
+    var cw = Math.round(w * scale), ch = Math.round(h * scale);
+    var canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    canvas.getContext('2d').drawImage(source, 0, 0, cw, ch);
+    var q = 0.75, out = canvas.toDataURL('image/jpeg', q);
+    while (out.length > WO_FRAME_MAX_BASE64 && q > 0.3) { q -= 0.1; out = canvas.toDataURL('image/jpeg', q); }
+    return out;
+}
+
+// ----- Video -----
+
+function _woGrabStartVideo(file) {
+    var url = URL.createObjectURL(file);
+    var ov = _woGrabOverlay(
+        '<h3>Grab frames from video</h3>' +
+        '<video id="woGrabVideo" class="wo-grab-video" playsinline muted preload="auto"></video>' +
+        '<input type="range" id="woGrabSlider" min="0" max="1000" value="0" class="wo-grab-slider">' +
+        '<div class="wo-hint" id="woGrabTime">Loading video…</div>' +
+        '<div class="wo-frame-actions">' +
+            '<button type="button" class="btn btn-primary btn-small" id="woGrabNow">📸 Grab this frame</button>' +
+            '<button type="button" class="btn btn-secondary btn-small" id="woGrabAuto">✨ Auto 3 frames</button>' +
+        '</div>' +
+        '<div class="wo-hint">Grabbed (in order):</div>' +
+        '<div class="wo-frame-strip" id="woGrabStrip"></div>' +
+        '<div class="ex-form-actions">' +
+            '<button type="button" class="btn btn-primary" id="woGrabAdd" disabled>Add frames</button>' +
+            '<button type="button" class="btn btn-secondary" id="woGrabCancel">Cancel</button>' +
+        '</div>');
+    _woGrab = { kind: 'video', url: url, grabbed: [] };
+
+    var video  = ov.querySelector('#woGrabVideo');
+    var slider = ov.querySelector('#woGrabSlider');
+    video.src = url;
+
+    video.addEventListener('loadedmetadata', function() {
+        ov.querySelector('#woGrabTime').textContent = 'Drag the slider to the start of the move, then grab. ' + video.duration.toFixed(1) + 's long.';
+        video.currentTime = 0;
+    });
+    video.addEventListener('error', function() {
+        ov.querySelector('#woGrabTime').textContent = 'This video could not be opened in this browser.';
+    });
+    slider.addEventListener('input', function() {
+        if (video.duration) video.currentTime = (slider.value / 1000) * video.duration;
+    });
+    video.addEventListener('timeupdate', function() {
+        ov.querySelector('#woGrabTime').textContent = video.currentTime.toFixed(2) + 's of ' + (video.duration || 0).toFixed(1) + 's';
+    });
+    ov.querySelector('#woGrabNow').addEventListener('click', function() {
+        if (!video.videoWidth) return;
+        _woGrab.grabbed.push(_woCanvasToFrame(video, video.videoWidth, video.videoHeight));
+        _woGrabRenderStrip();
+    });
+    ov.querySelector('#woGrabAuto').addEventListener('click', async function() {
+        if (!video.duration) return;
+        _woGrab.grabbed = [];
+        var stops = [0.05, 0.5, 0.95];
+        for (var i = 0; i < stops.length; i++) {
+            await _woSeekVideo(video, stops[i] * video.duration);
+            _woGrab.grabbed.push(_woCanvasToFrame(video, video.videoWidth, video.videoHeight));
+        }
+        _woGrabRenderStrip();
+    });
+    ov.querySelector('#woGrabAdd').addEventListener('click', _woGrabCommit);
+    ov.querySelector('#woGrabCancel').addEventListener('click', _woCloseGrabber);
+}
+
+function _woSeekVideo(video, t) {
+    return new Promise(function(resolve) {
+        var done = function() { video.removeEventListener('seeked', done); resolve(); };
+        video.addEventListener('seeked', done);
+        video.currentTime = t;
+    });
+}
+
+function _woGrabRenderStrip() {
+    var strip = document.getElementById('woGrabStrip');
+    if (!strip || !_woGrab) return;
+    strip.innerHTML = _woGrab.grabbed.map(function(d, i) {
+        return '<div class="wo-frame"><img src="' + d + '" alt="Grabbed ' + (i + 1) + '">' +
+               '<div class="wo-frame-num">' + (i + 1) + '</div>' +
+               '<div class="wo-frame-btns"><button type="button" class="wo-frame-btn wo-frame-btn--del" data-i="' + i + '">✕ Remove</button></div></div>';
+    }).join('');
+    strip.querySelectorAll('[data-i]').forEach(function(b) {
+        b.addEventListener('click', function() { _woGrab.grabbed.splice(parseInt(this.getAttribute('data-i'), 10), 1); _woGrabRenderStrip(); });
+    });
+    document.getElementById('woGrabAdd').disabled = _woGrab.grabbed.length === 0;
+}
+
+// ----- GIF -----
+
+async function _woGrabStartGif(file) {
+    var ov = _woGrabOverlay('<h3>Frames from GIF</h3><div class="wo-hint" id="woGrabTime">Reading GIF…</div>');
+    _woGrab = { kind: 'gif', url: null, gifFrames: [] };
+    try {
+        var decoder = new ImageDecoder({ data: await file.arrayBuffer(), type: 'image/gif' });
+        await decoder.tracks.ready;
+        var count = decoder.tracks.selectedTrack.frameCount;
+        if (!count) throw new Error('GIF has no frames');
+        // Up to 4 evenly spaced stills (a still GIF just gives one)
+        var n = Math.min(4, count), picks = [];
+        for (var i = 0; i < n; i++) picks.push(n === 1 ? 0 : Math.round(i * (count - 1) / (n - 1)));
+        for (var k = 0; k < picks.length; k++) {
+            var res = await decoder.decode({ frameIndex: picks[k] });
+            var vf = res.image;
+            _woGrab.gifFrames.push({ dataUrl: _woCanvasToFrame(vf, vf.displayWidth, vf.displayHeight), on: true });
+            vf.close();
+        }
+        decoder.close();
+    } catch (err) {
+        console.error('Workouts: GIF read failed:', err);
+        ov.querySelector('.wo-grab-box').innerHTML = '<h3>Frames from GIF</h3><p>That GIF could not be read.</p>' +
+            '<div class="ex-form-actions"><button type="button" class="btn btn-secondary" id="woGrabCancel">Close</button></div>';
+        ov.querySelector('#woGrabCancel').addEventListener('click', _woCloseGrabber);
+        return;
+    }
+    _woGrabRenderGif(ov);
+}
+
+function _woGrabRenderGif(ov) {
+    ov.querySelector('.wo-grab-box').innerHTML =
+        '<h3>Frames from GIF</h3>' +
+        '<div class="wo-hint">Tap a frame to leave it out. Selected frames are added in order.</div>' +
+        '<div class="wo-frame-strip" id="woGrabStrip">' +
+            _woGrab.gifFrames.map(function(f, i) {
+                return '<div class="wo-frame wo-gif-pick' + (f.on ? '' : ' wo-gif-pick--off') + '" data-i="' + i + '">' +
+                       '<img src="' + f.dataUrl + '" alt="GIF frame ' + (i + 1) + '"><div class="wo-frame-num">' + (i + 1) + '</div></div>';
+            }).join('') +
+        '</div>' +
+        '<div class="ex-form-actions">' +
+            '<button type="button" class="btn btn-primary" id="woGrabAdd">Add frames</button>' +
+            '<button type="button" class="btn btn-secondary" id="woGrabCancel">Cancel</button>' +
+        '</div>';
+    ov.querySelectorAll('.wo-gif-pick').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var f = _woGrab.gifFrames[parseInt(this.getAttribute('data-i'), 10)];
+            f.on = !f.on;
+            this.classList.toggle('wo-gif-pick--off', !f.on);
+            document.getElementById('woGrabAdd').disabled = !_woGrab.gifFrames.some(function(x) { return x.on; });
+        });
+    });
+    ov.querySelector('#woGrabAdd').addEventListener('click', _woGrabCommit);
+    ov.querySelector('#woGrabCancel').addEventListener('click', _woCloseGrabber);
+}
+
+/** Saves the chosen stills as frames, in order, then closes the overlay. */
+async function _woGrabCommit() {
+    if (!_woGrab) return;
+    var frames = _woGrab.kind === 'video'
+        ? _woGrab.grabbed.slice()
+        : _woGrab.gifFrames.filter(function(f) { return f.on; }).map(function(f) { return f.dataUrl; });
+    var btn = document.getElementById('woGrabAdd');
+    if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+    try {
+        for (var i = 0; i < frames.length; i++) await woAddFrameData(frames[i]);
+    } catch (err) {
+        console.error('Workouts: add grabbed frames failed:', err);
+        alert('Could not add the frames. Please try again.');
+    }
+    _woCloseGrabber();
 }
 
 // ─── Workouts (placeholders until chunk 1.7) ──────────────────────────────────

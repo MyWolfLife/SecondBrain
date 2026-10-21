@@ -1213,6 +1213,12 @@ A motion is shown by **2–4 frames** (start / middle / end). Each frame is a do
 - **New exercise**: after **Add Exercise** the app opens that exercise's editor (green "Exercise added" banner) so pictures can be added immediately.
 - **Delete exercise** also deletes its frames. Reusable helper for the video/GIF grabber: `woAddFrameData(dataUrl)`.
 
+#### Frames from video / GIF (chunk 1.6)
+**🎞️ From video / GIF** button in the editor's Pictures section (label says "/ GIF" only when the browser has `ImageDecoder`, i.e. Chrome/Edge/Chromebook/Android Chrome; otherwise video only). Opens an overlay; nothing from the source file is stored — only the grabbed stills (same size/compression limits as other frames, saved via `woAddFrameData`, in order).
+- **Video**: pick a clip (e.g. a phone video of one rep) → preview with a scrubber → **📸 Grab this frame** (repeat at start / middle / end) or **✨ Auto 3 frames** (at 5 %, 50 %, 95 % of the clip) → grabbed stills appear in order with **✕ Remove** → **Add frames**.
+- **GIF**: pick a GIF → up to **4 evenly spaced stills** are decoded → tap a still to leave it out → **Add frames**. A GIF that can't be decoded shows "That GIF could not be read."
+- Cancel closes the overlay without saving.
+
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
 
