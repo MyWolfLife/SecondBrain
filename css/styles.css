@@ -14376,6 +14376,24 @@ a.health-chip--link:hover { filter: brightness(0.93); }
     box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
 }
 
+/* Fitness hub: Workouts + Exercises (library) sub-tiles */
+.landing-tile--workouts {
+    background: linear-gradient(135deg, #dc2626, #f87171);
+    color: #fff;
+}
+.landing-tile--workouts:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(220, 38, 38, 0.35);
+}
+.landing-tile--workout-exercises {
+    background: linear-gradient(135deg, #0d9488, #2dd4bf);
+    color: #fff;
+}
+.landing-tile--workout-exercises:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.35);
+}
+
 /* Coming-soon tile — greyed out, not clickable */
 .landing-tile--coming-soon {
     background: #f3f4f6;

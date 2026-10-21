@@ -7628,7 +7628,7 @@ service firebase.storage {
                 </a>
                 <a href="#exercise" class="landing-tile landing-tile--exercise" data-tile-id="exercise">
                     <span class="landing-tile-icon">🏃</span>
-                    <span class="landing-tile-label">Exercise</span>
+                    <span class="landing-tile-label">Fitness</span>
                 </a>
                 <a href="#private" class="landing-tile landing-tile--private hidden" id="private-life-tile" data-tile-id="private">
                     <span class="landing-tile-icon">🔐</span>
@@ -7704,6 +7704,26 @@ service firebase.storage {
         <!-- Page: Tracked Exercises Management (#exercise-goals/:year/exercises) -->
         <section class="page hidden" id="page-exercise-goal-exercises">
             <!-- Populated by loadExerciseGoalExercisesPage() in exercise.js -->
+        </section>
+
+        <!-- Page: Workout Exercise Library (#workout-exercises) -->
+        <section class="page hidden" id="page-workout-exercises">
+            <!-- Populated by loadWorkoutExercisesPage() in workouts.js -->
+        </section>
+
+        <!-- Page: Workout Exercise editor (#workout-exercise/new, #workout-exercise/:id) -->
+        <section class="page hidden" id="page-workout-exercise">
+            <!-- Populated by loadWorkoutExercisePage() in workouts.js -->
+        </section>
+
+        <!-- Page: Workouts list (#workouts) -->
+        <section class="page hidden" id="page-workouts">
+            <!-- Populated by loadWorkoutsPage() in workouts.js -->
+        </section>
+
+        <!-- Page: Workout builder (#workout/new, #workout/:id) -->
+        <section class="page hidden" id="page-workout">
+            <!-- Populated by loadWorkoutBuilderPage() in workouts.js -->
         </section>
 
         <!-- Page: Life Calendar (#life-calendar) -->
@@ -12135,7 +12155,8 @@ export default {
     <script src="js/lifecalendar.js?v=487"></script>
     <script src="js/life-projects.js?v=487"></script>
     <script src="js/life-projects-day-ai.js?v=496"></script>
-    <script src="js/exercise.js?v=487"></script>
+    <script src="js/exercise.js?v=488"></script>
+    <script src="js/workouts.js?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
@@ -12176,7 +12197,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=488"></script>
+    <script src="js/app.js?v=489"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

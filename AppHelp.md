@@ -4748,9 +4748,12 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:exercise
 
-**What this screen is for:** The Exercise hub. Jump to Activities, Daily Metrics, Goals, or Summary.
+**What this screen is for:** The Fitness hub (formerly "Exercise"). Jump to Activities, Daily Metrics, Goals, Summary, Workouts, or the Exercises library.
 
 ### Quick Help
+- Tap **Workouts** to build and (soon) run guided workouts
+- Tap **Exercises** for your library of exercises (names, form cues, pictures)
+- **Programs** is coming soon — multi-week plans built from your workouts
 - Tap **Activities** to log and view your workouts
 - Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
 - Tap **Goals** to set and manage your yearly exercise and weight goals

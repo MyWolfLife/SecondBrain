@@ -201,6 +201,7 @@ const ALL_PAGES = [
     'budget', 'budget-archive', 'budget-nonmonthly',
     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
+    'workout-exercises', 'workout-exercise', 'workouts', 'workout',
     'help'
 ];
 
@@ -245,7 +246,8 @@ const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'journal', 'journal-ent
                      'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
-                     'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises', 'exercise-summary'];
+                     'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises', 'exercise-summary',
+                     'workout-exercises', 'workout-exercise', 'workouts', 'workout'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -825,6 +827,19 @@ function handleRoute() {
     } else if (page === 'exercise-goals') {
         showPage('exercise-goals');
         loadExerciseGoalsPage(id);
+    // ---------- Workouts routes (Fitness → Exercises / Workouts) ----------
+    } else if (page === 'workout-exercises') {
+        showPage('workout-exercises');
+        loadWorkoutExercisesPage();
+    } else if (page === 'workout-exercise' && id) {
+        showPage('workout-exercise');
+        loadWorkoutExercisePage(id);
+    } else if (page === 'workouts') {
+        showPage('workouts');
+        loadWorkoutsPage();
+    } else if (page === 'workout' && id) {
+        showPage('workout');
+        loadWorkoutBuilderPage(id);
     // ---------- My Legacy routes ----------
     } else if (page === 'legacy' && id === 'burial') {
         showPage('legacy-burial');

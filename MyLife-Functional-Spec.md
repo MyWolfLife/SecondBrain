@@ -1186,15 +1186,18 @@ Tracks major life events — trips, milestones, goals, relationships.
 
 ---
 
-## Part 8e: Exercise
+## Part 8e: Exercise (shown in the app as **Fitness**)
 
-**Plan document**: `ExercisePlan.md`
+**Plan documents**: `ExercisePlan.md` (activities/metrics/goals), `WorkoutsPlan.md` (Workouts — in progress; build status in `WorkoutsProgress.md`)
 
-Exercise tracking lives in the Life section. Activities, Daily Metrics, Goals, and Summary are all built.
+Exercise tracking lives in the Life section. The section is labeled **Fitness** on screen (Life tile, hub title, breadcrumbs); routes (`#exercise…`), files (`exercise.js`) and Firestore collections (`exercise…`) keep the original "exercise" names. Activities, Daily Metrics, Goals, and Summary are all built; Workouts is being built (see below).
 
-### Exercise Hub (`#exercise`)
-Four cards: **Activities** (active), **Daily Metrics** (active), **Goals** (active), **Summary** (active).
-Breadcrumb: Life › Exercise. No back button — use breadcrumb to navigate up.
+### Fitness Hub (`#exercise`)
+Seven cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
+Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
+
+### Workouts (`js/workouts.js`) — build in progress
+Routes: `#workout-exercises`, `#workout-exercise/:id|new`, `#workouts`, `#workout/:id|new`. Breadcrumbs: Life › Fitness › Exercises | Workouts › New/Edit. Library data goes through `woLibCol(name)` (currently `userCol`) so it can move to a shared space later (`SharedSpacesPlan.md`). Pages are placeholders until chunks 1.3+ land; full feature description will be written here as each chunk ships.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.

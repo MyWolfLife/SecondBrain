@@ -210,7 +210,7 @@ var _exPendingRunWalkRole  = null;  // answer to Q2 during add-on-fly flow ('run
 function loadExercisePage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
-        '<a href="#life">Life</a><span class="separator">&rsaquo;</span><span>Exercise</span>';
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span><span>Fitness</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -218,7 +218,7 @@ function loadExercisePage() {
     if (!el) return;
     el.innerHTML =
         '<div class="page-header">' +
-            '<h2>Exercise</h2>' +
+            '<h2>Fitness</h2>' +
         '</div>' +
         '<div class="landing-grid">' +
             '<a href="#exercise-activities" class="landing-tile landing-tile--exercise-activities">' +
@@ -237,6 +237,19 @@ function loadExercisePage() {
                 '<span class="landing-tile-icon">📊</span>' +
                 '<span class="landing-tile-label">Summary</span>' +
             '</a>' +
+            '<a href="#workouts" class="landing-tile landing-tile--workouts">' +
+                '<span class="landing-tile-icon">🏋️</span>' +
+                '<span class="landing-tile-label">Workouts</span>' +
+            '</a>' +
+            '<a href="#workout-exercises" class="landing-tile landing-tile--workout-exercises">' +
+                '<span class="landing-tile-icon">🤸</span>' +
+                '<span class="landing-tile-label">Exercises</span>' +
+            '</a>' +
+            '<div class="landing-tile landing-tile--coming-soon">' +
+                '<span class="landing-tile-icon">📅</span>' +
+                '<span class="landing-tile-label">Programs</span>' +
+                '<span class="coming-soon-badge">Coming soon</span>' +
+            '</div>' +
         '</div>';
 }
 
@@ -246,7 +259,7 @@ async function loadExerciseActivitiesPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Activities</span>';
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span><span>Activities</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -891,7 +904,7 @@ function _exBuildActivityForm(existing) {
 
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-activities">Activities</a><span class="separator">&rsaquo;</span>' +
         '<span>' + (isNew ? 'New Activity' : 'Edit Activity') + '</span>';
     document.getElementById('headerTitle').innerHTML =
@@ -1452,7 +1465,7 @@ async function loadExerciseTypesPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-activities">Activities</a><span class="separator">&rsaquo;</span>' +
         '<span>Manage Types</span>';
     document.getElementById('headerTitle').innerHTML =
@@ -1914,10 +1927,10 @@ async function loadExerciseMetricsPage() {
 
     document.getElementById('breadcrumbBar').innerHTML = fromGoals_
         ? '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
           '<a href="#exercise-goals">Goals</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>'
         : '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>';
+          '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span><span>Daily Metrics</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -3930,7 +3943,7 @@ async function loadExerciseSummaryPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Summary</span>';
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span><span>Summary</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -4690,7 +4703,7 @@ function _dmUpdateBreadcrumb() {
     var label = _dmEditDate ? _dmEditDate : 'New Entry';
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
         '<span>' + _exEsc(label) + '</span>';
 }
@@ -5056,7 +5069,7 @@ async function loadExerciseMetricDefsPage() {
     window.scrollTo(0, 0);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span>' +
         '<span>Manage Metrics</span>';
     document.getElementById('headerTitle').innerHTML =
@@ -5418,10 +5431,10 @@ async function loadExerciseGoalsPage(yearParam) {
     window._egFromDailyMetrics = false;  // consume the flag
     document.getElementById('breadcrumbBar').innerHTML = fromMetrics
         ? '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+          '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
           '<a href="#exercise-metrics">Daily Metrics</a><span class="separator">&rsaquo;</span><span>Goals</span>'
         : '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-          '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span><span>Goals</span>';
+          '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span><span>Goals</span>';
     document.getElementById('headerTitle').innerHTML =
         '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
 
@@ -6267,7 +6280,7 @@ async function loadExerciseGoalExercisesPage(year) {
     var yearNum = parseInt(year, 10);
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-goals/' + year + '">Goals</a><span class="separator">&rsaquo;</span>' +
         '<span>Tracked Exercises</span>';
     document.getElementById('headerTitle').innerHTML =
@@ -6804,7 +6817,7 @@ async function loadExerciseGoalsMonthPage(year, month) {
 
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
-        '<a href="#exercise">Exercise</a><span class="separator">&rsaquo;</span>' +
+        '<a href="#exercise">Fitness</a><span class="separator">&rsaquo;</span>' +
         '<a href="#exercise-goals/' + year + '">Goals</a><span class="separator">&rsaquo;</span>' +
         '<span>' + year + ' – ' + monthName + '</span>';
     document.getElementById('headerTitle').innerHTML =
