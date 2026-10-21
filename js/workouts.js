@@ -1135,24 +1135,37 @@ async function _woGrabCommit() {
     _woCloseGrabber();
 }
 
-// ─── Workouts (chunk 1.7) ─────────────────────────────────────────────────────
+// ─── Workouts (chunks 1.7 + 1.8) ──────────────────────────────────────────────
 //
 // A workout doc (collection `workouts`):
 //   name, description, steps[], exerciseIds[] (for "is this exercise used?" lookups),
 //   estimatedSeconds, archived, createdAt, updatedAt
-// An exercise step:
-//   { type:'exercise', exerciseId, exerciseName (snapshot), measure, eachSide,
+//
+// steps[] holds two kinds of step:
+//
+//   EXERCISE STEP  { type:'exercise', section:'warmup'|'main'|'cooldown',
+//     exerciseId, exerciseName (snapshot), measure, eachSide, usesWeight,
 //     sets:[{amount, weight}]      ← CURRENT numbers (what the player uses)
 //     baseSets:[{amount, weight}]  ← as built (never changed by progression)
 //     restBetweenSets:{mode:'timed'|'tap', seconds}, restAfter:{mode, seconds},
 //     successStreak, lastDoneDate, previousBestSets, comeback }   ← progression state (WorkoutsPlan §5a)
-// Circuits are added in chunk 1.8 as { type:'circuit', rounds, restBetweenRounds, items:[exercise steps] }.
+//
+//   CIRCUIT        { type:'circuit', section, rounds,
+//     items:[exercise steps with exactly ONE set each — the amount done per round, no rests of their own],
+//     restBetweenItems:{mode,seconds}, restBetweenRounds:{mode,seconds}, restAfter:{mode,seconds} }
 
-var WO_SECONDS_PER_REP   = 3;    // only used for the estimated-time display
-var WO_TAP_REST_ASSUMED  = 30;   // seconds assumed for a "tap when ready" rest in estimates
-var WO_DEFAULT_SETS      = 3;
-var WO_DEFAULT_REST_SETS = 45;   // seconds between sets
-var WO_DEFAULT_REST_AFTER = 60;  // seconds after the last set of an exercise
+var WO_SECONDS_PER_REP    = 3;    // only used for the estimated-time display
+var WO_TAP_REST_ASSUMED   = 30;   // seconds assumed for a "tap when ready" rest in estimates
+var WO_DEFAULT_SETS       = 3;
+var WO_DEFAULT_ROUNDS     = 3;
+var WO_DEFAULT_REST_SETS  = 45;   // seconds between sets
+var WO_DEFAULT_REST_AFTER = 60;   // seconds after the last set of an exercise / a circuit
+var WO_DEFAULT_REST_ITEMS = 15;   // seconds between exercises inside a circuit
+var WO_SECTIONS = [
+    { id: 'warmup',   label: 'Warm-up' },
+    { id: 'main',     label: 'Main' },
+    { id: 'cooldown', label: 'Cool-down' }
+];
 
 var _woExMap = {};   // exerciseId → exercise doc (live, for badges/targets)
 
@@ -1167,26 +1180,48 @@ async function woLoadExercises() {
 
 function _woStepSets(step) { return step.sets || []; }
 
-/** Rough duration of a workout in seconds (display only). */
-function woEstimateSeconds(steps) {
-    var total = 0;
+/** Every exercise in order, circuit items included. */
+function _woFlatExercises(steps) {
+    var out = [];
     (steps || []).forEach(function(st) {
-        if (st.type !== 'exercise') return;
-        var sides = st.eachSide ? 2 : 1;
-        var sets  = _woStepSets(st);
-        sets.forEach(function(s, i) {
-            var work = st.measure === 'time' ? (s.amount || 0) : (s.amount || 0) * WO_SECONDS_PER_REP;
-            total += work * sides;
-            if (i < sets.length - 1) total += _woRestSeconds(st.restBetweenSets);
-        });
-        total += _woRestSeconds(st.restAfter);
+        if (st.type === 'exercise') out.push(st);
+        else if (st.type === 'circuit') (st.items || []).forEach(function(it) { out.push(it); });
     });
-    return total;
+    return out;
 }
 
 function _woRestSeconds(rest) {
     if (!rest) return 0;
     return rest.mode === 'tap' ? WO_TAP_REST_ASSUMED : (rest.seconds || 0);
+}
+
+function _woSetSeconds(st, set) {
+    var sides = st.eachSide ? 2 : 1;
+    var work  = st.measure === 'time' ? (set.amount || 0) : (set.amount || 0) * WO_SECONDS_PER_REP;
+    return work * sides;
+}
+
+/** Rough duration of a workout in seconds (display only). */
+function woEstimateSeconds(steps) {
+    var total = 0;
+    (steps || []).forEach(function(st) {
+        if (st.type === 'exercise') {
+            var sets = _woStepSets(st);
+            sets.forEach(function(s, i) {
+                total += _woSetSeconds(st, s);
+                if (i < sets.length - 1) total += _woRestSeconds(st.restBetweenSets);
+            });
+            total += _woRestSeconds(st.restAfter);
+        } else if (st.type === 'circuit') {
+            var items = st.items || [], rounds = st.rounds || 1, perRound = 0;
+            items.forEach(function(it, i) {
+                perRound += (it.sets && it.sets[0]) ? _woSetSeconds(it, it.sets[0]) : 0;
+                if (i < items.length - 1) perRound += _woRestSeconds(st.restBetweenItems);
+            });
+            total += perRound * rounds + _woRestSeconds(st.restBetweenRounds) * (rounds - 1) + _woRestSeconds(st.restAfter);
+        }
+    });
+    return total;
 }
 
 function woFmtMinutes(sec) {
@@ -1195,30 +1230,67 @@ function woFmtMinutes(sec) {
     return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }
 
-/** Distinct body areas a workout touches (by ★ main targets; falls back to any target). */
-function _woWorkoutAreas(steps) {
+/** Body areas an exercise works — by ★ main targets, falling back to any target. */
+function _woExerciseAreas(ex) {
     var main = {}, any = {};
-    (steps || []).forEach(function(st) {
-        var ex = _woExMap[st.exerciseId];
-        if (!ex) return;
-        (ex.targets || []).forEach(function(t) {
-            var m = _woMuscleMap[t.muscleId];
-            if (!m) return;
-            any[m.area] = true;
-            if (t.main) main[m.area] = true;
-        });
+    ((ex && ex.targets) || []).forEach(function(t) {
+        var m = _woMuscleMap[t.muscleId];
+        if (!m) return;
+        any[m.area] = true;
+        if (t.main) main[m.area] = true;
     });
-    var use = Object.keys(main).length ? main : any;
-    return WO_AREAS.filter(function(a) { return use[a.id]; }).map(function(a) { return a.label; });
+    return Object.keys(main).length ? Object.keys(main) : Object.keys(any);
+}
+
+/** Distinct body-area labels a workout touches. */
+function _woWorkoutAreas(steps) {
+    var used = {};
+    _woFlatExercises(steps).forEach(function(st) {
+        _woExerciseAreas(_woExMap[st.exerciseId]).forEach(function(a) { used[a] = true; });
+    });
+    return WO_AREAS.filter(function(a) { return used[a.id]; }).map(function(a) { return a.label; });
 }
 
 function _woPushPullTally(steps) {
     var t = { push: 0, pull: 0, both: 0 };
-    (steps || []).forEach(function(st) {
+    _woFlatExercises(steps).forEach(function(st) {
         var ex = _woExMap[st.exerciseId];
         if (ex && t[ex.pushPull] != null) t[ex.pushPull]++;
     });
     return t;
+}
+
+/**
+ * Gentle suggestion when 3+ pushes (or pulls) in a row hit the same body area.
+ * Returns a sentence, or '' when the workout is balanced.
+ */
+function _woAlternateHint(steps) {
+    var flat = _woFlatExercises(steps);
+    var run = null;   // {pp, common:[areaId…], from, to}
+    var found = null;
+    flat.forEach(function(st, idx) {
+        var ex = _woExMap[st.exerciseId];
+        if (!ex || (ex.pushPull !== 'push' && ex.pushPull !== 'pull')) { run = null; return; }
+        var areas = _woExerciseAreas(ex);
+        if (run && run.pp === ex.pushPull) {
+            var common = run.common.filter(function(a) { return areas.indexOf(a) !== -1; });
+            if (common.length) { run.common = common; run.to = idx; }
+            else               { run = { pp: ex.pushPull, common: areas, from: idx, to: idx }; }
+        } else {
+            run = { pp: ex.pushPull, common: areas, from: idx, to: idx };
+        }
+        if (!found && run.to - run.from + 1 >= 3) found = { pp: run.pp, common: run.common.slice(), from: run.from, to: run.to };
+    });
+    if (!found) return '';
+
+    var opposite = found.pp === 'push' ? 'pull' : 'push';
+    var areaNames = WO_AREAS.filter(function(a) { return found.common.indexOf(a.id) !== -1; }).map(function(a) { return a.label; }).join(' / ');
+    var picks = _woExercises.filter(function(e) {
+        return !e.archived && e.pushPull === opposite &&
+               _woExerciseAreas(e).some(function(a) { return found.common.indexOf(a) !== -1; });
+    }).slice(0, 2).map(function(e) { return e.name; });
+    return 'Exercises ' + (found.from + 1) + '–' + (found.to + 1) + ' are all ' + (found.pp === 'push' ? 'pushes' : 'pulls') + ' for ' + areaNames +
+           '. Consider alternating with a ' + opposite + (picks.length ? ' (e.g. ' + picks.join(', ') + ')' : '') + '.';
 }
 
 // ─── Workouts list (#workouts) ────────────────────────────────────────────────
@@ -1270,11 +1342,13 @@ function _woRenderWorkoutList() {
         return;
     }
     list.innerHTML = rows.map(function(w) {
-        var steps  = w.steps || [];
-        var count  = steps.filter(function(s) { return s.type === 'exercise'; }).length;
-        var tally  = _woPushPullTally(steps);
-        var areas  = _woWorkoutAreas(steps);
-        var bits   = [count + ' exercise' + (count === 1 ? '' : 's')];
+        var steps    = w.steps || [];
+        var count    = _woFlatExercises(steps).length;
+        var circuits = steps.filter(function(s) { return s.type === 'circuit'; }).length;
+        var tally    = _woPushPullTally(steps);
+        var areas    = _woWorkoutAreas(steps);
+        var bits     = [count + ' exercise' + (count === 1 ? '' : 's')];
+        if (circuits) bits.push(circuits + ' circuit' + (circuits === 1 ? '' : 's'));
         var est = woFmtMinutes(w.estimatedSeconds != null ? w.estimatedSeconds : woEstimateSeconds(steps));
         if (est) bits.push('~' + est);
         var pp = [];
@@ -1298,24 +1372,43 @@ function _woRenderWorkoutList() {
 var _woW = null;   // working copy of the workout being built
 
 function _woBlankRest(seconds) { return { mode: 'timed', seconds: seconds }; }
+function _woCloneSets(sets) { return (sets || []).map(function(s) { return { amount: s.amount, weight: s.weight }; }); }
 
-/** New exercise step from a library exercise, using its defaults. */
-function _woNewStep(ex) {
+/** New exercise step from a library exercise, using its defaults. In a circuit it has one set and no rests. */
+function _woNewStep(ex, inCircuit) {
+    var count = inCircuit ? 1 : WO_DEFAULT_SETS;
     var sets = [];
-    for (var i = 0; i < WO_DEFAULT_SETS; i++) {
+    for (var i = 0; i < count; i++) {
         sets.push({ amount: ex.defaultAmount != null ? ex.defaultAmount : (ex.measure === 'time' ? 30 : 10),
                     weight: ex.usesWeight && ex.defaultWeight != null ? ex.defaultWeight : null });
     }
-    return {
-        type: 'exercise',
+    var st = {
+        type: 'exercise', section: 'main',
         exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
         eachSide: !!ex.eachSide, usesWeight: !!ex.usesWeight,
-        sets: sets,
-        baseSets: sets.map(function(s) { return { amount: s.amount, weight: s.weight }; }),
-        restBetweenSets: _woBlankRest(WO_DEFAULT_REST_SETS),
-        restAfter:       _woBlankRest(WO_DEFAULT_REST_AFTER),
+        sets: sets, baseSets: _woCloneSets(sets),
+        restBetweenSets: inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_SETS),
+        restAfter:       inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_AFTER),
         successStreak: 0, lastDoneDate: null, previousBestSets: null, comeback: null
     };
+    if (inCircuit) delete st.section;
+    return st;
+}
+
+function _woNewCircuit() {
+    return {
+        type: 'circuit', section: 'main', rounds: WO_DEFAULT_ROUNDS, items: [],
+        restBetweenItems:  _woBlankRest(WO_DEFAULT_REST_ITEMS),
+        restBetweenRounds: _woBlankRest(WO_DEFAULT_REST_AFTER),
+        restAfter:         _woBlankRest(WO_DEFAULT_REST_AFTER)
+    };
+}
+
+/** "2" → steps[2];  "2.1" → steps[2].items[1] */
+function _woGetStep(path) {
+    var p = String(path).split('.');
+    var st = _woW.steps[parseInt(p[0], 10)];
+    return p.length > 1 && st ? (st.items || [])[parseInt(p[1], 10)] : st;
 }
 
 async function loadWorkoutBuilderPage(id) {
@@ -1360,8 +1453,12 @@ function _woRenderBuilder() {
             '<div class="ex-form-group">' +
                 '<label class="ex-label">Exercises</label>' +
                 '<div id="wobSummary" class="wo-builder-summary"></div>' +
+                '<div id="wobHint" class="wo-hint-box hidden"></div>' +
                 '<div id="wobSteps"></div>' +
-                '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
+                '<div class="wo-frame-actions">' +
+                    '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
+                    '<button type="button" class="btn btn-secondary" id="wobAddCircuit">+ Add circuit</button>' +
+                '</div>' +
             '</div>' +
             '<div class="ex-form-actions">' +
                 '<button type="button" class="btn btn-primary" id="wobSave">' + (isNew ? 'Create Workout' : 'Save') + '</button>' +
@@ -1375,23 +1472,82 @@ function _woRenderBuilder() {
 
     document.getElementById('wobName').addEventListener('input', function() { _woW.name = this.value; });
     document.getElementById('wobDesc').addEventListener('input', function() { _woW.description = this.value; });
-    document.getElementById('wobAdd').addEventListener('click', _woOpenExercisePicker);
+    document.getElementById('wobAdd').addEventListener('click', function() { _woOpenExercisePicker(null); });
+    document.getElementById('wobAddCircuit').addEventListener('click', function() {
+        _woW.steps.push(_woNewCircuit());
+        _woRenderSteps();
+        var cards = document.querySelectorAll('.wo-step');
+        if (cards.length) cards[cards.length - 1].scrollIntoView({ block: 'center' });
+    });
     document.getElementById('wobSave').addEventListener('click', _woSaveWorkout);
-    var copy = document.getElementById('wobCopy');   if (copy) copy.addEventListener('click', _woCopyWorkout);
+    var copy = document.getElementById('wobCopy');    if (copy) copy.addEventListener('click', _woCopyWorkout);
     var arch = document.getElementById('wobArchive'); if (arch) arch.addEventListener('click', _woArchiveWorkout);
     var del  = document.getElementById('wobDelete');  if (del)  del.addEventListener('click', _woDeleteWorkout);
+
+    // One set of listeners for every step control (the step list is re-rendered often)
+    var box = document.getElementById('wobSteps');
+    box.addEventListener('click',  _woStepClick);
+    box.addEventListener('input',  _woStepInput);
+    box.addEventListener('change', _woStepInput);
     _woRenderSteps();
 }
 
 function _woRestEditor(label, key, rest) {
+    rest = rest || _woBlankRest(0);
     return '<div class="wo-rest-row"><span class="wo-rest-label">' + label + '</span>' +
-        '<select data-rest="' + key + '" data-part="mode">' +
+        '<select data-f="rest" data-rest="' + key + '" data-part="mode">' +
             '<option value="timed"' + (rest.mode === 'timed' ? ' selected' : '') + '>Timed</option>' +
             '<option value="tap"' + (rest.mode === 'tap' ? ' selected' : '') + '>Tap when ready</option>' +
         '</select>' +
         '<span class="wo-rest-secs' + (rest.mode === 'tap' ? ' hidden' : '') + '">' +
-            '<input type="number" min="0" step="5" data-rest="' + key + '" data-part="seconds" value="' + (rest.seconds || 0) + '"> sec</span>' +
+            '<input type="number" min="0" step="5" data-f="rest" data-rest="' + key + '" data-part="seconds" value="' + (rest.seconds || 0) + '"> sec</span>' +
     '</div>';
+}
+
+function _woSectionSelect(st) {
+    return '<select class="wo-section-select" data-f="section" title="Part of the workout">' +
+        WO_SECTIONS.map(function(s) {
+            return '<option value="' + s.id + '"' + ((st.section || 'main') === s.id ? ' selected' : '') + '>' + s.label + '</option>';
+        }).join('') + '</select>';
+}
+
+function _woSetsUniform(st) {
+    var sets = _woStepSets(st);
+    return sets.every(function(s) { return s.amount === sets[0].amount && s.weight === sets[0].weight; });
+}
+
+/** Sets editor for one exercise: quick row, or one row per set ("custom"). */
+function _woSetsEditor(st, inCircuit) {
+    var sets = _woStepSets(st);
+    var unit = st.measure === 'time' ? 'sec' : 'reps';
+    var s0   = sets[0] || { amount: '', weight: null };
+    var wField = function(val, k) {
+        return st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="' + (k == null ? 'qweight' : 'weight') + '"' +
+               (k == null ? '' : ' data-k="' + k + '"') + ' value="' + (val != null ? val : '') + '"> lb' : '';
+    };
+
+    if (inCircuit) {   // one set per round — just amount (+ weight)
+        return '<span class="wo-item-sets"><input type="number" min="1" data-f="qamount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit + wField(s0.weight) + '</span>';
+    }
+    if (!st._custom && _woSetsUniform(st)) {
+        return '<div class="wo-step-sets">' +
+                   '<input type="number" min="1" max="20" data-f="qcount" value="' + sets.length + '"> sets × ' +
+                   '<input type="number" min="1" data-f="qamount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit + wField(s0.weight) +
+                   ' <button type="button" class="wo-link-btn" data-act="custom">Customize sets</button>' +
+               '</div>';
+    }
+    var rows = sets.map(function(s, k) {
+        return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
+               '<input type="number" min="1" data-f="amount" data-k="' + k + '" value="' + (s.amount != null ? s.amount : '') + '"> ' + unit + wField(s.weight, k) +
+               (sets.length > 1 ? ' <button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="delset" data-k="' + k + '" title="Remove set">✕</button>' : '') +
+               '</div>';
+    }).join('');
+    return '<div class="wo-step-sets wo-step-sets--custom">' + rows +
+           '<div class="wo-set-actions"><button type="button" class="wo-link-btn" data-act="addset">+ Add set</button>' +
+           (_woSetsUniform(st)
+               ? ' <button type="button" class="wo-link-btn" data-act="quick">Back to quick entry</button>'
+               : ' <span class="wo-hint">(sets differ)</span>') +
+           '</div></div>';
 }
 
 function _woRenderSteps() {
@@ -1399,116 +1555,178 @@ function _woRenderSteps() {
     if (!box) return;
     var steps = _woW.steps;
     if (!steps.length) {
-        box.innerHTML = '<p class="wo-hint">No exercises yet — tap <strong>+ Add exercise</strong>.</p>';
+        box.innerHTML = '<p class="wo-hint">Nothing here yet — tap <strong>+ Add exercise</strong> or <strong>+ Add circuit</strong>.</p>';
     } else {
         box.innerHTML = steps.map(function(st, i) {
-            var ex   = _woExMap[st.exerciseId];
-            var sets = _woStepSets(st);
-            var s0   = sets[0] || { amount: '', weight: null };
-            var unit = st.measure === 'time' ? 'sec' : 'reps';
-            return '<div class="wo-step" data-i="' + i + '">' +
+            var btns = function(path, canUp, canDown, allowDup) {
+                return '<span class="wo-step-btns">' +
+                    '<button type="button" class="wo-frame-btn" data-act="up" title="Move up"' + (canUp ? '' : ' disabled') + '>↑</button>' +
+                    '<button type="button" class="wo-frame-btn" data-act="down" title="Move down"' + (canDown ? '' : ' disabled') + '>↓</button>' +
+                    (allowDup ? '<button type="button" class="wo-frame-btn" data-act="dup" title="Duplicate">⧉</button>' : '') +
+                    '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" title="Remove">✕</button></span>';
+            };
+
+            if (st.type === 'circuit') {
+                var items = st.items || [];
+                return '<div class="wo-step wo-circuit" data-path="' + i + '">' +
+                    '<div class="wo-step-head">' +
+                        '<span class="wo-step-num">' + (i + 1) + '</span>' +
+                        '<span class="wo-step-name">Circuit</span>' +
+                        '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>' +
+                        _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
+                    '</div>' +
+                    (items.length ? items.map(function(it, j) {
+                        var ex = _woExMap[it.exerciseId];
+                        return '<div class="wo-item" data-path="' + i + '.' + j + '">' +
+                            '<span class="wo-item-name">' + _woEsc(ex ? ex.name : it.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
+                            (ex ? _woPushPullBadge(ex.pushPull) : '') +
+                            (it.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') +
+                            _woSetsEditor(it, true) +
+                            btns(i + '.' + j, j > 0, j < items.length - 1, false) +
+                        '</div>';
+                    }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
+                    '<div class="wo-set-actions"><button type="button" class="wo-link-btn" data-act="additem">+ Add exercise to circuit</button></div>' +
+                    _woRestEditor('Rest between exercises', 'restBetweenItems', st.restBetweenItems) +
+                    _woRestEditor('Rest between rounds', 'restBetweenRounds', st.restBetweenRounds) +
+                    _woRestEditor('Rest after circuit', 'restAfter', st.restAfter) +
+                '</div>';
+            }
+
+            var ex = _woExMap[st.exerciseId];
+            return '<div class="wo-step" data-path="' + i + '">' +
                 '<div class="wo-step-head">' +
                     '<span class="wo-step-num">' + (i + 1) + '</span>' +
                     '<span class="wo-step-name">' + _woEsc(ex ? ex.name : st.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
                     (ex ? _woPushPullBadge(ex.pushPull) : '') +
                     (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') +
-                    '<span class="wo-step-btns">' +
-                        '<button type="button" class="wo-frame-btn" data-act="up"  title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-                        '<button type="button" class="wo-frame-btn" data-act="down" title="Move down"' + (i === steps.length - 1 ? ' disabled' : '') + '>↓</button>' +
-                        '<button type="button" class="wo-frame-btn" data-act="dup" title="Duplicate">⧉</button>' +
-                        '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" title="Remove">✕</button>' +
-                    '</span>' +
+                    _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                 '</div>' +
-                '<div class="wo-step-sets">' +
-                    '<input type="number" min="1" max="20" data-set="count" value="' + sets.length + '"> sets × ' +
-                    '<input type="number" min="1" data-set="amount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit +
-                    (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-set="weight" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') +
-                '</div>' +
+                _woSetsEditor(st, false) +
                 _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
                 _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
             '</div>';
         }).join('');
     }
-    _woWireSteps();
     _woUpdateBuilderSummary();
 }
 
-function _woWireSteps() {
-    var box = document.getElementById('wobSteps');
-    box.querySelectorAll('.wo-step').forEach(function(card) {
-        var i = parseInt(card.getAttribute('data-i'), 10);
-        card.querySelectorAll('.wo-frame-btn').forEach(function(b) {
-            b.addEventListener('click', function() { _woStepAction(i, this.getAttribute('data-act')); });
-        });
-        card.querySelectorAll('[data-set]').forEach(function(inp) {
-            inp.addEventListener('input', function() { _woEditQuickSets(i, card); });
-        });
-        card.querySelectorAll('[data-rest]').forEach(function(inp) {
-            inp.addEventListener('input', function() { _woEditRest(i, this); });
-            inp.addEventListener('change', function() { _woEditRest(i, this); });
-        });
-    });
-}
+function _woStepClick(ev) {
+    var btn = ev.target.closest('[data-act]');
+    if (!btn) return;
+    var holder = btn.closest('[data-path]');
+    if (!holder) return;
+    var path = holder.getAttribute('data-path'), act = btn.getAttribute('data-act');
+    var parts = path.split('.'), i = parseInt(parts[0], 10), j = parts.length > 1 ? parseInt(parts[1], 10) : null;
+    var list = j === null ? _woW.steps : _woW.steps[i].items;
+    var idx  = j === null ? i : j;
 
-function _woStepAction(i, act) {
-    var steps = _woW.steps;
-    if (act === 'up'   && i > 0)                  { var t = steps[i]; steps[i] = steps[i - 1]; steps[i - 1] = t; }
-    if (act === 'down' && i < steps.length - 1)   { var u = steps[i]; steps[i] = steps[i + 1]; steps[i + 1] = u; }
-    if (act === 'dup')  steps.splice(i + 1, 0, JSON.parse(JSON.stringify(steps[i])));
-    if (act === 'del')  steps.splice(i, 1);
+    if (act === 'up'   && idx > 0)                { var t = list[idx]; list[idx] = list[idx - 1]; list[idx - 1] = t; }
+    if (act === 'down' && idx < list.length - 1)  { var u = list[idx]; list[idx] = list[idx + 1]; list[idx + 1] = u; }
+    if (act === 'dup')  list.splice(idx + 1, 0, JSON.parse(JSON.stringify(list[idx])));
+    if (act === 'del')  list.splice(idx, 1);
+    if (act === 'additem') { _woOpenExercisePicker(i); return; }
+
+    var st = _woGetStep(path);
+    if (act === 'custom') st._custom = true;
+    if (act === 'quick')  st._custom = false;
+    if (act === 'addset') {
+        var last = st.sets[st.sets.length - 1] || { amount: 10, weight: null };
+        st.sets.push({ amount: last.amount, weight: last.weight });
+        _woSyncBase(st);
+    }
+    if (act === 'delset' && st.sets.length > 1) {
+        st.sets.splice(parseInt(btn.getAttribute('data-k'), 10), 1);
+        _woSyncBase(st);
+    }
     _woRenderSteps();
 }
 
-/** Quick row (N sets × amount @ weight) → rewrites every set. Editing the recipe resets both Base and Current. */
-function _woEditQuickSets(i, card) {
-    var st = _woW.steps[i];
-    var count  = Math.max(1, Math.min(20, parseInt(card.querySelector('[data-set=count]').value, 10) || 1));
-    var amount = parseInt(card.querySelector('[data-set=amount]').value, 10);
-    var wEl    = card.querySelector('[data-set=weight]');
-    var weight = wEl && wEl.value !== '' ? parseFloat(wEl.value) : null;
-    var sets = [];
-    for (var k = 0; k < count; k++) sets.push({ amount: isNaN(amount) ? null : amount, weight: weight });
-    st.sets     = sets;
-    st.baseSets = sets.map(function(s) { return { amount: s.amount, weight: s.weight }; });
+/** Editing the recipe resets both Base and Current (and the success streak). */
+function _woSyncBase(st) {
+    st.baseSets = _woCloneSets(st.sets);
     st.successStreak = 0;
-    _woUpdateBuilderSummary();
 }
 
-function _woEditRest(i, inp) {
-    var st   = _woW.steps[i];
-    var key  = inp.getAttribute('data-rest'), part = inp.getAttribute('data-part');
-    var rest = st[key] || (st[key] = _woBlankRest(0));
-    if (part === 'mode') {
-        rest.mode = inp.value;
-        var secs = inp.closest('.wo-rest-row').querySelector('.wo-rest-secs');
-        if (secs) secs.classList.toggle('hidden', rest.mode === 'tap');
-    } else {
-        rest.seconds = Math.max(0, parseInt(inp.value, 10) || 0);
+function _woStepInput(ev) {
+    var inp = ev.target.closest('[data-f]');
+    if (!inp) return;
+    var holder = inp.closest('[data-path]');
+    if (!holder) return;
+    var st = _woGetStep(holder.getAttribute('data-path'));
+    if (!st) return;
+    var f = inp.getAttribute('data-f');
+
+    if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'rounds')  { st.rounds = Math.max(1, Math.min(20, parseInt(inp.value, 10) || 1)); _woUpdateBuilderSummary(); return; }
+
+    if (f === 'rest') {
+        var key = inp.getAttribute('data-rest'), part = inp.getAttribute('data-part');
+        var rest = st[key] || (st[key] = _woBlankRest(0));
+        if (part === 'mode') {
+            rest.mode = inp.value;
+            var secs = inp.closest('.wo-rest-row').querySelector('.wo-rest-secs');
+            if (secs) secs.classList.toggle('hidden', rest.mode === 'tap');
+        } else {
+            rest.seconds = Math.max(0, parseInt(inp.value, 10) || 0);
+        }
+        _woUpdateBuilderSummary();
+        return;
     }
-    _woUpdateBuilderSummary();
+
+    // Quick row: N sets × amount @ weight → rewrites every set
+    if (f === 'qcount' || f === 'qamount' || f === 'qweight') {
+        var scope = inp.closest('.wo-step-sets, .wo-item-sets');
+        var cEl = scope.querySelector('[data-f=qcount]'), aEl = scope.querySelector('[data-f=qamount]'), wEl = scope.querySelector('[data-f=qweight]');
+        var count  = cEl ? Math.max(1, Math.min(20, parseInt(cEl.value, 10) || 1)) : 1;
+        var amount = parseInt(aEl.value, 10);
+        var weight = wEl && wEl.value !== '' ? parseFloat(wEl.value) : null;
+        var sets = [];
+        for (var k = 0; k < count; k++) sets.push({ amount: isNaN(amount) ? null : amount, weight: weight });
+        st.sets = sets;
+        _woSyncBase(st);
+        _woUpdateBuilderSummary();
+        return;
+    }
+
+    // Custom per-set row
+    if (f === 'amount' || f === 'weight') {
+        var set = st.sets[parseInt(inp.getAttribute('data-k'), 10)];
+        if (!set) return;
+        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; }
+        else                { set.weight = inp.value !== '' ? parseFloat(inp.value) : null; }
+        _woSyncBase(st);
+        _woUpdateBuilderSummary();
+        // Re-render only when "uniform ↔ different" changes the available buttons (on blur/change, not while typing)
+        if (ev.type === 'change') _woRenderSteps();
+    }
 }
 
 function _woUpdateBuilderSummary() {
     var el = document.getElementById('wobSummary');
+    var hint = document.getElementById('wobHint');
     if (!el) return;
     var steps = _woW.steps;
-    if (!steps.length) { el.textContent = ''; return; }
+    if (!steps.length) { el.textContent = ''; if (hint) hint.classList.add('hidden'); return; }
+    var flat  = _woFlatExercises(steps);
     var tally = _woPushPullTally(steps);
     var areas = _woWorkoutAreas(steps);
-    var bits = [steps.length + ' exercise' + (steps.length === 1 ? '' : 's'), '~' + woFmtMinutes(woEstimateSeconds(steps))];
+    var bits = [flat.length + ' exercise' + (flat.length === 1 ? '' : 's'), '~' + woFmtMinutes(woEstimateSeconds(steps))];
     bits.push('Push ' + tally.push + ' · Pull ' + tally.pull + (tally.both ? ' · Both ' + tally.both : ''));
     if (areas.length) bits.push(areas.join(' · '));
     el.textContent = bits.join('   |   ');
+
+    var msg = _woAlternateHint(steps);
+    if (hint) { hint.textContent = msg ? '💡 ' + msg : ''; hint.classList.toggle('hidden', !msg); }
 }
 
-// ----- Exercise picker overlay -----
+// ----- Exercise picker overlay (also hosts the inline "+ New exercise" form) -----
 
-var _woPick = { text: '', area: '', pp: '' };
+var _woPick = { text: '', area: '', pp: '', circuit: null };
 
-function _woOpenExercisePicker() {
-    _woPick = { text: '', area: '', pp: '' };
+function _woOpenExercisePicker(circuitIndex) {
+    _woPick = { text: '', area: '', pp: '', circuit: circuitIndex };
     var ov = _woGrabOverlay(
-        '<h3>Add exercise</h3>' +
+        '<h3>' + (circuitIndex === null ? 'Add exercise' : 'Add exercise to circuit') + '</h3>' +
         '<div class="ex-toolbar-row">' +
             '<input type="search" id="woPickText" class="filter-input" placeholder="Search…">' +
             '<select id="woPickArea"><option value="">All areas</option>' +
@@ -1517,10 +1735,14 @@ function _woOpenExercisePicker() {
                 ['push', 'pull', 'both', 'neither'].map(function(k) { return '<option value="' + k + '">' + WO_PUSHPULL[k].label + '</option>'; }).join('') + '</select>' +
         '</div>' +
         '<div id="woPickList" class="wo-pick-list"></div>' +
-        '<div class="ex-form-actions"><button type="button" class="btn btn-secondary" id="woPickClose">Close</button></div>');
+        '<div class="ex-form-actions">' +
+            '<button type="button" class="btn btn-secondary" id="woPickNew">+ New exercise</button>' +
+            '<button type="button" class="btn btn-secondary" id="woPickClose">Close</button>' +
+        '</div>');
     ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickPP').addEventListener('change', function() { _woPick.pp = this.value; _woRenderPicker(); });
+    ov.querySelector('#woPickNew').addEventListener('click', _woShowInlineNewExercise);
     ov.querySelector('#woPickClose').addEventListener('click', _woCloseGrabber);
     _woRenderPicker();
 }
@@ -1540,7 +1762,7 @@ function _woRenderPicker() {
 
     var list = document.getElementById('woPickList');
     if (!list) return;
-    if (!rows.length) { list.innerHTML = '<div class="ex-status">No exercises match.</div>'; return; }
+    if (!rows.length) { list.innerHTML = '<div class="ex-status">No exercises match. Use <strong>+ New exercise</strong> to create it.</div>'; return; }
     list.innerHTML = rows.map(function(e) {
         return '<button type="button" class="wo-pick-row" data-id="' + e.id + '">' +
                    '<span class="wo-thumb wo-thumb--sm">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</span>' +
@@ -1552,22 +1774,109 @@ function _woRenderPicker() {
     list.querySelectorAll('.wo-pick-row').forEach(function(b) {
         b.addEventListener('click', function() {
             var ex = _woExMap[this.getAttribute('data-id')];
-            if (!ex) return;
-            _woW.steps.push(_woNewStep(ex));
-            _woCloseGrabber();
-            _woRenderSteps();
-            var cards = document.querySelectorAll('.wo-step');
-            if (cards.length) cards[cards.length - 1].scrollIntoView({ block: 'center' });
+            if (ex) _woAddExerciseStep(ex);
         });
     });
 }
 
+/** Appends an exercise to the workout (or to the circuit the picker was opened for). */
+function _woAddExerciseStep(ex) {
+    var ci = _woPick.circuit;
+    if (ci !== null && _woW.steps[ci] && _woW.steps[ci].type === 'circuit') {
+        _woW.steps[ci].items.push(_woNewStep(ex, true));
+    } else {
+        _woW.steps.push(_woNewStep(ex, false));
+    }
+    _woCloseGrabber();
+    _woRenderSteps();
+    var cards = document.querySelectorAll('.wo-step');
+    var target = ci !== null && cards[ci] ? cards[ci] : cards[cards.length - 1];
+    if (target) target.scrollIntoView({ block: 'center' });
+}
+
+/** Inline "+ New exercise": a quick form inside the picker — saves to the library and adds the step. */
+function _woShowInlineNewExercise() {
+    var box = document.querySelector('#woGrabOverlay .wo-grab-box');
+    if (!box) return;
+    box.innerHTML =
+        '<h3>New exercise</h3>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woiName">Name <span class="ex-required">*</span></label>' +
+            '<input type="text" id="woiName" maxlength="80" placeholder="e.g. Calf raise"></div>' +
+        '<div class="ex-form-group"><label class="ex-label">Measured by</label><div class="wo-radio-row">' +
+            '<label><input type="radio" name="woiMeasure" value="reps" checked> Reps</label>' +
+            '<label><input type="radio" name="woiMeasure" value="time"> Time</label></div></div>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woiAmount" id="woiAmountLabel">Default reps</label>' +
+            '<input type="number" id="woiAmount" min="1" step="1" value="10"></div>' +
+        '<div class="ex-form-group"><label class="wo-inline-check"><input type="checkbox" id="woiWeight"> Uses weight</label>' +
+            '<div id="woiWeightRow" class="hidden" style="margin-top:8px;"><label class="ex-label" for="woiWeightVal">Default weight (lb)</label>' +
+            '<input type="number" id="woiWeightVal" min="0" step="0.5"></div></div>' +
+        '<div class="ex-form-group"><label class="wo-inline-check"><input type="checkbox" id="woiSide"> Each side</label></div>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woiPP">Push / Pull</label>' +
+            '<select id="woiPP">' + ['push', 'pull', 'both', 'neither'].map(function(k) {
+                return '<option value="' + k + '"' + (k === 'neither' ? ' selected' : '') + '>' + WO_PUSHPULL[k].label + '</option>';
+            }).join('') + '</select></div>' +
+        '<p class="wo-hint">You can add the muscles it works, form cues and pictures later from Fitness → Exercises.</p>' +
+        '<div class="ex-form-actions">' +
+            '<button type="button" class="btn btn-primary" id="woiSave">Create &amp; add</button>' +
+            '<button type="button" class="btn btn-secondary" id="woiBack">Back</button></div>';
+
+    box.querySelectorAll('input[name=woiMeasure]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            document.getElementById('woiAmountLabel').textContent = this.value === 'time' ? 'Default time (seconds)' : 'Default reps';
+            document.getElementById('woiAmount').value = this.value === 'time' ? 30 : 10;
+        });
+    });
+    document.getElementById('woiWeight').addEventListener('change', function() {
+        document.getElementById('woiWeightRow').classList.toggle('hidden', !this.checked);
+    });
+    document.getElementById('woiBack').addEventListener('click', function() { _woOpenExercisePicker(_woPick.circuit); });
+    document.getElementById('woiSave').addEventListener('click', _woSaveInlineExercise);
+    document.getElementById('woiName').focus();
+}
+
+async function _woSaveInlineExercise() {
+    var name = document.getElementById('woiName').value.trim();
+    if (!name) { alert('Please enter a name for the exercise.'); document.getElementById('woiName').focus(); return; }
+    var amount = parseInt(document.getElementById('woiAmount').value, 10);
+    var uses   = document.getElementById('woiWeight').checked;
+    var wRaw   = document.getElementById('woiWeightVal').value;
+    var data = {
+        name: name, instructions: '',
+        measure: document.querySelector('input[name=woiMeasure]:checked').value,
+        defaultAmount: isNaN(amount) ? null : amount,
+        usesWeight: uses, defaultWeight: uses && wRaw !== '' ? parseFloat(wRaw) : null,
+        eachSide: document.getElementById('woiSide').checked,
+        equipment: [], targets: [],
+        pushPull: document.getElementById('woiPP').value,
+        videoUrl: '', archived: false, isSeeded: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var btn = document.getElementById('woiSave');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+        var ref = await woLibCol('workoutExercises').add(data);
+        data.id = ref.id;
+        _woExercises.push(data);
+        _woExMap[data.id] = data;
+        _woAddExerciseStep(data);
+    } catch (err) {
+        console.error('Workouts: inline exercise save failed:', err);
+        alert('Failed to create the exercise. Please try again.');
+        btn.disabled = false; btn.textContent = 'Create & add';
+    }
+}
+
 // ----- Save / copy / archive / delete -----
 
+/** Deep copy of the steps without UI-only flags (e.g. _custom). */
+function _woCleanSteps(steps) {
+    return JSON.parse(JSON.stringify(steps || [], function(key, val) { return key === '_custom' ? undefined : val; }));
+}
+
 function _woWorkoutPayload() {
-    var steps = _woW.steps;
+    var steps = _woCleanSteps(_woW.steps);
     var ids = [];
-    steps.forEach(function(st) { if (st.exerciseId && ids.indexOf(st.exerciseId) === -1) ids.push(st.exerciseId); });
+    _woFlatExercises(steps).forEach(function(st) { if (st.exerciseId && ids.indexOf(st.exerciseId) === -1) ids.push(st.exerciseId); });
     return {
         name:             _woW.name.trim(),
         description:      (_woW.description || '').trim(),
@@ -1582,7 +1891,9 @@ function _woWorkoutPayload() {
 async function _woSaveWorkout() {
     _woW.name = document.getElementById('wobName').value;
     if (!_woW.name.trim()) { alert('Please enter a name for the workout.'); document.getElementById('wobName').focus(); return; }
-    if (!_woW.steps.length) { alert('Add at least one exercise first.'); return; }
+    if (!_woFlatExercises(_woW.steps).length) { alert('Add at least one exercise first.'); return; }
+    var emptyCircuit = _woW.steps.some(function(s) { return s.type === 'circuit' && !(s.items || []).length; });
+    if (emptyCircuit) { alert('A circuit has no exercises in it. Add some, or remove the circuit.'); return; }
     var btn = document.getElementById('wobSave');
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
@@ -1607,10 +1918,12 @@ async function _woCopyWorkout() {
         data.name = data.name + ' (copy)';
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         // A copy starts fresh: Current = Base, no progression history
-        data.steps = JSON.parse(JSON.stringify(data.steps)).map(function(st) {
-            if (st.baseSets) st.sets = st.baseSets.map(function(s) { return { amount: s.amount, weight: s.weight }; });
+        var reset = function(st) {
+            if (st.baseSets) st.sets = _woCloneSets(st.baseSets);
             st.successStreak = 0; st.lastDoneDate = null; st.previousBestSets = null; st.comeback = null;
-            return st;
+        };
+        data.steps.forEach(function(st) {
+            if (st.type === 'circuit') (st.items || []).forEach(reset); else reset(st);
         });
         var ref = await woLibCol('workouts').add(data);
         location.hash = '#workout/' + ref.id;

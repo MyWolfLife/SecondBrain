@@ -4812,6 +4812,11 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Use **↑ ↓** to reorder, **⧉** to duplicate an exercise, **✕** to remove it
 - The line under "Exercises" shows total time and your push/pull balance
 - **Copy as new** makes a duplicate workout you can change; **Archive** hides it; **Delete** removes it (your history is kept)
+- **Customize sets**: for a pyramid (like 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb) tap **Customize sets** and give each set its own reps (or seconds) and weight. **+ Add set** adds another
+- **+ Add circuit** makes a group of exercises done back-to-back and repeated for a number of **rounds** — you set the rest between exercises, between rounds, and after the circuit
+- The little dropdown on each step lets you mark it **Warm-up**, **Main** or **Cool-down**
+- Can't find an exercise? In the picker tap **+ New exercise** — it's added to your library and to the workout; fill in muscles and pictures later
+- A 💡 tip appears if you have 3 or more pushes (or pulls) in a row for the same part of the body — a nudge to alternate, never a rule
 - You can't delete an exercise that a workout uses — archive it instead
 
 ---

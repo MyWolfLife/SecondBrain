@@ -21466,3 +21466,47 @@ a.legacy-fin-card:hover {
 .wo-pick-row:hover { background: #f0fdfa; }
 .wo-pick-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .wo-thumb--sm { flex: 0 0 40px; width: 40px; height: 40px; font-size: 1.2rem; }
+
+/* Builder 1.8: custom sets, circuits, hint */
+.wo-hint-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+.wo-link-btn {
+    background: none;
+    border: none;
+    color: #0d9488;
+    cursor: pointer;
+    font-size: 0.82rem;
+    padding: 0 4px;
+    text-decoration: underline;
+}
+.wo-section-select { font-size: 0.78rem; padding: 2px 4px; margin-left: 4px; }
+.wo-set-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.wo-set-label { min-width: 46px; color: #6b7280; font-size: 0.82rem; }
+.wo-set-row input { width: 64px; }
+.wo-set-actions { margin: 4px 0 4px 0; }
+.wo-step-sets--custom { margin-left: 32px; }
+.wo-circuit { background: #f0fdfa; border-color: #99f6e4; }
+.wo-circuit-rounds input { width: 52px; }
+.wo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 6px 0 0 32px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+.wo-item-name { font-weight: 600; }
+.wo-item-sets { font-size: 0.88rem; }
+.wo-item-sets input { width: 60px; }
+.wo-item .wo-step-btns { margin-left: auto; }
+.wo-item-empty { margin: 6px 0 0 32px; }
