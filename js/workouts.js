@@ -1324,6 +1324,13 @@ async function loadWorkoutsPage() {
         '<div id="woWorkoutList"></div>';
     document.getElementById('woWText').addEventListener('input', function() { _woWFilter.text = this.value; _woRenderWorkoutList(); });
     document.getElementById('woWArchived').addEventListener('change', function() { _woWFilter.archived = this.checked; _woRenderWorkoutList(); });
+    // ▶ Start sits inside the card link — intercept its click so it opens the Start screen, not the builder
+    document.getElementById('woWorkoutList').addEventListener('click', function(ev) {
+        var btn = ev.target.closest('.wo-card-start');
+        if (!btn) return;
+        ev.preventDefault();
+        location.hash = '#workout-start/' + btn.getAttribute('data-start');
+    });
     _woRenderWorkoutList();
 }
 
@@ -1363,6 +1370,7 @@ function _woRenderWorkoutList() {
                        (areas.length ? '<div class="wo-chips">' + areas.map(function(a) { return '<span class="wo-chip wo-chip--also">' + _woEsc(a) + '</span>'; }).join('') + '</div>' : '') +
                        (w.description ? '<div class="wo-card-meta">' + _woEsc(w.description) + '</div>' : '') +
                    '</div>' +
+                   (w.archived ? '' : '<span class="wo-card-start" data-start="' + w.id + '">▶ Start</span>') +
                '</a>';
     }).join('');
 }
@@ -1464,6 +1472,7 @@ function _woRenderBuilder() {
                 '<button type="button" class="btn btn-primary" id="wobSave">' + (isNew ? 'Create Workout' : 'Save') + '</button>' +
                 '<a href="#workouts" class="btn btn-secondary">Cancel</a>' +
                 (isNew ? '' :
+                    '<a href="#workout-start/' + w.id + '" class="btn btn-secondary" title="Starts the saved version of this workout">▶ Start</a>' +
                     '<button type="button" class="btn btn-secondary" id="wobCopy">Copy as new</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobArchive">' + (w.archived ? 'Unarchive' : 'Archive') + '</button>' +
                     '<button type="button" class="btn btn-danger" id="wobDelete">Delete</button>') +

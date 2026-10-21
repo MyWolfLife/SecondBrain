@@ -21524,3 +21524,205 @@ a.legacy-fin-card:hover {
 }
 .wo-mode input { margin-top: 4px; }
 .wo-mode--off { opacity: 0.55; cursor: default; }
+
+/* ── Guided player ─────────────────────────────────────────── */
+.wo-player {
+    --wo-bg: #0f766e;
+    display: flex;
+    flex-direction: column;
+    background: var(--wo-bg);
+    color: #fff;
+    /* full-screen takeover: nothing but the workout, readable from across the room */
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    overflow-y: auto;
+    transition: background 0.25s;
+}
+.wo-player--work     { --wo-bg: #0f766e; }
+.wo-player--rest     { --wo-bg: #1d4ed8; }
+.wo-player--getready { --wo-bg: #b45309; }
+.wo-player--switch   { --wo-bg: #7c3aed; }
+.wo-player--done     { --wo-bg: #047857; }
+
+.wo-player-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 6px;
+    font-size: 0.95rem;
+}
+.wo-player-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wo-player-left { opacity: 0.85; }
+.wo-end-btn {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.wo-progress { height: 6px; background: rgba(255, 255, 255, 0.22); margin: 0 14px; border-radius: 3px; overflow: hidden; }
+.wo-progress-bar { height: 100%; width: 0; background: #fff; transition: width 0.3s; }
+
+.wo-player-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 14px;
+    text-align: center;
+}
+.wo-player-media { width: 100%; max-width: 420px; }
+.wo-hero-img, .wo-player-media .wo-flip-ph {
+    display: block;
+    width: 100%;
+    max-height: 32vh;
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 14px;
+}
+.wo-flip-ph { font-size: 4rem; padding: 18px 0; color: #0f766e; }
+.wo-player-info { width: 100%; max-width: 520px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wo-phase-title { font-size: clamp(1.7rem, 7vw, 3.4rem); font-weight: 800; line-height: 1.1; }
+.wo-phase-sub { font-size: clamp(1.05rem, 4vw, 1.7rem); opacity: 0.95; }
+
+.wo-ring { position: relative; width: min(52vw, 260px); aspect-ratio: 1; }
+.wo-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.wo-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.22); stroke-width: 12; }
+.wo-ring-fg { fill: none; stroke: #fff; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 0.2s linear; }
+.wo-ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(3.2rem, 17vw, 6rem);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.wo-ring-text--sm { font-size: clamp(1.8rem, 8vw, 3rem); }
+.wo-ring--reps { border: 12px solid rgba(255, 255, 255, 0.35); border-radius: 50%; }
+.wo-ring--reps .wo-ring-text { font-size: clamp(3.4rem, 17vw, 6.2rem); line-height: 1; }
+.wo-ring-unit { font-size: 1.1rem; font-weight: 600; opacity: 0.9; }
+.wo-ring-weight { font-size: 1.15rem; font-weight: 600; margin-top: 4px; }
+
+.wo-bigbtn {
+    background: #fff;
+    color: #0f172a;
+    border: none;
+    border-radius: 40px;
+    padding: 14px 44px;
+    font-size: 1.6rem;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+.wo-bigbtn--link { margin-top: 14px; }
+.wo-tap-hint { font-size: 0.85rem; opacity: 0.85; }
+
+.wo-upnext {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 14px;
+    padding: 10px 14px;
+    text-align: left;
+    width: 100%;
+}
+.wo-upnext-media { flex: 0 0 84px; width: 84px; }
+.wo-upnext-img, .wo-upnext-media .wo-flip-ph {
+    display: block;
+    width: 84px;
+    height: 63px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+}
+.wo-upnext-media .wo-flip-ph { font-size: 2rem; padding: 0; display: flex; align-items: center; justify-content: center; color: #1d4ed8; }
+.wo-upnext-label { font-size: 0.72rem; letter-spacing: 0.12em; opacity: 0.8; }
+.wo-upnext-name { font-size: clamp(1.2rem, 5vw, 1.9rem); font-weight: 700; line-height: 1.15; }
+.wo-upnext-meta { font-size: clamp(0.95rem, 3.4vw, 1.3rem); opacity: 0.95; }
+
+.wo-controls { display: flex; justify-content: center; gap: 14px; padding: 6px 14px 16px; }
+.wo-ctl {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+}
+.wo-ctl--main { width: 68px; height: 68px; background: #fff; color: #0f172a; font-size: 1.7rem; }
+.wo-ctl--txt { font-size: 0.95rem; font-weight: 700; }
+
+.wo-paused {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    pointer-events: none;
+    text-align: center;
+}
+.wo-paused span { font-size: 1.1rem; font-weight: 500; opacity: 0.9; }
+.wo-paused.hidden { display: none; }
+.wo-done-stats { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; font-size: 1.3rem; margin: 10px 0; }
+.wo-done-stats strong { font-size: 2.2rem; }
+.wo-flipbook.wo-hero-img { margin: 0 auto; }
+
+/* Landscape phone propped up: picture on the left, countdown on the right, everything within ~375px of height */
+@media (orientation: landscape) and (max-height: 560px) {
+    .wo-player-top { padding: 4px 14px 2px; font-size: 0.85rem; }
+    .wo-player-main { flex-direction: row; gap: 20px; padding: 4px 18px; }
+    .wo-player-media { flex: 0 0 36%; max-width: none; }
+    .wo-hero-img, .wo-player-media .wo-flip-ph { max-height: 44vh; }
+    .wo-player-info { gap: 4px; }
+    .wo-phase-title { font-size: clamp(1.2rem, 6.5vh, 2.2rem); }
+    .wo-phase-sub { font-size: clamp(0.9rem, 4.5vh, 1.3rem); }
+    .wo-ring { width: min(30vh, 130px); }
+    .wo-ring--reps { border-width: 8px; }
+    .wo-ring-text, .wo-ring--reps .wo-ring-text { font-size: clamp(2rem, 11vh, 3.4rem); }
+    .wo-ring-unit, .wo-ring-weight { font-size: 0.8rem; }
+    .wo-bigbtn { padding: 6px 30px; font-size: 1.2rem; }
+    .wo-tap-hint { display: none; }
+    .wo-upnext { padding: 4px 10px; }
+    .wo-upnext-media { flex-basis: 56px; width: 56px; }
+    .wo-upnext-img, .wo-upnext-media .wo-flip-ph { width: 56px; height: 42px; }
+    .wo-controls { padding: 2px 14px 6px; gap: 10px; }
+    .wo-ctl { width: 44px; height: 44px; font-size: 1.1rem; }
+    .wo-ctl--main { width: 50px; height: 50px; }
+}
+
+/* Workout list: ▶ Start on each card */
+.wo-card-start {
+    align-self: center;
+    margin-left: auto;
+    flex: 0 0 auto;
+    background: #0d9488;
+    color: #fff;
+    border-radius: 18px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.wo-card-start:hover { background: #0f766e; }
+
+/* Player is full-screen: hide the app's top banners while it is open */
+body.wo-playing .first-run-banner,
+body.wo-playing .pwa-install-banner,
+body.wo-playing .offline-banner { display: none !important; }

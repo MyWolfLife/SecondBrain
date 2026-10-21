@@ -4797,7 +4797,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Tap **+ New Workout** to build one; tap a workout to edit it
 - Each card shows how many exercises, about how long it takes, how many push vs. pull moves, and which parts of the body it works
 - **Show archived** brings back workouts you've hidden
-- Running a workout with the guided countdown is coming in the next update
+- Tap **▶ Start** on a workout to run it with the guided countdown
 
 ---
 
@@ -4832,6 +4832,21 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout
 - Tick **Save these changes back to the workout** if you want the new numbers to stick
 - Tap **▶ Start workout** when you're ready
+
+---
+
+## screen:workout-run
+
+**What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
+
+### Quick Help
+- The **colour** tells you where you are: teal = exercise, blue = rest, amber = get ready, purple = switch sides
+- **Timed** exercises count down by themselves. **Reps** exercises wait — tap **DONE** (or tap anywhere on the screen) when you finish the set
+- During a rest, **UP NEXT** shows the exercise coming up (and its weight) so you can get ready
+- Buttons: ⏮ back, ⏸ pause, ⏭ skip, **+15s** for a bit more time. On a computer: Space = pause, ← back, → skip, Enter = done
+- **✕ End** stops the workout early
+- Prop your phone up sideways or upright — both work. Leaving this screen stops the workout
+- Spoken cues, voice commands and saving the finished workout are coming in the next updates
 
 ---
 

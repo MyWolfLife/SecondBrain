@@ -516,12 +516,300 @@ async function _woStartGo() {
     }
 }
 
-// ─── 4. Player screen (#workout-run) — placeholder until chunk 2.3 ────────────
+// ─── 4. Guided player screen (#workout-run) ───────────────────────────────────
+//
+// Big, high-contrast screen meant to be read from across the room. The colour of the whole
+// screen tells you the phase at a glance (teal = work, blue = rest, amber = get ready,
+// purple = switch sides). One full render per phase; the countdown ring/seconds update in place.
+//
+// Hooks for later chunks (voice, wake lock) — each is called only if defined:
+//   woVoiceOnPhase(phase, index, ctx)   woVoiceOnTick(info, ctx)   woVoiceOnEnd(ctx)
 
-function loadWorkoutRunPage() {
-    _woSetChrome([['Workouts', '#workouts'], ['Workout']]);
+var WO_RING_R = 90;
+var WO_RING_C = 2 * Math.PI * WO_RING_R;
+
+var _woP = null;   // {session, phases, runner, frames:{exId:[dataUrl]}, tickTimer, flipTimer, keyHandler, hashHandler, finished}
+
+async function loadWorkoutRunPage() {
     var el = document.getElementById('page-workout-run');
     var sess = window._woSession;
-    el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess ? sess.workoutName : 'Workout') + '</h2></div>' +
-        '<div class="ex-status">The guided player is coming together…</div>';
+    _woPlayerDestroy();
+    if (!sess || !sess.workout) { location.hash = '#workouts'; return; }
+    _woSetChrome([['Workouts', '#workouts'], [sess.workoutName]]);
+    document.body.classList.add('wo-playing');   // hides the app's top banners while the player is full-screen
+
+    var phases = woBuildTimeline(sess.workout);
+    if (!phases.length) {
+        el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess.workoutName) + '</h2></div><div class="ex-status">This workout has no exercises to run.</div>';
+        return;
+    }
+    el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess.workoutName) + '</h2></div><div class="ex-status">Getting ready…</div>';
+
+    _woP = { session: sess, phases: phases, runner: null, frames: {}, tickTimer: null, flipTimer: null,
+             keyHandler: null, hashHandler: null, finished: null };
+    try { await _woPlayerLoadFrames(); } catch (err) { console.error('Workouts: could not load frames for player:', err); }
+    if (!_woP) return;   // user left while loading
+
+    _woP.runner = woCreateRunner(phases, {
+        onPhase: _woPlayerOnPhase,
+        onTick:  _woPlayerOnTick,
+        onDone:  _woPlayerOnDone
+    });
+
+    _woP.tickTimer = setInterval(function() { if (_woP && _woP.runner) _woP.runner.tick(); }, 200);
+    _woP.flipTimer = setInterval(_woPlayerFlip, WO_FLIP_MS);
+
+    _woP.keyHandler = function(ev) {
+        if (!_woP || !_woP.runner || _woP.runner.state === 'done') return;
+        var tag = (ev.target && ev.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (ev.key === ' ')          { ev.preventDefault(); _woPlayerTogglePause(); }
+        else if (ev.key === 'ArrowRight') _woP.runner.skip();
+        else if (ev.key === 'ArrowLeft')  _woP.runner.back();
+        else if (ev.key === 'Enter') _woP.runner.done();
+    };
+    document.addEventListener('keydown', _woP.keyHandler);
+
+    // Leaving the page (any navigation) stops the player cleanly
+    _woP.hashHandler = function() { if (location.hash.indexOf('#workout-run') !== 0) _woPlayerDestroy(); };
+    window.addEventListener('hashchange', _woP.hashHandler);
+
+    _woP.runner.start();
+}
+
+function _woPlayerDestroy() {
+    document.body.classList.remove('wo-playing');
+    if (!_woP) return;
+    clearInterval(_woP.tickTimer);
+    clearInterval(_woP.flipTimer);
+    if (_woP.keyHandler)  document.removeEventListener('keydown', _woP.keyHandler);
+    if (_woP.hashHandler) window.removeEventListener('hashchange', _woP.hashHandler);
+    if (typeof woVoiceOnEnd === 'function') { try { woVoiceOnEnd(_woP); } catch (e) {} }
+    _woP = null;
+}
+
+/** All exercise frames for the exercises in this workout, one query. */
+async function _woPlayerLoadFrames() {
+    var ids = {};
+    _woFlatExercises(_woP.session.workout.steps).forEach(function(st) { ids[st.exerciseId] = true; });
+    var snap = await woLibCol('photos').where('targetType', '==', 'workoutExercise').get();
+    var byEx = {};
+    snap.docs.forEach(function(d) {
+        var p = d.data();
+        if (!ids[p.targetId]) return;
+        (byEx[p.targetId] = byEx[p.targetId] || []).push({ order: p.frameOrder || 0, data: p.imageData });
+    });
+    Object.keys(byEx).forEach(function(k) {
+        byEx[k].sort(function(a, b) { return a.order - b.order; });
+        _woP.frames[k] = byEx[k].map(function(f) { return f.data; });
+    });
+}
+
+/** One <img> (or the 🤸 placeholder) that the flip timer cycles through the exercise's frames. */
+function _woFlipHtml(exerciseId, cls) {
+    var fr = _woP.frames[exerciseId];
+    if (!fr || !fr.length) return '<div class="wo-flip-ph ' + cls + '">🤸</div>';
+    return '<img class="wo-flipbook ' + cls + '" data-ex="' + exerciseId + '" data-i="0" src="' + fr[0] + '" alt="">';
+}
+
+function _woPlayerFlip() {
+    if (!_woP) return;
+    document.querySelectorAll('#page-workout-run img.wo-flipbook').forEach(function(img) {
+        var fr = _woP.frames[img.getAttribute('data-ex')];
+        if (!fr || fr.length < 2) return;
+        var i = (parseInt(img.getAttribute('data-i'), 10) + 1) % fr.length;
+        img.setAttribute('data-i', i);
+        img.src = fr[i];
+    });
+}
+
+// ----- text helpers -----
+
+function _woFmtClock(sec) {
+    if (sec == null) return '';
+    if (sec >= 60) return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    return String(sec);
+}
+
+/** "Set 2 of 3" / "Round 2 of 4" */
+function _woSetText(p) {
+    if (p.round) return 'Round ' + p.round + ' of ' + p.rounds;
+    return p.setCount > 1 ? 'Set ' + (p.setIndex + 1) + ' of ' + p.setCount : '';
+}
+
+/** "5 reps @ 45 lb" / "30 sec" */
+function _woWorkText(p) { return woFmtAmount(p.measure, p.amount, p.weight); }
+
+function _woSideText(p) { return p.side === 'left' ? 'Left side' : (p.side === 'right' ? 'Right side' : ''); }
+
+function _woSectionLabel(sec) {
+    var s = WO_SECTIONS.filter(function(x) { return x.id === sec; })[0];
+    return s ? s.label : '';
+}
+
+// ----- rendering -----
+
+function _woPlayerOnPhase(p, index) {
+    _woPlayerRender();
+    if (typeof woVoiceOnPhase === 'function') { try { woVoiceOnPhase(p, index, _woP); } catch (e) { console.error(e); } }
+}
+
+function _woPlayerOnTick(info) {
+    if (!_woP) return;
+    _woPlayerUpdateLive(info);
+    if (typeof woVoiceOnTick === 'function') { try { woVoiceOnTick(info, _woP); } catch (e) { console.error(e); } }
+}
+
+function _woPlayerRender() {
+    if (!_woP || !_woP.runner) return;
+    var R = _woP.runner, p = R.current(), el = document.getElementById('page-workout-run');
+    if (!p) return;
+    var next = R.nextWork();
+    var tap  = p.durationSec == null;
+    var secs = R.secondsLeft();
+    var title, sub = '', center = '';
+
+    // Which phase colour/title
+    var cls = 'wo-player--' + p.kind;
+    if (p.kind === 'getready') title = 'GET READY';
+    else if (p.kind === 'switch') title = 'SWITCH SIDES';
+    else if (p.kind === 'rest') title = tap ? 'REST — TAP WHEN READY' : 'REST';
+    else title = _woEsc(p.exerciseName);
+
+    if (p.kind === 'work') {
+        var bits = [_woSetText(p), _woSideText(p)].filter(Boolean);
+        sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
+    }
+
+    // The centre: a countdown ring for timed phases, a big number for reps, a tap prompt for tap rests
+    var ring =
+        '<div class="wo-ring">' +
+            '<svg viewBox="0 0 200 200"><circle class="wo-ring-bg" cx="100" cy="100" r="' + WO_RING_R + '"></circle>' +
+            '<circle class="wo-ring-fg" id="woRingFg" cx="100" cy="100" r="' + WO_RING_R + '" stroke-dasharray="' + WO_RING_C + '" stroke-dashoffset="0"></circle></svg>' +
+            '<div class="wo-ring-text" id="woRingText">' + _woFmtClock(secs) + '</div>' +
+        '</div>';
+    if (p.kind === 'work' && tap) {
+        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + p.amount + '<span class="wo-ring-unit">reps</span>' +
+                 (p.weight != null ? '<span class="wo-ring-weight">@ ' + p.weight + ' lb</span>' : '') + '</div></div>' +
+                 '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button><div class="wo-tap-hint">or tap anywhere · say “done”</div>';
+    } else if (p.kind === 'rest' && tap) {
+        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text wo-ring-text--sm">Rest</div></div>' +
+                 '<button type="button" class="wo-bigbtn" id="woDone">I’M READY</button><div class="wo-tap-hint">or tap anywhere · say “ready”</div>';
+    } else {
+        center = ring;
+    }
+
+    // UP NEXT (rest / switch / get-ready screens)
+    var upnext = '';
+    if (p.kind !== 'work' && next) {
+        var nb = [_woSetText(next), _woSideText(next), _woWorkText(next)].filter(Boolean).join(' · ');
+        upnext = '<div class="wo-upnext"><div class="wo-upnext-media">' + _woFlipHtml(next.exerciseId, 'wo-upnext-img') + '</div>' +
+                 '<div><div class="wo-upnext-label">UP NEXT</div><div class="wo-upnext-name">' + _woEsc(next.exerciseName) + '</div>' +
+                 '<div class="wo-upnext-meta">' + _woEsc(nb) + '</div></div></div>';
+    }
+
+    var showSection = p.section && p.section !== 'main';
+    var media = p.kind === 'work' ? '<div class="wo-player-media">' + _woFlipHtml(p.exerciseId, 'wo-hero-img') + '</div>'
+              : (p.kind === 'switch' && p.exerciseId ? '<div class="wo-player-media">' + _woFlipHtml(p.exerciseId, 'wo-hero-img') + '</div>' : '');
+
+    el.innerHTML =
+        '<div class="wo-player ' + cls + '" id="woPlayer">' +
+            '<div class="wo-player-top">' +
+                '<span class="wo-player-name">' + _woEsc(_woP.session.workoutName) + (showSection ? ' · ' + _woSectionLabel(p.section) : '') + '</span>' +
+                '<span class="wo-player-left" id="woTimeLeft"></span>' +
+                '<button type="button" class="wo-end-btn" id="woEnd" title="End workout">✕ End</button>' +
+            '</div>' +
+            '<div class="wo-progress"><div class="wo-progress-bar" id="woProgress"></div></div>' +
+            '<div class="wo-player-main" id="woMain">' +
+                media +
+                '<div class="wo-player-info">' +
+                    '<div class="wo-phase-title">' + title + '</div>' +
+                    (sub ? '<div class="wo-phase-sub">' + _woEsc(sub) + '</div>' : '') +
+                    center +
+                    upnext +
+                '</div>' +
+            '</div>' +
+            '<div class="wo-controls">' +
+                '<button type="button" class="wo-ctl" id="woBack" title="Back">⏮</button>' +
+                '<button type="button" class="wo-ctl wo-ctl--main" id="woPause" title="Pause / resume">⏸</button>' +
+                '<button type="button" class="wo-ctl" id="woSkip" title="Skip">⏭</button>' +
+                (tap ? '' : '<button type="button" class="wo-ctl wo-ctl--txt" id="woPlus" title="Add 15 seconds">+15s</button>') +
+            '</div>' +
+            '<div class="wo-paused hidden" id="woPaused">⏸ PAUSED<br><span>tap ▶ to continue</span></div>' +
+        '</div>';
+
+    document.getElementById('woBack').addEventListener('click', function() { R.back(); });
+    document.getElementById('woSkip').addEventListener('click', function() { R.skip(); });
+    document.getElementById('woPause').addEventListener('click', _woPlayerTogglePause);
+    var plus = document.getElementById('woPlus'); if (plus) plus.addEventListener('click', function() { R.addTime(15); });
+    document.getElementById('woEnd').addEventListener('click', _woPlayerEndClicked);
+    var doneBtn = document.getElementById('woDone');
+    if (doneBtn) doneBtn.addEventListener('click', function(ev) { ev.stopPropagation(); R.done(); });
+    if (tap) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // tap anywhere = Done
+
+    _woPlayerUpdateLive({ index: R.index, phase: p, secondsLeft: secs, state: R.state });
+}
+
+/** Updates only what changes every tick: ring, seconds, progress bar, time left, pause overlay. */
+function _woPlayerUpdateLive(info) {
+    if (!_woP) return;
+    var R = _woP.runner, p = info.phase;
+    if (!p) return;
+    var fg = document.getElementById('woRingFg'), txt = document.getElementById('woRingText');
+    if (fg && p.durationSec) {
+        var frac = Math.max(0, Math.min(1, (info.secondsLeft != null ? info.secondsLeft : 0) / p.durationSec));
+        fg.setAttribute('stroke-dashoffset', String(WO_RING_C * (1 - frac)));
+    }
+    if (txt && info.secondsLeft != null) txt.textContent = _woFmtClock(info.secondsLeft);
+
+    var bar = document.getElementById('woProgress');
+    if (bar) bar.style.width = Math.round(100 * R.index / R.phases.length) + '%';
+    var left = document.getElementById('woTimeLeft');
+    if (left) left.textContent = '~' + woFmtMinutes(R.remainingEstimateSec()) + ' left';
+
+    var paused = document.getElementById('woPaused'), pbtn = document.getElementById('woPause');
+    if (paused) paused.classList.toggle('hidden', R.state !== 'paused');
+    if (pbtn)   pbtn.textContent = R.state === 'paused' ? '▶' : '⏸';
+}
+
+function _woPlayerTogglePause() {
+    if (!_woP || !_woP.runner) return;
+    var R = _woP.runner;
+    if (R.state === 'paused') R.resume(); else R.pause();
+}
+
+function _woPlayerEndClicked() {
+    if (!_woP) return;
+    if (!confirm('End this workout now? Anything you have not done yet will be left out.')) return;
+    _woP.runner.end();
+}
+
+// ----- finish -----
+
+function _woPlayerOnDone(results) {
+    if (!_woP) return;
+    var R = _woP.runner;
+    clearInterval(_woP.tickTimer);
+    clearInterval(_woP.flipTimer);
+    var done = results.filter(function(r) { return r.status === 'done'; }).length;
+    var skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
+    var totalWork = R.workPhaseCount();
+    _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), endedAt: Date.now() };
+    window._woFinished = _woP.finished;
+
+    var mins = Math.max(1, Math.round(R.elapsedMs() / 60000));
+    document.getElementById('page-workout-run').innerHTML =
+        '<div class="wo-player wo-player--done">' +
+            '<div class="wo-player-main"><div class="wo-player-info">' +
+                '<div class="wo-phase-title">🎉 Workout complete</div>' +
+                '<div class="wo-phase-sub">' + _woEsc(_woP.session.workoutName) + '</div>' +
+                '<div class="wo-done-stats">' +
+                    '<div><strong>' + mins + '</strong> min</div>' +
+                    '<div><strong>' + done + '</strong> of ' + totalWork + ' sets done</div>' +
+                    (skipped ? '<div><strong>' + skipped + '</strong> skipped</div>' : '') +
+                '</div>' +
+                '<a href="#workouts" class="wo-bigbtn wo-bigbtn--link">Back to Workouts</a>' +
+            '</div></div>' +
+        '</div>';
+    if (typeof woVoiceOnEnd === 'function') { try { woVoiceOnEnd(_woP); } catch (e) {} }
 }
