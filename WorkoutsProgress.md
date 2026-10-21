@@ -26,6 +26,7 @@
 | 3.3 | Workout History list | ✅ done |
 | 3.4 + 3.5 | Activity screen for workout entries + linked delete | ✅ done |
 | 3.2 | Last time on Start screen | ✅ done |
+| 3.1 | Self-paced mode | ✅ done |
 
 ## Next up
 3.3, 3.4, 3.5 are done. Remaining in Phase 3, in order: **3.2 (DONE — ignore this text)** (`_woRenderStartPage` in `js/workout-player.js`; query `userCol('workoutSessions')` newest-first (limit ~30) and for each exercise step find the latest session with a non-skipped set for that exerciseId → show "Last time: 3×12 @ 25 lb · Oct 14" under the step name, formatted from that session's sets for the exercise); **3.1** self-paced mode (enable the radio on the Start screen, mode:'self'; reuse the runner but make every work phase tap-to-advance (`durationSec: null`) while rest timers auto-start and counts down; `woBuildTimeline(workout, {allTap:true})`; allow jumping around is optional; voice cues/commands and saving work unchanged); **3.6** finish summary with totals, volume and PR detection (compare each exercise's best weight/reps vs earlier sessions; show 🏆 lines on the completion screen and as a badge in history cards). Known gap: leaving the player mid-workout discards the run.

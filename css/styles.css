@@ -21810,3 +21810,7 @@ body.wo-playing .offline-banner { display: none !important; }
 
 .wo-lasttime { margin: 4px 0 0 32px; font-size: 0.8rem; color: #0f766e; }
 .wo-item .wo-lasttime { margin: 0; }
+
+/* Self-paced: actual numbers */
+.wo-adjust { font-size: 1.05rem; }
+.wo-adjust input { width: 72px; font-size: 1.1rem; text-align: center; border-radius: 8px; border: none; padding: 6px; }

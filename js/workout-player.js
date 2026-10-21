@@ -37,8 +37,8 @@ function _woSetPhases(st, set, ctx) {
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side,
             restKind: null,
-            durationSec: st.measure === 'time' ? amount : null,
-            tap: st.measure !== 'time'
+            durationSec: (st.measure === 'time' && !ctx.allTap) ? amount : null,
+            tap: st.measure !== 'time' || !!ctx.allTap
         });
         if (si === 0 && sides.length > 1) {
             out.push({ kind: 'switch', label: 'Switch sides', section: ctx.section,
@@ -64,7 +64,7 @@ function _woRestPhase(rest, restKind, ctx) {
 }
 
 /**
- * Workout doc → ordered phases. Opts: { getReadySec } (0 = no get-ready phase).
+ * Workout doc → ordered phases. Opts: { getReadySec (0 = no get-ready phase), allTap (self-paced: every exercise waits for Done) }.
  * Rests that would come after the very last exercise are dropped.
  */
 function woBuildTimeline(workout, opts) {
@@ -78,7 +78,7 @@ function woBuildTimeline(workout, opts) {
         if (step.type === 'exercise') {
             var sets = step.sets || [];
             sets.forEach(function(set, k) {
-                var ctx = { section: section, stepIndex: si, itemIndex: null, setIndex: k, setCount: sets.length, round: null, rounds: null };
+                var ctx = { section: section, stepIndex: si, itemIndex: null, setIndex: k, setCount: sets.length, round: null, rounds: null, allTap: !!opts.allTap };
                 phases = phases.concat(_woSetPhases(step, set, ctx));
                 if (k < sets.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenSets, 'sets', ctx));
             });
@@ -89,7 +89,7 @@ function woBuildTimeline(workout, opts) {
             for (var r = 1; r <= rounds; r++) {
                 items.forEach(function(it, ij) {
                     var set = (it.sets && it.sets[0]) || { amount: null, weight: null };
-                    var ctx = { section: section, stepIndex: si, itemIndex: ij, setIndex: r - 1, setCount: rounds, round: r, rounds: rounds };
+                    var ctx = { section: section, stepIndex: si, itemIndex: ij, setIndex: r - 1, setCount: rounds, round: r, rounds: rounds, allTap: !!opts.allTap };
                     phases = phases.concat(_woSetPhases(it, set, ctx));
                     if (ij < items.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenItems, 'items', ctx));
                 });
@@ -185,15 +185,17 @@ function woCreateRunner(phases, cb, opts) {
     }
 
     /** Records how a work phase ended, replacing any earlier result for the same phase (after Back). */
-    function record(status) {
+    function record(status, actual) {
         var p = phase();
         if (!p || p.kind !== 'work') return;
         R.results = R.results.filter(function(r) { return r.index !== R.index; });
-        R.results.push({ index: R.index, status: status, doneAt: now() });
+        var res = { index: R.index, status: status, doneAt: now() };
+        if (actual) res.actual = actual;      // {amount, weight} the user entered before tapping Done (self-paced)
+        R.results.push(res);
     }
 
-    function advance(status) {
-        record(status);
+    function advance(status, actual) {
+        record(status, actual);
         if (R.index + 1 >= R.phases.length) return finish();
         enter(R.index + 1);
     }
@@ -247,10 +249,10 @@ function woCreateRunner(phases, cb, opts) {
     };
 
     /** "Done" — finishes a reps set / tap rest, or ends a timed phase early. Counts as completed. */
-    R.done = function() {
+    R.done = function(actual) {
         if (R.state === 'paused') R.resume();
         if (R.state !== 'running') return;
-        advance('done');
+        advance('done', actual);
     };
 
     /** "Skip" — moves on; a skipped work phase is logged as skipped. */
@@ -442,7 +444,7 @@ function _woRenderStartPage() {
             '<div class="ex-form-group"><label class="ex-label">How do you want to do it?</label>' +
                 '<div class="wo-mode-list">' +
                     '<label class="wo-mode"><input type="radio" name="wosMode" value="guided" checked> <span><strong>🎬 Guided</strong><br><span class="wo-hint">Prop up your phone — it counts down each exercise and rest and shows what is next.</span></span></label>' +
-                    '<label class="wo-mode wo-mode--off"><input type="radio" name="wosMode" value="self" disabled> <span><strong>✅ Self-paced</strong> <span class="wo-badge wo-badge--neither">coming soon</span><br><span class="wo-hint">You tap Done after each set.</span></span></label>' +
+                    '<label class="wo-mode"><input type="radio" name="wosMode" value="self"> <span><strong>✅ Self-paced</strong><br><span class="wo-hint">You do each set at your own speed and tap Done — rests still count down. You can fix the reps and weight as you go.</span></span></label>' +
                     '<label class="wo-mode wo-mode--off"><input type="radio" name="wosMode" value="day" disabled> <span><strong>🌤️ Throughout the day</strong> <span class="wo-badge wo-badge--neither">coming soon</span><br><span class="wo-hint">Tick sets off whenever you do them.</span></span></label>' +
                 '</div></div>' +
 
@@ -545,7 +547,7 @@ async function _woStartGo() {
             workoutName: s.workout.name,
             workout:     { id: s.id, name: s.workout.name, steps: JSON.parse(JSON.stringify(s.workout.steps)) },
             date:        s.date,
-            mode:        'guided',
+            mode:        (document.querySelector('input[name=wosMode]:checked') || {}).value === 'self' ? 'self' : 'guided',
             voiceCues:   s.voiceCues,
             voiceCmds:   s.voiceCmds
         };
@@ -579,7 +581,7 @@ async function loadWorkoutRunPage() {
     _woSetChrome([['Workouts', '#workouts'], [sess.workoutName]]);
     document.body.classList.add('wo-playing');   // hides the app's top banners while the player is full-screen
 
-    var phases = woBuildTimeline(sess.workout);
+    var phases = woBuildTimeline(sess.workout, sess.mode === 'self' ? { getReadySec: 0, allTap: true } : {});
     if (!phases.length) {
         el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess.workoutName) + '</h2></div><div class="ex-status">This workout has no exercises to run.</div>';
         return;
@@ -729,10 +731,16 @@ function _woPlayerRender() {
             '<circle class="wo-ring-fg" id="woRingFg" cx="100" cy="100" r="' + WO_RING_R + '" stroke-dasharray="' + WO_RING_C + '" stroke-dashoffset="0"></circle></svg>' +
             '<div class="wo-ring-text" id="woRingText">' + _woFmtClock(secs) + '</div>' +
         '</div>';
+    var selfMode = _woP.session.mode === 'self';
     if (p.kind === 'work' && tap) {
-        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + p.amount + '<span class="wo-ring-unit">reps</span>' +
+        var unit = p.measure === 'time' ? 'sec' : 'reps';
+        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + p.amount + '<span class="wo-ring-unit">' + unit + '</span>' +
                  (p.weight != null ? '<span class="wo-ring-weight">@ ' + p.weight + ' lb</span>' : '') + '</div></div>' +
-                 '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button><div class="wo-tap-hint">or tap anywhere · say “done”</div>';
+                 (selfMode ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
+                             (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
+                 '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
+                 (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
+                           : '<div class="wo-tap-hint">or tap anywhere · say “done”</div>');
     } else if (p.kind === 'rest' && tap) {
         center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text wo-ring-text--sm">Rest</div></div>' +
                  '<button type="button" class="wo-bigbtn" id="woDone">I’M READY</button><div class="wo-tap-hint">or tap anywhere · say “ready”</div>';
@@ -793,8 +801,18 @@ function _woPlayerRender() {
         if (!_woP.session.voiceCues && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     });
     var doneBtn = document.getElementById('woDone');
-    if (doneBtn) doneBtn.addEventListener('click', function(ev) { ev.stopPropagation(); R.done(); });
-    if (tap) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // tap anywhere = Done
+    if (doneBtn) doneBtn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        var amt = document.getElementById('woActAmt'), wt = document.getElementById('woActWt');
+        var actual = null;
+        if (amt) {      // self-paced: whatever is in the boxes is what you did
+            var a = parseFloat(amt.value), w = wt ? parseFloat(wt.value) : NaN;
+            actual = { amount: isNaN(a) ? null : a, weight: isNaN(w) ? null : w };
+        }
+        R.done(actual);
+    });
+    // Guided: tap anywhere = Done. Self-paced has number boxes on screen, so only the DONE button counts.
+    if (tap && !selfMode) document.getElementById('woMain').addEventListener('click', function() { R.done(); });
 
     _woPlayerUpdateLive({ index: R.index, phase: p, secondsLeft: secs, state: R.state });
 }
@@ -893,7 +911,8 @@ function woSetLinesFromRun(phases, results) {
             exerciseId: p.exerciseId, exerciseName: p.exerciseName, measure: p.measure,
             section: p.section || 'main', side: p.side || null,
             targetAmount: p.amount, targetWeight: p.weight,
-            actualAmount: done ? p.amount : null, actualWeight: done ? p.weight : null,
+            actualAmount: done ? ((r.actual && r.actual.amount != null) ? r.actual.amount : p.amount) : null,
+            actualWeight: done ? ((r.actual && r.actual.weight != null) ? r.actual.weight : p.weight) : null,
             doneAt: done ? _woISODate(r.doneAt) : null,
             skipped: !done, manual: false
         });

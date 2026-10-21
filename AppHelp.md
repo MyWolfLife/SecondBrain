@@ -4839,7 +4839,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
-- **Guided** counts down every exercise and rest for you (the other modes are coming soon)
+- **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. *Throughout the day* is coming soon
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome
 - **Last time** under each exercise shows what you did when you last did it (in any workout), so you know what to beat
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout
@@ -4854,6 +4854,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - The **colour** tells you where you are: teal = exercise, blue = rest, amber = get ready, purple = switch sides
+- In **Self-paced** mode every exercise waits for you: type what you actually did (if different) and tap **DONE**
 - **Timed** exercises count down by themselves. **Reps** exercises wait — tap **DONE** (or tap anywhere on the screen) when you finish the set
 - During a rest, **UP NEXT** shows the exercise coming up (and its weight) so you can get ready
 - Buttons: ⏮ back, ⏸ pause, ⏭ skip, **+15s** for a bit more time. On a computer: Space = pause, ← back, → skip, Enter = done
