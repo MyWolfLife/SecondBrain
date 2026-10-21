@@ -199,6 +199,12 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 - **"Edit Workout"** button → goes to the Finished Workout screen (5.1)
 - Calories/duration/date are edited on the workout, not here — the workout is the source of truth and pushes its values to the Activity
 
+### 5.4 Deleting a linked workout / activity (D9)
+- Deleting either one asks: **"Also delete the linked Activity?"** (or "…linked Workout?") → **Delete both** / **Delete only this one** / Cancel
+- **Delete only this one** → the survivor is **unlinked**, not broken:
+  - Activity kept alone → becomes a normal, fully editable Activity (keeps its calories, duration, date, and "Workout: [name]" label)
+  - Workout kept alone → its Finished Workout screen shows a **"Create Activity"** button to re-link a new one if wanted
+
 ### 5.3 Workout History list
 - Every finished workout, newest first; tap one → Finished Workout screen (5.1)
 - The Activities list row for a workout links there too
@@ -261,7 +267,7 @@ What the good apps do, and what we'd take:
 5. ~~**Programs**~~ — ✅ decided (D6): yes, eventually. Start with workouts; a "Programs — Coming soon" card goes on the hub in Phase 1 as a reminder.
 6. ~~**Activity log integration**~~ — ✅ decided (D7): auto-create, then land on the Finished Workout screen to enter watch calories. See §5.
    - 6a. ~~**Which Activity type?**~~ — ✅ decided (D8): one new seeded type **"Workout"**, list shows **"Workout: [name]"**.
-   - 6b. **Deleting**: if you delete the workout record, delete its Activity too (and vice versa)? Proposal: yes, with a warning that says both go.
+   - 6b. ~~**Deleting**~~ — ✅ decided (D9): ask "Also delete the linked …?" with a choice; keeping it unlinks it. See §5.4.
    - 6c. **Calories before you edit**: leave blank until you enter them, or put in an estimate? Proposal: blank — your watch number is the real one.
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
 8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
@@ -291,3 +297,4 @@ What the good apps do, and what we'd take:
 - **D6 (2026-10-21)** — **Programs later, workouts first.** Programs (multi-week plans built from workouts) are wanted eventually. Phase 1 adds a greyed-out "Programs — Coming soon" card on the Fitness hub as a reminder. Design workouts as standalone, reusable pieces so a program can just reference them by ID later.
 - **D7 (2026-10-21)** — **Finishing a workout auto-creates a linked Activity** and lands on the Finished Workout edit screen to enter watch calories. Every set is its own editable/deletable line; lines can be added manually (pick exercise, enter values) and reordered. Activity screen shows a read-only summary + Edit Workout button; the workout record is the source of truth and pushes calories/duration/date to the Activity.
 - **D8 (2026-10-21)** — **Activity type**: one new built-in type **"Workout"** (not a type per workout, not "PW:"). Activities list shows **"Workout: [name]"**. Summary grids get a single combined Workout row; per-workout breakdown is a possible later add.
+- **D9 (2026-10-21)** — **Deleting linked records gives a choice**: "Also delete the linked Activity/Workout?" → Delete both / Only this one. Keeping one unlinks it cleanly (orphan Activity becomes normal; orphan Workout offers "Create Activity"). User expects to usually delete both but wants the option.
