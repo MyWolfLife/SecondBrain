@@ -21817,3 +21817,35 @@ body.wo-playing .offline-banner { display: none !important; }
 
 .wo-banner--pr { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
 .wo-banner--pr .wo-ro-list { margin-top: 4px; }
+
+/* Throughout the day */
+.wd-card-wrap { padding: 8px 16px 0; display: flex; flex-direction: column; gap: 8px; }
+.wd-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: #92400e;
+}
+.wd-card-icon { font-size: 1.6rem; }
+.wd-card-text { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; }
+.wd-card-text strong { font-size: 0.95rem; }
+.wd-card-go { font-weight: 700; white-space: nowrap; }
+.wd-ex-name { margin: 14px 0 2px; font-weight: 700; color: #111827; }
+.wd-check {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid #9ca3af;
+    background: #fff;
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    flex: 0 0 36px;
+}
+.wd-line--done .wd-check { background: #0d9488; border-color: #0d9488; }
+.wd-line--done .wo-line-name { color: #6b7280; }
+.wd-when { font-size: 0.78rem; color: #6b7280; min-width: 56px; }

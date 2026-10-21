@@ -25,6 +25,7 @@ async function loadWorkoutDonePage(id) {
         var doc = await userCol('workoutSessions').doc(id).get();
         if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout record not found.</div>'; return; }
         var data = doc.data();
+        if (data.status === 'in-progress') { location.hash = '#workout-day/' + id; return; }   // still being done today
         var activityOk = false;
         if (data.activityId) {
             var a = await userCol('exerciseActivities').doc(data.activityId).get();
@@ -266,7 +267,7 @@ function _woDoneReadForm() {
         date: date,
         time: time,
         calories: calRaw !== '' ? Math.max(0, parseInt(calRaw, 10) || 0) : null,
-        durationMinutes: durRaw !== '' ? Math.max(0, parseFloat(durRaw) || 0) : 0,
+        durationMinutes: durRaw !== '' ? Math.max(0, parseFloat(durRaw) || 0) : null,   // blank stays blank (e.g. a day workout)
         notes: document.getElementById('wodNotes').value.trim(),
         rating: _woD.data.rating || null
     };
@@ -287,7 +288,7 @@ async function _woDoneSave() {
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
         var startedAt = _woISOFromLocal(f.date, f.time);
-        var finishedAt = new Date(Date.parse(startedAt) + f.durationMinutes * 60000).toISOString();
+        var finishedAt = new Date(Date.parse(startedAt) + (f.durationMinutes || 0) * 60000).toISOString();
         var sets = JSON.parse(JSON.stringify(_woD.sets));
         sets.forEach(function(s) { s.skipped = (s.actualAmount == null); });
         await userCol('workoutSessions').doc(_woD.id).update({
@@ -442,12 +443,14 @@ function _woRenderHistList() {
         var bits = [_woFmtLongDate(w.date)];
         if (w.durationMinutes) bits.push(w.durationMinutes + ' min');
         bits.push(done + ' of ' + sets.length + ' sets');
-        html += '<a href="#workout-done/' + w.id + '" class="wo-card">' +
+        var open = w.status === 'in-progress';
+        html += '<a href="#' + (open ? 'workout-day/' : 'workout-done/') + w.id + '" class="wo-card">' +
                     '<div class="wo-thumb">📋</div>' +
                     '<div class="wo-card-main">' +
                         '<div class="wo-card-name">' + _woEsc(w.workoutName) + '</div>' +
                         '<div class="wo-badges">' +
-                            (w.calories != null ? '<span class="wo-badge wo-badge--push">' + w.calories + ' cal</span>'
+                            (open ? '<span class="wo-badge wo-badge--both">In progress</span>' : '') +
+                            (open ? '' : w.calories != null ? '<span class="wo-badge wo-badge--push">' + w.calories + ' cal</span>'
                                                 : '<span class="wo-badge wo-badge--pull">No calories</span>') +
                             (w.rating ? '<span class="wo-badge wo-badge--neither">Effort ' + w.rating + '/5</span>' : '') +
                             ((w.prs && w.prs.length) ? '<span class="wo-badge wo-badge--both">🏆 ' + w.prs.length + ' PR' + (w.prs.length === 1 ? '' : 's') + '</span>' : '') +

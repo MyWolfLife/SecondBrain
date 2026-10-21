@@ -1322,6 +1322,7 @@ async function loadWorkoutsPage() {
             '<label class="wo-inline-check"><input type="checkbox" id="woWArchived"' + (_woWFilter.archived ? ' checked' : '') + '> Show archived</label>' +
         '</div></div>' +
         '<div id="woWorkoutList"></div>';
+    if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-workouts');
     document.getElementById('woWText').addEventListener('input', function() { _woWFilter.text = this.value; _woRenderWorkoutList(); });
     document.getElementById('woWArchived').addEventListener('change', function() { _woWFilter.archived = this.checked; _woRenderWorkoutList(); });
     // ▶ Start sits inside the card link — intercept its click so it opens the Start screen, not the builder

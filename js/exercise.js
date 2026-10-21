@@ -275,6 +275,7 @@ function loadExercisePage() {
                 '<span class="coming-soon-badge">Coming soon</span>' +
             '</div>' +
         '</div>';
+    if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-exercise');   // 🌤️ open day workouts
 }
 
 // ─── Activities list page ─────────────────────────────────────────────────────

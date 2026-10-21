@@ -4762,6 +4762,18 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ---
 
+## screen:workout-day
+
+**What this screen is for:** Your workout for today as a checklist — do the sets whenever you like.
+
+### Quick Help
+- Tap the circle next to a set when you finish it. Change the reps or weight first if you did something different. Tap a ticked circle to undo it
+- Close this screen and come back later — even from another device, your ticks are saved
+- When you're done tap **Finish workout** (sets you didn't do are logged as skipped). **Discard** throws the whole workout away
+- A yellow **Workout in progress** card on the Fitness screen and the Workouts list takes you back here
+
+---
+
 ## screen:workout-history
 
 **What this screen is for:** Every workout you've finished, newest first.
@@ -4840,7 +4852,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
-- **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. *Throughout the day* is coming soon
+- **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome
 - **Last time** under each exercise shows what you did when you last did it (in any workout), so you know what to beat
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout

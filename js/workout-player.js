@@ -445,7 +445,7 @@ function _woRenderStartPage() {
                 '<div class="wo-mode-list">' +
                     '<label class="wo-mode"><input type="radio" name="wosMode" value="guided" checked> <span><strong>🎬 Guided</strong><br><span class="wo-hint">Prop up your phone — it counts down each exercise and rest and shows what is next.</span></span></label>' +
                     '<label class="wo-mode"><input type="radio" name="wosMode" value="self"> <span><strong>✅ Self-paced</strong><br><span class="wo-hint">You do each set at your own speed and tap Done — rests still count down. You can fix the reps and weight as you go.</span></span></label>' +
-                    '<label class="wo-mode wo-mode--off"><input type="radio" name="wosMode" value="day" disabled> <span><strong>🌤️ Throughout the day</strong> <span class="wo-badge wo-badge--neither">coming soon</span><br><span class="wo-hint">Tick sets off whenever you do them.</span></span></label>' +
+                    '<label class="wo-mode"><input type="radio" name="wosMode" value="day"> <span><strong>🌤️ Throughout the day</strong><br><span class="wo-hint">Do your sets whenever you like and tick them off — from any device. Finish when you are done.</span></span></label>' +
                 '</div></div>' +
 
             '<div class="ex-form-group"><label class="ex-label">Voice</label>' +
@@ -541,6 +541,13 @@ async function _woStartGo() {
                 steps: steps, exerciseIds: ids, estimatedSeconds: woEstimateSeconds(steps),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+        }
+        var chosen = (document.querySelector('input[name=wosMode]:checked') || {}).value;
+        if (chosen === 'day') {                       // Throughout the day: open a checklist record instead of running the player
+            var dayId = await woStartDaySession({ workoutId: s.id, workoutName: s.workout.name, date: s.date,
+                                                  workout: { id: s.id, name: s.workout.name, steps: JSON.parse(JSON.stringify(s.workout.steps)) } });
+            location.hash = '#workout-day/' + dayId;
+            return;
         }
         window._woSession = {
             workoutId:   s.id,
@@ -926,10 +933,11 @@ function woSetLinesFromRun(phases, results) {
  * timed → longest time. The very first time you do an exercise is not a record.
  * Returns [{exerciseId, exerciseName, kind:'weight'|'reps'|'time', value, previous}].
  */
-async function woComputePRs(sets) {
+async function woComputePRs(sets, excludeId) {
     var snap = await userCol('workoutSessions').get();
     var prior = {};   // exerciseId → {weight, reps, time}
     snap.docs.forEach(function(d) {
+        if (d.id === excludeId || d.data().status === 'in-progress') return;   // an open day workout doesn't count as history
         (d.data().sets || []).forEach(function(l) {
             if (l.skipped || l.actualAmount == null) return;
             var b = prior[l.exerciseId] || (prior[l.exerciseId] = { weight: null, reps: null, time: null });
@@ -967,6 +975,26 @@ async function _woWorkoutTypeId() {
     return await find();
 }
 
+/** Creates the "Workout" Activity for a history record and returns its id. Calories start blank. */
+async function _woCreateLinkedActivity(sessionId, workoutName, dateISO, startMs, durationMinutes) {
+    var typeId = await _woWorkoutTypeId();
+    if (!typeId) throw new Error('Workout activity type not found');
+    var ref = await userCol('exerciseActivities').add({
+        typeId:           typeId,
+        activityDate:     _woLocalDateTime(dateISO, startMs),
+        durationMinutes:  durationMinutes,
+        miles:            null,
+        runMiles:         null,
+        withDogs:         null,
+        calories:         null,
+        comment:          '',
+        workoutSessionId: sessionId,
+        workoutName:      workoutName,
+        createdAt:        firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+}
+
 /**
  * Saves the finished run. Returns {sessionId, activityId (or null if the Activity could not be created)}.
  * The history record is written first so a problem creating the Activity can never lose the workout.
@@ -998,22 +1026,7 @@ async function woSaveFinishedWorkout(fin) {
 
     var activityId = null;
     try {
-        var typeId = await _woWorkoutTypeId();
-        if (!typeId) throw new Error('Workout activity type not found');
-        var actRef = await userCol('exerciseActivities').add({
-            typeId:           typeId,
-            activityDate:     _woLocalDateTime(sess.date, fin.startedAt || (fin.endedAt - fin.elapsedMs)),
-            durationMinutes:  durationMinutes,
-            miles:            null,
-            runMiles:         null,
-            withDogs:         null,
-            calories:         null,
-            comment:          '',
-            workoutSessionId: sessionRef.id,
-            workoutName:      sess.workoutName,
-            createdAt:        firebase.firestore.FieldValue.serverTimestamp()
-        });
-        activityId = actRef.id;
+        activityId = await _woCreateLinkedActivity(sessionRef.id, sess.workoutName, sess.date, fin.startedAt || (fin.endedAt - fin.elapsedMs), durationMinutes);
         await sessionRef.update({ activityId: activityId });
     } catch (err) {
         console.error('Workouts: could not create the linked Activity:', err);
