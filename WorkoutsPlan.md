@@ -61,7 +61,33 @@ A reusable catalog of movements. Built once, used in many workouts.
 | Uses weight? | Yes/No. If yes, default weight + unit (lb) |
 | Each side? | For one-arm/one-leg moves. If yes, the player runs it twice: "Left side" then "Right side" (with an optional short switch pause) |
 | Equipment | Optional tags — none / dumbbell / band / pull-up bar / kettlebell… (lets us filter "workouts I can do in a hotel") |
-| Muscle groups | Optional tags — chest, legs, core… (for history/balance views later) |
+| Targets (D14) | Tags for what it works — specific muscles (Calves, Hamstrings…) and/or Cardio. The body **area** (Lower Body, Upper Body…) is filled in automatically from the muscles. See §3.4 |
+
+### 3.1a Starter Library (D13)
+Seeded once, the first time Exercises is opened. No pictures. Fully editable / deletable / archivable. Each comes with 2–3 short form cues.
+
+| # | Exercise | Measure | Default | Equipment | Each side | Targets (★ = main) |
+|---|---|---|---|---|---|---|
+| 1 | Push-up | Reps | 10 | None | | ★Chest, Triceps, Front shoulders, Abs |
+| 2 | Squat (bodyweight) | Reps | 15 | None | | ★Quads, ★Glutes, Hamstrings |
+| 3 | Lunge | Reps | 10 | None | ✓ | ★Quads, ★Glutes, Hamstrings, Calves |
+| 4 | Plank | Time | 30 sec | None | | ★Abs, Obliques, Lower back, Shoulders |
+| 5 | Side plank | Time | 20 sec | None | ✓ | ★Obliques, Abs, Hips |
+| 6 | Glute bridge | Reps | 15 | None | | ★Glutes, Hamstrings, Lower back |
+| 7 | Burpee | Reps | 8 | None | | ★Cardio, Chest, Quads, Shoulders |
+| 8 | Mountain climbers | Time | 30 sec | None | | ★Cardio, ★Abs, Shoulders, Hips |
+| 9 | Jumping jacks | Time | 30 sec | None | | ★Cardio, Calves, Shoulders |
+| 10 | Dips (chair/bench) | Reps | 10 | Chair | | ★Triceps, Chest, Front shoulders |
+| 11 | Pull-up | Reps | 5 | Pull-up bar | | ★Lats, Biceps, Upper back, Forearms |
+| 12 | Superman hold | Time | 20 sec | None | | ★Lower back, Glutes, Upper back |
+| 13 | Crunch | Reps | 15 | None | | ★Abs |
+| 14 | Wall sit | Time | 45 sec | None | | ★Quads, Glutes, Calves |
+| 15 | Goblet squat | Reps | 10 @ 25 lb | Dumbbell | | ★Quads, ★Glutes, Abs |
+| 16 | Dumbbell row | Reps | 10 @ 25 lb | Dumbbell | ✓ | ★Lats, Upper back, Biceps, Rear shoulders |
+| 17 | Shoulder press | Reps | 10 @ 20 lb | Dumbbells | | ★Shoulders, Triceps, Upper back |
+| 18 | Bicep curl | Reps | 12 @ 20 lb | Dumbbells | | ★Biceps, Forearms |
+| 19 | Romanian deadlift | Reps | 10 @ 30 lb | Dumbbells | | ★Hamstrings, ★Glutes, Lower back |
+| 20 | Farmer carry | Time | 45 sec @ 40 lb | Dumbbells | | ★Forearms, Traps, Abs, Cardio |
 
 ### 3.2 Workouts (the recipe)
 An ordered list of steps.
@@ -88,6 +114,25 @@ An ordered list of steps.
 - Optional **warm-up / cool-down** sections (same structure, just labeled)
 - Reorder steps (↑/↓), duplicate a step, copy a whole workout ("Copy as new")
 - **Estimated total time** shown on the workout card (computed from times, rests, and a seconds-per-rep estimate)
+
+### 3.4 Targets: Areas & Muscles (D14)
+Each exercise is tagged with everything it works. Two levels — tag the **muscle**, and the **area** comes for free:
+
+| Area | Muscles |
+|---|---|
+| **Cardio** | *(tagged directly — no muscles under it)* |
+| **Upper Body** | Chest, Front shoulders, Shoulders, Rear shoulders, Upper back, Lats, Traps, Biceps, Triceps, Forearms |
+| **Core** | Abs, Obliques, Lower back |
+| **Lower Body** | Glutes, Hips, Quads, Hamstrings, Calves |
+
+- One exercise → many tags (a burpee hits Cardio + Chest + Quads + Shoulders)
+- **Main vs. also-works** (proposed, see Q13): tap a muscle once = ★ main target, tap again = also works, again = off
+- The muscle list is seeded but editable (add "Adductors", "Neck", etc.)
+- **"What works my calves?"** — Exercises library has a target filter:
+  - Pick an **area** (Lower Body) → every exercise touching any muscle in it
+  - Pick a **muscle** (Calves) → exactly those; ★ main-target ones listed first
+- **Workout card** shows its combined targets ("Legs · Core · Cardio") computed from its exercises
+- **Later ideas**: a body-outline "muscle map" coloring what a workout hits, and a "this week you've hit…" balance view from Workout History (spot neglected areas) — Phase 5
 
 ### 3.3 Doing a Workout (the session)
 Pick a workout → **Start screen** → choose mode → go.
@@ -240,7 +285,8 @@ What the good apps do, and what we'd take:
 - **New file**: `js/workouts.js` (keep `exercise.js` from growing further)
 - **Routes** (proposal): `#workouts` (list), `#workout/:id` (builder), `#workout-exercises`, `#workout-exercise/:id`, `#workout-run/:sessionId` (player), `#workout-history`
 - **Firestore collections** (per-user via `userCol()`):
-  - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], muscles[], videoUrl, archived
+  - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], targets[] {muscleId, main: bool}, videoUrl, archived, isSeeded
+  - `workoutMuscles` — name, area (cardio/upper/core/lower), sortOrder — seeded from §3.4, editable. Cardio is one row with area 'cardio'. Area is looked up from the muscle, never stored on the exercise.
   - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
   - `workoutSessions` (= Workout History) — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, durationMinutes, calories, sets[] {exerciseId, exerciseName (snapshot), measure, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual (true if added on the edit screen)}, notes, rating, activityId (link to the `exerciseActivities` entry). Array order = display order; set numbers are computed, not stored.
   - `exerciseActivities` gets two new optional fields: `workoutSessionId` and `workoutName` (snapshot, so the list can show "Workout: Upper Body" without an extra lookup). Activity `typeId` = the new seeded **Workout** type (added to the default types list in `exercise.js`; also seeded into existing accounts that don't have it). When present, the Activity edit screen shows the read-only workout summary + Edit Workout button.
@@ -274,10 +320,11 @@ What the good apps do, and what we'd take:
    - 6c. ~~**Calories before you edit**~~ — ✅ decided (D10): blank until entered; "No calories" badge as a reminder.
 7. ~~**Who uses it**~~ — ✅ decided (D11): user + wife on separate accounts; library shared, history personal. Sharing mechanism → `SharedSpacesPlan.md`.
 8. ~~**Music**~~ — ✅ decided (D12): yes, music from another app; our voice + beeps play over it.
-9. **Starter library** — seed a set of common exercises (push-up, squat, plank, lunge…) with names, cues and reps/time defaults but no pictures? Or start empty?
+9. ~~**Starter library**~~ — ✅ decided (D13): seed the 20 in §3.1a.
 10. **Create exercises while building a workout** — "+ New exercise" inline in the workout builder (like the inline new Activity Type), vs. only from the Exercises library page?
 11. **Throughout-the-day reminders** — should an open day-long workout nudge you (e.g. ntfy push every couple of hours), or just sit on the hub card?
 12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
+13. **Main vs. also-works targets** — mark each muscle as ★ main or secondary, or just a flat list of tags?
 
 ---
 
@@ -308,3 +355,5 @@ What the good apps do, and what we'd take:
 - **D10 (2026-10-21)** — **Calories start blank** on a finished workout (and its Activity) until the user enters the watch number — no estimate. Workout History cards show a "No calories" badge as a reminder.
 - **D11 (2026-10-21)** — **Shared library, personal history.** User and wife will each have accounts. **Exercises + Workouts (and their pictures)** should be shared between them; **Workout History, Activities, Daily Metrics** stay personal. Sharing itself is a bigger app-wide design (`SharedSpacesPlan.md`). Workouts doesn't wait for it: build on personal storage now, routed through a helper so the library can move to a shared space later with minimal change.
 - **D12 (2026-10-21)** — **Music plays from another app** during workouts; our spoken cues and beeps play over it. No in-app music.
+- **D13 (2026-10-21)** — **Seed a 20-exercise starter library** (§3.1a) — bodyweight + dumbbell, cues, defaults, no pictures. Editable; more can be added any time.
+- **D14 (2026-10-21)** — **Exercises are tagged with targets**: specific muscles (and/or Cardio), many per exercise. Areas (Upper Body / Core / Lower Body / Cardio) roll up automatically. Library filter answers "what works my calves?" by muscle or by area.
