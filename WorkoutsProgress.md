@@ -16,8 +16,8 @@
 | 1.6 | Frames from video / GIF | ✅ done |
 | 1.7 | Workouts list + builder (basic) | ✅ done |
 | 1.8 | Builder advanced (custom sets, circuits, inline new exercise, push/pull) | ✅ done |
-| 2.1 | Timeline engine | ⏳ next |
-| 2.2 | Start screen | ⬜ |
+| 2.1 | Timeline engine | ✅ done |
+| 2.2 | Start screen | ⏳ next |
 | 2.3 | Guided player UI | ⬜ |
 | 2.4 | Voice out + beeps + wake lock | ⬜ |
 | 2.5 | Voice commands | ⬜ |
@@ -25,7 +25,7 @@
 | 2.7 | Finished Workout screen | ⬜ |
 
 ## Next up
-**Phase 1 is complete.** Next: **2.1 Timeline engine** (no UI) — new file `js/workout-player.js` (add `<script src="js/workout-player.js?v=1">` after workouts.js in index.html; add to nothing else). Expand a workout doc (see data model comment at the top of the builder block in `js/workouts.js`: exercise steps with `sets[]` = CURRENT numbers, circuits with `items[]`/`rounds`) into a flat phase list: `getready` (10 s) → per step/set: `work` (timed amount, or reps → wait-for-done), `side switch` when `eachSide` (run the set twice: "Left side" then "Right side" with a short switch pause), `rest` (timed or tap) — rest-between-sets after each non-final set, rest-after after the last set; circuits: round × items with `restBetweenItems`, `restBetweenRounds` after each round except the last, `restAfter` at the end. Each phase: `{kind, label, exerciseId, setIndex, setCount, round, rounds, amount, weight, measure, side, durationSec|null (null = tap), next: <preview of the next work phase for the UP NEXT display>, section}`. Timestamp-based clock (store `phaseEndsAt`, not a ticking counter) with pause/resume/skip/back/+15 s. Verify with console checks on a circuit + pyramid workout (the numbers: a 3×10 timed/rep mix, a 10/5/3 pyramid, a 4-round 2-exercise circuit with tap rest between rounds).
+**2.2 Start screen** (`#workout-start/:id`) — add the route (`ALL_PAGES`, `LIFE_PAGES`, router branch in `js/app.js`; page shell `page-workout-start` in index.html; loader `loadWorkoutStartPage(id)` in `js/workout-player.js`), and a **▶ Start** button on workout list cards + builder (edit mode). Screen: workout name, date (default today, can backfill), mode picker (Guided enabled; Self-paced / Throughout the day shown as "coming soon"), voice on/off, and a per-step **override list** (change sets' reps/time/weight for THIS session only, with a "Save these changes back to the workout" checkbox — saving writes into `sets`/`baseSets` like the builder). Overrides are applied to a deep copy of the workout before `woBuildTimeline()`. Hand off to 2.3 via a module variable (e.g. `window._woSession = {workout, date, mode, voice}`) then `location.hash = '#workout-run'`. 2.1 engine API is documented in the spec ("Workout timeline engine") and at the top of `js/workout-player.js`; it is tested (fake-clock `now` option).
 
 ## Notes for the next session (code facts learned)
 - Routing: `js/app.js` — add page names to `ALL_PAGES` (~line 195), `LIFE_PAGES` (~224), `TOP_LEVEL_PAGES` (~158, only for nav-link pages), then an `else if (page === ...)` branch in the router (~795, Exercise routes) calling `showPage()` + a loader. Page shells are `<section class="page hidden" id="page-NAME">` in `index.html` (~7655).
@@ -34,7 +34,7 @@
 - Seeding pattern: `seedExerciseTypesIfNeeded()` / `_exEnsureMixedRunType()` in `exercise.js`.
 - Backup list: `BACKUP_DATA_COLLECTIONS` in `js/settings.js` (~839); `photos` already included.
 - Photo helpers in `js/photos.js`: `compressImage(file, opts)`, `triggerPasteUpload`, `handlePhotoFile`.
-- Current versions after 1.8: `sw.js` CACHE_NAME `bishop-v636`; `exercise.js?v=489`, `workouts.js?v=8`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
+- Current versions after 2.1: `sw.js` CACHE_NAME `bishop-v637`; `exercise.js?v=489`, `workouts.js?v=8`, `workout-player.js?v=1`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
 - **Preview gotcha**: after changing scripts, the preview may serve stale files. Run `location.reload()` (a hash-only `navigate` does NOT reload) and confirm `[...document.scripts]` shows the new `?v=` numbers before testing.
 - Preview: `preview_start` name `bishop-dev`; log in with the test account (memory `reference_test_account.md`) via `form_input` on the email/password refs then click Sign In; then drive pages with `location.hash` in `javascript_tool`. `node` is NOT installed, so syntax-check by loading in the preview and reading console errors. A 404 console error about a script fetch is the service worker path and is pre-existing.
 - Test frames in preview without file pickers: build canvases and call `woAddFrameData(canvas.toDataURL(...))` while on `#workout-exercise/:id`; `compressImage(new File([blob],'x.png'),{maxDimension:..,maxBase64:..})` can be called directly. File-picker/camera/paste buttons can't be driven in the preview, so they are only code-reviewed.
