@@ -1,6 +1,6 @@
 # SharedSpacesPlan.md — Sharing Data Between Accounts
 
-**Status**: 🗣️ Early idea — first thoughts only, nothing decided
+**Status**: 🗣️ In discussion (started 2026-10-21)
 **Area**: Whole app (data architecture)
 **Started**: 2026-10-21 (came up while planning Workouts — see `WorkoutsPlan.md` D11)
 
@@ -27,7 +27,7 @@ User's first idea: a "3rd shared space" protected by its own username/password, 
 
 ---
 
-## 3. First-Pass Recommendation: "Spaces" with Members (not a shared password)
+## 3. Approach: "Spaces" with Members (S1 — decided)
 
 **Idea**: a **Space** is a shared data area with a **member list**. You're already signed in with Firebase Auth, so Firebase knows exactly who you are — the security rules just check "is this person on the member list?"
 
@@ -49,6 +49,39 @@ users/{uid}/journal/…            ← private data stays where it is
 - A second Firebase account just for the space would work, but then everything written there looks like "the shared user" — you lose who-did-what, and both people need to juggle two logins.
 
 ---
+
+## 3a. Proposed Section Map (PROPOSAL — under review)
+
+**Rule: things attached to something live where it lives.** Photos, facts, problems, activities, quick tasks, calendar events attached to a plant/room/vehicle go wherever that plant/room/vehicle goes. So the decision is only made per *section*, never per photo.
+
+| | Section | Notes |
+|---|---|---|
+| 🏠 **Shared** | Yard (zones, plants, weeds, chemicals, saved actions) | |
+| 🏠 | House (floors, rooms, things, floor plans, breaker panels) | |
+| 🏠 | Garage, Structures | |
+| 🏠 | Vehicles (+ mileage logs) | |
+| 🏠 | Collections | |
+| 🏠 | Contacts / People (people, important dates, categories, interactions) | |
+| 🏠 | Neighbors (neighborhoods, houses, residents) | |
+| 🏠 | Life Projects (vacations, etc.) | Trips are usually together |
+| 🏠 | Budgets | User said finance |
+| 🏠 | Investments | User said finance |
+| 🏠 | Insurance policies | |
+| 🏠 | Checklists (templates + runs) | |
+| 🏠 | Workouts library (exercises, workouts, muscles) | From WorkoutsPlan D11 |
+| 🔒 **Private** | Journal | |
+| 🔒 | Private Vault (photos, docs, bookmarks) | |
+| 🔒 | Thoughts / Memories / My Thoughts / Notes & notebooks | |
+| 🔒 | My Health (meds, conditions, visits, vitals, blood work, etc.) | |
+| 🔒 | Exercise data (activities, daily metrics, goals, workout history) | |
+| 🔒 | Stock Analyzer (scans, trades, signals) | |
+| 🔒 | Places & Check-ins | |
+| 🔒 | Bucket List | |
+| 🔒 | SecondBrain history, AI usage log, app settings & keys | |
+| ❓ **Unsure** | **Calendar** | Mix of household events (yard spray) and personal ones |
+| ❓ | **Credentials** (passwords) | Household ones (wifi, utilities) vs. personal |
+| ❓ | **My Legacy** (death planning) | Joint estate vs. personal letters |
+| ❓ | **Health for others** (tracked contacts' health) | e.g. kids' health shared? |
 
 ## 4. Big Questions (to discuss)
 
@@ -74,4 +107,4 @@ users/{uid}/journal/…            ← private data stays where it is
 
 ## 6. Decisions Log
 
-_(empty)_
+- **S1 (2026-10-21)** — **Member-list spaces with invite codes**, enforced by Firestore security rules on the server. Each person keeps their own login; no shared username/password. Multiple spaces supported; owner can remove members.
