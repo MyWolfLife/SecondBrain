@@ -373,18 +373,70 @@ What the good apps do, and what we'd take:
 
 ## 9. Phasing
 
+Re-ordered so the app is **usable end to end after Phase 2** (build → do a guided workout → it's logged).
+
 | Phase | Scope |
 |---|---|
-| 1 | Exercise library (CRUD, frames incl. from video/GIF, cues, video link, targets, push/pull, 20-exercise seed) + Workout builder (steps, sets, rest, circuits) + Exercise → Fitness rename + hub cards (Exercises, Workouts, disabled **Programs — Coming soon**) |
-| 2 | **Guided player** — countdown, flipbook, up-next, spoken cues, beeps, wake lock, pause/skip, **voice commands** (§4.1a) |
-| 3 | Self-paced mode + session logging (target vs. actual) + summary + "last time" + auto Exercise Activity |
-| 4 | Throughout-the-day mode + in-progress card on hub/home |
-| 5 | History & PRs per exercise, **progression** (level-up suggestions, comeback ramp, reset to base — §5a), calendar scheduling |
+| 1 | **Library + Builder**: Exercise → Fitness rename, hub tiles (Exercises, Workouts, greyed **Programs — Coming soon**), muscles + 20-exercise seed, Exercises list/filter, exercise editor (targets, push/pull, frames incl. from video/GIF), Workouts list + builder (sets quick/custom, rest, circuits, inline new exercise, push/pull tally, est. time), seeded **Workout** activity type |
+| 2 | **Guided player + logging**: Start screen, guided countdown player (flipbook, up next, spoken cues, beeps, wake lock, controls, **voice commands**), save Workout History record, auto-create linked Activity, **Finished Workout** edit screen (calories, editable/addable/reorderable set lines) |
+| 3 | **Self-paced mode**, "last time" on Start screen, **Workout History** list (+ No calories badge), Activity screen read-only workout summary + Edit Workout, linked-delete choice (D9), summary/PRs on finish |
+| 4 | **Throughout-the-day mode** + in-progress card on Fitness hub/home |
+| 5 | **Progression** (§5a: level-up, comeback ramp, reset to base), per-exercise history & PR charts, muscle map / weekly balance, calendar scheduling |
 | 6 | Programs, EMOM/AMRAP/Tabata presets, AI workout builder, SecondBrain action |
 
 ---
 
-## 10. Decisions Log
+## 11. Execution Plan — Work Inventory
+
+**Every chunk** below = one commit following the CLAUDE.md checklist: update `MyLife-Functional-Spec.md` (Part 8e) + `AppHelp.md` (screen sections), bump `sw.js` CACHE_NAME + each changed script's `?v=`, add new collections to the `js/settings.js` backup list, test in the preview server with the test account, then commit + notify + push.
+
+**Files**
+- `js/workouts.js` — library, builder, history, finished-workout screen (new)
+- `js/workout-player.js` — Start screen, guided/self-paced/day player, timer engine, voice in/out (new — keeps the player separate and readable)
+- `js/exercise.js` — small touches only: Fitness labels, Workout activity type seed, Activity screen link to workout
+- `index.html` (page sections + script tags), `js/app.js` (routes), `css/styles.css` (workout styles)
+
+### Phase 1 — Library + Builder
+| # | Chunk | Done when |
+|---|---|---|
+| 1.1 | **Scaffolding & rename**: "Exercise" → "Fitness" in hub title, Life tile, breadcrumbs (display only); hub tiles Exercises / Workouts / greyed Programs "Coming soon"; register routes `#workout-exercises`, `#workout-exercise/:id`, `#workouts`, `#workout/:id` in `app.js`; empty page sections; `workouts.js` script tag; `woLibCol()` helper | Hub shows new tiles; routes open empty pages; spec/help say Fitness |
+| 1.2 | **Seed data**: `workoutMuscles` (§3.4) and the 20 `workoutExercises` (§3.1a, with cues, targets, push/pull); add **Workout** to `EXERCISE_DEFAULT_TYPES` + an "ensure" migration for existing accounts (same pattern as `_exEnsureMixedRunType`); backup list updated | Fresh test account gets 20 exercises + Workout type; existing account gets Workout type once |
+| 1.3 | **Exercises list**: cards (first frame thumb or placeholder, name, measure/default, push/pull badge, ★ main targets — badges left-aligned); search; filters — area, muscle, equipment, push/pull; ★ main matches first; show-archived toggle | "What works my calves?" answered by the filter |
+| 1.4 | **Exercise editor**: name, cues, measure, default amount, uses weight + default weight, each side, equipment, video link, push/pull, target chips (tap: ★ main → also → off), archive/delete | Edit + save round-trips; chips cycle correctly |
+| 1.5 | **Frames**: frame strip on the editor — Camera / Gallery / Paste (reuse `compressImage` + paste logic from `photos.js`), stored in `photos` with `targetType: 'workoutExercise'` + `frameOrder`; reorder ↑/↓, delete; **flipbook preview** (~0.8 s/frame) | 3 frames saved, reordered, flipbook animates |
+| 1.6 | **Frames from video / GIF**: picker screen — load video (scrubber + "Grab frame" + "Auto 3") or GIF (Chrome `ImageDecoder`, evenly spaced, adjustable); feature-detect GIF support | Frames grabbed from a phone video and a web GIF |
+| 1.7 | **Workouts list + builder (basic)**: list cards (name, est. time, combined targets, step count); builder with name/description, add exercise step (picker with the same filters), **quick sets** line, rest between sets / after (timed seconds or "tap when ready"), reorder ↑/↓, duplicate, delete step; store `baseSets[]` = `currentSets[]` + progression fields (D19) | Build "Upper A" with 4 exercises and save |
+| 1.8 | **Builder advanced**: **Customize sets** per-set rows (D3); **circuits** (group steps, rounds, rest between rounds); warm-up / cool-down labels; **inline + New exercise** (D16); **push/pull badges + tally + alternate hint** (D17); estimated total time; Copy workout | A 3-round circuit and a 10/5/3 pyramid both save and reload correctly |
+
+### Phase 2 — Guided player + logging
+| # | Chunk | Done when |
+|---|---|---|
+| 2.1 | **Timeline engine** (no UI): expand a workout into a flat list of phases — get-ready, work (per set, per side), side switch, rest, round rest — timed vs. tap-to-advance; timestamp-based clock (pause/resume/skip/back/+15s) | Console checks pass for a circuit + pyramid workout |
+| 2.2 | **Start screen** (`#workout-start/:id`): date, mode (Guided enabled; others "coming soon"), per-step overrides for this session (+ "save back to workout"), voice on/off | Overrides flow into the timeline |
+| 2.3 | **Guided player UI** (`#workout-run`): big ring countdown, name, flipbook, "Set 2 of 3 — 5 reps @ 45 lb", rest screen with **UP NEXT**, progress bar + time left, big controls, tap-anywhere = Done on reps steps, portrait + landscape | Full workout runs at 375 px and in landscape |
+| 2.4 | **Voice out + beeps + wake lock**: `speechSynthesis` cues (§4.1), Web Audio beeps, `navigator.wakeLock` with re-acquire on visibility change | Screen stays on; cues heard over music |
+| 2.5 | **Voice commands** (§4.1a): `SpeechRecognition` continuous + auto-restart, paused while speaking, synonym table, chime + on-screen flash, mic indicator/mute | "Done", "pause", "go", "skip", "more time", "what's next" work on Chrome/Android |
+| 2.6 | **Finish → save**: write `workoutSessions` record (sets target vs. actual, duration), auto-create linked `exerciseActivities` entry (Workout type, `workoutName`, blank calories) | Record + Activity appear, linked both ways |
+| 2.7 | **Finished Workout screen** (`#workout-done/:id`): summary (calories, notes, rating, duration), set lines editable/deletable, **+ Add line** + ↑/↓ reorder; save pushes calories/duration/date to the Activity | Watch calories entered → shows in Daily Metrics |
+
+### Phase 3 — Self-paced, history, activity link
+3.1 Self-paced mode · 3.2 "Last time" on Start screen · 3.3 Workout History list + No-calories badge · 3.4 Activity screen read-only workout summary + Edit Workout · 3.5 Linked-delete choice + "Create Activity" for orphans (D9) · 3.6 Finish summary (totals, volume, PRs)
+
+### Phase 4 — Throughout the day
+4.1 Day-mode checklist, persisted across devices · 4.2 In-progress card on Fitness hub + home · 4.3 End-of-day close (unfinished = skipped)
+
+### Phase 5 — Progression & insights
+5.1 Success streak + "Ready to level up" (§5a) · 5.2 Comeback ramp + "Welcome back" · 5.3 Reset to base · 5.4 Per-exercise history + PR chart · 5.5 Muscle map / weekly balance · 5.6 Calendar scheduling (tap event → start workout)
+
+### Phase 6 — Extras
+Programs · EMOM/AMRAP/Tabata/Ladder presets · AI workout builder · SecondBrain action (+ help entry per CLAUDE.md)
+
+### Later: Shared Spaces pilot
+When `SharedSpacesPlan.md` Phase 3 arrives, point `woLibCol()` at the shared container for the library. Workout History stays personal.
+
+---
+
+## 12. Decisions Log
 
 - **D1 (2026-10-21)** — Each exercise step is measured by **reps or time, not both**. Timed steps count down and auto-advance in Guided mode; reps steps wait for the user to tap Done (whole screen = Done button). No "time window" or seconds-per-rep estimates. Estimated workout length uses a rough seconds-per-rep figure for display only.
 - **D2 (2026-10-21)** — **Voice commands are part of the Guided player from the start** (not a later add-on). Say "Done"/"Next" to advance, plus pause/resume/skip/back/more time/repeat/what's next/how long. Tap anywhere is always the backup. Starter word list in §4.1a.
