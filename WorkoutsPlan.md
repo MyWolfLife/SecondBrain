@@ -61,33 +61,34 @@ A reusable catalog of movements. Built once, used in many workouts.
 | Uses weight? | Yes/No. If yes, default weight + unit (lb) |
 | Each side? | For one-arm/one-leg moves. If yes, the player runs it twice: "Left side" then "Right side" (with an optional short switch pause) |
 | Equipment | Optional tags — none / dumbbell / band / pull-up bar / kettlebell… (lets us filter "workouts I can do in a hotel") |
+| Push / Pull (D17) | **Push**, **Pull**, **Both**, or **Neither** (holds like plank, pure cardio). Curl = Pull, bench press = Push, burpee = Both. One value per exercise |
 | Targets (D14) | Tags for what it works — specific muscles (Calves, Hamstrings…) and/or Cardio. The body **area** (Lower Body, Upper Body…) is filled in automatically from the muscles. See §3.4 |
 
 ### 3.1a Starter Library (D13)
 Seeded once, the first time Exercises is opened. No pictures. Fully editable / deletable / archivable. Each comes with 2–3 short form cues.
 
-| # | Exercise | Measure | Default | Equipment | Each side | Targets (★ = main) |
-|---|---|---|---|---|---|---|
-| 1 | Push-up | Reps | 10 | None | | ★Chest, Triceps, Front shoulders, Abs |
-| 2 | Squat (bodyweight) | Reps | 15 | None | | ★Quads, ★Glutes, Hamstrings |
-| 3 | Lunge | Reps | 10 | None | ✓ | ★Quads, ★Glutes, Hamstrings, Calves |
-| 4 | Plank | Time | 30 sec | None | | ★Abs, Obliques, Lower back, Shoulders |
-| 5 | Side plank | Time | 20 sec | None | ✓ | ★Obliques, Abs, Hips |
-| 6 | Glute bridge | Reps | 15 | None | | ★Glutes, Hamstrings, Lower back |
-| 7 | Burpee | Reps | 8 | None | | ★Cardio, Chest, Quads, Shoulders |
-| 8 | Mountain climbers | Time | 30 sec | None | | ★Cardio, ★Abs, Shoulders, Hips |
-| 9 | Jumping jacks | Time | 30 sec | None | | ★Cardio, Calves, Shoulders |
-| 10 | Dips (chair/bench) | Reps | 10 | Chair | | ★Triceps, Chest, Front shoulders |
-| 11 | Pull-up | Reps | 5 | Pull-up bar | | ★Lats, Biceps, Upper back, Forearms |
-| 12 | Superman hold | Time | 20 sec | None | | ★Lower back, Glutes, Upper back |
-| 13 | Crunch | Reps | 15 | None | | ★Abs |
-| 14 | Wall sit | Time | 45 sec | None | | ★Quads, Glutes, Calves |
-| 15 | Goblet squat | Reps | 10 @ 25 lb | Dumbbell | | ★Quads, ★Glutes, Abs |
-| 16 | Dumbbell row | Reps | 10 @ 25 lb | Dumbbell | ✓ | ★Lats, Upper back, Biceps, Rear shoulders |
-| 17 | Shoulder press | Reps | 10 @ 20 lb | Dumbbells | | ★Shoulders, Triceps, Upper back |
-| 18 | Bicep curl | Reps | 12 @ 20 lb | Dumbbells | | ★Biceps, Forearms |
-| 19 | Romanian deadlift | Reps | 10 @ 30 lb | Dumbbells | | ★Hamstrings, ★Glutes, Lower back |
-| 20 | Farmer carry | Time | 45 sec @ 40 lb | Dumbbells | | ★Forearms, Traps, Abs, Cardio |
+| # | Exercise | Measure | Default | Equipment | Each side | Push/Pull | Targets (★ = main) |
+|---|---|---|---|---|---|---|---|
+| 1 | Push-up | Reps | 10 | None | | Push | ★Chest, Triceps, Front shoulders, Abs |
+| 2 | Squat (bodyweight) | Reps | 15 | None | | Push | ★Quads, ★Glutes, Hamstrings |
+| 3 | Lunge | Reps | 10 | None | ✓ | Push | ★Quads, ★Glutes, Hamstrings, Calves |
+| 4 | Plank | Time | 30 sec | None | | Neither | ★Abs, Obliques, Lower back, Shoulders |
+| 5 | Side plank | Time | 20 sec | None | ✓ | Neither | ★Obliques, Abs, Hips |
+| 6 | Glute bridge | Reps | 15 | None | | Push | ★Glutes, Hamstrings, Lower back |
+| 7 | Burpee | Reps | 8 | None | | Both | ★Cardio, Chest, Quads, Shoulders |
+| 8 | Mountain climbers | Time | 30 sec | None | | Neither | ★Cardio, ★Abs, Shoulders, Hips |
+| 9 | Jumping jacks | Time | 30 sec | None | | Neither | ★Cardio, Calves, Shoulders |
+| 10 | Dips (chair/bench) | Reps | 10 | Chair | | Push | ★Triceps, Chest, Front shoulders |
+| 11 | Pull-up | Reps | 5 | Pull-up bar | | Pull | ★Lats, Biceps, Upper back, Forearms |
+| 12 | Superman hold | Time | 20 sec | None | | Neither | ★Lower back, Glutes, Upper back |
+| 13 | Crunch | Reps | 15 | None | | Neither | ★Abs |
+| 14 | Wall sit | Time | 45 sec | None | | Neither | ★Quads, Glutes, Calves |
+| 15 | Goblet squat | Reps | 10 @ 25 lb | Dumbbell | | Push | ★Quads, ★Glutes, Abs |
+| 16 | Dumbbell row | Reps | 10 @ 25 lb | Dumbbell | ✓ | Pull | ★Lats, Upper back, Biceps, Rear shoulders |
+| 17 | Shoulder press | Reps | 10 @ 20 lb | Dumbbells | | Push | ★Shoulders, Triceps, Upper back |
+| 18 | Bicep curl | Reps | 12 @ 20 lb | Dumbbells | | Pull | ★Biceps, Forearms |
+| 19 | Romanian deadlift | Reps | 10 @ 30 lb | Dumbbells | | Pull | ★Hamstrings, ★Glutes, Lower back |
+| 20 | Farmer carry | Time | 45 sec @ 40 lb | Dumbbells | | Neither | ★Forearms, Traps, Abs, Cardio |
 
 ### 3.2 Workouts (the recipe)
 An ordered list of steps.
@@ -113,6 +114,8 @@ An ordered list of steps.
   - ✋ **Tap when ready** — waits for "I'm ready" (good for heavy sets)
 - Optional **warm-up / cool-down** sections (same structure, just labeled)
 - Reorder steps (↑/↓), duplicate a step, copy a whole workout ("Copy as new")
+- **+ New exercise inline** (D16): if the exercise you want isn't in the library, create it right from the builder — quick form (name, reps/time, default amount, weight?, push/pull) → saved to the library and added to the workout. Pictures, cues and targets can be filled in later from the library.
+- **Push/pull balance** (D17): each step shows a small Push / Pull badge, and the builder shows a running tally ("Push 4 · Pull 2"). A gentle hint (never a block) when 3+ pushes or pulls land in a row on the same area — "Consider alternating with a pull (e.g. Dumbbell row)", suggesting pulls that hit the same area.
 - **Estimated total time** shown on the workout card (computed from times, rests, and a seconds-per-rep estimate)
 
 ### 3.4 Targets: Areas & Muscles (D14)
@@ -285,7 +288,7 @@ What the good apps do, and what we'd take:
 - **New file**: `js/workouts.js` (keep `exercise.js` from growing further)
 - **Routes** (proposal): `#workouts` (list), `#workout/:id` (builder), `#workout-exercises`, `#workout-exercise/:id`, `#workout-run/:sessionId` (player), `#workout-history`
 - **Firestore collections** (per-user via `userCol()`):
-  - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], targets[] {muscleId, main: bool}, videoUrl, archived, isSeeded
+  - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], targets[] {muscleId, main: bool}, pushPull ('push'|'pull'|'both'|'neither'), videoUrl, archived, isSeeded
   - `workoutMuscles` — name, area (cardio/upper/core/lower), sortOrder — seeded from §3.4, editable. Cardio is one row with area 'cardio'. Area is looked up from the muscle, never stored on the exercise.
   - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
   - `workoutSessions` (= Workout History) — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, durationMinutes, calories, sets[] {exerciseId, exerciseName (snapshot), measure, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual (true if added on the edit screen)}, notes, rating, activityId (link to the `exerciseActivities` entry). Array order = display order; set numbers are computed, not stored.
@@ -321,7 +324,7 @@ What the good apps do, and what we'd take:
 7. ~~**Who uses it**~~ — ✅ decided (D11): user + wife on separate accounts; library shared, history personal. Sharing mechanism → `SharedSpacesPlan.md`.
 8. ~~**Music**~~ — ✅ decided (D12): yes, music from another app; our voice + beeps play over it.
 9. ~~**Starter library**~~ — ✅ decided (D13): seed the 20 in §3.1a.
-10. **Create exercises while building a workout** — "+ New exercise" inline in the workout builder (like the inline new Activity Type), vs. only from the Exercises library page?
+10. ~~**Create exercises while building a workout**~~ — ✅ decided (D16): yes, inline "+ New exercise" in the builder.
 11. **Throughout-the-day reminders** — should an open day-long workout nudge you (e.g. ntfy push every couple of hours), or just sit on the hub card?
 12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
 13. ~~**Main vs. also-works targets**~~ — ✅ decided (D15): yes, ★ main vs. also-works.
@@ -358,3 +361,5 @@ What the good apps do, and what we'd take:
 - **D13 (2026-10-21)** — **Seed a 20-exercise starter library** (§3.1a) — bodyweight + dumbbell, cues, defaults, no pictures. Editable; more can be added any time.
 - **D14 (2026-10-21)** — **Exercises are tagged with targets**: specific muscles (and/or Cardio), many per exercise. Areas (Upper Body / Core / Lower Body / Cardio) roll up automatically. Library filter answers "what works my calves?" by muscle or by area.
 - **D15 (2026-10-21)** — **Targets are ★ main or also-works.** Tap-to-cycle chips in the editor; filters rank main matches first.
+- **D16 (2026-10-21)** — **Create exercises inline** from the workout builder (quick form → saved to library + added to workout).
+- **D17 (2026-10-21)** — **Each exercise is Push, Pull, Both, or Neither.** Builder shows badges + a push/pull tally and gently suggests alternating pushes and pulls on the same area.
