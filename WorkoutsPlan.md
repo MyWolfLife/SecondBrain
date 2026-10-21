@@ -260,6 +260,45 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 
 ---
 
+## 5a. Progression — Getting Stronger Over Time (PROPOSAL, awaiting OK)
+
+User's requirements: suggest increases only after **many** successful sessions (e.g. 10, user-settable — not after 1–3); don't lose the starting numbers; handle **long breaks** (stops for months sometimes); same exercise in different workouts may use different set patterns (3×10 vs 10/5/3).
+
+### What trainers actually do (research summary)
+- **Double progression** (most common for non-competitive lifters, dates to 1911): pick a rep range (e.g. 8–12). Keep the weight, add reps until you hit the top of the range on **all** sets **consistently** → raise the weight a small step, drop back to the bottom of the range, repeat.
+- **Weight steps**: smallest available step, usually **+5 lb** (dumbbells often 2.5–5 lb).
+- **Bodyweight** (YAYOG style): add reps, then move to a harder version of the move. **Timed** holds: add a few seconds.
+- **After a break**: strength holds for ~3 weeks, then drops faster. Common advice after **4+ weeks off: restart at ~50–60% of your old weights and build back over ~4 weeks** — "muscle memory" makes the climb back much faster than the first time.
+
+### Proposed design
+**1. Base vs. Current — kept per workout step, not by copying workouts**
+- Each step in a workout stores two sets of numbers: **Base** (what you built — never changes on its own) and **Current** (where you are now — what the player uses).
+- No duplicate workouts. A "Reset to base" button on the step (and on the whole workout) for a fresh start.
+- **Current lives on the workout step, not on the exercise.** Curls in "Upper A" (3×10) and curls in "Arms Pyramid" (10/5/3) progress separately — they're different jobs. The Start screen still shows "Last time you did curls (any workout): …" for reference.
+
+**2. When it suggests an increase**
+- Each step counts **successful sessions in a row** = every set hit its Current target.
+- Miss a target → counter resets to 0 (no penalty, Current stays).
+- When the counter reaches **N** (default **10**, user-settable in Fitness settings and overridable per step) → Start screen shows **"⬆ Ready to level up"** with the suggestion. **Accept** → Current updates, counter resets. **Not yet** → asks again next time.
+
+**3. What the suggestion is** (automatic, by exercise kind)
+| Kind | Suggestion |
+|---|---|
+| Weighted, all sets same (3×10 @ 20 lb) | **Double progression**: +1 rep per set up to a top (default base reps + 2, e.g. 12); once at the top → +5 lb and back to base reps |
+| Weighted, custom sets (10 @ 25 / 5 @ 45 / 3 @ 60) | Keep the reps pattern, **+5 lb on every set** |
+| Bodyweight reps (push-ups 3×10) | +1 rep per set (later: "try a harder version" link) |
+| Timed (plank 30s) | +5 sec |
+- Step sizes (+5 lb, +1 rep, +5 sec, top-of-range) are settings, editable per step.
+
+**4. Coming back after a break**
+- Start screen checks when you last did each step. If it's been **4+ weeks** (setting): **"Welcome back — it's been 3 months since Upper A."** Choices: **Comeback (recommended): start at 60% of Current** / Start at Base / Start at Current.
+- **Comeback ramp**: each completed session climbs ~10% back toward your old Current (no 10-session wait) until you're back. Then normal progression resumes.
+- The old Current is remembered as **"Previous best"** so the ramp knows where to stop.
+
+**5. Nothing is ever lost** — Workout History keeps every set you actually did, so charts/PRs show the full story regardless of Base/Current changes.
+
+Sources: [Alpha Progression — double progression](https://alphaprogression.com/en/glossary/double-progression), [Fitbudd — double progression](https://www.fitbudd.com/academy/double-progression-definition-and-examples), [RDL Fitness — how to progress](https://www.rdlfitness.com/blog/how-to-make-lifting-progress), [PureGym — returning after a break](https://www.puregym.com/us/blog/ready-to-get-back-into-weight-training-after-a-long-break), [Art of Manliness — training hiatus](https://www.artofmanliness.com/strength/fitness/took-a-training-hiatus-heres-how-to-gain-back-the-muscle-you-lost/)
+
 ## 6. "Best App Anyone Has Seen" — ideas borrowed from the field
 
 What the good apps do, and what we'd take:
@@ -326,7 +365,7 @@ What the good apps do, and what we'd take:
 9. ~~**Starter library**~~ — ✅ decided (D13): seed the 20 in §3.1a.
 10. ~~**Create exercises while building a workout**~~ — ✅ decided (D16): yes, inline "+ New exercise" in the builder.
 11. ~~**Throughout-the-day reminders**~~ — ✅ decided (D18): no reminders; hub card only.
-12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
+12. **Progression** — 🔶 researched; proposal in §5a (Base vs. Current per step, level-up after N=10 successes, comeback ramp after breaks). Awaiting OK.
 13. ~~**Main vs. also-works targets**~~ — ✅ decided (D15): yes, ★ main vs. also-works.
 
 ---
