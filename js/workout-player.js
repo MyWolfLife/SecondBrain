@@ -338,6 +338,45 @@ function _woTodayISO() {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+/** "3×12 @ 25 lb" or "10 @ 25 / 5 @ 45 / 3 @ 60 lb" from the done set lines of one exercise. */
+function woFmtLastSets(lines) {
+    if (!lines.length) return '';
+    var timed = lines[0].measure === 'time', unit = timed ? ' sec' : '';
+    var uniform = lines.every(function(l) { return l.actualAmount === lines[0].actualAmount && l.actualWeight === lines[0].actualWeight; });
+    var w = function(l) { return l.actualWeight != null ? ' @ ' + l.actualWeight + ' lb' : ''; };
+    if (uniform) return lines.length + '×' + lines[0].actualAmount + unit + w(lines[0]);
+    return lines.map(function(l) { return l.actualAmount + (l.actualWeight != null ? ' @ ' + l.actualWeight : ''); }).join(' / ') + (timed ? ' sec' : (lines.some(function(l) { return l.actualWeight != null; }) ? ' lb' : ' reps'));
+}
+
+/** exerciseId → {date, text} from the most recent finished workout that included it (any workout). */
+async function _woLastTimeMap(steps) {
+    var want = {};
+    _woFlatExercises(steps).forEach(function(st) { want[st.exerciseId] = true; });
+    var snap = await userCol('workoutSessions').get();
+    var sessions = snap.docs.map(function(d) { return d.data(); });
+    sessions.sort(function(a, b) { return (b.date || '').localeCompare(a.date || '') || (b.startedAt || '').localeCompare(a.startedAt || ''); });
+    var out = {};
+    sessions.forEach(function(sess) {
+        Object.keys(want).forEach(function(exId) {
+            if (out[exId]) return;
+            // a left/right pair counts as one set — keep the left (or only) line
+            var lines = (sess.sets || []).filter(function(l) {
+                return l.exerciseId === exId && !l.skipped && l.actualAmount != null && l.side !== 'right';
+            });
+            if (lines.length) out[exId] = { date: sess.date, text: woFmtLastSets(lines) };
+        });
+    });
+    return out;
+}
+
+function _woLastTimeHtml(exerciseId) {
+    var l = _woS && _woS.last && _woS.last[exerciseId];
+    if (!l) return '';
+    var p = l.date.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return '<div class="wo-lasttime">Last time: ' + _woEsc(l.text) + ' · ' + _woEsc(d) + '</div>';
+}
+
 async function loadWorkoutStartPage(id) {
     var el = document.getElementById('page-workout-start');
     _woSetChrome([['Workouts', '#workouts'], ['Start']]);
@@ -349,8 +388,9 @@ async function loadWorkoutStartPage(id) {
         if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout not found.</div>'; return; }
         var w = doc.data(); w.id = doc.id;
         w.steps = _woCleanSteps(w.steps);
+        var last = await _woLastTimeMap(w.steps);
         var prefs = _woLoadPlayerPrefs();
-        _woS = { id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
+        _woS = { last: last, id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
                  date: _woTodayISO(), voiceCues: prefs.cues, voiceCmds: prefs.commands && !!woSpeechRecognitionCtor(),
                  saveBack: false };
     } catch (err) {
@@ -374,7 +414,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span>' +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span>' + _woLastTimeHtml(it.exerciseId) +
                         '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>';
                 }).join('') + '</div>';
@@ -382,6 +422,7 @@ function _woRenderStartPage() {
         return '<div class="wo-step" data-path="' + i + '">' +
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') + '</div>' +
+            _woLastTimeHtml(st.exerciseId) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
             (st.sets || []).map(function(set, k) {
                 return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +

@@ -21807,3 +21807,6 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-ro-label { display: inline-block; min-width: 82px; color: #6b7280; font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 .wo-ro-list { margin: 6px 0 0 18px; padding: 0; }
 .wo-ro-list li { margin: 3px 0; }
+
+.wo-lasttime { margin: 4px 0 0 32px; font-size: 0.8rem; color: #0f766e; }
+.wo-item .wo-lasttime { margin: 0; }

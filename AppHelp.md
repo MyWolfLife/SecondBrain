@@ -4841,6 +4841,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
 - **Guided** counts down every exercise and rest for you (the other modes are coming soon)
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome
+- **Last time** under each exercise shows what you did when you last did it (in any workout), so you know what to beat
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout
 - Tick **Save these changes back to the workout** if you want the new numbers to stick
 - Tap **▶ Start workout** when you're ready
