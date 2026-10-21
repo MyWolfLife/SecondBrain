@@ -92,7 +92,41 @@ Phone propped up, hands-free, just watch and follow.
 - Progress bar for the whole workout + time remaining
 - Landscape layout for a phone on its side; portrait also works
 
-**Reps vs. time in Guided mode** (decided — see §10, D1): a **timed** step counts down and auto-advances. A **reps** step shows the target ("12 push-ups") and **waits for Done**. To make that easy from across the room, the whole screen is the Done button while a reps step is showing. A spoken "done" could come later (see §8, Q1b). So a fully hands-free workout = all timed steps; mixing in reps steps is fine, they just pause for a tap.
+**Reps vs. time in Guided mode** (decided — see §10, D1, D2): a **timed** step counts down and auto-advances. A **reps** step shows the target ("12 push-ups") and **waits for Done** — said out loud (voice commands, §4.1a) or by tapping anywhere on the screen.
+
+### 4.1a 🎙️ Voice Commands (built in from the start — D2)
+Talk to the phone from across the room. Uses the browser's built-in speech recognition (free, no API key).
+
+**Starter command list** (each has a few synonyms so you don't have to remember the exact word):
+
+| Say | Does |
+|---|---|
+| **"Done"** / "Next" / "Finished" | Finish this set → start rest (or move on) |
+| **"Pause"** / "Stop" / "Hold on" | Pause the clock |
+| **"Go"** / "Resume" / "Start" | Resume |
+| **"Ready"** | End rest early, start the next exercise |
+| **"Skip"** | Skip this exercise |
+| **"Back"** / "Previous" | Go back one step |
+| **"More time"** / "Add time" | +15 sec to the current countdown |
+| **"Repeat"** / "What?" | Re-speak what you're doing now |
+| **"What's next"** | Speak the next exercise |
+| **"How long"** / "Time" | Speak the time left (this step + whole workout) |
+| **"Change weight 30"** / "Did 10" | Log a different weight or rep count for the set just done (stretch goal) |
+| **"End workout"** | Finish early → summary (asks "Are you sure?" out loud first) |
+
+**How it behaves:**
+- Mic indicator on screen (🎙️ listening / muted); tap it to mute/unmute. A "Voice commands on/off" switch on the Start screen.
+- When a command is heard: a quick chime + the word flashes on screen ("NEXT ✓") so you know it got it.
+- **Ignores itself**: listening pauses while the app's own voice is talking, so "Up next: squats" doesn't trigger "Next".
+- Only short exact commands count — a word buried in a long sentence (or a song lyric) is ignored.
+- Tapping always works as a backup.
+
+**Limits to know about (honest list):**
+- Works in **Chrome** (desktop, Chromebook, Android). iPhone Safari support is spotty — tap fallback covers it.
+- Chrome sends the audio to Google to turn it into text (free, no key). Needs a connection — fine, app is online-only.
+- Chrome stops listening after a stretch of silence; the app quietly restarts it. On some Android phones each restart makes a tiny system beep — we'll test and see how annoying it is.
+- Loud music near the phone can drown out commands. Talking a bit louder / closer usually fixes it.
+- First use asks for microphone permission (one time).
 
 ### 4.2 ✅ Self-paced (gym / lifting style — like Strong or Hevy)
 - Shows the current exercise + pictures; you do the set, tap **Done**
@@ -152,7 +186,8 @@ What the good apps do, and what we'd take:
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
 - **Name clash to avoid**: "Exercise" already means the whole section, and `exerciseTypes` are cardio activity types (Walk, Run…). Library items need a distinct name in code (`workoutExercises`) and maybe in the UI too (see Q4).
 - **Timers**: timestamp-based (store "phase ends at" time, not a ticking counter) so a pause, a background tab, or a screen flicker never drifts the clock
-- **Voice**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
+- **Voice out**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
+- **Voice in**: `SpeechRecognition` / `webkitSpeechRecognition` with `continuous` + `interimResults`; auto-restart on `end`; suspend while `speechSynthesis.speaking`; match the final transcript against a synonym table (short phrases only). Feature-detect and hide the mic UI when unsupported. Command table lives in one place in code so new words are easy to add.
 - **Wake Lock**: `navigator.wakeLock.request('screen')` — supported on Chrome/Android/Chromebook and iOS Safari 16.4+
 - **Backup**: add all new collections to `js/settings.js` backup logic
 - Spec + AppHelp + cache-bump rules apply to every phase
@@ -162,7 +197,7 @@ What the good apps do, and what we'd take:
 ## 8. Open Questions (to discuss, one at a time)
 
 1. ~~**Reps in Guided mode**~~ — ✅ decided (D1): a step is reps **or** time, never both; reps steps wait for a tap.
-   - 1b. Later: say "done" out loud instead of tapping? (Chrome speech recognition — free, needs mic permission; Chrome/Android/Chromebook only.)
+   - 1b. ✅ decided (D2): voice commands are built in from day one (§4.1a).
 2. **Weight tracking depth** — just one weight per exercise, or per set (e.g. pyramid 25/30/35 lb)?
 3. **Pictures** — will you take your own photos (yourself doing the move), or pull images from the web? Affects whether we need an "add from URL" option.
 4. **Naming** — call the library items "Exercises" (clear, but overlaps the section name) or something like "Moves"?
@@ -178,7 +213,7 @@ What the good apps do, and what we'd take:
 | Phase | Scope |
 |---|---|
 | 1 | Exercise library (CRUD, frames, cues, video link) + Workout builder (steps, sets, rest, circuits) |
-| 2 | **Guided player** — countdown, flipbook, up-next, voice, beeps, wake lock, pause/skip |
+| 2 | **Guided player** — countdown, flipbook, up-next, spoken cues, beeps, wake lock, pause/skip, **voice commands** (§4.1a) |
 | 3 | Self-paced mode + session logging (target vs. actual) + summary + "last time" + auto Exercise Activity |
 | 4 | Throughout-the-day mode + in-progress card on hub/home |
 | 5 | History & PRs per exercise, progression suggestions, calendar scheduling |
@@ -189,3 +224,4 @@ What the good apps do, and what we'd take:
 ## 10. Decisions Log
 
 - **D1 (2026-10-21)** — Each exercise step is measured by **reps or time, not both**. Timed steps count down and auto-advance in Guided mode; reps steps wait for the user to tap Done (whole screen = Done button). No "time window" or seconds-per-rep estimates. Estimated workout length uses a rough seconds-per-rep figure for display only.
+- **D2 (2026-10-21)** — **Voice commands are part of the Guided player from the start** (not a later add-on). Say "Done"/"Next" to advance, plus pause/resume/skip/back/more time/repeat/what's next/how long. Tap anywhere is always the backup. Starter word list in §4.1a.
