@@ -168,6 +168,24 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 | Delete the whole thing (entire house) | | | ✓ |
 | Un-share it (pulls it back to the owner's private area) | | | ✓ |
 
+## 3f. Behind-the-Scenes Defaults (PROPOSAL — under review)
+
+**Moving data when you first press Share** (answers Q3):
+- The first time you share something private (e.g. the House), the app **copies** it and everything attached into its new shared container, checks the copy, then removes the private original. Progress bar while it runs.
+- **Automatic backup first** — a backup is taken right before any move, so nothing can be lost.
+- Un-sharing does the same in reverse (back to the owner's private area).
+- After that first move, changing people/roles never moves data again.
+
+**Backup** (answers Q5):
+- Your backup includes **your private data + everything you own**, shared or not.
+- Things others shared with you are the owner's to back up — but a checkbox **"Also include things shared with me"** lets you keep your own copy.
+- Restoring puts shared things back in their shared containers (owner only).
+
+**Offline Trip Mode** (answers Q6):
+- Going offline downloads your private data **and** everything shared with you, so it's all readable on the trip.
+- The read-only lock stays **per person**: it only locks *your own other devices*, never other people's. Your wife can keep editing the shared house while you're away.
+- You **can** edit shared things while offline (e.g. the vacation itinerary). They sync when you're back. If you both changed the *same field* of the *same item*, the later sync wins — rare in practice.
+
 ## 4. Big Questions (to discuss)
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
