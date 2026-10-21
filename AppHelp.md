@@ -4856,11 +4856,16 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:workout-done
 
-**What this screen is for:** The record of a workout you just finished.
+**What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
-- Your workout was saved automatically and added to your Activities
-- Adding calories from your watch, notes, and editing individual sets are coming in the next update
+- Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**
+- Enter **Calories burned** from your watch — Save sends the calories, time and date to the matching Activity too
+- **Sets**: change any reps/seconds or weight, tap 🗑 to remove a line, **↑ ↓** to reorder, **+ Add line** to add an exercise you did that wasn't in the workout. Set numbers update by themselves
+- Sets you skipped are greyed — type a number to count one as done
+- Tap a number under **How hard was it?** to rate the workout (tap it again to clear)
+- **Delete** asks whether to also delete the linked Activity; choose "Only the workout record" to keep the Activity
+- **Create Activity** appears if the workout has no Activity entry
 
 ---
 
