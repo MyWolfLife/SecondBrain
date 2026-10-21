@@ -33,6 +33,16 @@ I am either doing all at once ... or split up over the day
 
 ---
 
+## 2a. Words We Use (D5)
+
+| Word in the UI | Means |
+|---|---|
+| **Fitness** | The Life section (renamed from "Exercise" — display label only) |
+| **Exercises** | The library of movements (Push-up, Goblet Squat…) |
+| **Workouts** | A routine you built from exercises |
+| **Workout History** | Workouts you've actually done (each one = a dated record) |
+| **Activities** | Unchanged — the existing cardio/activity log (walks, runs, golf…) |
+
 ## 3. Organized: The Three Building Blocks
 
 ### 3.1 Exercises (the library)
@@ -199,7 +209,7 @@ What the good apps do, and what we'd take:
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
 - **Frames from a video** (D4): pick a short video (record yourself doing 1 rep, or a saved clip) → app shows it with a scrubber → you tap "Grab frame" at start / middle / end (or "Auto: 3 evenly spaced") → each frame is drawn onto a canvas and compressed like any other photo. All in the browser, nothing uploaded, the video itself is **not** stored. Easiest way to get clean motion frames — one video instead of a friend taking 3 photos at the right instant.
 - **Paste from web**: reuse `triggerPasteUpload` in `photos.js`. Note: a plain "paste an image URL" box mostly won't work — most sites block other pages from reading their images (CORS), so we can't compress them. Copy image → Paste gets around that.
-- **Name clash to avoid**: "Exercise" already means the whole section, and `exerciseTypes` are cardio activity types (Walk, Run…). Library items need a distinct name in code (`workoutExercises`) and maybe in the UI too (see Q4).
+- **Naming in code** (D5): the section rename to "Fitness" is **display text only** (hub title, Life tile, breadcrumbs, spec/help wording). Routes (`#exercise…`), Firestore collections (`exercise…`), and `exercise.js` stay as-is — renaming them would break saved data and links for no user benefit. Library collection is `workoutExercises` in code (avoids confusion with the existing cardio `exerciseTypes`), shown as "Exercises" in the UI. Rename lands with Phase 1.
 - **Timers**: timestamp-based (store "phase ends at" time, not a ticking counter) so a pause, a background tab, or a screen flicker never drifts the clock
 - **Voice out**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
 - **Voice in**: `SpeechRecognition` / `webkitSpeechRecognition` with `continuous` + `interimResults`; auto-restart on `end`; suspend while `speechSynthesis.speaking`; match the final transcript against a synonym table (short phrases only). Feature-detect and hide the mic UI when unsupported. Command table lives in one place in code so new words are easy to add.
@@ -216,7 +226,7 @@ What the good apps do, and what we'd take:
 2. ~~**Weight tracking depth**~~ — ✅ decided (D3): every set has its own reps/time and weight; quick entry when they're all the same.
 3. ~~**Pictures**~~ — ✅ decided (D4): both. Camera, gallery, paste, and grab-frames-from-video.
    - 3b. Animated GIFs from the web (common for exercise demos): flattening them loses the motion. Option: keep a small GIF as-is and play it instead of the flipbook. Decide when building Phase 1.
-4. **Naming** — call the library items "Exercises" (clear, but overlaps the section name) or something like "Moves"?
+4. ~~**Naming**~~ — ✅ decided (D5): section → **Fitness**; **Exercises** (library), **Workouts** (built routines), **Workout History** (ones you've done).
 5. **Programs** — YAYOG's real power is multi-week programs (Week 1 → Week 10, getting harder). In scope eventually, or just individual workouts?
 6. **Activity log integration** — when a workout finishes, auto-create the Exercise Activity entry, or ask first? What calorie estimate?
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
@@ -243,3 +253,4 @@ What the good apps do, and what we'd take:
 - **D2 (2026-10-21)** — **Voice commands are part of the Guided player from the start** (not a later add-on). Say "Done"/"Next" to advance, plus pause/resume/skip/back/more time/repeat/what's next/how long. Tap anywhere is always the backup. Starter word list in §4.1a.
 - **D3 (2026-10-21)** — **Sets can differ.** Each set of an exercise has its own reps (or time) and weight — e.g. 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb — or they can all be the same (3 × 10 @ 25 lb). Builder offers a one-line quick entry and an expandable per-set view. Stored as a `sets[]` array always.
 - **D4 (2026-10-21)** — **Pictures come from anywhere**: own photos (camera/gallery) and web images (paste, or saved then picked from gallery). Plus a new **grab frames from a video** tool to make motion frames easily. Video itself not stored.
+- **D5 (2026-10-21)** — **Names**: rename the section **Exercise → Fitness** (display only; code/routes/data untouched). Inside it: **Exercises** (library), **Workouts** (routines), **Workout History** (done), **Activities** (existing log, unchanged). User priority: words must be obvious.
