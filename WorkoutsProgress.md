@@ -17,15 +17,15 @@
 | 1.7 | Workouts list + builder (basic) | ✅ done |
 | 1.8 | Builder advanced (custom sets, circuits, inline new exercise, push/pull) | ✅ done |
 | 2.1 | Timeline engine | ✅ done |
-| 2.2 | Start screen | ⏳ next |
-| 2.3 | Guided player UI | ⬜ |
+| 2.2 | Start screen | ✅ done |
+| 2.3 | Guided player UI | ⏳ next |
 | 2.4 | Voice out + beeps + wake lock | ⬜ |
 | 2.5 | Voice commands | ⬜ |
 | 2.6 | Finish → save record + linked Activity | ⬜ |
 | 2.7 | Finished Workout screen | ⬜ |
 
 ## Next up
-**2.2 Start screen** (`#workout-start/:id`) — add the route (`ALL_PAGES`, `LIFE_PAGES`, router branch in `js/app.js`; page shell `page-workout-start` in index.html; loader `loadWorkoutStartPage(id)` in `js/workout-player.js`), and a **▶ Start** button on workout list cards + builder (edit mode). Screen: workout name, date (default today, can backfill), mode picker (Guided enabled; Self-paced / Throughout the day shown as "coming soon"), voice on/off, and a per-step **override list** (change sets' reps/time/weight for THIS session only, with a "Save these changes back to the workout" checkbox — saving writes into `sets`/`baseSets` like the builder). Overrides are applied to a deep copy of the workout before `woBuildTimeline()`. Hand off to 2.3 via a module variable (e.g. `window._woSession = {workout, date, mode, voice}`) then `location.hash = '#workout-run'`. 2.1 engine API is documented in the spec ("Workout timeline engine") and at the top of `js/workout-player.js`; it is tested (fake-clock `now` option).
+**2.3 Guided player UI** — replace the placeholder `loadWorkoutRunPage()` at the end of `js/workout-player.js`. Input: `window._woSession` = `{workoutId, workoutName, workout:{steps}, date, mode, voiceCues, voiceCmds}` (if missing → redirect to `#workouts`). Build `woBuildTimeline(session.workout)` + `woCreateRunner(...)` with a ~200 ms `setInterval` calling `runner.tick()` (clear it when leaving the page). Screen: big ring countdown + giant seconds, exercise name, flipbook of the exercise's frames (`woLibCol('photos')` where targetType 'workoutExercise' & targetId; cycle ~0.8 s; fall back to 🤸), "Set 2 of 3 — 5 reps @ 45 lb" (circuits: "Round 2 of 4"; each side: "Left side"), section label; **rest screen** with big rest countdown and **UP NEXT** (the next work phase via `runner.nextWork()` with its frames/weight); reps phases show a big **DONE** (whole screen tappable = `runner.done()`); progress bar + estimated time left (`remainingEstimateSec`); controls ⏸/▶, ⏮ back, ⏭ skip, +15 s, ✕ end (confirm). Portrait + landscape (CSS `@media (orientation: landscape)`), readable from ~8 ft. Also add **▶ Start** entry points: button on workout list cards and in the builder (edit mode) → `#workout-start/:id`; remove "(placeholder)" wording from spec/help for the Start screen. On `onDone` → show a "Workout complete" screen and stash `runner.results` + `session` for chunk 2.6 (don't save yet). Voice (2.4/2.5) and wake lock (2.4) come next — leave hooks: `onPhase` callback is where spoken cues go.
 
 ## Notes for the next session (code facts learned)
 - Routing: `js/app.js` — add page names to `ALL_PAGES` (~line 195), `LIFE_PAGES` (~224), `TOP_LEVEL_PAGES` (~158, only for nav-link pages), then an `else if (page === ...)` branch in the router (~795, Exercise routes) calling `showPage()` + a loader. Page shells are `<section class="page hidden" id="page-NAME">` in `index.html` (~7655).
@@ -34,7 +34,7 @@
 - Seeding pattern: `seedExerciseTypesIfNeeded()` / `_exEnsureMixedRunType()` in `exercise.js`.
 - Backup list: `BACKUP_DATA_COLLECTIONS` in `js/settings.js` (~839); `photos` already included.
 - Photo helpers in `js/photos.js`: `compressImage(file, opts)`, `triggerPasteUpload`, `handlePhotoFile`.
-- Current versions after 2.1: `sw.js` CACHE_NAME `bishop-v637`; `exercise.js?v=489`, `workouts.js?v=8`, `workout-player.js?v=1`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
+- Current versions after 2.2: `sw.js` CACHE_NAME `bishop-v638`; `exercise.js?v=489`, `workouts.js?v=8`, `workout-player.js?v=2`, `app.js?v=490`, `app.js?v=489`, `settings.js?v=492`, `photos.js?v=487`.
 - **Preview gotcha**: after changing scripts, the preview may serve stale files. Run `location.reload()` (a hash-only `navigate` does NOT reload) and confirm `[...document.scripts]` shows the new `?v=` numbers before testing.
 - Preview: `preview_start` name `bishop-dev`; log in with the test account (memory `reference_test_account.md`) via `form_input` on the email/password refs then click Sign In; then drive pages with `location.hash` in `javascript_tool`. `node` is NOT installed, so syntax-check by loading in the preview and reading console errors. A 404 console error about a script fetch is the service worker path and is pre-existing.
 - Test frames in preview without file pickers: build canvases and call `woAddFrameData(canvas.toDataURL(...))` while on `#workout-exercise/:id`; `compressImage(new File([blob],'x.png'),{maxDimension:..,maxBase64:..})` can be called directly. File-picker/camera/paste buttons can't be driven in the preview, so they are only code-reviewed.

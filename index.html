@@ -7726,6 +7726,16 @@ service firebase.storage {
             <!-- Populated by loadWorkoutBuilderPage() in workouts.js -->
         </section>
 
+        <!-- Page: Workout Start screen (#workout-start/:id) -->
+        <section class="page hidden" id="page-workout-start">
+            <!-- Populated by loadWorkoutStartPage() in workout-player.js -->
+        </section>
+
+        <!-- Page: Workout player (#workout-run) -->
+        <section class="page hidden" id="page-workout-run">
+            <!-- Populated by loadWorkoutRunPage() in workout-player.js -->
+        </section>
+
         <!-- Page: Life Calendar (#life-calendar) -->
         <section class="page hidden" id="page-life-calendar">
             <!-- Populated by loadLifeCalendarPage() in lifecalendar.js -->
@@ -12157,7 +12167,7 @@ export default {
     <script src="js/life-projects-day-ai.js?v=496"></script>
     <script src="js/exercise.js?v=489"></script>
     <script src="js/workouts.js?v=8"></script>
-    <script src="js/workout-player.js?v=1"></script>
+    <script src="js/workout-player.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <!-- zip.js — AES-256 encrypted zip for Private Vault backup -->
@@ -12198,7 +12208,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=489"></script>
+    <script src="js/app.js?v=490"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

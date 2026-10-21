@@ -309,3 +309,219 @@ function woCreateRunner(phases, cb, opts) {
 
     return R;
 }
+
+// ─── 3. Start screen (#workout-start/:id) ─────────────────────────────────────
+//
+// Pre-flight: pick the date and mode, tweak numbers for THIS session only (optionally
+// saving them back), choose voice options. "Start" hands a ready-to-run session to the
+// guided player through window._woSession and opens #workout-run.
+
+var _woS = null;   // {id, original, workout, date, voiceCues, voiceCmds, saveBack}
+
+/** Browser speech recognition constructor, or null when unsupported (e.g. iPhone Safari). */
+function woSpeechRecognitionCtor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function _woLoadPlayerPrefs() {
+    var p = { cues: true, commands: true };
+    try { var s = JSON.parse(localStorage.getItem('woPlayerPrefs') || 'null'); if (s) { p.cues = s.cues !== false; p.commands = s.commands !== false; } } catch (e) {}
+    return p;
+}
+
+function _woSavePlayerPrefs(cues, commands) {
+    try { localStorage.setItem('woPlayerPrefs', JSON.stringify({ cues: cues, commands: commands })); } catch (e) {}
+}
+
+function _woTodayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+async function loadWorkoutStartPage(id) {
+    var el = document.getElementById('page-workout-start');
+    _woSetChrome([['Workouts', '#workouts'], ['Start']]);
+    el.innerHTML = '<div class="page-header"><h2>Start workout</h2></div><div class="ex-status">Loading…</div>';
+    try {
+        await woLoadMuscles();
+        await woLoadExercises();
+        var doc = await woLibCol('workouts').doc(id).get();
+        if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout not found.</div>'; return; }
+        var w = doc.data(); w.id = doc.id;
+        w.steps = _woCleanSteps(w.steps);
+        var prefs = _woLoadPlayerPrefs();
+        _woS = { id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
+                 date: _woTodayISO(), voiceCues: prefs.cues, voiceCmds: prefs.commands && !!woSpeechRecognitionCtor(),
+                 saveBack: false };
+    } catch (err) {
+        console.error('Workouts: failed to load workout for start:', err);
+        el.innerHTML = '<div class="ex-status">Could not load this workout.</div>';
+        return;
+    }
+    _woRenderStartPage();
+}
+
+function _woStartUnit(st) { return st.measure === 'time' ? 'sec' : 'reps'; }
+
+function _woRenderStartPage() {
+    var s = _woS, w = s.workout, el = document.getElementById('page-workout-start');
+    var canListen = !!woSpeechRecognitionCtor();
+
+    var stepsHtml = w.steps.map(function(st, i) {
+        if (st.type === 'circuit') {
+            return '<div class="wo-step wo-circuit" data-path="' + i + '">' +
+                '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">Circuit</span>' +
+                '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
+                (st.items || []).map(function(it, j) {
+                    var s0 = (it.sets && it.sets[0]) || {};
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span>' +
+                        '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
+                        (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>';
+                }).join('') + '</div>';
+        }
+        return '<div class="wo-step" data-path="' + i + '">' +
+            '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
+            (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') + '</div>' +
+            '<div class="wo-step-sets wo-step-sets--custom">' +
+            (st.sets || []).map(function(set, k) {
+                return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
+                    '<input type="number" min="1" data-f="amount" data-k="' + k + '" value="' + (set.amount != null ? set.amount : '') + '"> ' + _woStartUnit(st) +
+                    (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="' + k + '" value="' + (set.weight != null ? set.weight : '') + '"> lb' : '') + '</div>';
+            }).join('') + '</div></div>';
+    }).join('');
+
+    el.innerHTML =
+        '<div class="page-header"><h2>' + _woEsc(w.name) + '</h2></div>' +
+        '<div class="ex-form">' +
+            '<div class="wo-banner" id="wosEstimate"></div>' +
+
+            '<div class="ex-form-group"><label class="ex-label" for="wosDate">Date</label>' +
+                '<input type="date" id="wosDate" value="' + s.date + '" max="' + _woTodayISO() + '"></div>' +
+
+            '<div class="ex-form-group"><label class="ex-label">How do you want to do it?</label>' +
+                '<div class="wo-mode-list">' +
+                    '<label class="wo-mode"><input type="radio" name="wosMode" value="guided" checked> <span><strong>🎬 Guided</strong><br><span class="wo-hint">Prop up your phone — it counts down each exercise and rest and shows what is next.</span></span></label>' +
+                    '<label class="wo-mode wo-mode--off"><input type="radio" name="wosMode" value="self" disabled> <span><strong>✅ Self-paced</strong> <span class="wo-badge wo-badge--neither">coming soon</span><br><span class="wo-hint">You tap Done after each set.</span></span></label>' +
+                    '<label class="wo-mode wo-mode--off"><input type="radio" name="wosMode" value="day" disabled> <span><strong>🌤️ Throughout the day</strong> <span class="wo-badge wo-badge--neither">coming soon</span><br><span class="wo-hint">Tick sets off whenever you do them.</span></span></label>' +
+                '</div></div>' +
+
+            '<div class="ex-form-group"><label class="ex-label">Voice</label>' +
+                '<label class="wo-inline-check"><input type="checkbox" id="wosCues"' + (s.voiceCues ? ' checked' : '') + '> Speak the exercise names and countdowns</label><br>' +
+                '<label class="wo-inline-check"><input type="checkbox" id="wosCmds"' + (s.voiceCmds ? ' checked' : '') + (canListen ? '' : ' disabled') + '> Voice commands — say “done”, “next”, “pause”…</label>' +
+                (canListen ? '' : '<div class="wo-hint">Voice commands need Chrome (not available in this browser). Tapping always works.</div>') +
+            '</div>' +
+
+            '<div class="ex-form-group"><label class="ex-label">Today\'s numbers <span class="wo-hint">change anything for this session only</span></label>' +
+                '<div id="wosSteps">' + stepsHtml + '</div>' +
+                '<label class="wo-inline-check" style="margin-top:8px;"><input type="checkbox" id="wosSaveBack"> Save these changes back to the workout</label>' +
+            '</div>' +
+
+            '<div class="ex-form-actions">' +
+                '<button type="button" class="btn btn-primary" id="wosGo">▶ Start workout</button>' +
+                '<a href="#workouts" class="btn btn-secondary">Cancel</a>' +
+            '</div>' +
+        '</div>';
+
+    document.getElementById('wosDate').addEventListener('change', function() { _woS.date = this.value || _woTodayISO(); });
+    document.getElementById('wosCues').addEventListener('change', function() { _woS.voiceCues = this.checked; });
+    document.getElementById('wosCmds').addEventListener('change', function() { _woS.voiceCmds = this.checked; });
+    document.getElementById('wosSaveBack').addEventListener('change', function() { _woS.saveBack = this.checked; });
+    var box = document.getElementById('wosSteps');
+    box.addEventListener('input',  _woStartInput);
+    box.addEventListener('change', _woStartInput);
+    document.getElementById('wosGo').addEventListener('click', _woStartGo);
+    _woUpdateStartEstimate();
+}
+
+/** Typing in a number box edits the session copy of the workout (never the saved workout until Start + save-back). */
+function _woStartInput(ev) {
+    var inp = ev.target.closest('[data-f]');
+    if (!inp) return;
+    var holder = inp.closest('[data-path]');
+    if (!holder) return;
+    var path = holder.getAttribute('data-path').split('.');
+    var st = _woS.workout.steps[parseInt(path[0], 10)];
+    if (path.length > 1) st = (st.items || [])[parseInt(path[1], 10)];
+    if (!st) return;
+    var f = inp.getAttribute('data-f');
+    if (f === 'rounds') { st.rounds = Math.max(1, Math.min(20, parseInt(inp.value, 10) || 1)); }
+    else {
+        var set = (st.sets || [])[parseInt(inp.getAttribute('data-k'), 10)];
+        if (!set) return;
+        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; }
+        else                { set.weight = inp.value !== '' ? parseFloat(inp.value) : null; }
+    }
+    _woUpdateStartEstimate();
+}
+
+function _woUpdateStartEstimate() {
+    var el = document.getElementById('wosEstimate');
+    if (!el) return;
+    var secs = woEstimateSeconds(_woS.workout.steps) + WO_GETREADY_SEC;
+    var flat = _woFlatExercises(_woS.workout.steps).length;
+    el.textContent = flat + ' exercise' + (flat === 1 ? '' : 's') + ' · about ' + woFmtMinutes(secs);
+}
+
+/** Did the user change any numbers compared to the saved workout? */
+function _woStartChanged() {
+    return JSON.stringify(_woS.workout.steps) !== JSON.stringify(_woS.original.steps);
+}
+
+/** Copy with Base = the edited numbers for every step that changed (same rule as the builder). */
+function _woStepsWithSavedChanges() {
+    var out = JSON.parse(JSON.stringify(_woS.workout.steps));
+    out.forEach(function(st, i) {
+        var orig = _woS.original.steps[i];
+        var reset = function(a, b) {
+            if (JSON.stringify(a.sets) !== JSON.stringify(b.sets)) { a.baseSets = _woCloneSets(a.sets); a.successStreak = 0; }
+        };
+        if (st.type === 'circuit') {
+            (st.items || []).forEach(function(it, j) { reset(it, orig.items[j]); });
+        } else {
+            reset(st, orig);
+        }
+    });
+    return out;
+}
+
+async function _woStartGo() {
+    var s = _woS, btn = document.getElementById('wosGo');
+    _woSavePlayerPrefs(s.voiceCues, s.voiceCmds || (_woLoadPlayerPrefs().commands && !woSpeechRecognitionCtor()));
+    btn.disabled = true; btn.textContent = 'Starting…';
+    try {
+        var steps = s.workout.steps;
+        if (s.saveBack && _woStartChanged()) {
+            steps = _woStepsWithSavedChanges();
+            var ids = [];
+            _woFlatExercises(steps).forEach(function(st) { if (st.exerciseId && ids.indexOf(st.exerciseId) === -1) ids.push(st.exerciseId); });
+            await woLibCol('workouts').doc(s.id).update({
+                steps: steps, exerciseIds: ids, estimatedSeconds: woEstimateSeconds(steps),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        window._woSession = {
+            workoutId:   s.id,
+            workoutName: s.workout.name,
+            workout:     { id: s.id, name: s.workout.name, steps: JSON.parse(JSON.stringify(s.workout.steps)) },
+            date:        s.date,
+            mode:        'guided',
+            voiceCues:   s.voiceCues,
+            voiceCmds:   s.voiceCmds
+        };
+        location.hash = '#workout-run';
+    } catch (err) {
+        console.error('Workouts: could not start:', err);
+        alert('Could not start the workout. Please try again.');
+        btn.disabled = false; btn.textContent = '▶ Start workout';
+    }
+}
+
+// ─── 4. Player screen (#workout-run) — placeholder until chunk 2.3 ────────────
+
+function loadWorkoutRunPage() {
+    _woSetChrome([['Workouts', '#workouts'], ['Workout']]);
+    var el = document.getElementById('page-workout-run');
+    var sess = window._woSession;
+    el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess ? sess.workoutName : 'Workout') + '</h2></div>' +
+        '<div class="ex-status">The guided player is coming together…</div>';
+}

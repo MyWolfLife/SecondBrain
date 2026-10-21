@@ -21510,3 +21510,17 @@ a.legacy-fin-card:hover {
 .wo-item-sets input { width: 60px; }
 .wo-item .wo-step-btns { margin-left: auto; }
 .wo-item-empty { margin: 6px 0 0 32px; }
+
+/* Workout Start screen */
+.wo-mode-list { display: flex; flex-direction: column; gap: 8px; }
+.wo-mode {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.wo-mode input { margin-top: 4px; }
+.wo-mode--off { opacity: 0.55; cursor: default; }
