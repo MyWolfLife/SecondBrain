@@ -92,7 +92,7 @@ Phone propped up, hands-free, just watch and follow.
 - Progress bar for the whole workout + time remaining
 - Landscape layout for a phone on its side; portrait also works
 
-**Open question**: how does a *reps* exercise advance in Guided mode? (see §8, Q1)
+**Reps vs. time in Guided mode** (decided — see §10, D1): a **timed** step counts down and auto-advances. A **reps** step shows the target ("12 push-ups") and **waits for Done**. To make that easy from across the room, the whole screen is the Done button while a reps step is showing. A spoken "done" could come later (see §8, Q1b). So a fully hands-free workout = all timed steps; mixing in reps steps is fine, they just pause for a tap.
 
 ### 4.2 ✅ Self-paced (gym / lifting style — like Strong or Hevy)
 - Shows the current exercise + pictures; you do the set, tap **Done**
@@ -161,7 +161,8 @@ What the good apps do, and what we'd take:
 
 ## 8. Open Questions (to discuss, one at a time)
 
-1. **Reps in Guided mode** — when an exercise is "12 push-ups", how should the timer handle it? (a) wait for a tap "done", (b) give a fixed window like 40 sec then auto-advance, (c) estimate seconds-per-rep and count down, or (d) per-exercise choice. YAYOG mostly uses timed sets.
+1. ~~**Reps in Guided mode**~~ — ✅ decided (D1): a step is reps **or** time, never both; reps steps wait for a tap.
+   - 1b. Later: say "done" out loud instead of tapping? (Chrome speech recognition — free, needs mic permission; Chrome/Android/Chromebook only.)
 2. **Weight tracking depth** — just one weight per exercise, or per set (e.g. pyramid 25/30/35 lb)?
 3. **Pictures** — will you take your own photos (yourself doing the move), or pull images from the web? Affects whether we need an "add from URL" option.
 4. **Naming** — call the library items "Exercises" (clear, but overlaps the section name) or something like "Moves"?
@@ -187,4 +188,4 @@ What the good apps do, and what we'd take:
 
 ## 10. Decisions Log
 
-_(empty — fill in as we decide)_
+- **D1 (2026-10-21)** — Each exercise step is measured by **reps or time, not both**. Timed steps count down and auto-advance in Guided mode; reps steps wait for the user to tap Done (whole screen = Done button). No "time window" or seconds-per-rep estimates. Estimated workout length uses a rough seconds-per-rep figure for display only.
