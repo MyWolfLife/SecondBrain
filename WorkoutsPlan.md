@@ -260,7 +260,7 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 
 ---
 
-## 5a. Progression — Getting Stronger Over Time (PROPOSAL, awaiting OK)
+## 5a. Progression — Getting Stronger Over Time (D19)
 
 User's requirements: suggest increases only after **many** successful sessions (e.g. 10, user-settable — not after 1–3); don't lose the starting numbers; handle **long breaks** (stops for months sometimes); same exercise in different workouts may use different set patterns (3×10 vs 10/5/3).
 
@@ -329,7 +329,7 @@ What the good apps do, and what we'd take:
 - **Firestore collections** (per-user via `userCol()`):
   - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], targets[] {muscleId, main: bool}, pushPull ('push'|'pull'|'both'|'neither'), videoUrl, archived, isSeeded
   - `workoutMuscles` — name, area (cardio/upper/core/lower), sortOrder — seeded from §3.4, editable. Cardio is one row with area 'cardio'. Area is looked up from the muscle, never stored on the exercise.
-  - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
+  - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases. Each step also carries progression state (D19): `baseSets[]` (as built), `currentSets[]` (what the player uses — starts equal to base), `successStreak`, `lastDoneDate`, `previousBestSets[]` (for the comeback ramp), `comeback` (null or {startedAt}), and optional per-step overrides `levelUpAfter`, `weightStep`, `repTop`, `timeStep`. Built into the data model from Phase 1 even though the level-up UI comes later.
   - `workoutSessions` (= Workout History) — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, durationMinutes, calories, sets[] {exerciseId, exerciseName (snapshot), measure, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual (true if added on the edit screen)}, notes, rating, activityId (link to the `exerciseActivities` entry). Array order = display order; set numbers are computed, not stored.
   - `exerciseActivities` gets two new optional fields: `workoutSessionId` and `workoutName` (snapshot, so the list can show "Workout: Upper Body" without an extra lookup). Activity `typeId` = the new seeded **Workout** type (added to the default types list in `exercise.js`; also seeded into existing accounts that don't have it). When present, the Activity edit screen shows the read-only workout summary + Edit Workout button.
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
@@ -365,7 +365,7 @@ What the good apps do, and what we'd take:
 9. ~~**Starter library**~~ — ✅ decided (D13): seed the 20 in §3.1a.
 10. ~~**Create exercises while building a workout**~~ — ✅ decided (D16): yes, inline "+ New exercise" in the builder.
 11. ~~**Throughout-the-day reminders**~~ — ✅ decided (D18): no reminders; hub card only.
-12. **Progression** — 🔶 researched; proposal in §5a (Base vs. Current per step, level-up after N=10 successes, comeback ramp after breaks). Awaiting OK.
+12. ~~**Progression**~~ — ✅ decided (D19): §5a as written.
 13. ~~**Main vs. also-works targets**~~ — ✅ decided (D15): yes, ★ main vs. also-works.
 
 ---
@@ -378,7 +378,7 @@ What the good apps do, and what we'd take:
 | 2 | **Guided player** — countdown, flipbook, up-next, spoken cues, beeps, wake lock, pause/skip, **voice commands** (§4.1a) |
 | 3 | Self-paced mode + session logging (target vs. actual) + summary + "last time" + auto Exercise Activity |
 | 4 | Throughout-the-day mode + in-progress card on hub/home |
-| 5 | History & PRs per exercise, progression suggestions, calendar scheduling |
+| 5 | History & PRs per exercise, **progression** (level-up suggestions, comeback ramp, reset to base — §5a), calendar scheduling |
 | 6 | Programs, EMOM/AMRAP/Tabata presets, AI workout builder, SecondBrain action |
 
 ---
@@ -403,3 +403,4 @@ What the good apps do, and what we'd take:
 - **D16 (2026-10-21)** — **Create exercises inline** from the workout builder (quick form → saved to library + added to workout).
 - **D17 (2026-10-21)** — **Each exercise is Push, Pull, Both, or Neither.** Builder shows badges + a push/pull tally and gently suggests alternating pushes and pulls on the same area.
 - **D18 (2026-10-21)** — **No reminders for throughout-the-day workouts.** The in-progress card on the hub is enough.
+- **D19 (2026-10-21)** — **Progression per §5a**: each workout step keeps Base + Current numbers (no workout copies); progresses per workout step, not per exercise; level-up suggested after N successful sessions in a row (default 10, settable); double progression for uniform weighted sets, +weight for custom set patterns, +rep bodyweight, +5 sec timed; 4+ weeks off → "Welcome back" with Comeback at 60% ramping ~10%/session back to previous best. Based on double-progression and return-from-layoff research.
