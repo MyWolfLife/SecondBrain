@@ -325,7 +325,7 @@ What the good apps do, and what we'd take:
 8. ~~**Music**~~ — ✅ decided (D12): yes, music from another app; our voice + beeps play over it.
 9. ~~**Starter library**~~ — ✅ decided (D13): seed the 20 in §3.1a.
 10. ~~**Create exercises while building a workout**~~ — ✅ decided (D16): yes, inline "+ New exercise" in the builder.
-11. **Throughout-the-day reminders** — should an open day-long workout nudge you (e.g. ntfy push every couple of hours), or just sit on the hub card?
+11. ~~**Throughout-the-day reminders**~~ — ✅ decided (D18): no reminders; hub card only.
 12. **Progression suggestions** — when you hit every target, auto-suggest next time (+1 rep / +5 lb) on the Start screen, or leave that to you?
 13. ~~**Main vs. also-works targets**~~ — ✅ decided (D15): yes, ★ main vs. also-works.
 
@@ -363,3 +363,4 @@ What the good apps do, and what we'd take:
 - **D15 (2026-10-21)** — **Targets are ★ main or also-works.** Tap-to-cycle chips in the editor; filters rank main matches first.
 - **D16 (2026-10-21)** — **Create exercises inline** from the workout builder (quick form → saved to library + added to workout).
 - **D17 (2026-10-21)** — **Each exercise is Push, Pull, Both, or Neither.** Builder shows badges + a push/pull tally and gently suggests alternating pushes and pulls on the same area.
+- **D18 (2026-10-21)** — **No reminders for throughout-the-day workouts.** The in-progress card on the hub is enough.
