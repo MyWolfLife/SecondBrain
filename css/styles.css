@@ -21781,3 +21781,23 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-line-name { flex: 1 1 180px; font-weight: 600; min-width: 0; }
 .wo-line-set { font-weight: 400; color: #6b7280; font-size: 0.82rem; }
 .wo-line-vals input { width: 64px; }
+
+/* Workout History */
+.landing-tile--workout-history {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    color: #fff;
+}
+.landing-tile--workout-history:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+}
+.wo-month-head {
+    padding: 10px 16px 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}

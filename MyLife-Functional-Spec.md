@@ -1193,7 +1193,7 @@ Tracks major life events — trips, milestones, goals, relationships.
 Exercise tracking lives in the Life section. The section is labeled **Fitness** on screen (Life tile, hub title, breadcrumbs); routes (`#exercise…`), files (`exercise.js`) and Firestore collections (`exercise…`) keep the original "exercise" names. Activities, Daily Metrics, Goals, and Summary are all built; Workouts is being built (see below).
 
 ### Fitness Hub (`#exercise`)
-Seven cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
+Eight cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
 Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
 
 ### Workouts (`js/workouts.js`) — build in progress
@@ -1302,6 +1302,9 @@ Breadcrumb Life › Fitness › Workouts › Finished workout. The screen you la
 - **Save** writes the record (`date`, `startedAt`, `finishedAt`, `durationMinutes`, `calories`, `notes`, `rating`, `sets`) and pushes **calories, duration and date/time to the linked Activity**, so the two never disagree (calories then count in Daily Metrics and the Summary grids). A green "✓ Saved" banner confirms; the page stays open. **Back to Workouts** asks first if there are unsaved changes. **Create Activity** appears when the record has no (or a deleted) Activity and creates a fresh linked one.
 - **Delete** — if an Activity is linked, a dialog asks: **Delete both** / **Only the workout record** / **Cancel**. "Only the workout record" deletes the history record and keeps the Activity as an ordinary, fully editable one (calories, duration, date and its "Workout: name" label stay; only the link `workoutSessionId` is removed). With no linked Activity it is a simple confirm.
 - The exercise picker (`_woOpenExercisePicker(circuitIndex, onPick)`) now takes an optional callback so other screens can reuse it.
+
+#### Workout History list (`#workout-history`, `loadWorkoutHistoryPage` in `js/workout-history.js`, chunk 3.3)
+Breadcrumb Life › Fitness › Workout History; reached from the **Workout History** tile on the Fitness hub. Lists every `workoutSessions` record **newest first** under month headings, with a search box (by workout name) and a count. Each card (tap → `#workout-done/:id`, breadcrumb Life › Fitness › Workout History › Workout): 📋, workout name, left-aligned badges — **"N cal"** (blue) or **"No calories"** (orange reminder to enter the watch number) and **"Effort n/5"** when rated — and "Wed, Oct 21, 2026 · 20 min · 4 of 5 sets". Empty state explains how to create the first record.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.

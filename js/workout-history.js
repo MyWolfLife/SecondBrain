@@ -17,7 +17,7 @@ function _woISOFromLocal(dateISO, hhmm) { return new Date(dateISO + 'T' + (hhmm 
 
 async function loadWorkoutDonePage(id) {
     var el = document.getElementById('page-workout-done');
-    _woSetChrome([['Workouts', '#workouts'], ['Finished workout']]);
+    _woSetChrome([['Workout History', '#workout-history'], ['Workout']]);
     el.innerHTML = '<div class="page-header"><h2>Finished workout</h2></div><div class="ex-status">Loading…</div>';
     try {
         await woLoadMuscles();
@@ -364,4 +364,84 @@ async function _woDoneDoDelete(alsoActivity) {
         console.error('Workouts: delete finished workout failed:', err);
         alert('Failed to delete. Please try again.');
     }
+}
+
+// ─── Workout History list (#workout-history, chunk 3.3) ───────────────────────
+
+var _woHist = [];
+var _woHistFilter = { text: '' };
+
+async function loadWorkoutHistoryPage() {
+    window.scrollTo(0, 0);
+    document.getElementById('breadcrumbBar').innerHTML =
+        '<a href="#life">Life</a><span class="separator">&rsaquo;</span><a href="#exercise">Fitness</a>' +
+        '<span class="separator">&rsaquo;</span><span>Workout History</span>';
+    document.getElementById('headerTitle').innerHTML = '<a href="#main" class="home-link">' + (window.appName || 'My Life') + '</a>';
+    var el = document.getElementById('page-workout-history');
+    el.innerHTML = '<div class="page-header"><h2>Workout History</h2></div><div class="ex-status">Loading…</div>';
+    try {
+        var snap = await userCol('workoutSessions').get();
+        _woHist = snap.docs.map(function(d) { var w = d.data(); w.id = d.id; return w; });
+    } catch (err) {
+        console.error('Workouts: failed to load history:', err);
+        el.innerHTML = '<div class="page-header"><h2>Workout History</h2></div><div class="ex-status">Could not load your workout history.</div>';
+        return;
+    }
+    // newest first (date, then start time)
+    _woHist.sort(function(a, b) {
+        return (b.date || '').localeCompare(a.date || '') || (b.startedAt || '').localeCompare(a.startedAt || '');
+    });
+    el.innerHTML =
+        '<div class="page-header"><h2>Workout History</h2></div>' +
+        '<div class="ex-toolbar"><div class="ex-toolbar-row">' +
+            '<input type="search" id="whText" class="filter-input" placeholder="Search by workout name…" value="' + _woEsc(_woHistFilter.text) + '">' +
+        '</div></div>' +
+        '<div id="whCount" class="wo-count"></div>' +
+        '<div id="whList"></div>';
+    document.getElementById('whText').addEventListener('input', function() { _woHistFilter.text = this.value; _woRenderHistList(); });
+    _woRenderHistList();
+}
+
+function _woFmtLongDate(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function _woRenderHistList() {
+    var text = _woHistFilter.text.trim().toLowerCase();
+    var rows = _woHist.filter(function(w) { return !text || (w.workoutName || '').toLowerCase().indexOf(text) !== -1; });
+    document.getElementById('whCount').textContent = rows.length + ' workout' + (rows.length === 1 ? '' : 's');
+    var list = document.getElementById('whList');
+    if (!rows.length) {
+        list.innerHTML = '<div class="ex-status">' + (_woHist.length ? 'No workouts match.' : 'No workouts yet — finish one with <strong>▶ Start</strong> and it will show up here.') + '</div>';
+        return;
+    }
+    var html = '', lastMonth = '';
+    rows.forEach(function(w) {
+        var month = (w.date || '').slice(0, 7);
+        if (month !== lastMonth) {
+            lastMonth = month;
+            var p = month.split('-');
+            html += '<div class="wo-month-head">' + new Date(+p[0], +p[1] - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) + '</div>';
+        }
+        var sets = w.sets || [];
+        var done = sets.filter(function(s) { return !s.skipped && s.actualAmount != null; }).length;
+        var bits = [_woFmtLongDate(w.date)];
+        if (w.durationMinutes) bits.push(w.durationMinutes + ' min');
+        bits.push(done + ' of ' + sets.length + ' sets');
+        html += '<a href="#workout-done/' + w.id + '" class="wo-card">' +
+                    '<div class="wo-thumb">📋</div>' +
+                    '<div class="wo-card-main">' +
+                        '<div class="wo-card-name">' + _woEsc(w.workoutName) + '</div>' +
+                        '<div class="wo-badges">' +
+                            (w.calories != null ? '<span class="wo-badge wo-badge--push">' + w.calories + ' cal</span>'
+                                                : '<span class="wo-badge wo-badge--pull">No calories</span>') +
+                            (w.rating ? '<span class="wo-badge wo-badge--neither">Effort ' + w.rating + '/5</span>' : '') +
+                        '</div>' +
+                        '<div class="wo-card-meta">' + _woEsc(bits.join(' · ')) + '</div>' +
+                    '</div>' +
+                '</a>';
+    });
+    list.innerHTML = html;
 }
