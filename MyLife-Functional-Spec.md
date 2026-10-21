@@ -1193,7 +1193,7 @@ Tracks major life events — trips, milestones, goals, relationships.
 Exercise tracking lives in the Life section. The section is labeled **Fitness** on screen (Life tile, hub title, breadcrumbs); routes (`#exercise…`), files (`exercise.js`) and Firestore collections (`exercise…`) keep the original "exercise" names. Activities, Daily Metrics, Goals, and Summary are all built; Workouts is being built (see below).
 
 ### Fitness Hub (`#exercise`)
-Eight cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
+Nine cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Muscle Balance** (`#workout-balance`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
 Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
 
 ### Workouts (`js/workouts.js`) — build in progress
@@ -1271,6 +1271,9 @@ Pick **🌤️ Throughout the day** on the Start screen (voice options don't app
 
 #### Exercise history & records chart (`#workout-exercise-history/:id`, `loadWorkoutExerciseHistoryPage` in `js/workout-history.js`, chunk 5.4)
 Breadcrumb Life › Fitness › Exercises › History; reached from **📈 History** in an exercise's editor (existing exercises). One point per **finished** workout that included the exercise (open day workouts and skipped sets are ignored). The metric follows the exercise: **weighted → heaviest weight**, **unweighted reps → most reps in a set**, **timed → longest time**. A session is a **record (🏆)** when it beats every earlier session (the first session and ties are not records). Shows four stat tiles (sessions, best + date, 🏆 records, last done), a **Chart.js line chart** (records drawn as larger gold points; tooltip says "🏆 new record"), and a table of every session newest-first (date, workout, sets as "10 @ 30 / 8 @ 30 lb", value with 🏆). An exercise with no finished sessions says so.
+
+#### Muscle Balance (`#workout-balance`, `js/workout-balance.js`, chunk 5.5)
+Breadcrumb Life › Fitness › Muscle Balance; the **Muscle Balance** tile on the Fitness hub. A **Period** dropdown (last 7 / 14 / 30 / 90 days; sticky for the session, default 7) over finished workouts only (open day workouts and skipped sets are ignored). Every done set is credited to the muscles its exercise works — **★ main target = 1, also-works = ½**; the left/right pair of an each-side set counts once — using the exercise's **current** muscle tags. Shows: workout and set counts; a banner naming the muscles **not worked** in the period (cardio excluded) or "✓ You worked every muscle group"; a **push vs pull** bar (push and pull set counts; "both" exercises count for each); and one card per body area (Cardio / Upper Body / Core / Lower Body) with a heat bar per muscle (none / light / medium / strong relative to your busiest muscle) and its credit total ("not worked" in orange when zero). A simple heat list rather than a body drawing.
 
 #### Progression — getting stronger over time (`js/workout-progress.js`, chunks 5.1–5.3; decision D19)
 Every exercise step (and circuit exercise) keeps **Base** (`baseSets` — as built, never changed by progression) and **Current** (`sets` — what the player uses), plus `successStreak`, `lastDoneDate`, `previousBestSets`, `comeback` and optional overrides `levelUpAfter` / `weightStep`. Progression is **per workout step**, not per exercise (curls in two workouts progress separately).

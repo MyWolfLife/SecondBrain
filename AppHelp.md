@@ -4753,6 +4753,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Tap **Workouts** to build and run guided workouts
 - Tap **Workout History** to see every workout you've finished
+- Tap **Muscle Balance** to see which muscles you've been working lately
 - Tap **Exercises** for your library of exercises (names, form cues, pictures)
 - **Programs** is coming soon — multi-week plans built from your workouts
 - Tap **Activities** to log and view your workouts
@@ -4782,6 +4783,18 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - The chart shows your best result from each workout — heaviest weight for weighted exercises, most reps for bodyweight, longest time for holds. Gold dots are personal records 🏆
 - The table lists every session, newest first
 - Only finished workouts count (a day workout still in progress doesn't)
+
+---
+
+## screen:workout-balance
+
+**What this screen is for:** See which muscles you've been working — and which you've been skipping.
+
+### Quick Help
+- Pick a period (7, 14, 30 or 90 days). Only finished workouts count
+- Each set you did gives full credit to the muscles it mainly works and half credit to the ones it also works
+- The orange box lists muscles you haven't worked at all in the period; darker bars mean more work
+- **Push vs pull** shows whether your workouts are balanced between pushing and pulling moves
 
 ---
 

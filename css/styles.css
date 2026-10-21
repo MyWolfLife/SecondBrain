@@ -21864,3 +21864,26 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-stats strong { font-size: 1.15rem; color: #0f766e; }
 .wo-stats span { font-size: 0.75rem; color: #6b7280; }
 .wo-chart-wrap { padding: 8px 16px; max-width: 760px; }
+
+/* Muscle balance */
+.landing-tile--workout-balance { background: linear-gradient(135deg, #ca8a04, #facc15); color: #fff; }
+.landing-tile--workout-balance:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(202, 138, 4, 0.35); }
+.wb-area { margin: 12px 16px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 12px; max-width: 640px; }
+.wb-area-head { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
+.wb-area-head span { color: #6b7280; font-size: 0.78rem; }
+.wb-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 0.85rem; }
+.wb-name { flex: 0 0 120px; }
+.wb-bar { flex: 1; height: 12px; background: #f3f4f6; border-radius: 6px; overflow: hidden; }
+.wb-fill { display: block; height: 100%; border-radius: 6px; }
+.wb-heat-0 { background: transparent; }
+.wb-heat-1 { background: #99f6e4; }
+.wb-heat-2 { background: #2dd4bf; }
+.wb-heat-3 { background: #0f766e; }
+.wb-num { flex: 0 0 74px; text-align: right; color: #374151; font-variant-numeric: tabular-nums; }
+.wb-row--none .wb-num { color: #b45309; font-size: 0.75rem; }
+.wb-pp { margin: 12px 16px; max-width: 640px; }
+.wb-pp-head { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+.wb-pp-head span { color: #6b7280; font-size: 0.78rem; }
+.wb-pp-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #f3f4f6; }
+.wb-pp-push { background: #3b82f6; }
+.wb-pp-pull { background: #f97316; }

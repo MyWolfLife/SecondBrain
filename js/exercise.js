@@ -265,6 +265,10 @@ function loadExercisePage() {
                 '<span class="landing-tile-icon">📋</span>' +
                 '<span class="landing-tile-label">Workout History</span>' +
             '</a>' +
+            '<a href="#workout-balance" class="landing-tile landing-tile--workout-balance">' +
+                '<span class="landing-tile-icon">⚖️</span>' +
+                '<span class="landing-tile-label">Muscle Balance</span>' +
+            '</a>' +
             '<a href="#workout-exercises" class="landing-tile landing-tile--workout-exercises">' +
                 '<span class="landing-tile-icon">🤸</span>' +
                 '<span class="landing-tile-label">Exercises</span>' +

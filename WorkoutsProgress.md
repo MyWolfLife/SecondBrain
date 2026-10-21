@@ -31,9 +31,10 @@
 | 4.1–4.3 | Throughout-the-day mode (checklist, in-progress card, finish/discard) | ✅ done |
 | 5.1–5.3 | Progression: streaks, level-up, comeback, reset to base | ✅ done |
 | 5.4 | Per-exercise history + records chart | ✅ done |
+| 5.5 | Muscle balance view | ✅ done |
 
 ## Next up
-User asked for **Phase 5 only (NOT Phase 6)**. 5.1–5.3 done (`js/workout-progress.js`). Remaining: **5.5** muscle balance view (page `#workout-balance`: sets done per muscle/area over 7/30 days from `workoutSessions.sets` + exercise targets; ★ main = full, also = half; list neglected muscles; a simple heat-grid by area instead of a body drawing), **5.6** calendar scheduling (read `js/calendar.js` + the `calendarEvents` model; add a 📅 Schedule action on workouts that creates an event with `targetType:'workout'`, `targetId`; event cards get a ▶ Start link). Then final docs. Do NOT start Phase 6.
+User asked for **Phase 5 only (NOT Phase 6)**. 5.1–5.3 done (`js/workout-progress.js`). Remaining: **5.6** calendar scheduling (read `js/calendar.js` + the `calendarEvents` model; add a 📅 Schedule action on workouts that creates an event with `targetType:'workout'`, `targetId`; event cards get a ▶ Start link). Then final docs. Do NOT start Phase 6.
 
 ## Notes for the next session (code facts learned)
 - Routing: `js/app.js` — add page names to `ALL_PAGES` (~line 195), `LIFE_PAGES` (~224), `TOP_LEVEL_PAGES` (~158, only for nav-link pages), then an `else if (page === ...)` branch in the router (~795, Exercise routes) calling `showPage()` + a loader. Page shells are `<section class="page hidden" id="page-NAME">` in `index.html` (~7655).
