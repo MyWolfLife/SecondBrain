@@ -101,6 +101,35 @@ Some sections mix both: Credentials, and Concerns in Health for others. Each ite
 
 **Moving whole sections later**: the same move tool that brings House/Yard/etc. into the space can move any section later (e.g. My Legacy), and back again.
 
+## 3c. REVISED DIRECTION (PROPOSAL, under discussion 2026-10-21) — Share Like Google Drive, Built on Spaces
+
+The user's wish list goes beyond one Home space:
+- Share **different things with different people** (house with wife, baseball cards with son, albums with nobody)
+- **Read/write vs. read-only** (son can view the house info but not change it)
+- Others may have **their own** version of a section (son has his own house too)
+
+### Two ways to build it
+**A. Google-Drive style (per-item lists)**: every shared thing carries its own list ("House: wife can edit, son can view"). Very flexible, but the House is hundreds of pieces (rooms, things, photos, facts, problems…). Firestore security rules check each piece on its own and can't cheaply look up its parent, so every piece would need its own copy of the list. Changing who can see the house = rewriting hundreds of pieces. Bigger build, more fragile.
+
+**B. Spaces with roles (proposed)**: same feel for the user, much simpler underneath.
+- **Each shared thing gets its own "guest list" container.** Sharing the House moves it (once) into its own container; sharing the baseball cards gives them their own container.
+- **The guest list has roles**: **Can edit** or **Can view**. Example — House: wife (can edit), son (can view). Baseball cards: son (can edit).
+- **Changing who / what permission = editing the guest list only.** The data doesn't move again. Adding a daughter as a viewer is instant.
+- Security rules: read if you're on the list; write only if your role is "Can edit" (or you're the owner).
+- **What you see in the app**: a **Share** button on shareable sections and items → pick people from your connected people → choose Can edit / Can view. You never have to think about "spaces".
+- **Connecting people (one time)**: you and your wife (or son) link accounts once with an invite code. After that they show up in every Share dialog.
+
+### Having more than one of something
+- Son builds **his own house** in his own account (private to him).
+- When he opens House, he sees **"My House"** and **"Dad's House (view only)"** with a switcher at the top of the section.
+- This is the biggest app change: sections that assume "one house / one yard per person" need a **"which one" switcher** when you have access to more than one.
+
+### What stays the same from earlier decisions
+- S1 (member lists enforced on the server, invite codes): still true; the "member list" is now per shared thing with roles.
+- S2 section map: still the guide for **what makes sense to share** and what stays private, but nothing is shared until you press Share.
+- S3/S4 per-item flag: becomes the Share button on items (credential, concern, collection, life project…).
+- S5 ("Me" = real person) and S6 (no merging): unchanged.
+
 ## 4. Big Questions (to discuss)
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
