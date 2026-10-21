@@ -8,7 +8,7 @@
 
 ## 1. The Problem
 
-Every account has its own private data area today. The user and his wife will each have accounts, and some data should be **shared** between them while other data stays **private**.
+Every account has its own private data area today. The user and the user's wife will each have accounts, and some data should be **shared** between them while other data stays **private**.
 
 - **Share**: House, Yard, Garage, Vehicles, Contacts, Finance, Exercises/Workouts library, etc.
 - **Keep private**: Journal, secret space, personal notes, etc.
