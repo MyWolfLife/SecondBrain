@@ -50,7 +50,7 @@ users/{uid}/journal/…            ← private data stays where it is
 
 ---
 
-## 3a. Proposed Section Map (PROPOSAL — under review)
+## 3a. Section Map (S2 — decided)
 
 **Rule: things attached to something live where it lives.** Photos, facts, problems, activities, quick tasks, calendar events attached to a plant/room/vehicle go wherever that plant/room/vehicle goes. So the decision is only made per *section*, never per photo.
 
@@ -78,14 +78,32 @@ users/{uid}/journal/…            ← private data stays where it is
 | 🔒 | Places & Check-ins | |
 | 🔒 | Bucket List | |
 | 🔒 | SecondBrain history, AI usage log, app settings & keys | |
-| ❓ **Unsure** | **Calendar** | Mix of household events (yard spray) and personal ones |
-| ❓ | **Credentials** (passwords) | Household ones (wifi, utilities) vs. personal |
-| ❓ | **My Legacy** (death planning) | Joint estate vs. personal letters |
-| ❓ | **Health for others** (tracked contacts' health) | e.g. kids' health shared? |
+| 🏠 **Shared** | **Calendar** | Shared (S2). Events attached to private things still follow their parent |
+| 🔀 **Per item** | **Credentials** | Each credential flagged 🔒 Private or 🏠 Shared (S3). New ones default to 🔒 Private |
+| 🔒 | **My Legacy** | Private for now; can move to shared later with the section move tool (S2) |
+| 🏠 / 🔀 | **Health for others** (tracked contacts — not "Me") | Shared (S4). **Concerns** get the per-item 🔒/🏠 flag; conditions, meds, visits, etc. are shared. Your own ("Me") health stays private |
+
+## 3b. Per-Item Private/Shared Flag (S3)
+
+Some sections mix both: Credentials, and Concerns in Health for others. Each item gets a **🔒 Private / 🏠 Shared** switch.
+
+**How it works (and why it's secure):**
+- The switch decides **where the item is physically stored**: your private area or the shared space. It's not just a label on a shared item. A label would still let the other person's browser download it, while physically storing it in your area means the database never sends it to them.
+- Flipping the switch **moves** the item, along with everything attached to it (photos, facts, concern updates…), following the "lives where its parent lives" rule.
+- List screens read both places and merge them, showing a small 🔒 or 🏠 badge on the left of each card.
+- **Links across the line**: a shared item can point to a private one (a shared visit linked to a private concern, or a shared credential whose payment method is private). The other person just sees "🔒 Private item" in that spot.
+- Supporting lists (credential categories, etc.) live in the shared space so both private and shared items can use them.
+
+**Defaults:**
+- New credential → 🔒 Private (safer — share on purpose)
+- New concern for a tracked contact → 🏠 Shared, with the switch on the form
+- When credentials are first moved over, **all existing ones start 🔒 Private**; you flip the ones you want to share
+
+**Moving whole sections later**: the same move tool that brings House/Yard/etc. into the space can move any section later (e.g. My Legacy), and back again.
 
 ## 4. Big Questions (to discuss)
 
-1. **Which sections are shared vs. private?** Fixed per section, or chosen per item ("this contact is private")? Per-section is far simpler.
+1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
 2. **Mixed sections**: e.g. Exercise — the Exercises/Workouts *library* shared, but each person's **Workout History, Activities, Daily Metrics** private. Probably common.
 3. **Moving existing data**: everything is in the user's personal area today. Need a one-time "move this section to the Home space" migration tool.
 4. **Settings/keys**: API keys (LLM, Finnhub, etc.) — per person or per space?
@@ -93,6 +111,8 @@ users/{uid}/journal/…            ← private data stays where it is
 6. **Offline Trip Mode lock**: currently per user — how does it behave on shared data?
 7. **Who did it**: stamp `createdBy`/`updatedBy` on shared docs so you can see who logged what?
 8. **Cost**: still free tier — no change expected.
+9. **"Me" in shared data**: today `personId: null` means "Me" (credentials, health). In a shared space "Me" is ambiguous — whose? Shared items need to point at a real person record instead.
+10. **Wife's existing account data**: if she has already entered data in her own account, how does it merge with yours in the space (duplicates of the same house/contacts)?
 
 ---
 
@@ -108,3 +128,6 @@ users/{uid}/journal/…            ← private data stays where it is
 ## 6. Decisions Log
 
 - **S1 (2026-10-21)** — **Member-list spaces with invite codes**, enforced by Firestore security rules on the server. Each person keeps their own login; no shared username/password. Multiple spaces supported; owner can remove members.
+- **S2 (2026-10-21)** — **Section map approved** (§3a): shared list and private list as proposed; Calendar shared; My Legacy private for now (movable later).
+- **S3 (2026-10-21)** — **Per-item 🔒/🏠 flag** for Credentials (default Private; existing ones start Private). The flag moves the item between areas — real security, not a label. Pattern in §3b, reusable for other sections later.
+- **S4 (2026-10-21)** — **Health for others is shared**, except **Concerns**, which get the per-item flag (default Shared). The user's own ("Me") health stays private.
