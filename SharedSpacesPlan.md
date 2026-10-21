@@ -166,7 +166,7 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 4. ~~**Settings/keys**~~ — ✅ S10: settings personal; each API key shareable with chosen people.
 5. **Backup** (`js/settings.js`): back up personal + every space you belong to?
 6. **Offline Trip Mode lock**: currently per user — how does it behave on shared data?
-7. **Who did it**: stamp `createdBy`/`updatedBy` on shared docs so you can see who logged what?
+7. ~~**Who did it**~~ — ✅ S11: stamp and show added-by / last-changed-by on shared items.
 8. **Cost**: still free tier — no change expected.
 9. ~~**"Me" in shared data**~~ — ✅ S5: each member is linked to a real person record in shared Contacts; "Me" = the person linked to whoever is logged in.
 10. ~~**Wife's existing account data**~~ — ✅ S6: none; only the user has data. No merge tool needed.
@@ -194,3 +194,4 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **S8 (2026-10-21)** — **Share units approved** (§3d). Two levels: whole sections (House, Yard, Garage, Contacts, Investments, Insurance, Workouts library) and individual items (vehicle, structure, collection, neighborhood, life project, budget, checklist, credential, person's health/concern, calendar).
 - **S9 (2026-10-21)** — **Individual notes are shareable** (not whole notebooks, for now). Received notes show in a "Shared with me" notebook. Checklists already shareable per template.
 - **S10 (2026-10-21)** — **API keys are shareable per key** with chosen people. Caveat accepted: whoever can use a key can technically see it (browser app). AI usage log records who made each call.
+- **S11 (2026-10-21)** — **Who-did-it stamps.** Every doc in a shared container gets `createdBy`, `createdAt`, `updatedBy`, `updatedAt` (uid → shown as the person's name). Detail screens and activity/history lines show "Added by X · date" / "Last changed by X" on shared items only (private items stay uncluttered).
