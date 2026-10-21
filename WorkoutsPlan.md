@@ -167,12 +167,41 @@ Talk to the phone from across the room. Uses the browser's built-in speech recog
 
 ---
 
-## 5. After the Workout
+## 5. After the Workout (D7)
 
-- **Summary screen**: total time, sets done, total reps, total volume (reps × weight), anything skipped, any **personal records** 🏆
-- Optional notes ("felt strong", "left shoulder tight") + effort rating (1–5 or RPE)
-- **Logs to Exercise Activities** automatically (one `exerciseActivities` entry, e.g. type "Strength Training", with duration + estimated calories) → flows into Daily Metrics and the Summary grids that already exist. No double entry.
-- Saved as a **session record** with every set's target vs. actual
+**When you finish** (any mode):
+1. A **Workout History record** is saved — every set as its own line, target vs. actual
+2. An **Activities entry is created automatically** (linked to the history record) so it flows into Daily Metrics / Summary grids — no double entry
+3. The app **takes you straight to the finished workout's edit screen** so you can type in calories from your watch
+
+### 5.1 Finished Workout screen (`#workout-done/:id` — edit screen for a Workout History record)
+**Top — summary** (editable):
+- Workout name, date, start time, duration
+- **Calories burned** ← from your watch (the main reason you land here)
+- Notes, effort rating (1–5)
+- Totals (read-only, computed): sets, reps, volume (reps × weight), any PRs 🏆
+
+**Below — one line per set** (everything editable):
+```
+ ↑↓  Push-ups        Set 1   12 reps            ✏️ 🗑️
+ ↑↓  Push-ups        Set 2   10 reps            ✏️ 🗑️
+ ↑↓  Goblet Squat    Set 1   10 reps   25 lb    ✏️ 🗑️
+ ↑↓  Plank           Set 1   45 sec             ✏️ 🗑️
+ [+ Add line]
+```
+- Edit any value on a line (reps/time, weight) or delete the line
+- Skipped sets show greyed out with "skipped" — edit to fill them in, or delete
+- **+ Add line**: pick an exercise from the library, type reps/time + weight → it's added at the bottom; move it into place with ↑/↓ (the reorder pattern used elsewhere in the app). Set numbers renumber automatically.
+- Save writes the history record **and** updates the linked Activity (calories, duration, date) so they never disagree
+
+### 5.2 Activity screen for a workout-created entry
+- Shows a **read-only summary** of the workout (name, duration, calories, compact list of exercises/sets)
+- **"Edit Workout"** button → goes to the Finished Workout screen (5.1)
+- Calories/duration/date are edited on the workout, not here — the workout is the source of truth and pushes its values to the Activity
+
+### 5.3 Workout History list
+- Every finished workout, newest first; tap one → Finished Workout screen (5.1)
+- The Activities list row for a workout links there too
 
 ---
 
@@ -206,7 +235,8 @@ What the good apps do, and what we'd take:
 - **Firestore collections** (per-user via `userCol()`):
   - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], muscles[], videoUrl, archived
   - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
-  - `workoutSessions` — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, sets[] {exerciseId, setNumber, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped}, notes, rating, activityId (link to the `exerciseActivities` entry)
+  - `workoutSessions` (= Workout History) — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, durationMinutes, calories, sets[] {exerciseId, exerciseName (snapshot), measure, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped, manual (true if added on the edit screen)}, notes, rating, activityId (link to the `exerciseActivities` entry). Array order = display order; set numbers are computed, not stored.
+  - `exerciseActivities` gets one new optional field: `workoutSessionId`. When present, the Activity edit screen shows the read-only workout summary + Edit Workout button.
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
 - **Frames from a video** (D4): pick a short video (record yourself doing 1 rep, or a saved clip) → app shows it with a scrubber → you tap "Grab frame" at start / middle / end (or "Auto: 3 evenly spaced") → each frame is drawn onto a canvas and compressed like any other photo. All in the browser, nothing uploaded, the video itself is **not** stored. Easiest way to get clean motion frames — one video instead of a friend taking 3 photos at the right instant.
 - **Paste from web**: reuse `triggerPasteUpload` in `photos.js`. Note: a plain "paste an image URL" box mostly won't work — most sites block other pages from reading their images (CORS), so we can't compress them. Copy image → Paste gets around that.
@@ -229,7 +259,10 @@ What the good apps do, and what we'd take:
    - 3b. Animated GIFs from the web (common for exercise demos): flattening them loses the motion. Option: keep a small GIF as-is and play it instead of the flipbook. Decide when building Phase 1.
 4. ~~**Naming**~~ — ✅ decided (D5): section → **Fitness**; **Exercises** (library), **Workouts** (built routines), **Workout History** (ones you've done).
 5. ~~**Programs**~~ — ✅ decided (D6): yes, eventually. Start with workouts; a "Programs — Coming soon" card goes on the hub in Phase 1 as a reminder.
-6. **Activity log integration** — when a workout finishes, auto-create the Exercise Activity entry, or ask first? What calorie estimate?
+6. ~~**Activity log integration**~~ — ✅ decided (D7): auto-create, then land on the Finished Workout screen to enter watch calories. See §5.
+   - 6a. **Which Activity type?** There's already a built-in "Weights" type. Proposal: each workout has an "Log as" activity type, default Weights (a yoga or HIIT workout could pick something else).
+   - 6b. **Deleting**: if you delete the workout record, delete its Activity too (and vice versa)? Proposal: yes, with a warning that says both go.
+   - 6c. **Calories before you edit**: leave blank until you enter them, or put in an estimate? Proposal: blank — your watch number is the real one.
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
 8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
 
@@ -256,3 +289,4 @@ What the good apps do, and what we'd take:
 - **D4 (2026-10-21)** — **Pictures come from anywhere**: own photos (camera/gallery) and web images (paste, or saved then picked from gallery). Plus a new **grab frames from a video** tool to make motion frames easily. Video itself not stored.
 - **D5 (2026-10-21)** — **Names**: rename the section **Exercise → Fitness** (display only; code/routes/data untouched). Inside it: **Exercises** (library), **Workouts** (routines), **Workout History** (done), **Activities** (existing log, unchanged). User priority: words must be obvious.
 - **D6 (2026-10-21)** — **Programs later, workouts first.** Programs (multi-week plans built from workouts) are wanted eventually. Phase 1 adds a greyed-out "Programs — Coming soon" card on the Fitness hub as a reminder. Design workouts as standalone, reusable pieces so a program can just reference them by ID later.
+- **D7 (2026-10-21)** — **Finishing a workout auto-creates a linked Activity** and lands on the Finished Workout edit screen to enter watch calories. Every set is its own editable/deletable line; lines can be added manually (pick exercise, enter values) and reordered. Activity screen shows a read-only summary + Edit Workout button; the workout record is the source of truth and pushes calories/duration/date to the Activity.
