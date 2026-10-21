@@ -260,7 +260,7 @@ What the good apps do, and what we'd take:
 4. ~~**Naming**~~ — ✅ decided (D5): section → **Fitness**; **Exercises** (library), **Workouts** (built routines), **Workout History** (ones you've done).
 5. ~~**Programs**~~ — ✅ decided (D6): yes, eventually. Start with workouts; a "Programs — Coming soon" card goes on the hub in Phase 1 as a reminder.
 6. ~~**Activity log integration**~~ — ✅ decided (D7): auto-create, then land on the Finished Workout screen to enter watch calories. See §5.
-   - 6a. **Which Activity type?** There's already a built-in "Weights" type. Proposal: each workout has an "Log as" activity type, default Weights (a yoga or HIIT workout could pick something else).
+   - 6a. **Which Activity type?** User ideas: (1) a new type per workout name, or (2) a "Personal Workout" type with the workout name as a sub-type, shown as "PW:[name]". **Current proposal (awaiting OK)**: one new seeded type **"Workout"**; the Activity stores `workoutName` and the list shows **"Workout: Upper Body"**. Summary grids get one "Workout" row (all workouts combined) — a per-workout breakdown can come later. Why not a type per workout: the types list and the Summary grid would grow a row for every workout you build. Why not "PW:": less obvious than spelling out "Workout:".
    - 6b. **Deleting**: if you delete the workout record, delete its Activity too (and vice versa)? Proposal: yes, with a warning that says both go.
    - 6c. **Calories before you edit**: leave blank until you enter them, or put in an estimate? Proposal: blank — your watch number is the real one.
 7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
