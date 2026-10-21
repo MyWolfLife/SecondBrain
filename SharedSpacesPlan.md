@@ -71,13 +71,13 @@ users/{uid}/journal/…            ← private data stays where it is
 | 🏠 | Workouts library (exercises, workouts, muscles) | From WorkoutsPlan D11 |
 | 🔒 **Private** | Journal | |
 | 🔒 | Private Vault (photos, docs, bookmarks) | |
-| 🔒 | Thoughts / Memories / My Thoughts / Notes & notebooks | |
+| 🔒 | Thoughts / Memories / My Thoughts | Notes: see §3d — each note shareable |
 | 🔒 | My Health (meds, conditions, visits, vitals, blood work, etc.) | |
 | 🔒 | Exercise data (activities, daily metrics, goals, workout history) | |
 | 🔒 | Stock Analyzer (scans, trades, signals) | |
 | 🔒 | Places & Check-ins | |
 | 🔒 | Bucket List | |
-| 🔒 | SecondBrain history, AI usage log, app settings & keys | |
+| 🔒 | SecondBrain history, AI usage log, app settings | API keys: see §3d — each key shareable |
 | 🏠 **Shared** | **Calendar** | Shared (S2). Events attached to private things still follow their parent |
 | 🔀 **Per item** | **Credentials** | Each credential flagged 🔒 Private or 🏠 Shared (S3). New ones default to 🔒 Private |
 | 🔒 | **My Legacy** | Private for now; can move to shared later with the section move tool (S2) |
@@ -130,7 +130,7 @@ The user's wish list goes beyond one Home space:
 - S3/S4 per-item flag: becomes the Share button on items (credential, concern, collection, life project…).
 - S5 ("Me" = real person) and S6 (no merging): unchanged.
 
-## 3d. What Gets Its Own Share Button (PROPOSAL — under review)
+## 3d. What Gets Its Own Share Button (S8 — decided)
 
 The **unit of sharing** = the thing that gets one guest list. Everything inside/attached to it comes along.
 
@@ -153,15 +153,17 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 | Credentials | **Each credential** | Default private |
 | Health for others | **Each person's health** (e.g. son's), and **each concern** can be kept private | |
 | Workouts | The **whole library** (exercises + workouts + muscles) | Workouts reference exercises — sharing one without the other breaks |
+| Notes | **Each note** (S9) | Most stay private; share the odd one. Shared notes appear for the other person in a **"Shared with me"** notebook (they can move it into one of their own). Sharing a whole notebook could come later |
+| API keys | **Each key** (S10) | Pick who can use it (e.g. AI key → wife, not kids). Usage logged per person |
 | My Legacy | Not shareable yet | Can add later |
-| Journal, Vault, Thoughts, My Health, Exercise data, Stock Analyzer, Places, Bucket List, SecondBrain, settings | **No Share button** — always private | |
+| Journal, Vault, Thoughts/Memories/My Thoughts, My Health, Exercise data, Stock Analyzer, Places, Bucket List, SecondBrain history, other settings | **No Share button** — always private | |
 
 ## 4. Big Questions (to discuss)
 
 1. ~~**Which sections are shared vs. private?**~~ — ✅ S2/S3/S4: per section (§3a), plus a per-item flag for Credentials and Concerns (§3b).
 2. **Mixed sections**: e.g. Exercise — the Exercises/Workouts *library* shared, but each person's **Workout History, Activities, Daily Metrics** private. Probably common.
 3. **Moving existing data**: everything is in the user's personal area today. Need a one-time "move this section to the Home space" migration tool.
-4. **Settings/keys**: API keys (LLM, Finnhub, etc.) — per person or per space?
+4. ~~**Settings/keys**~~ — ✅ S10: settings personal; each API key shareable with chosen people.
 5. **Backup** (`js/settings.js`): back up personal + every space you belong to?
 6. **Offline Trip Mode lock**: currently per user — how does it behave on shared data?
 7. **Who did it**: stamp `createdBy`/`updatedBy` on shared docs so you can see who logged what?
@@ -188,4 +190,6 @@ The **unit of sharing** = the thing that gets one guest list. Everything inside/
 - **S4 (2026-10-21)** — **Health for others is shared**, except **Concerns**, which get the per-item flag (default Shared). The user's own ("Me") health stays private.
 - **S5 (2026-10-21)** — **"Me" becomes a real person.** Each space member is linked to their own person record in the shared Contacts (`spaces/{id}.members[] {uid, personId}`). Shared items store that personId instead of `null`. The UI still says "Me" for the logged-in member's own person. Migration converts `personId: null` → the owner's person record when moving credentials/health into the space.
 - **S6 (2026-10-21)** — **No merging needed.** The user is the only one with data today. Migration = move the owner's sections into the space; other members join empty and see the shared data. (Test account stays separate and isolated.)
-- **S7 (2026-10-21)** — **Drive-style sharing built on spaces** (§3c): Share button on shareable things → pick connected people → **Can edit** or **Can view**. Each shared thing gets its own guest-list container; changing people/roles never moves data. People connect once via invite code. Sections get a "which one" switcher when you can see more than one (e.g. My House / Dad's House). Read-only enforced by Firestore rules.
+- **S7 (2026-10-21)** — **Drive-style sharing built on spaces** (§3c): Share button on shareable things → pick connected people → **Can edit** or **Can view**. Each shared thing gets its own guest-list container; changing people/roles never moves data. People connect once via invite code. Sections get a "which one" switcher when you can see more than one (e.g. My House / Dad's House). Read-only enforced by Firestore rules.- **S8 (2026-10-21)** — **Share units approved** (§3d). Two levels: whole sections (House, Yard, Garage, Contacts, Investments, Insurance, Workouts library) and individual items (vehicle, structure, collection, neighborhood, life project, budget, checklist, credential, person's health/concern, calendar).
+- **S9 (2026-10-21)** — **Individual notes are shareable** (not whole notebooks, for now). Received notes show in a "Shared with me" notebook. Checklists already shareable per template.
+- **S10 (2026-10-21)** — **API keys are shareable per key** with chosen people. Caveat accepted: whoever can use a key can technically see it (browser app). AI usage log records who made each call.
