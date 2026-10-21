@@ -267,8 +267,7 @@ async function loadWorkoutExercisesPage() {
     el.innerHTML = '<div class="page-header"><h2>Exercises</h2></div><div class="ex-status">Loading…</div>';
     try {
         await woLoadMuscles();
-        var snap = await woLibCol('workoutExercises').get();
-        _woExercises = snap.docs.map(function(d) { var e = d.data(); e.id = d.id; return e; });
+        await woLoadExercises();
     } catch (err) {
         console.error('Workouts: failed to load exercises:', err);
         el.innerHTML = '<div class="page-header"><h2>Exercises</h2></div><div class="ex-status">Could not load exercises.</div>';
@@ -695,6 +694,21 @@ async function _woArchiveExercise() {
 }
 
 async function _woDeleteExercise() {
+    // Is it used by any workout? (workouts store exerciseIds[] for exactly this lookup)
+    try {
+        var used = await woLibCol('workouts').where('exerciseIds', 'array-contains', _woEdit.id).get();
+        if (!used.empty) {
+            var names = used.docs.map(function(d) { return d.data().name; }).join(', ');
+            if (confirm('"' + _woEdit.name + '" is used in: ' + names + '.\n\nDeleting it would leave those workouts pointing at a missing exercise.\n\nArchive it instead? (It disappears from lists but stays in those workouts.)')) {
+                await _woArchiveExercise();
+            }
+            return;
+        }
+    } catch (err) {
+        console.error('Workouts: could not check exercise usage:', err);
+        alert('Could not check whether this exercise is used in a workout. Please try again.');
+        return;
+    }
     if (!confirm('Delete "' + _woEdit.name + '"? This cannot be undone. (Archive it instead to hide it but keep it in existing workouts.)')) return;
     try {
         var frames = await woLibCol('photos').where('targetType', '==', 'workoutExercise').where('targetId', '==', _woEdit.id).get();
@@ -1121,18 +1135,508 @@ async function _woGrabCommit() {
     _woCloseGrabber();
 }
 
-// ─── Workouts (placeholders until chunk 1.7) ──────────────────────────────────
+// ─── Workouts (chunk 1.7) ─────────────────────────────────────────────────────
+//
+// A workout doc (collection `workouts`):
+//   name, description, steps[], exerciseIds[] (for "is this exercise used?" lookups),
+//   estimatedSeconds, archived, createdAt, updatedAt
+// An exercise step:
+//   { type:'exercise', exerciseId, exerciseName (snapshot), measure, eachSide,
+//     sets:[{amount, weight}]      ← CURRENT numbers (what the player uses)
+//     baseSets:[{amount, weight}]  ← as built (never changed by progression)
+//     restBetweenSets:{mode:'timed'|'tap', seconds}, restAfter:{mode, seconds},
+//     successStreak, lastDoneDate, previousBestSets, comeback }   ← progression state (WorkoutsPlan §5a)
+// Circuits are added in chunk 1.8 as { type:'circuit', rounds, restBetweenRounds, items:[exercise steps] }.
 
-function loadWorkoutsPage() {
-    woEnsureSeeded();
-    _woSetChrome([['Workouts']]);
-    document.getElementById('page-workouts').innerHTML =
-        '<div class="page-header"><h2>Workouts</h2></div>' +
-        '<p class="empty-state">Workout builder coming together…</p>';
+var WO_SECONDS_PER_REP   = 3;    // only used for the estimated-time display
+var WO_TAP_REST_ASSUMED  = 30;   // seconds assumed for a "tap when ready" rest in estimates
+var WO_DEFAULT_SETS      = 3;
+var WO_DEFAULT_REST_SETS = 45;   // seconds between sets
+var WO_DEFAULT_REST_AFTER = 60;  // seconds after the last set of an exercise
+
+var _woExMap = {};   // exerciseId → exercise doc (live, for badges/targets)
+
+/** Loads all exercises into _woExercises / _woExMap. */
+async function woLoadExercises() {
+    var snap = await woLibCol('workoutExercises').get();
+    _woExercises = snap.docs.map(function(d) { var e = d.data(); e.id = d.id; return e; });
+    _woExMap = {};
+    _woExercises.forEach(function(e) { _woExMap[e.id] = e; });
+    return _woExercises;
 }
 
-function loadWorkoutBuilderPage(id) {
-    _woSetChrome([['Workouts', '#workouts'], [id === 'new' ? 'New Workout' : 'Edit Workout']]);
-    document.getElementById('page-workout').innerHTML =
-        '<div class="page-header"><h2>Workout</h2></div>';
+function _woStepSets(step) { return step.sets || []; }
+
+/** Rough duration of a workout in seconds (display only). */
+function woEstimateSeconds(steps) {
+    var total = 0;
+    (steps || []).forEach(function(st) {
+        if (st.type !== 'exercise') return;
+        var sides = st.eachSide ? 2 : 1;
+        var sets  = _woStepSets(st);
+        sets.forEach(function(s, i) {
+            var work = st.measure === 'time' ? (s.amount || 0) : (s.amount || 0) * WO_SECONDS_PER_REP;
+            total += work * sides;
+            if (i < sets.length - 1) total += _woRestSeconds(st.restBetweenSets);
+        });
+        total += _woRestSeconds(st.restAfter);
+    });
+    return total;
+}
+
+function _woRestSeconds(rest) {
+    if (!rest) return 0;
+    return rest.mode === 'tap' ? WO_TAP_REST_ASSUMED : (rest.seconds || 0);
+}
+
+function woFmtMinutes(sec) {
+    if (!sec) return '';
+    var m = Math.max(1, Math.round(sec / 60));
+    return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
+}
+
+/** Distinct body areas a workout touches (by ★ main targets; falls back to any target). */
+function _woWorkoutAreas(steps) {
+    var main = {}, any = {};
+    (steps || []).forEach(function(st) {
+        var ex = _woExMap[st.exerciseId];
+        if (!ex) return;
+        (ex.targets || []).forEach(function(t) {
+            var m = _woMuscleMap[t.muscleId];
+            if (!m) return;
+            any[m.area] = true;
+            if (t.main) main[m.area] = true;
+        });
+    });
+    var use = Object.keys(main).length ? main : any;
+    return WO_AREAS.filter(function(a) { return use[a.id]; }).map(function(a) { return a.label; });
+}
+
+function _woPushPullTally(steps) {
+    var t = { push: 0, pull: 0, both: 0 };
+    (steps || []).forEach(function(st) {
+        var ex = _woExMap[st.exerciseId];
+        if (ex && t[ex.pushPull] != null) t[ex.pushPull]++;
+    });
+    return t;
+}
+
+// ─── Workouts list (#workouts) ────────────────────────────────────────────────
+
+var _woWorkouts = [];
+var _woWFilter  = { text: '', archived: false };
+
+async function loadWorkoutsPage() {
+    _woSetChrome([['Workouts']]);
+    var el = document.getElementById('page-workouts');
+    el.innerHTML = '<div class="page-header"><h2>Workouts</h2></div><div class="ex-status">Loading…</div>';
+    try {
+        await woLoadMuscles();
+        await woLoadExercises();
+        var snap = await woLibCol('workouts').get();
+        _woWorkouts = snap.docs.map(function(d) { var w = d.data(); w.id = d.id; return w; });
+    } catch (err) {
+        console.error('Workouts: failed to load workouts:', err);
+        el.innerHTML = '<div class="page-header"><h2>Workouts</h2></div><div class="ex-status">Could not load workouts.</div>';
+        return;
+    }
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h2>Workouts</h2>' +
+            '<div class="page-header-actions"><a href="#workout/new" class="btn btn-primary">+ New Workout</a></div>' +
+        '</div>' +
+        '<div class="ex-toolbar"><div class="ex-toolbar-row">' +
+            '<input type="search" id="woWText" class="filter-input" placeholder="Search workouts…" value="' + _woEsc(_woWFilter.text) + '">' +
+            '<label class="wo-inline-check"><input type="checkbox" id="woWArchived"' + (_woWFilter.archived ? ' checked' : '') + '> Show archived</label>' +
+        '</div></div>' +
+        '<div id="woWorkoutList"></div>';
+    document.getElementById('woWText').addEventListener('input', function() { _woWFilter.text = this.value; _woRenderWorkoutList(); });
+    document.getElementById('woWArchived').addEventListener('change', function() { _woWFilter.archived = this.checked; _woRenderWorkoutList(); });
+    _woRenderWorkoutList();
+}
+
+function _woRenderWorkoutList() {
+    var text = _woWFilter.text.trim().toLowerCase();
+    var rows = _woWorkouts.filter(function(w) {
+        if (w.archived && !_woWFilter.archived) return false;
+        return !text || (w.name || '').toLowerCase().indexOf(text) !== -1;
+    }).sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+
+    var list = document.getElementById('woWorkoutList');
+    if (!rows.length) {
+        list.innerHTML = '<div class="ex-status">' + (_woWorkouts.length
+            ? 'No workouts match.'
+            : 'No workouts yet. Tap <strong>+ New Workout</strong> to build your first one.') + '</div>';
+        return;
+    }
+    list.innerHTML = rows.map(function(w) {
+        var steps  = w.steps || [];
+        var count  = steps.filter(function(s) { return s.type === 'exercise'; }).length;
+        var tally  = _woPushPullTally(steps);
+        var areas  = _woWorkoutAreas(steps);
+        var bits   = [count + ' exercise' + (count === 1 ? '' : 's')];
+        var est = woFmtMinutes(w.estimatedSeconds != null ? w.estimatedSeconds : woEstimateSeconds(steps));
+        if (est) bits.push('~' + est);
+        var pp = [];
+        if (tally.push) pp.push('Push ' + tally.push);
+        if (tally.pull) pp.push('Pull ' + tally.pull);
+        return '<a href="#workout/' + w.id + '" class="wo-card' + (w.archived ? ' wo-card--archived' : '') + '">' +
+                   '<div class="wo-thumb">🏋️</div>' +
+                   '<div class="wo-card-main">' +
+                       '<div class="wo-card-name">' + _woEsc(w.name) + '</div>' +
+                       (w.archived ? '<div class="wo-badges"><span class="wo-badge wo-badge--archived">Archived</span></div>' : '') +
+                       '<div class="wo-card-meta">' + _woEsc(bits.join(' · ')) + (pp.length ? ' · ' + pp.join(' · ') : '') + '</div>' +
+                       (areas.length ? '<div class="wo-chips">' + areas.map(function(a) { return '<span class="wo-chip wo-chip--also">' + _woEsc(a) + '</span>'; }).join('') + '</div>' : '') +
+                       (w.description ? '<div class="wo-card-meta">' + _woEsc(w.description) + '</div>' : '') +
+                   '</div>' +
+               '</a>';
+    }).join('');
+}
+
+// ─── Workout builder (#workout/new, #workout/:id) ─────────────────────────────
+
+var _woW = null;   // working copy of the workout being built
+
+function _woBlankRest(seconds) { return { mode: 'timed', seconds: seconds }; }
+
+/** New exercise step from a library exercise, using its defaults. */
+function _woNewStep(ex) {
+    var sets = [];
+    for (var i = 0; i < WO_DEFAULT_SETS; i++) {
+        sets.push({ amount: ex.defaultAmount != null ? ex.defaultAmount : (ex.measure === 'time' ? 30 : 10),
+                    weight: ex.usesWeight && ex.defaultWeight != null ? ex.defaultWeight : null });
+    }
+    return {
+        type: 'exercise',
+        exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
+        eachSide: !!ex.eachSide, usesWeight: !!ex.usesWeight,
+        sets: sets,
+        baseSets: sets.map(function(s) { return { amount: s.amount, weight: s.weight }; }),
+        restBetweenSets: _woBlankRest(WO_DEFAULT_REST_SETS),
+        restAfter:       _woBlankRest(WO_DEFAULT_REST_AFTER),
+        successStreak: 0, lastDoneDate: null, previousBestSets: null, comeback: null
+    };
+}
+
+async function loadWorkoutBuilderPage(id) {
+    var isNew = (id === 'new');
+    _woSetChrome([['Workouts', '#workouts'], [isNew ? 'New Workout' : 'Edit Workout']]);
+    var el = document.getElementById('page-workout');
+    el.innerHTML = '<div class="page-header"><h2>' + (isNew ? 'New Workout' : 'Edit Workout') + '</h2></div><div class="ex-status">Loading…</div>';
+    try {
+        await woLoadMuscles();
+        await woLoadExercises();
+        if (isNew) {
+            _woW = { id: null, name: '', description: '', steps: [], archived: false };
+        } else {
+            var doc = await woLibCol('workouts').doc(id).get();
+            if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout not found.</div>'; return; }
+            _woW = doc.data();
+            _woW.id = doc.id;
+            _woW.steps = JSON.parse(JSON.stringify(_woW.steps || []));   // deep copy — edits stay local until Save
+        }
+    } catch (err) {
+        console.error('Workouts: failed to load workout:', err);
+        el.innerHTML = '<div class="ex-status">Could not load this workout.</div>';
+        return;
+    }
+    _woRenderBuilder();
+}
+
+function _woRenderBuilder() {
+    var w = _woW, isNew = !w.id;
+    var el = document.getElementById('page-workout');
+    el.innerHTML =
+        '<div class="page-header"><h2>' + (isNew ? 'New Workout' : 'Edit Workout') + '</h2></div>' +
+        '<div class="ex-form">' +
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="wobName">Name <span class="ex-required">*</span></label>' +
+                '<input type="text" id="wobName" value="' + _woEsc(w.name) + '" placeholder="e.g. Upper Body A" maxlength="80">' +
+            '</div>' +
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="wobDesc">Notes (optional)</label>' +
+                '<textarea id="wobDesc" rows="2" placeholder="What this workout is for…">' + _woEsc(w.description) + '</textarea>' +
+            '</div>' +
+            '<div class="ex-form-group">' +
+                '<label class="ex-label">Exercises</label>' +
+                '<div id="wobSummary" class="wo-builder-summary"></div>' +
+                '<div id="wobSteps"></div>' +
+                '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
+            '</div>' +
+            '<div class="ex-form-actions">' +
+                '<button type="button" class="btn btn-primary" id="wobSave">' + (isNew ? 'Create Workout' : 'Save') + '</button>' +
+                '<a href="#workouts" class="btn btn-secondary">Cancel</a>' +
+                (isNew ? '' :
+                    '<button type="button" class="btn btn-secondary" id="wobCopy">Copy as new</button>' +
+                    '<button type="button" class="btn btn-secondary" id="wobArchive">' + (w.archived ? 'Unarchive' : 'Archive') + '</button>' +
+                    '<button type="button" class="btn btn-danger" id="wobDelete">Delete</button>') +
+            '</div>' +
+        '</div>';
+
+    document.getElementById('wobName').addEventListener('input', function() { _woW.name = this.value; });
+    document.getElementById('wobDesc').addEventListener('input', function() { _woW.description = this.value; });
+    document.getElementById('wobAdd').addEventListener('click', _woOpenExercisePicker);
+    document.getElementById('wobSave').addEventListener('click', _woSaveWorkout);
+    var copy = document.getElementById('wobCopy');   if (copy) copy.addEventListener('click', _woCopyWorkout);
+    var arch = document.getElementById('wobArchive'); if (arch) arch.addEventListener('click', _woArchiveWorkout);
+    var del  = document.getElementById('wobDelete');  if (del)  del.addEventListener('click', _woDeleteWorkout);
+    _woRenderSteps();
+}
+
+function _woRestEditor(label, key, rest) {
+    return '<div class="wo-rest-row"><span class="wo-rest-label">' + label + '</span>' +
+        '<select data-rest="' + key + '" data-part="mode">' +
+            '<option value="timed"' + (rest.mode === 'timed' ? ' selected' : '') + '>Timed</option>' +
+            '<option value="tap"' + (rest.mode === 'tap' ? ' selected' : '') + '>Tap when ready</option>' +
+        '</select>' +
+        '<span class="wo-rest-secs' + (rest.mode === 'tap' ? ' hidden' : '') + '">' +
+            '<input type="number" min="0" step="5" data-rest="' + key + '" data-part="seconds" value="' + (rest.seconds || 0) + '"> sec</span>' +
+    '</div>';
+}
+
+function _woRenderSteps() {
+    var box = document.getElementById('wobSteps');
+    if (!box) return;
+    var steps = _woW.steps;
+    if (!steps.length) {
+        box.innerHTML = '<p class="wo-hint">No exercises yet — tap <strong>+ Add exercise</strong>.</p>';
+    } else {
+        box.innerHTML = steps.map(function(st, i) {
+            var ex   = _woExMap[st.exerciseId];
+            var sets = _woStepSets(st);
+            var s0   = sets[0] || { amount: '', weight: null };
+            var unit = st.measure === 'time' ? 'sec' : 'reps';
+            return '<div class="wo-step" data-i="' + i + '">' +
+                '<div class="wo-step-head">' +
+                    '<span class="wo-step-num">' + (i + 1) + '</span>' +
+                    '<span class="wo-step-name">' + _woEsc(ex ? ex.name : st.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
+                    (ex ? _woPushPullBadge(ex.pushPull) : '') +
+                    (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') +
+                    '<span class="wo-step-btns">' +
+                        '<button type="button" class="wo-frame-btn" data-act="up"  title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+                        '<button type="button" class="wo-frame-btn" data-act="down" title="Move down"' + (i === steps.length - 1 ? ' disabled' : '') + '>↓</button>' +
+                        '<button type="button" class="wo-frame-btn" data-act="dup" title="Duplicate">⧉</button>' +
+                        '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" title="Remove">✕</button>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="wo-step-sets">' +
+                    '<input type="number" min="1" max="20" data-set="count" value="' + sets.length + '"> sets × ' +
+                    '<input type="number" min="1" data-set="amount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit +
+                    (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-set="weight" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') +
+                '</div>' +
+                _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
+                _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
+            '</div>';
+        }).join('');
+    }
+    _woWireSteps();
+    _woUpdateBuilderSummary();
+}
+
+function _woWireSteps() {
+    var box = document.getElementById('wobSteps');
+    box.querySelectorAll('.wo-step').forEach(function(card) {
+        var i = parseInt(card.getAttribute('data-i'), 10);
+        card.querySelectorAll('.wo-frame-btn').forEach(function(b) {
+            b.addEventListener('click', function() { _woStepAction(i, this.getAttribute('data-act')); });
+        });
+        card.querySelectorAll('[data-set]').forEach(function(inp) {
+            inp.addEventListener('input', function() { _woEditQuickSets(i, card); });
+        });
+        card.querySelectorAll('[data-rest]').forEach(function(inp) {
+            inp.addEventListener('input', function() { _woEditRest(i, this); });
+            inp.addEventListener('change', function() { _woEditRest(i, this); });
+        });
+    });
+}
+
+function _woStepAction(i, act) {
+    var steps = _woW.steps;
+    if (act === 'up'   && i > 0)                  { var t = steps[i]; steps[i] = steps[i - 1]; steps[i - 1] = t; }
+    if (act === 'down' && i < steps.length - 1)   { var u = steps[i]; steps[i] = steps[i + 1]; steps[i + 1] = u; }
+    if (act === 'dup')  steps.splice(i + 1, 0, JSON.parse(JSON.stringify(steps[i])));
+    if (act === 'del')  steps.splice(i, 1);
+    _woRenderSteps();
+}
+
+/** Quick row (N sets × amount @ weight) → rewrites every set. Editing the recipe resets both Base and Current. */
+function _woEditQuickSets(i, card) {
+    var st = _woW.steps[i];
+    var count  = Math.max(1, Math.min(20, parseInt(card.querySelector('[data-set=count]').value, 10) || 1));
+    var amount = parseInt(card.querySelector('[data-set=amount]').value, 10);
+    var wEl    = card.querySelector('[data-set=weight]');
+    var weight = wEl && wEl.value !== '' ? parseFloat(wEl.value) : null;
+    var sets = [];
+    for (var k = 0; k < count; k++) sets.push({ amount: isNaN(amount) ? null : amount, weight: weight });
+    st.sets     = sets;
+    st.baseSets = sets.map(function(s) { return { amount: s.amount, weight: s.weight }; });
+    st.successStreak = 0;
+    _woUpdateBuilderSummary();
+}
+
+function _woEditRest(i, inp) {
+    var st   = _woW.steps[i];
+    var key  = inp.getAttribute('data-rest'), part = inp.getAttribute('data-part');
+    var rest = st[key] || (st[key] = _woBlankRest(0));
+    if (part === 'mode') {
+        rest.mode = inp.value;
+        var secs = inp.closest('.wo-rest-row').querySelector('.wo-rest-secs');
+        if (secs) secs.classList.toggle('hidden', rest.mode === 'tap');
+    } else {
+        rest.seconds = Math.max(0, parseInt(inp.value, 10) || 0);
+    }
+    _woUpdateBuilderSummary();
+}
+
+function _woUpdateBuilderSummary() {
+    var el = document.getElementById('wobSummary');
+    if (!el) return;
+    var steps = _woW.steps;
+    if (!steps.length) { el.textContent = ''; return; }
+    var tally = _woPushPullTally(steps);
+    var areas = _woWorkoutAreas(steps);
+    var bits = [steps.length + ' exercise' + (steps.length === 1 ? '' : 's'), '~' + woFmtMinutes(woEstimateSeconds(steps))];
+    bits.push('Push ' + tally.push + ' · Pull ' + tally.pull + (tally.both ? ' · Both ' + tally.both : ''));
+    if (areas.length) bits.push(areas.join(' · '));
+    el.textContent = bits.join('   |   ');
+}
+
+// ----- Exercise picker overlay -----
+
+var _woPick = { text: '', area: '', pp: '' };
+
+function _woOpenExercisePicker() {
+    _woPick = { text: '', area: '', pp: '' };
+    var ov = _woGrabOverlay(
+        '<h3>Add exercise</h3>' +
+        '<div class="ex-toolbar-row">' +
+            '<input type="search" id="woPickText" class="filter-input" placeholder="Search…">' +
+            '<select id="woPickArea"><option value="">All areas</option>' +
+                WO_AREAS.map(function(a) { return '<option value="' + a.id + '">' + a.label + '</option>'; }).join('') + '</select>' +
+            '<select id="woPickPP"><option value="">Push / Pull</option>' +
+                ['push', 'pull', 'both', 'neither'].map(function(k) { return '<option value="' + k + '">' + WO_PUSHPULL[k].label + '</option>'; }).join('') + '</select>' +
+        '</div>' +
+        '<div id="woPickList" class="wo-pick-list"></div>' +
+        '<div class="ex-form-actions"><button type="button" class="btn btn-secondary" id="woPickClose">Close</button></div>');
+    ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
+    ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woRenderPicker(); });
+    ov.querySelector('#woPickPP').addEventListener('change', function() { _woPick.pp = this.value; _woRenderPicker(); });
+    ov.querySelector('#woPickClose').addEventListener('click', _woCloseGrabber);
+    _woRenderPicker();
+}
+
+function _woRenderPicker() {
+    var text = _woPick.text.trim().toLowerCase();
+    var rows = _woExercises.filter(function(e) {
+        if (e.archived) return false;
+        if (text && (e.name || '').toLowerCase().indexOf(text) === -1) return false;
+        if (_woPick.pp && e.pushPull !== _woPick.pp) return false;
+        if (_woPick.area) {
+            var hit = (e.targets || []).some(function(t) { var m = _woMuscleMap[t.muscleId]; return m && m.area === _woPick.area; });
+            if (!hit) return false;
+        }
+        return true;
+    }).sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+
+    var list = document.getElementById('woPickList');
+    if (!list) return;
+    if (!rows.length) { list.innerHTML = '<div class="ex-status">No exercises match.</div>'; return; }
+    list.innerHTML = rows.map(function(e) {
+        return '<button type="button" class="wo-pick-row" data-id="' + e.id + '">' +
+                   '<span class="wo-thumb wo-thumb--sm">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</span>' +
+                   '<span class="wo-pick-main"><span class="wo-card-name">' + _woEsc(e.name) + '</span>' +
+                   '<span class="wo-card-meta">' + _woEsc(woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null)) + '</span></span>' +
+                   _woPushPullBadge(e.pushPull) +
+               '</button>';
+    }).join('');
+    list.querySelectorAll('.wo-pick-row').forEach(function(b) {
+        b.addEventListener('click', function() {
+            var ex = _woExMap[this.getAttribute('data-id')];
+            if (!ex) return;
+            _woW.steps.push(_woNewStep(ex));
+            _woCloseGrabber();
+            _woRenderSteps();
+            var cards = document.querySelectorAll('.wo-step');
+            if (cards.length) cards[cards.length - 1].scrollIntoView({ block: 'center' });
+        });
+    });
+}
+
+// ----- Save / copy / archive / delete -----
+
+function _woWorkoutPayload() {
+    var steps = _woW.steps;
+    var ids = [];
+    steps.forEach(function(st) { if (st.exerciseId && ids.indexOf(st.exerciseId) === -1) ids.push(st.exerciseId); });
+    return {
+        name:             _woW.name.trim(),
+        description:      (_woW.description || '').trim(),
+        steps:            steps,
+        exerciseIds:      ids,
+        estimatedSeconds: woEstimateSeconds(steps),
+        archived:         !!_woW.archived,
+        updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
+    };
+}
+
+async function _woSaveWorkout() {
+    _woW.name = document.getElementById('wobName').value;
+    if (!_woW.name.trim()) { alert('Please enter a name for the workout.'); document.getElementById('wobName').focus(); return; }
+    if (!_woW.steps.length) { alert('Add at least one exercise first.'); return; }
+    var btn = document.getElementById('wobSave');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+        var data = _woWorkoutPayload();
+        if (_woW.id) {
+            await woLibCol('workouts').doc(_woW.id).update(data);
+        } else {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await woLibCol('workouts').add(data);
+        }
+        location.hash = '#workouts';
+    } catch (err) {
+        console.error('Workouts: save workout failed:', err);
+        alert('Failed to save. Please try again.');
+        btn.disabled = false; btn.textContent = _woW.id ? 'Save' : 'Create Workout';
+    }
+}
+
+async function _woCopyWorkout() {
+    try {
+        var data = _woWorkoutPayload();
+        data.name = data.name + ' (copy)';
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        // A copy starts fresh: Current = Base, no progression history
+        data.steps = JSON.parse(JSON.stringify(data.steps)).map(function(st) {
+            if (st.baseSets) st.sets = st.baseSets.map(function(s) { return { amount: s.amount, weight: s.weight }; });
+            st.successStreak = 0; st.lastDoneDate = null; st.previousBestSets = null; st.comeback = null;
+            return st;
+        });
+        var ref = await woLibCol('workouts').add(data);
+        location.hash = '#workout/' + ref.id;
+    } catch (err) {
+        console.error('Workouts: copy workout failed:', err);
+        alert('Failed to copy. Please try again.');
+    }
+}
+
+async function _woArchiveWorkout() {
+    try {
+        await woLibCol('workouts').doc(_woW.id).update({ archived: !_woW.archived });
+        location.hash = '#workouts';
+    } catch (err) {
+        console.error('Workouts: archive workout failed:', err);
+        alert('Failed to update. Please try again.');
+    }
+}
+
+async function _woDeleteWorkout() {
+    if (!confirm('Delete "' + _woW.name + '"? This cannot be undone. (Your Workout History is kept.)')) return;
+    try {
+        await woLibCol('workouts').doc(_woW.id).delete();
+        location.hash = '#workouts';
+    } catch (err) {
+        console.error('Workouts: delete workout failed:', err);
+        alert('Failed to delete. Please try again.');
+    }
 }

@@ -4789,6 +4789,33 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ---
 
+## screen:workouts
+
+**What this screen is for:** Your saved workouts — routines built from your exercises.
+
+### Quick Help
+- Tap **+ New Workout** to build one; tap a workout to edit it
+- Each card shows how many exercises, about how long it takes, how many push vs. pull moves, and which parts of the body it works
+- **Show archived** brings back workouts you've hidden
+- Running a workout with the guided countdown is coming in the next update
+
+---
+
+## screen:workout
+
+**What this screen is for:** Build or edit one workout.
+
+### Quick Help
+- Give it a name, then tap **+ Add exercise** and pick from your library
+- For each exercise set **how many sets**, **how many reps (or seconds)**, and the **weight** if it uses one
+- **Rest between sets** and **Rest after exercise** can be **Timed** (counts down by itself) or **Tap when ready** (waits for you — good for heavy sets)
+- Use **↑ ↓** to reorder, **⧉** to duplicate an exercise, **✕** to remove it
+- The line under "Exercises" shows total time and your push/pull balance
+- **Copy as new** makes a duplicate workout you can change; **Archive** hides it; **Delete** removes it (your history is kept)
+- You can't delete an exercise that a workout uses — archive it instead
+
+---
+
 ## screen:exercise-goals
 
 **What this screen is for:** Plan your yearly exercise and weight goals — one row per month (Jan–Dec). Set weight targets, exercise session counts, and calorie thresholds. The plan math shows whether your goals will actually get you where you want to go. The color thresholds you enter here automatically highlight your Daily Metrics entries.
