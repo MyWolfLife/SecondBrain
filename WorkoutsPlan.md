@@ -56,7 +56,19 @@ An ordered list of steps.
 
 - **Name** + optional description/notes
 - **Steps**, each one is:
-  - An **exercise** with: sets × (reps **or** time), weight (optional), rest between sets, rest after the exercise
+  - An **exercise** with: sets, reps **or** time, weight (optional), rest between sets, rest after the exercise
+  - **Each set can have its own reps/time and weight** (D3). Two ways to enter it:
+    - **Quick**: "3 sets × 10 @ 25 lb" — all sets the same (most common, one line)
+    - **Custom sets**: tap "Customize sets" and it expands to one row per set, pre-filled from the quick values:
+      ```
+      Set 1   10 reps   25 lb
+      Set 2    5 reps   45 lb
+      Set 3    3 reps   60 lb
+      [+ Add set]
+      ```
+    - Collapsing back to Quick is allowed only while all rows match (otherwise it stays in Custom view)
+    - Same idea for timed exercises (e.g. plank 30s / 45s / 60s)
+    - The player shows the right numbers for each set: "Set 2 of 3 — 5 reps @ 45 lb", and during rest "Up next: Set 3 — 3 reps @ 60 lb" (so you can load the weight)
   - Or a **circuit / superset**: a group of exercises done back-to-back, repeated N rounds, with rest between rounds (this is how most YAYOG/HIIT workouts are built)
 - **Rest** can be:
   - ⏱️ **Timed** — counts down, auto-advances
@@ -181,8 +193,8 @@ What the good apps do, and what we'd take:
 - **Routes** (proposal): `#workouts` (list), `#workout/:id` (builder), `#workout-exercises`, `#workout-exercise/:id`, `#workout-run/:sessionId` (player), `#workout-history`
 - **Firestore collections** (per-user via `userCol()`):
   - `workoutExercises` — name, instructions, measure (reps/time), defaultAmount, usesWeight, defaultWeight, eachSide, equipment[], muscles[], videoUrl, archived
-  - `workouts` — name, description, steps[] (exercise refs + sets/amount/weight/rest, or circuit groups with rounds), estimatedSeconds, archived
-  - `workoutSessions` — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, sets[] {exerciseId, target, actual, weight, doneAt, skipped}, notes, rating, activityId (link to the `exerciseActivities` entry)
+  - `workouts` — name, description, steps[] (exercise ref + `sets[]` of {amount, weight} + restBetweenSets/restAfter, or circuit groups with rounds), estimatedSeconds, archived. Always store the full `sets[]` array even when every set is the same — one shape, no special cases.
+  - `workoutSessions` — workoutId, workoutName (snapshot), date, mode, status (in-progress/done), startedAt, finishedAt, sets[] {exerciseId, setNumber, targetAmount, targetWeight, actualAmount, actualWeight, doneAt, skipped}, notes, rating, activityId (link to the `exerciseActivities` entry)
   - Pictures: reuse the existing **`photos`** collection with `targetType: 'workoutExercise'` + a frame order field (Base64, ~100–200 KB each, existing compressor). Keeps each frame in its own doc so the 1 MB doc limit is never an issue.
 - **Name clash to avoid**: "Exercise" already means the whole section, and `exerciseTypes` are cardio activity types (Walk, Run…). Library items need a distinct name in code (`workoutExercises`) and maybe in the UI too (see Q4).
 - **Timers**: timestamp-based (store "phase ends at" time, not a ticking counter) so a pause, a background tab, or a screen flicker never drifts the clock
@@ -198,7 +210,7 @@ What the good apps do, and what we'd take:
 
 1. ~~**Reps in Guided mode**~~ — ✅ decided (D1): a step is reps **or** time, never both; reps steps wait for a tap.
    - 1b. ✅ decided (D2): voice commands are built in from day one (§4.1a).
-2. **Weight tracking depth** — just one weight per exercise, or per set (e.g. pyramid 25/30/35 lb)?
+2. ~~**Weight tracking depth**~~ — ✅ decided (D3): every set has its own reps/time and weight; quick entry when they're all the same.
 3. **Pictures** — will you take your own photos (yourself doing the move), or pull images from the web? Affects whether we need an "add from URL" option.
 4. **Naming** — call the library items "Exercises" (clear, but overlaps the section name) or something like "Moves"?
 5. **Programs** — YAYOG's real power is multi-week programs (Week 1 → Week 10, getting harder). In scope eventually, or just individual workouts?
@@ -225,3 +237,4 @@ What the good apps do, and what we'd take:
 
 - **D1 (2026-10-21)** — Each exercise step is measured by **reps or time, not both**. Timed steps count down and auto-advance in Guided mode; reps steps wait for the user to tap Done (whole screen = Done button). No "time window" or seconds-per-rep estimates. Estimated workout length uses a rough seconds-per-rep figure for display only.
 - **D2 (2026-10-21)** — **Voice commands are part of the Guided player from the start** (not a later add-on). Say "Done"/"Next" to advance, plus pause/resume/skip/back/more time/repeat/what's next/how long. Tap anywhere is always the backup. Starter word list in §4.1a.
+- **D3 (2026-10-21)** — **Sets can differ.** Each set of an exercise has its own reps (or time) and weight — e.g. 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb — or they can all be the same (3 × 10 @ 25 lb). Builder offers a one-line quick entry and an expandable per-set view. Stored as a `sets[]` array always.
