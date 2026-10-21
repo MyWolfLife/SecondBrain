@@ -31,6 +31,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `ElectricalSpecs.md` | House → Floor Plan | Electrical overlay specs for the floor plan — circuit breakers, outlet symbols |
 | `ExercisePlan.md` | Life → Exercise | Exercise tracking feature — discussion complete, ready to code |
 | `WorkoutsPlan.md` | Life → Exercise → Workouts | Workouts: exercise library (with motion-frame pictures), workout builder, and a YAYOG-style guided countdown player (plus self-paced and throughout-the-day modes). In discussion/planning |
+| `SharedSpacesPlan.md` | Whole app (data) | Sharing data between accounts (e.g. spouse): member-based shared "spaces" alongside each person's private area. Early idea, nothing decided |
 | `InvestmentPlan.md` | Life → Financial | Investment tracker — retirement account tracking mirroring user's spreadsheet |
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |
 | `BudgetPlan.md` | Life → Financial | Budgets feature — new card under Financial tab, monthly/category budget tracking |

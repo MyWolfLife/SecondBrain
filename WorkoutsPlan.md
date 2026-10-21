@@ -252,6 +252,7 @@ What the good apps do, and what we'd take:
 - **Voice out**: `speechSynthesis` (free, built into browsers incl. Chromebook + phone); **beeps**: Web Audio API
 - **Voice in**: `SpeechRecognition` / `webkitSpeechRecognition` with `continuous` + `interimResults`; auto-restart on `end`; suspend while `speechSynthesis.speaking`; match the final transcript against a synonym table (short phrases only). Feature-detect and hide the mic UI when unsupported. Command table lives in one place in code so new words are easy to add.
 - **Wake Lock**: `navigator.wakeLock.request('screen')` — supported on Chrome/Android/Chromebook and iOS Safari 16.4+
+- **Sharing-ready** (D11): all workout data access goes through one small helper per kind — e.g. `woLibCol(name)` for the shared-later library (`workoutExercises`, `workouts`, exercise photos) and `userCol()` for personal data (`workoutSessions`). Today `woLibCol` just returns `userCol(name)`; when Shared Spaces lands it points at the space instead — a one-line change, no rewrite.
 - **Backup**: add all new collections to `js/settings.js` backup logic
 - Spec + AppHelp + cache-bump rules apply to every phase
 
@@ -270,7 +271,7 @@ What the good apps do, and what we'd take:
    - 6a. ~~**Which Activity type?**~~ — ✅ decided (D8): one new seeded type **"Workout"**, list shows **"Workout: [name]"**.
    - 6b. ~~**Deleting**~~ — ✅ decided (D9): ask "Also delete the linked …?" with a choice; keeping it unlinks it. See §5.4.
    - 6c. ~~**Calories before you edit**~~ — ✅ decided (D10): blank until entered; "No calories" badge as a reminder.
-7. **Who uses it** — just you, or would others in the household run workouts on their own accounts? (Per-user isolation already handles this — mostly affects sharing workouts.)
+7. ~~**Who uses it**~~ — ✅ decided (D11): user + wife on separate accounts; library shared, history personal. Sharing mechanism → `SharedSpacesPlan.md`.
 8. **Music** — fine to assume you play music from another app and our beeps/voice play over it?
 
 ---
@@ -300,3 +301,4 @@ What the good apps do, and what we'd take:
 - **D8 (2026-10-21)** — **Activity type**: one new built-in type **"Workout"** (not a type per workout, not "PW:"). Activities list shows **"Workout: [name]"**. Summary grids get a single combined Workout row; per-workout breakdown is a possible later add.
 - **D9 (2026-10-21)** — **Deleting linked records gives a choice**: "Also delete the linked Activity/Workout?" → Delete both / Only this one. Keeping one unlinks it cleanly (orphan Activity becomes normal; orphan Workout offers "Create Activity"). User expects to usually delete both but wants the option.
 - **D10 (2026-10-21)** — **Calories start blank** on a finished workout (and its Activity) until the user enters the watch number — no estimate. Workout History cards show a "No calories" badge as a reminder.
+- **D11 (2026-10-21)** — **Shared library, personal history.** User and wife will each have accounts. **Exercises + Workouts (and their pictures)** should be shared between them; **Workout History, Activities, Daily Metrics** stay personal. Sharing itself is a bigger app-wide design (`SharedSpacesPlan.md`). Workouts doesn't wait for it: build on personal storage now, routed through a helper so the library can move to a shared space later with minimal change.
