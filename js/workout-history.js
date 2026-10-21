@@ -538,3 +538,98 @@ async function woRenderActivityWorkoutSummary(el, activityId, act) {
     });
     return true;
 }
+
+// ─── Per-exercise history + records chart (#workout-exercise-history/:id, chunk 5.4) ──
+//
+// One point per finished workout that included the exercise. The metric follows the exercise:
+// weighted → heaviest weight, unweighted reps → most reps in a set, timed → longest time.
+// A point is a record (🏆) when it beats every earlier session; the first session isn't one.
+
+var _woExChart = null;
+
+/** Chronological [{date, workoutName, value, sets (lines), pr}] for one exercise; plus {kind, unit}. */
+function woExerciseHistory(sessions, exerciseId) {
+    var rows = [];
+    sessions.forEach(function(s) {
+        if (s.status === 'in-progress') return;
+        var lines = (s.sets || []).filter(function(l) { return l.exerciseId === exerciseId && !l.skipped && l.actualAmount != null; });
+        if (lines.length) rows.push({ date: s.date, startedAt: s.startedAt || '', workoutName: s.workoutName, lines: lines });
+    });
+    rows.sort(function(a, b) { return (a.date || '').localeCompare(b.date || '') || a.startedAt.localeCompare(b.startedAt); });
+    var last = rows.length ? rows[rows.length - 1].lines[0] : null;
+    var kind = !last ? 'reps' : (last.measure === 'time' ? 'time' : (rows.some(function(r) { return r.lines.some(function(l) { return l.actualWeight != null; }); }) ? 'weight' : 'reps'));
+    var best = null;
+    rows.forEach(function(r) {
+        r.value = Math.max.apply(null, r.lines.map(function(l) {
+            return kind === 'weight' ? (l.actualWeight != null ? l.actualWeight : 0) : l.actualAmount;
+        }));
+        r.pr = best != null && r.value > best;
+        if (best == null || r.value > best) best = r.value;
+    });
+    return { rows: rows, kind: kind, unit: kind === 'weight' ? 'lb' : (kind === 'time' ? 'sec' : 'reps') };
+}
+
+async function loadWorkoutExerciseHistoryPage(id) {
+    var el = document.getElementById('page-workout-exercise-history');
+    window.scrollTo(0, 0);
+    _woSetChrome([['Exercises', '#workout-exercises'], ['History']]);
+    el.innerHTML = '<div class="page-header"><h2>History</h2></div><div class="ex-status">Loading…</div>';
+    var ex, sessions;
+    try {
+        var doc = await woLibCol('workoutExercises').doc(id).get();
+        if (!doc.exists) { el.innerHTML = '<div class="ex-status">Exercise not found.</div>'; return; }
+        ex = doc.data();
+        var snap = await userCol('workoutSessions').get();
+        sessions = snap.docs.map(function(d) { return d.data(); });
+    } catch (err) {
+        console.error('Workouts: failed to load exercise history:', err);
+        el.innerHTML = '<div class="ex-status">Could not load the history.</div>';
+        return;
+    }
+    var H = woExerciseHistory(sessions, id);
+    var rows = H.rows;
+    var label = H.kind === 'weight' ? 'Heaviest weight' : (H.kind === 'time' ? 'Longest time' : 'Most reps in a set');
+    var best = rows.length ? rows.reduce(function(m, r) { return r.value > m.value ? r : m; }, rows[0]) : null;
+    var prCount = rows.filter(function(r) { return r.pr; }).length;
+
+    el.innerHTML =
+        '<div class="page-header"><h2>' + _woEsc(ex.name) + ' — history</h2>' +
+            '<div class="page-header-actions"><a href="#workout-exercise/' + id + '" class="btn btn-secondary">Edit exercise</a></div></div>' +
+        (rows.length ?
+            '<div class="wo-stats">' +
+                '<div><strong>' + rows.length + '</strong><span>session' + (rows.length === 1 ? '' : 's') + '</span></div>' +
+                '<div><strong>' + best.value + ' ' + H.unit + '</strong><span>' + label + ' · ' + _woEsc(_woFmtLongDate(best.date)) + '</span></div>' +
+                '<div><strong>' + prCount + '</strong><span>🏆 record' + (prCount === 1 ? '' : 's') + '</span></div>' +
+                '<div><strong>' + _woEsc(_woFmtLongDate(rows[rows.length - 1].date)) + '</strong><span>last done</span></div>' +
+            '</div>' +
+            '<div class="wo-chart-wrap"><canvas id="woExChart" height="220"></canvas></div>' +
+            '<div class="ex-form-group" style="padding:0 16px;"><label class="ex-label">Every session</label>' +
+            '<table class="ex-table"><thead><tr><th>Date</th><th>Workout</th><th>Sets</th><th>' + label + '</th></tr></thead><tbody>' +
+                rows.slice().reverse().map(function(r) {
+                    return '<tr><td>' + _woEsc(_woFmtLongDate(r.date)) + '</td><td>' + _woEsc(r.workoutName) + '</td><td>' + _woEsc(woFmtLastSets(r.lines.filter(function(l) { return l.side !== 'right'; }))) +
+                           '</td><td>' + r.value + ' ' + H.unit + (r.pr ? ' 🏆' : '') + '</td></tr>';
+                }).join('') + '</tbody></table></div>'
+        : '<div class="ex-status">You haven\'t done this exercise in a finished workout yet.</div>');
+
+    if (rows.length && typeof Chart !== 'undefined') {
+        if (_woExChart) { _woExChart.destroy(); _woExChart = null; }
+        _woExChart = new Chart(document.getElementById('woExChart'), {
+            type: 'line',
+            data: {
+                labels: rows.map(function(r) { return r.date; }),
+                datasets: [{
+                    label: label + ' (' + H.unit + ')',
+                    data: rows.map(function(r) { return r.value; }),
+                    borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,0.15)', tension: 0.2, fill: true,
+                    pointRadius: rows.map(function(r) { return r.pr ? 7 : 4; }),
+                    pointBackgroundColor: rows.map(function(r) { return r.pr ? '#f59e0b' : '#0d9488'; })
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function(c) { return rows[c.dataIndex].pr ? '🏆 new record' : ''; } } } },
+                scales: { y: { beginAtZero: false, title: { display: true, text: H.unit } } }
+            }
+        });
+    }
+}

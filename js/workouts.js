@@ -542,6 +542,7 @@ function _woRenderExerciseEditor() {
                 '<button type="button" class="btn btn-primary" id="woeSave">' + (isNew ? 'Add Exercise' : 'Save') + '</button>' +
                 '<a href="#workout-exercises" class="btn btn-secondary">Cancel</a>' +
                 (isNew ? '' :
+                    '<a href="#workout-exercise-history/' + e.id + '" class="btn btn-secondary">📈 History</a>' +
                     '<button type="button" class="btn btn-secondary" id="woeArchive">' + (e.archived ? 'Unarchive' : 'Archive') + '</button>' +
                     '<button type="button" class="btn btn-danger" id="woeDelete">Delete</button>') +
             '</div>' +

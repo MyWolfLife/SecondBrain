@@ -21857,3 +21857,10 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-prog--streak { color: #6b7280; padding: 0 10px; }
 .wo-prog-btns { margin-top: 6px; display: flex; gap: 8px; }
 .wo-prog-reset { margin: 2px 0 0 32px; }
+
+/* Exercise history */
+.wo-stats { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 16px; }
+.wo-stats > div { flex: 1 1 130px; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; }
+.wo-stats strong { font-size: 1.15rem; color: #0f766e; }
+.wo-stats span { font-size: 0.75rem; color: #6b7280; }
+.wo-chart-wrap { padding: 8px 16px; max-width: 760px; }
