@@ -4761,6 +4761,32 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ---
 
+## screen:workout-exercises
+
+**What this screen is for:** Your library of exercises — the moves you build workouts from.
+
+### Quick Help
+- Tap **+ New Exercise** to add one; tap any exercise to edit it
+- Use the filters to find what you need — pick **Calves** under Muscle to see every exercise that works your calves (★ main targets are listed first)
+- **Push / Pull** shows whether a move pushes (push-up) or pulls (curl) — handy for balancing a workout
+- **Show archived** brings back exercises you've hidden
+- A starter set of 20 exercises is added the first time you open this screen; edit, archive or delete any of them
+
+---
+
+## screen:workout-exercise
+
+**What this screen is for:** Create or edit one exercise.
+
+### Quick Help
+- **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
+- **Uses weight** adds a default weight; **Each side** is for one-arm / one-leg moves (the workout player will run it twice)
+- **What it works**: tap a muscle once for ★ main target, again for also-works, again to clear
+- **Archive** hides an exercise from lists but keeps it in workouts that already use it; **Delete** removes it for good
+- Pictures that show the motion are coming in the next update
+
+---
+
 ## screen:exercise-goals
 
 **What this screen is for:** Plan your yearly exercise and weight goals — one row per month (Jan–Dec). Set weight targets, exercise session counts, and calorie thresholds. The plan math shows whether your goals will actually get you where you want to go. The color thresholds you enter here automatically highlight your Daily Metrics entries.

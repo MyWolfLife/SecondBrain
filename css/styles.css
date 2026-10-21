@@ -21250,3 +21250,90 @@ a.legacy-fin-card:hover {
 .lp-day-ai-warning { background: #fffbeb; color: #854d0e; padding: 10px; border-left: 3px solid #eab308; }
 .lp-day-ai-warning ul { padding-left: 20px; }
 .lp-day-ai-ack { padding: 10px; background: #f1f5f9; }
+
+/* ── Workouts: exercise library ─────────────────────────────── */
+.wo-count {
+    padding: 8px 16px 0;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+.wo-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #374151;
+    cursor: pointer;
+}
+.wo-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    text-decoration: none;
+    color: inherit;
+    align-items: flex-start;
+}
+.wo-card:hover { background: #f9fafb; }
+.wo-card--archived { opacity: 0.55; }
+.wo-thumb {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    overflow: hidden;
+}
+.wo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.wo-card-main { flex: 1; min-width: 0; }
+.wo-card-name { font-weight: 600; color: #111827; margin-bottom: 3px; }
+.wo-card-meta { font-size: 0.82rem; color: #6b7280; margin: 3px 0; }
+.wo-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
+.wo-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.wo-badge--push     { background: #dbeafe; color: #1d4ed8; }
+.wo-badge--pull     { background: #ffedd5; color: #c2410c; }
+.wo-badge--both     { background: #ede9fe; color: #6d28d9; }
+.wo-badge--neither  { background: #f3f4f6; color: #6b7280; }
+.wo-badge--archived { background: #fee2e2; color: #b91c1c; }
+.wo-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; justify-content: flex-start; }
+.wo-chip {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+}
+.wo-chip--main { background: #0d9488; color: #fff; }
+.wo-chip--also { background: #ccfbf1; color: #0f766e; }
+
+/* Editor: tap-to-cycle chips */
+.wo-hint { font-size: 0.78rem; color: #6b7280; font-weight: 400; margin-left: 6px; }
+.wo-radio-row { display: flex; gap: 18px; }
+.wo-radio-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.wo-target-area { margin-bottom: 10px; }
+.wo-target-area-label { font-size: 0.78rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+.wo-chip-toggle {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    border-radius: 14px;
+    padding: 4px 12px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.wo-chip-toggle[data-state="main"] { background: #0d9488; border-color: #0d9488; color: #fff; }
+.wo-chip-toggle[data-state="also"] { background: #ccfbf1; border-color: #5eead4; color: #0f766e; }
+.wo-add-equip { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.wo-add-equip input { flex: 1; max-width: 240px; }
