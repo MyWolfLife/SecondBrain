@@ -21814,3 +21814,6 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Self-paced: actual numbers */
 .wo-adjust { font-size: 1.05rem; }
 .wo-adjust input { width: 72px; font-size: 1.1rem; text-align: center; border-radius: 8px; border: none; padding: 6px; }
+
+.wo-banner--pr { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.wo-banner--pr .wo-ro-list { margin-top: 4px; }

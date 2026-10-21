@@ -41,6 +41,17 @@ async function loadWorkoutDonePage(id) {
 
 // ─── computed bits ────────────────────────────────────────────────────────────
 
+/** "🏆 New personal records" banner for a record's prs[] (empty string when there are none). */
+function woPRsHtml(prs) {
+    if (!prs || !prs.length) return '';
+    var unit = { weight: ' lb', reps: ' reps', time: ' sec' };
+    return '<div class="wo-banner wo-banner--pr"><strong>🏆 New personal record' + (prs.length === 1 ? '' : 's') + '!</strong><ul class="wo-ro-list">' +
+        prs.map(function(p) {
+            var what = p.kind === 'weight' ? 'heaviest' : (p.kind === 'reps' ? 'most reps' : 'longest');
+            return '<li><strong>' + _woEsc(p.exerciseName) + '</strong> — ' + what + ': ' + p.value + unit[p.kind] + ' (was ' + p.previous + unit[p.kind] + ')</li>';
+        }).join('') + '</ul></div>';
+}
+
 /**
  * Set numbers are not stored — they follow line order. Each exercise counts its own sets;
  * the right-hand line of a left/right pair belongs to the same set as the left one.
@@ -81,6 +92,7 @@ function _woRenderDonePage() {
         '<div class="page-header"><h2>' + _woEsc(d.workoutName) + '</h2></div>' +
         '<div class="ex-form">' +
             '<div id="wodSaved" class="wo-banner hidden">✓ Saved</div>' +
+            woPRsHtml(d.prs) +
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="wodCal">Calories burned <span class="wo-hint">from your watch</span></label>' +
@@ -438,6 +450,7 @@ function _woRenderHistList() {
                             (w.calories != null ? '<span class="wo-badge wo-badge--push">' + w.calories + ' cal</span>'
                                                 : '<span class="wo-badge wo-badge--pull">No calories</span>') +
                             (w.rating ? '<span class="wo-badge wo-badge--neither">Effort ' + w.rating + '/5</span>' : '') +
+                            ((w.prs && w.prs.length) ? '<span class="wo-badge wo-badge--both">🏆 ' + w.prs.length + ' PR' + (w.prs.length === 1 ? '' : 's') + '</span>' : '') +
                         '</div>' +
                         '<div class="wo-card-meta">' + _woEsc(bits.join(' · ')) + '</div>' +
                     '</div>' +

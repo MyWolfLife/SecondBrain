@@ -920,6 +920,40 @@ function woSetLinesFromRun(phases, results) {
     return lines;
 }
 
+/**
+ * Personal records in a just-finished run, compared with every earlier Workout History record.
+ * One metric per exercise: weighted → heaviest weight, unweighted reps → most reps in a set,
+ * timed → longest time. The very first time you do an exercise is not a record.
+ * Returns [{exerciseId, exerciseName, kind:'weight'|'reps'|'time', value, previous}].
+ */
+async function woComputePRs(sets) {
+    var snap = await userCol('workoutSessions').get();
+    var prior = {};   // exerciseId → {weight, reps, time}
+    snap.docs.forEach(function(d) {
+        (d.data().sets || []).forEach(function(l) {
+            if (l.skipped || l.actualAmount == null) return;
+            var b = prior[l.exerciseId] || (prior[l.exerciseId] = { weight: null, reps: null, time: null });
+            if (l.measure === 'time')            b.time   = Math.max(b.time   || 0, l.actualAmount);
+            else if (l.actualWeight != null)     b.weight = Math.max(b.weight || 0, l.actualWeight);
+            else                                 b.reps   = Math.max(b.reps   || 0, l.actualAmount);
+        });
+    });
+    var now = {};     // this run's best per exercise + kind
+    sets.forEach(function(l) {
+        if (l.skipped || l.actualAmount == null) return;
+        var kind  = l.measure === 'time' ? 'time' : (l.actualWeight != null ? 'weight' : 'reps');
+        var value = kind === 'weight' ? l.actualWeight : l.actualAmount;
+        var key   = l.exerciseId + '|' + kind;
+        if (!now[key] || value > now[key].value) now[key] = { exerciseId: l.exerciseId, exerciseName: l.exerciseName, kind: kind, value: value };
+    });
+    var prs = [];
+    Object.keys(now).forEach(function(k) {
+        var n = now[k], p = prior[n.exerciseId] && prior[n.exerciseId][n.kind];
+        if (p && n.value > p) prs.push({ exerciseId: n.exerciseId, exerciseName: n.exerciseName, kind: n.kind, value: n.value, previous: p });
+    });
+    return prs;
+}
+
 /** The id of the built-in "Workout" activity type, creating it if this account hasn't visited the Activities pages yet. */
 async function _woWorkoutTypeId() {
     var find = async function() {
@@ -941,6 +975,8 @@ async function woSaveFinishedWorkout(fin) {
     var sess = fin.session;
     var durationMinutes = Math.max(0.1, Math.round(fin.elapsedMs / 6000) / 10);
     var sets = woSetLinesFromRun(fin.phases, fin.results);
+    var prs = [];
+    try { prs = await woComputePRs(sets); } catch (err) { console.error('Workouts: could not check records:', err); }
 
     var sessionRef = await userCol('workoutSessions').add({
         workoutId:       sess.workoutId,
@@ -955,6 +991,7 @@ async function woSaveFinishedWorkout(fin) {
         notes:           '',
         rating:          null,
         sets:            sets,
+        prs:             prs,
         activityId:      null,
         createdAt:       firebase.firestore.FieldValue.serverTimestamp()
     });

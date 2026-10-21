@@ -4769,6 +4769,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Tap a workout to open it — add calories from your watch, change sets, or delete it
 - An orange **No calories** tag reminds you which workouts still need their watch calories
+- **🏆 PR** shows workouts where you set a personal record
 - Use the search box to find a workout by name
 
 ---
@@ -4877,6 +4878,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Enter **Calories burned** from your watch — Save sends the calories, time and date to the matching Activity too
 - **Sets**: change any reps/seconds or weight, tap 🗑 to remove a line, **↑ ↓** to reorder, **+ Add line** to add an exercise you did that wasn't in the workout. Set numbers update by themselves
 - Sets you skipped are greyed — type a number to count one as done
+- A gold **🏆 New personal record** box appears when you lifted heavier, did more reps, or held longer than ever before for an exercise (the first time you do an exercise doesn't count)
 - Tap a number under **How hard was it?** to rate the workout (tap it again to clear)
 - **Delete** asks whether to also delete the linked Activity; choose "Only the workout record" to keep the Activity
 - **Create Activity** appears if the workout has no Activity entry
