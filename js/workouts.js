@@ -1315,7 +1315,7 @@ async function loadWorkoutsPage() {
     el.innerHTML =
         '<div class="page-header">' +
             '<h2>Workouts</h2>' +
-            '<div class="page-header-actions"><a href="#workout/new" class="btn btn-primary">+ New Workout</a></div>' +
+            '<div class="page-header-actions"><button type="button" class="btn btn-secondary" id="woProgBtn" title="When to suggest heavier weights, comeback rules">⚙ Progression</button> <a href="#workout/new" class="btn btn-primary">+ New Workout</a></div>' +
         '</div>' +
         '<div class="ex-toolbar"><div class="ex-toolbar-row">' +
             '<input type="search" id="woWText" class="filter-input" placeholder="Search workouts…" value="' + _woEsc(_woWFilter.text) + '">' +
@@ -1323,6 +1323,7 @@ async function loadWorkoutsPage() {
         '</div></div>' +
         '<div id="woWorkoutList"></div>';
     if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-workouts');
+    document.getElementById('woProgBtn').addEventListener('click', woOpenProgressionSettings);
     document.getElementById('woWText').addEventListener('input', function() { _woWFilter.text = this.value; _woRenderWorkoutList(); });
     document.getElementById('woWArchived').addEventListener('change', function() { _woWFilter.archived = this.checked; _woRenderWorkoutList(); });
     // ▶ Start sits inside the card link — intercept its click so it opens the Start screen, not the builder
@@ -1614,6 +1615,10 @@ function _woRenderSteps() {
                 _woSetsEditor(st, false) +
                 _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
                 _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
+                '<div class="wo-rest-row"><span class="wo-rest-label">Level-up (optional)</span>' +
+                    'after <input type="number" min="1" data-f="levelUpAfter" placeholder="10" value="' + (st.levelUpAfter || '') + '"> sessions' +
+                    (st.usesWeight ? ' · weight step <input type="number" min="0.5" step="0.5" data-f="weightStep" placeholder="5" value="' + (st.weightStep || '') + '"> lb' : '') +
+                    ' <span class="wo-hint">blank = your default</span></div>' +
             '</div>';
         }).join('');
     }
@@ -1667,6 +1672,11 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'levelUpAfter' || f === 'weightStep') {          // per-step progression overrides (blank = use the default)
+        var n = parseFloat(inp.value);
+        if (n > 0) st[f] = n; else delete st[f];
+        return;
+    }
     if (f === 'rounds')  { st.rounds = Math.max(1, Math.min(20, parseInt(inp.value, 10) || 1)); _woUpdateBuilderSummary(); return; }
 
     if (f === 'rest') {

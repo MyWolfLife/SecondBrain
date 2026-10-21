@@ -395,6 +395,7 @@ async function loadWorkoutStartPage(id) {
         _woS = { last: last, id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
                  date: _woTodayISO(), voiceCues: prefs.cues, voiceCmds: prefs.commands && !!woSpeechRecognitionCtor(),
                  saveBack: false };
+        await woProgInitStart();                 // streaks, level-up offers, welcome-back (workout-progress.js)
     } catch (err) {
         console.error('Workouts: failed to load workout for start:', err);
         el.innerHTML = '<div class="ex-status">Could not load this workout.</div>';
@@ -418,13 +419,15 @@ function _woRenderStartPage() {
                     var s0 = (it.sets && it.sets[0]) || {};
                     return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span>' + _woLastTimeHtml(it.exerciseId) +
                         '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
-                        (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>';
+                        (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
+                        woProgStepHtml(it, i + '.' + j);
                 }).join('') + '</div>';
         }
         return '<div class="wo-step" data-path="' + i + '">' +
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') + '</div>' +
             _woLastTimeHtml(st.exerciseId) +
+            woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
             (st.sets || []).map(function(set, k) {
                 return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
@@ -437,6 +440,7 @@ function _woRenderStartPage() {
         '<div class="page-header"><h2>' + _woEsc(w.name) + '</h2></div>' +
         '<div class="ex-form">' +
             '<div class="wo-banner" id="wosEstimate"></div>' +
+            woProgBannerHtml() +
 
             '<div class="ex-form-group"><label class="ex-label" for="wosDate">Date</label>' +
                 '<input type="date" id="wosDate" value="' + s.date + '" max="' + _woTodayISO() + '"></div>' +
@@ -473,6 +477,8 @@ function _woRenderStartPage() {
     box.addEventListener('input',  _woStartInput);
     box.addEventListener('change', _woStartInput);
     document.getElementById('wosGo').addEventListener('click', _woStartGo);
+    el.removeEventListener('click', woProgHandleClick);
+    el.addEventListener('click', woProgHandleClick);   // level-up / reset buttons and Welcome-back choices
     _woUpdateStartEstimate();
 }
 
@@ -533,6 +539,7 @@ async function _woStartGo() {
     btn.disabled = true; btn.textContent = 'Starting…';
     try {
         var steps = s.workout.steps;
+        if (s.prog && s.prog.welcome && s.prog.choice !== 'current') await _woProgPersist();   // Comeback / Base choices stick
         if (s.saveBack && _woStartChanged()) {
             steps = _woStepsWithSavedChanges();
             var ids = [];
@@ -916,6 +923,7 @@ function woSetLinesFromRun(phases, results) {
         var r = byIndex[i], done = !!(r && r.status === 'done');
         lines.push({
             exerciseId: p.exerciseId, exerciseName: p.exerciseName, measure: p.measure,
+            stepIndex: p.stepIndex, itemIndex: p.itemIndex == null ? null : p.itemIndex,   // which workout step this came from (progression)
             section: p.section || 'main', side: p.side || null,
             targetAmount: p.amount, targetWeight: p.weight,
             actualAmount: done ? ((r.actual && r.actual.amount != null) ? r.actual.amount : p.amount) : null,
@@ -1023,6 +1031,8 @@ async function woSaveFinishedWorkout(fin) {
         activityId:      null,
         createdAt:       firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    await woApplyProgression(sess.workoutId, sets, sess.date);   // streaks / comeback ramp for each step
 
     var activityId = null;
     try {

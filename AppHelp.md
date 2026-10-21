@@ -4823,6 +4823,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Each card shows how many exercises, about how long it takes, how many push vs. pull moves, and which parts of the body it works
 - **Show archived** brings back workouts you've hidden
 - Tap **▶ Start** on a workout to run it with the guided countdown
+- **⚙ Progression** sets when the app suggests heavier weights (default: after 10 good sessions) and how a comeback after a long break works
 
 ---
 
@@ -4836,6 +4837,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Rest between sets** and **Rest after exercise** can be **Timed** (counts down by itself) or **Tap when ready** (waits for you — good for heavy sets)
 - Use **↑ ↓** to reorder, **⧉** to duplicate an exercise, **✕** to remove it
 - The line under "Exercises" shows total time and your push/pull balance
+- Each exercise has an optional **Level-up** row: how many good sessions before a suggested increase, and the weight step (blank uses your default)
 - **Copy as new** makes a duplicate workout you can change; **Archive** hides it; **Delete** removes it (your history is kept)
 - **Customize sets**: for a pyramid (like 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb) tap **Customize sets** and give each set its own reps (or seconds) and weight. **+ Add set** adds another
 - **+ Add circuit** makes a group of exercises done back-to-back and repeated for a number of **rounds** — you set the rest between exercises, between rounds, and after the circuit
@@ -4855,6 +4857,9 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome
 - **Last time** under each exercise shows what you did when you last did it (in any workout), so you know what to beat
+- **⬆ Ready to level up**: after about 10 good sessions in a row (every set hit its numbers) the app suggests a small increase — more reps, then more weight. Tap **Accept** to use it or **Not yet** to wait. A grey line shows how close you are
+- **👋 Welcome back**: if it's been 4+ weeks, pick **Comeback** (start at 60% of your weights and climb back quickly), **Start at Base**, or **Start at Current**
+- **Reset to base** puts an exercise back to exactly what you built
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout
 - Tick **Save these changes back to the workout** if you want the new numbers to stick
 - Tap **▶ Start workout** when you're ready

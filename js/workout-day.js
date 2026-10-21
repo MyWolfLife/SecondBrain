@@ -173,6 +173,7 @@ async function _woDayFinish() {
         try {
             activityId = await _woCreateLinkedActivity(id, d.workoutName, d.date, startMs, null);
         } catch (err) { console.error('Workouts: could not create the linked Activity:', err); }
+        await woApplyProgression(d.workoutId, lines, d.date);   // streaks / comeback ramp
         var stop = _woDay; _woDayStop();                      // stop listening before the status flips
         await userCol('workoutSessions').doc(id).update({
             status: 'done', sets: lines, prs: prs, finishedAt: _woISODate(Date.now()), activityId: activityId
