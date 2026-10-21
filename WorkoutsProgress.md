@@ -32,9 +32,10 @@
 | 5.1–5.3 | Progression: streaks, level-up, comeback, reset to base | ✅ done |
 | 5.4 | Per-exercise history + records chart | ✅ done |
 | 5.5 | Muscle balance view | ✅ done |
+| 5.6 | Calendar scheduling | ✅ done |
 
 ## Next up
-User asked for **Phase 5 only (NOT Phase 6)**. 5.1–5.3 done (`js/workout-progress.js`). Remaining: **5.6** calendar scheduling (read `js/calendar.js` + the `calendarEvents` model; add a 📅 Schedule action on workouts that creates an event with `targetType:'workout'`, `targetId`; event cards get a ▶ Start link). Then final docs. Do NOT start Phase 6.
+**Phases 1–5 are complete.** The user asked for Phase 5 only — **do NOT start Phase 6** unless they ask (Phase 6 = Programs, EMOM/AMRAP/Tabata presets, AI workout builder, SecondBrain action + help entry per CLAUDE.md). Other open items: Shared Spaces (SharedSpacesPlan.md) is a separate later effort; known gaps — leaving the guided/self-paced player mid-workout discards the run; the "in progress" card isn't on the app's home screen; voice, speech and wake lock are untested on real hardware; editing set lines on the Finished screen doesn't re-run progression or personal records; completing a scheduled workout's calendar event doesn't create a workout record.
 
 ## Notes for the next session (code facts learned)
 - Routing: `js/app.js` — add page names to `ALL_PAGES` (~line 195), `LIFE_PAGES` (~224), `TOP_LEVEL_PAGES` (~158, only for nav-link pages), then an `else if (page === ...)` branch in the router (~795, Exercise routes) calling `showPage()` + a loader. Page shells are `<section class="page hidden" id="page-NAME">` in `index.html` (~7655).

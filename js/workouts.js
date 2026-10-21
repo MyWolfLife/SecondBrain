@@ -1476,6 +1476,7 @@ function _woRenderBuilder() {
                 '<a href="#workouts" class="btn btn-secondary">Cancel</a>' +
                 (isNew ? '' :
                     '<a href="#workout-start/' + w.id + '" class="btn btn-secondary" title="Starts the saved version of this workout">▶ Start</a>' +
+                    '<button type="button" class="btn btn-secondary" id="wobSchedule">📅 Schedule</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobCopy">Copy as new</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobArchive">' + (w.archived ? 'Unarchive' : 'Archive') + '</button>' +
                     '<button type="button" class="btn btn-danger" id="wobDelete">Delete</button>') +
@@ -1492,6 +1493,7 @@ function _woRenderBuilder() {
         if (cards.length) cards[cards.length - 1].scrollIntoView({ block: 'center' });
     });
     document.getElementById('wobSave').addEventListener('click', _woSaveWorkout);
+    var sched = document.getElementById('wobSchedule'); if (sched) sched.addEventListener('click', function() { woOpenScheduleDialog(_woW.id, _woW.name); });
     var copy = document.getElementById('wobCopy');    if (copy) copy.addEventListener('click', _woCopyWorkout);
     var arch = document.getElementById('wobArchive'); if (arch) arch.addEventListener('click', _woArchiveWorkout);
     var del  = document.getElementById('wobDelete');  if (del)  del.addEventListener('click', _woDeleteWorkout);
@@ -1892,6 +1894,52 @@ async function _woSaveInlineExercise() {
         alert('Failed to create the exercise. Please try again.');
         btn.disabled = false; btn.textContent = 'Create & add';
     }
+}
+
+// ----- Schedule on the calendar (chunk 5.6) -----
+
+/**
+ * 📅 Schedule: puts the workout on the app Calendar as an event linked to it
+ * (targetType 'workout'); the calendar card then has a ▶ Start workout button.
+ */
+function woOpenScheduleDialog(workoutId, workoutName) {
+    var ov = _woGrabOverlay(
+        '<h3>Schedule “' + _woEsc(workoutName) + '”</h3>' +
+        '<div class="ex-form-group"><label class="ex-label" for="wosDateCal">First day</label>' +
+            '<input type="date" id="wosDateCal" value="' + _woTodayISO() + '" min="' + _woTodayISO() + '"></div>' +
+        '<div class="ex-form-group"><label class="ex-label" for="wosRepeat">Repeat</label>' +
+            '<select id="wosRepeat"><option value="once">Just once</option><option value="weekly">Every week</option>' +
+            '<option value="every_x_days">Every X days</option></select>' +
+            '<span id="wosEveryRow" class="hidden"> every <input type="number" id="wosEveryDays" min="1" max="60" value="2" style="width:64px"> days</span></div>' +
+        '<div id="wosSchedMsg" class="wo-hint"></div>' +
+        '<div class="ex-form-actions"><button type="button" class="btn btn-primary" id="wosSchedSave">Schedule</button>' +
+        '<button type="button" class="btn btn-secondary" id="wosSchedClose">Close</button></div>');
+    var rep = ov.querySelector('#wosRepeat');
+    rep.addEventListener('change', function() { ov.querySelector('#wosEveryRow').classList.toggle('hidden', rep.value !== 'every_x_days'); });
+    ov.querySelector('#wosSchedClose').addEventListener('click', _woCloseGrabber);
+    ov.querySelector('#wosSchedSave').addEventListener('click', async function() {
+        var date = ov.querySelector('#wosDateCal').value;
+        if (!date) { alert('Please pick a date.'); return; }
+        var recurring = null;
+        if (rep.value === 'weekly') recurring = { type: 'weekly' };
+        if (rep.value === 'every_x_days') recurring = { type: 'every_x_days', intervalDays: Math.max(1, parseInt(ov.querySelector('#wosEveryDays').value, 10) || 1) };
+        var btn = this; btn.disabled = true;
+        try {
+            await userCol('calendarEvents').add({
+                title: 'Workout: ' + workoutName, description: '', date: date, recurring: recurring,
+                targetType: 'workout', targetId: workoutId,
+                zoneIds: [], tagIds: [], savedActionId: null, trackingCategory: null,
+                completed: false, completedDates: [],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            ov.querySelector('#wosSchedMsg').innerHTML = '✓ Scheduled. See it on your <a href="#calendar">Calendar</a>.';
+            btn.textContent = 'Scheduled ✓';
+        } catch (err) {
+            console.error('Workouts: could not schedule:', err);
+            alert('Could not schedule the workout. Please try again.');
+            btn.disabled = false;
+        }
+    });
 }
 
 // ----- Save / copy / archive / delete -----

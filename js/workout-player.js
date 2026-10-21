@@ -465,6 +465,7 @@ function _woRenderStartPage() {
 
             '<div class="ex-form-actions">' +
                 '<button type="button" class="btn btn-primary" id="wosGo">▶ Start workout</button>' +
+                '<button type="button" class="btn btn-secondary" id="wosSchedule">📅 Schedule</button>' +
                 '<a href="#workouts" class="btn btn-secondary">Cancel</a>' +
             '</div>' +
         '</div>';
@@ -477,6 +478,7 @@ function _woRenderStartPage() {
     box.addEventListener('input',  _woStartInput);
     box.addEventListener('change', _woStartInput);
     document.getElementById('wosGo').addEventListener('click', _woStartGo);
+    document.getElementById('wosSchedule').addEventListener('click', function() { woOpenScheduleDialog(_woS.id, _woS.workout.name); });
     el.removeEventListener('click', woProgHandleClick);
     el.addEventListener('click', woProgHandleClick);   // level-up / reset buttons and Welcome-back choices
     _woUpdateStartEstimate();

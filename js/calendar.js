@@ -993,7 +993,7 @@ function createCalendarEventCard(occ, reloadFn) {
                     var houseLabel = await getHouseContextLabel(occ.targetType, occ.targetId);
                     if (houseLabel) _calAppendTargetLink(targetEl, houseLabel, '#' + occ.targetType + '/' + occ.targetId);
                 }
-            } else if (occ.targetType && occ.targetId) {
+            } else if (occ.targetType && occ.targetId && occ.targetType !== 'workout') {
                 // Generic fallback for any other linkable entity type (vehicle, weed,
                 // subthing, item, structure, structurething, structuresubthing,
                 // garageroom, garagething, garagesubthing).
@@ -1120,6 +1120,15 @@ function createCalendarEventCard(occ, reloadFn) {
     // Action buttons
     var actions = document.createElement('div');
     actions.className = 'calendar-event-actions';
+
+    // Scheduled workout (Fitness → Workouts): jump straight to its Start screen
+    if (occ.targetType === 'workout' && occ.targetId && !occ.completed) {
+        var startWo = document.createElement('button');
+        startWo.className = 'btn btn-small btn-primary';
+        startWo.textContent = '▶ Start workout';
+        startWo.addEventListener('click', function() { location.hash = '#workout-start/' + occ.targetId; });
+        actions.appendChild(startWo);
+    }
 
     // Complete button — only shown for uncompleted occurrences
     if (!occ.completed) {

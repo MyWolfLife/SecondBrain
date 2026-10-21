@@ -4864,6 +4864,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Use **↑ ↓** to reorder, **⧉** to duplicate an exercise, **✕** to remove it
 - The line under "Exercises" shows total time and your push/pull balance
 - Each exercise has an optional **Level-up** row: how many good sessions before a suggested increase, and the weight step (blank uses your default)
+- **📅 Schedule** adds the workout to your Calendar with a ▶ Start button
 - **Copy as new** makes a duplicate workout you can change; **Archive** hides it; **Delete** removes it (your history is kept)
 - **Customize sets**: for a pyramid (like 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb) tap **Customize sets** and give each set its own reps (or seconds) and weight. **+ Add set** adds another
 - **+ Add circuit** makes a group of exercises done back-to-back and repeated for a number of **rounds** — you set the rest between exercises, between rounds, and after the circuit
@@ -4886,6 +4887,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **⬆ Ready to level up**: after about 10 good sessions in a row (every set hit its numbers) the app suggests a small increase — more reps, then more weight. Tap **Accept** to use it or **Not yet** to wait. A grey line shows how close you are
 - **👋 Welcome back**: if it's been 4+ weeks, pick **Comeback** (start at 60% of your weights and climb back quickly), **Start at Base**, or **Start at Current**
 - **Reset to base** puts an exercise back to exactly what you built
+- **📅 Schedule** puts this workout on your Calendar (once, weekly, or every few days). On the Calendar, tap **▶ Start workout** on that day
 - **Today's numbers**: change reps, seconds or weight for any set — this affects only today's workout
 - Tick **Save these changes back to the workout** if you want the new numbers to stick
 - Tap **▶ Start workout** when you're ready
