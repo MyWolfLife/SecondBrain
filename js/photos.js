@@ -483,6 +483,15 @@ document.addEventListener('click', function(e) {
 
 // ---------- Crop Preview ----------
 
+/** Updates the Square button label to match the crop box shape (true = locked to a square). */
+function _setCropSquareButton(square) {
+    var btn = document.getElementById('cropSquareBtn');
+    if (!btn) return;
+    btn.setAttribute('data-square', square ? '1' : '');
+    btn.innerHTML = square ? '&#x25AD; Free shape' : '&#x25A2; Square';
+    btn.title = square ? 'Let the crop box be any shape again' : 'Lock the crop box to a square';
+}
+
 /**
  * Initializes Cropper.js on the current #cropPreviewImage and switches the
  * modal to the "apply crop" button state. Shared by the manual "✂ Crop"
@@ -498,6 +507,7 @@ function _startCropperOnPreviewImage() {
         scalable:      false,
         autoCropArea:  0.9,
     });
+    _setCropSquareButton(false);                 // each crop starts with a free-shaped box
     document.getElementById('cropPreviewButtons').style.display = 'none';
     document.getElementById('cropApplyButtons').style.display  = '';
 }
@@ -1163,6 +1173,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('cropRotateRightBtn').addEventListener('click', function() {
         if (_cropperInstance) _cropperInstance.rotate(90);
+    });
+
+    // Square: lock the crop box to 1:1 (press again to go back to a free shape)
+    document.getElementById('cropSquareBtn').addEventListener('click', function() {
+        if (!_cropperInstance) return;
+        var square = !this.getAttribute('data-square');
+        _cropperInstance.setAspectRatio(square ? 1 : NaN);
+        _setCropSquareButton(square);
     });
 
     // Back: destroy Cropper, return to plain preview of original file

@@ -3172,7 +3172,7 @@ These features are used across multiple sections. The implementation lives prima
 - Clipboard paste
 - LLM identification flow (photos staged and compressed before sending)
 
-**Crop tool**: Cropper.js instance shown before save — user can adjust framing. Optional, can skip. Also accessible from the View lightbox (see below). **↺ / ↻ rotate buttons** (90° left/right) sit next to the crop/apply button in both the main crop-preview modal and the LLM photo-staging crop modal — rotation is baked into the image by `getCroppedCanvas()` on Apply/Crop, so no separate save step is needed.
+**Crop tool**: Cropper.js instance shown before save — user can adjust framing. Optional, can skip. Also accessible from the View lightbox (see below). A **▢ Square** button in the main crop-preview modal (also used for workout exercise pictures) locks the crop box to a square; it becomes **▭ Free shape** to unlock, and every crop starts free-shaped. **↺ / ↻ rotate buttons** (90° left/right) sit next to the crop/apply button in both the main crop-preview modal and the LLM photo-staging crop modal — rotation is baked into the image by `getCroppedCanvas()` on Apply/Crop, so no separate save step is needed.
 
 - **New-upload flow** (`showCropPreview()` called from `handlePhotoFile`): shows the "Use Photo" / "✂ Crop" / "Cancel" preview step first, since intent isn't yet known — user may just want to save as-is.
 - **Existing-photo flow** (`showCropPreview(file, true)` called from `cropExistingPhoto`, triggered by the lightbox's Crop button): skips the preview step and goes straight into Cropper.js, since tapping Crop in the lightbox already signals intent — avoids requiring two separate "Crop" clicks in a row.

@@ -525,7 +525,7 @@ The health indicator also appears on the plant card in the zone view, so you can
 1. Go to the Photos section on any entity's detail page
 2. Tap **+ Add Photo**
 3. Choose: Camera (take a new photo), Gallery (pick from device), or Paste (from clipboard)
-4. Crop the photo if desired — use the **↺ / ↻** buttons to rotate 90° left/right before applying the crop — then save
+4. Crop the photo if desired — use the **↺ / ↻** buttons to rotate 90° left/right, or **▢ Square** to make the crop box a perfect square (tap **▭ Free shape** to go back) — before applying the crop, then save
 
 **Viewing photos:**
 - Navigate with **Newer** / **Older** buttons
@@ -4837,7 +4837,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - In **What it works**: tap a muscle once for ★ main target, again for also-works, again to clear
 - **Archive** hides an exercise from lists but keeps it in workouts that already use it; **Delete** removes it for good
 - **Pictures**: after you add an exercise you can add 2–4 pictures that show the motion (start, middle, end). Use 📷 Camera, 🖼️ Gallery (pick several at once), or 📋 Paste (in Chrome: right-click a web image → Copy image, then tap Paste). The preview plays them like a flipbook — that is how the workout player will show the move
-- Use ◀ ▶ under a picture to change its order, **✂** to crop it (drag the box, then Apply Crop) and ✕ to delete it
+- Use ◀ ▶ under a picture to change its order, **✂** to crop it (drag the box, or tap **▢ Square** for a square box, then Apply Crop) and ✕ to delete it
 - **🎞️ From video / GIF**: the easiest way to get clean frames. Record yourself doing one rep (or pick a saved clip), slide to the start of the move and tap **Grab this frame**, then the middle and the end — or tap **Auto 3 frames**. For a GIF from the web, pick it and choose which of the 4 frames to keep. The video or GIF itself is not saved, only the frames (GIF support needs Chrome)
 
 - Tap **📈 History** to see every time you've done the exercise, a chart of your best weight (or reps / time) over time, and your 🏆 records
