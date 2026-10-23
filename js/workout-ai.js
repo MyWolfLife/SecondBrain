@@ -99,7 +99,7 @@ async function _woAiAsk(text) {
         '  "pushPull": "push" | "pull" | "both" | "neither",\n' +
         '  "equipment": [names taken exactly from the EQUIPMENT list that the exercise uses],\n' +
         '  "newEquipment": [{ "name": string, "description": string }] (ONLY equipment the description needs that is truly not in the EQUIPMENT list; match loosely first, e.g. "nordic pole" = "Nordic Stick"; "description" is one short sentence, and say you are guessing if you do not know what it is),\n' +
-        '  "muscles": [{ "id": string from the MUSCLE list, "main": boolean }] (main = the primary movers, the rest are helpers),\n' +
+        '  "muscles": [{ "id": string from the MUSCLE list, "main": boolean }] (main = ONLY the 1 to 3 muscles that do most of the work; everything else that merely braces or assists is main:false. Think about which muscles actually move the body in this exact movement. Abs are main only for trunk curls or crunch-type moves; a sideways or side-lying torso lift is a side bend, so obliques and lower back are main and abs are a helper at most),\n' +
         '  "cues": [3 to 5 short spoken-style coaching cues, imperative, one per item],\n' +
         '  "guesses": [short plain sentences about anything you had to assume, such as push/pull choice or unclear equipment],\n' +
         '  "similarExercises": [names from the existing exercises list that are the same or nearly the same exercise] }\n\n' +
