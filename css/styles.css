@@ -21903,3 +21903,8 @@ body.wo-playing .offline-banner { display: none !important; }
 
 /* Exercise list: Push/Pull badge sits right after the name */
 .wo-card-name--row .wo-badge { margin-left: 6px; vertical-align: middle; }
+
+/* Equipment manager */
+.wo-equip-list { max-height: 50vh; overflow-y: auto; margin-bottom: 10px; }
+.wo-equip-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+.wo-equip-main { flex: 1; min-width: 0; }

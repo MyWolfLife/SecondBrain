@@ -6,6 +6,7 @@
 // SharedSpacesPlan.md — which is why library collections go through woLibCol()):
 //   workoutMuscles    — muscle list, grouped by area
 //   workoutExercises  — the exercise library
+//   workoutEquipment  — equipment list (name + description); exercises hold equipment by name
 //   workouts          — built routines (steps with sets, rest, circuits)
 //   workoutSessions   — Workout History (personal, always userCol)
 
@@ -420,6 +421,7 @@ async function loadWorkoutExercisePage(id) {
 
     try {
         await woLoadMuscles();
+        await woLoadEquipment();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
                         usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', eachSide: false, equipment: [],
@@ -452,7 +454,7 @@ function _woRenderExerciseEditor() {
     var isNew = !e.id;
     var el    = document.getElementById('page-workout-exercise');
 
-    var allEquip = WO_EQUIPMENT_PRESETS.slice();
+    var allEquip = _woEquipment.map(function(q) { return q.name; });
     e.equipment.forEach(function(q) { if (allEquip.indexOf(q) === -1) allEquip.push(q); });
 
     var targetsHtml = WO_AREAS.map(function(a) {
@@ -544,7 +546,8 @@ function _woRenderExerciseEditor() {
                     }).join('') +
                 '</div>' +
                 '<div class="wo-add-equip"><input type="text" id="woeEquipNew" placeholder="Other equipment…" maxlength="40">' +
-                    '<button type="button" class="btn btn-secondary btn-small" id="woeEquipAdd">Add</button></div>' +
+                    '<button type="button" class="btn btn-secondary btn-small" id="woeEquipAdd">Add</button>' +
+                    '<button type="button" class="btn btn-secondary btn-small" id="woeEquipEdit">Edit</button></div>' +
                 '</div>' +
             '</div>' +
 
@@ -598,6 +601,7 @@ function _woRenderExerciseEditor() {
         btn.addEventListener('click', function() { _woToggleEquip(this); });
     });
     document.getElementById('woeEquipAdd').addEventListener('click', _woAddCustomEquip);
+    document.getElementById('woeEquipEdit').addEventListener('click', woOpenEquipmentManager);
     document.getElementById('woeEquipNew').addEventListener('keydown', function(ev) {
         if (ev.key === 'Enter') { ev.preventDefault(); _woAddCustomEquip(); }
     });
@@ -692,6 +696,7 @@ function _woAddCustomEquip() {
     });
     if (!exists) {
         if (_woEdit.equipment.indexOf(q) === -1) _woEdit.equipment.push(q);
+        woAddEquipmentName(q);                       // also keeps it on the Edit list
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'wo-chip-toggle';
@@ -703,6 +708,190 @@ function _woAddCustomEquip() {
     }
     _woRefreshAccAnswers();
     input.value = '';
+}
+
+// ─── Equipment list (Edit button next to Add in the exercise editor) ──────────
+
+var _woEquipment = [];   // [{id, name, description}] sorted by name
+
+function _woSortEquipment() {
+    _woEquipment.sort(function(a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+}
+
+function _woFindEquipment(name) {
+    var n = (name || '').trim().toLowerCase();
+    return _woEquipment.filter(function(q) { return q.name.toLowerCase() === n; })[0] || null;
+}
+
+/**
+ * Loads the equipment list. The first time, it is filled from the starter presets plus
+ * every name already used on an exercise; after that the list is exactly what you edit
+ * (a deleted item is never brought back).
+ */
+async function woLoadEquipment() {
+    var metaRef = woLibCol('workoutMeta').doc('equipment');
+    var meta = await metaRef.get();
+    if (!meta.exists) {
+        await woLoadExercises();
+        var names = WO_EQUIPMENT_PRESETS.slice();
+        _woExercises.forEach(function(e) {
+            (e.equipment || []).forEach(function(q) {
+                if (!names.some(function(n) { return n.toLowerCase() === q.toLowerCase(); })) names.push(q);
+            });
+        });
+        var ts = firebase.firestore.FieldValue.serverTimestamp();
+        var batch = db.batch();
+        names.forEach(function(n) { batch.set(woLibCol('workoutEquipment').doc(), { name: n, description: '', createdAt: ts }); });
+        batch.set(metaRef, { seededAt: ts });
+        await batch.commit();
+    }
+    var snap = await woLibCol('workoutEquipment').get();
+    _woEquipment = snap.docs.map(function(d) { var q = d.data(); q.id = d.id; q.description = q.description || ''; return q; });
+    _woSortEquipment();
+    return _woEquipment;
+}
+
+/** Adds a name to the equipment list if it is not there yet (used by the editor's Add box). */
+function woAddEquipmentName(name) {
+    if (_woFindEquipment(name)) return;
+    var ref = woLibCol('workoutEquipment').doc();
+    var item = { id: ref.id, name: name, description: '' };
+    _woEquipment.push(item); _woSortEquipment();
+    ref.set({ name: name, description: '', createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+       .catch(function(err) { console.error('Workouts: could not save equipment:', err); });
+}
+
+/** Equipment as the LLM exercise builder will receive it: names with their descriptions. */
+function woEquipmentForLLM() {
+    return _woEquipment.map(function(q) { return { name: q.name, description: q.description }; });
+}
+
+function woOpenEquipmentManager() {
+    _woRenderEquipmentList();
+}
+
+function _woRenderEquipmentList(msg) {
+    var rows = _woEquipment.length ? _woEquipment.map(function(q) {
+        return '<div class="wo-equip-row"><div class="wo-equip-main"><strong>' + _woEsc(q.name) + '</strong>' +
+               (q.description ? '<div class="wo-hint">' + _woEsc(q.description.length > 120 ? q.description.slice(0, 120) + '…' : q.description) + '</div>' : '') +
+               '</div><button type="button" class="btn btn-secondary btn-small" data-eq-edit="' + q.id + '">Edit</button></div>';
+    }).join('') : '<p class="wo-hint">No equipment yet.</p>';
+    var ov = _woGrabOverlay(
+        '<h3>Equipment</h3>' +
+        (msg ? '<div class="wo-hint">' + _woEsc(msg) + '</div>' : '') +
+        '<div class="wo-equip-list">' + rows + '</div>' +
+        '<div class="ex-form-actions"><button type="button" class="btn btn-primary" id="woEqAdd">+ Add equipment</button>' +
+        '<button type="button" class="btn btn-secondary" id="woEqClose">Close</button></div>');
+    ov.querySelector('#woEqClose').addEventListener('click', _woCloseGrabber);
+    ov.querySelector('#woEqAdd').addEventListener('click', function() { _woRenderEquipmentForm(null); });
+    ov.querySelectorAll('[data-eq-edit]').forEach(function(b) {
+        b.addEventListener('click', function() { _woRenderEquipmentForm(this.getAttribute('data-eq-edit')); });
+    });
+}
+
+function _woRenderEquipmentForm(id) {
+    var item = id ? _woEquipment.filter(function(q) { return q.id === id; })[0] : null;
+    var ov = _woGrabOverlay(
+        '<h3>' + (item ? 'Edit equipment' : 'Add equipment') + '</h3>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woEqName">Name</label>' +
+            '<input type="text" id="woEqName" maxlength="40" value="' + _woEsc(item ? item.name : '') + '"></div>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woEqDesc">Description</label>' +
+            '<textarea id="woEqDesc" rows="8" style="width:100%" placeholder="What it is, how it is used, how heavy or how long…">' + _woEsc(item ? item.description : '') + '</textarea></div>' +
+        '<div id="woEqMsg" class="wo-hint"></div>' +
+        '<div class="ex-form-actions"><button type="button" class="btn btn-primary" id="woEqSave">Save</button>' +
+        '<button type="button" class="btn btn-secondary" id="woEqCancel">Cancel</button>' +
+        (item ? '<button type="button" class="btn btn-danger" id="woEqDelete">Delete</button>' : '') + '</div>');
+    var msg = ov.querySelector('#woEqMsg');
+    ov.querySelector('#woEqCancel').addEventListener('click', function() { _woRenderEquipmentList(); });
+    ov.querySelector('#woEqSave').addEventListener('click', async function() {
+        var name = ov.querySelector('#woEqName').value.trim();
+        var desc = ov.querySelector('#woEqDesc').value.trim();
+        if (!name) { msg.textContent = 'Please enter a name.'; return; }
+        var dup = _woFindEquipment(name);
+        if (dup && (!item || dup.id !== item.id)) { msg.textContent = 'There is already equipment with that name.'; return; }
+        this.disabled = true;
+        try {
+            if (item) await _woSaveEquipmentEdit(item, name, desc);
+            else {
+                var ref = woLibCol('workoutEquipment').doc();
+                await ref.set({ name: name, description: desc, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                _woEquipment.push({ id: ref.id, name: name, description: desc });
+            }
+            _woSortEquipment();
+            _woRebuildEquipChips();
+            _woRenderEquipmentList('✓ Saved.');
+        } catch (err) {
+            console.error('Workouts: could not save equipment:', err);
+            msg.textContent = 'Could not save. Please try again.';
+            this.disabled = false;
+        }
+    });
+    var del = ov.querySelector('#woEqDelete');
+    if (del) del.addEventListener('click', async function() {
+        this.disabled = true;
+        try {
+            await woLoadExercises();
+            var used = _woExercises.filter(function(e) { return (e.equipment || []).indexOf(item.name) !== -1; });
+            var ask = used.length
+                ? 'Delete “' + item.name + '”? It will also be removed from ' + used.length + ' exercise' + (used.length === 1 ? '' : 's') + ' (' +
+                  used.slice(0, 5).map(function(e) { return e.name; }).join(', ') + (used.length > 5 ? ', …' : '') + ').'
+                : 'Delete “' + item.name + '”?';
+            if (!confirm(ask)) { this.disabled = false; return; }
+            await _woChangeEquipmentOnExercises(used, item.name, null);
+            await woLibCol('workoutEquipment').doc(item.id).delete();
+            _woEquipment = _woEquipment.filter(function(q) { return q.id !== item.id; });
+            if (_woEdit) _woEdit.equipment = _woEdit.equipment.filter(function(q) { return q !== item.name; });
+            _woRebuildEquipChips();
+            _woRenderEquipmentList('✓ Deleted' + (used.length ? ' and removed from ' + used.length + ' exercise' + (used.length === 1 ? '' : 's') : '') + '.');
+        } catch (err) {
+            console.error('Workouts: could not delete equipment:', err);
+            msg.textContent = 'Could not delete. Please try again.';
+            this.disabled = false;
+        }
+    });
+}
+
+/** Saves name/description; a new name is carried into every exercise that used the old one. */
+async function _woSaveEquipmentEdit(item, name, desc) {
+    var oldName = item.name;
+    if (name !== oldName) {
+        await woLoadExercises();
+        var used = _woExercises.filter(function(e) { return (e.equipment || []).indexOf(oldName) !== -1; });
+        await _woChangeEquipmentOnExercises(used, oldName, name);
+        if (_woEdit) _woEdit.equipment = _woEdit.equipment.map(function(q) { return q === oldName ? name : q; });
+    }
+    await woLibCol('workoutEquipment').doc(item.id).update({ name: name, description: desc });
+    item.name = name; item.description = desc;
+}
+
+/** Renames (newName given) or removes (newName null) one equipment name on the given exercises. */
+async function _woChangeEquipmentOnExercises(exercises, oldName, newName) {
+    for (var i = 0; i < exercises.length; i += 400) {
+        var batch = db.batch();
+        exercises.slice(i, i + 400).forEach(function(e) {
+            var list = (e.equipment || []).filter(function(q) { return q !== oldName; });
+            if (newName && list.indexOf(newName) === -1) list.push(newName);
+            e.equipment = list;
+            batch.update(woLibCol('workoutExercises').doc(e.id), { equipment: list });
+        });
+        await batch.commit();
+    }
+}
+
+/** Redraws the editor's equipment chips after the list changed (keeps everything else typed in the form). */
+function _woRebuildEquipChips() {
+    var box = document.getElementById('woeEquip');
+    if (!box || !_woEdit) return;
+    var names = _woEquipment.map(function(q) { return q.name; });
+    _woEdit.equipment.forEach(function(q) { if (names.indexOf(q) === -1) names.push(q); });
+    box.innerHTML = names.map(function(q) {
+        return '<button type="button" class="wo-chip-toggle" data-equip="' + _woEsc(q) + '" data-state="' +
+               (_woEdit.equipment.indexOf(q) !== -1 ? 'main' : 'off') + '">' + _woEsc(q) + '</button>';
+    }).join('');
+    box.querySelectorAll('.wo-chip-toggle[data-equip]').forEach(function(btn) {
+        btn.addEventListener('click', function() { _woToggleEquip(this); });
+    });
+    _woRefreshAccAnswers();
 }
 
 async function _woSaveExercise() {
