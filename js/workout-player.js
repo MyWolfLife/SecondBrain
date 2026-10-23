@@ -26,7 +26,7 @@ var WO_SWITCH_SEC   = 5;
 function _woSetPhases(st, set, ctx) {
     var amount = set.amount != null ? set.amount : (st.measure === 'time' ? 30 : 10);
     var weight = set.weight != null ? set.weight : null;
-    var sides  = st.eachSide ? ['left', 'right'] : [null];
+    var sides  = st.eachSide ? (st.startSide === 'right' ? ['right', 'left'] : ['left', 'right']) : [null];
     var out = [];
     sides.forEach(function(side, si) {
         out.push({
@@ -35,7 +35,7 @@ function _woSetPhases(st, set, ctx) {
             exerciseId: st.exerciseId, exerciseName: st.exerciseName,
             measure: st.measure, amount: amount, weight: weight,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
-            round: ctx.round, rounds: ctx.rounds, side: side,
+            round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             restKind: null,
             durationSec: (st.measure === 'time' && !ctx.allTap) ? amount : null,
             tap: st.measure !== 'time' || !!ctx.allTap
@@ -390,6 +390,7 @@ async function loadWorkoutStartPage(id) {
         if (!doc.exists) { el.innerHTML = '<div class="ex-status">Workout not found.</div>'; return; }
         var w = doc.data(); w.id = doc.id;
         w.steps = _woCleanSteps(w.steps);
+        woSyncSideModes(w.steps);                 // pick up any change made to an exercise's side setting
         var last = await _woLastTimeMap(w.steps);
         var prefs = _woLoadPlayerPrefs();
         _woS = { last: last, id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
@@ -425,7 +426,7 @@ function _woRenderStartPage() {
         }
         return '<div class="wo-step" data-path="' + i + '">' +
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
-            (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') + '</div>' +
+            _woSideBadge(st) + '</div>' +
             _woLastTimeHtml(st.exerciseId) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
@@ -736,7 +737,7 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [_woSetText(p), _woSideText(p)].filter(Boolean);
+        var bits = [_woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     }
 

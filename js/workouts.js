@@ -154,6 +154,8 @@ async function _woSeedLibrary() {
                 defaultAmount: e.amount,                  // reps, or seconds
                 usesWeight:    e.weight != null,
                 defaultWeight: e.weight != null ? e.weight : null,
+                sideMode:      e.side ? 'each' : 'both',
+                startSide:     'left',
                 eachSide:      !!e.side,
                 equipment:     e.equip,
                 targets:       e.t.map(function(t) {
@@ -389,7 +391,9 @@ function _woRenderExerciseList() {
     }
     list.innerHTML = rows.map(function(e) {
         var meta = woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null);
-        if (e.eachSide) meta += ' · each side';
+        var sm = woSideModeOf(e);
+        if (sm === 'each') meta += ' · each side' + (e.startSide === 'right' ? ' (right first)' : '');
+        else if (sm === 'alternate') meta += ' · alternating';
         var equip = (e.equipment || []).length ? ' · ' + _woEsc(e.equipment.join(', ')) : '';
         return '<a href="#workout-exercise/' + e.id + '" class="wo-card' + (e.archived ? ' wo-card--archived' : '') + '">' +
                    '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
@@ -421,13 +425,15 @@ async function loadWorkoutExercisePage(id) {
         await woLoadMuscles();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
-                        usesWeight: false, defaultWeight: null, eachSide: false, equipment: [],
+                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', eachSide: false, equipment: [],
                         targets: [], pushPull: 'neither', videoUrl: '', archived: false };
         } else {
             var doc = await woLibCol('workoutExercises').doc(id).get();
             if (!doc.exists) { el.innerHTML = '<div class="ex-status">Exercise not found.</div>'; return; }
             _woEdit = doc.data();
             _woEdit.id = doc.id;
+            _woEdit.sideMode  = woSideModeOf(_woEdit);
+            _woEdit.startSide = _woEdit.startSide || 'left';
             _woEdit.equipment = (_woEdit.equipment || []).slice();
             _woEdit.targets   = (_woEdit.targets   || []).map(function(t) { return { muscleId: t.muscleId, main: !!t.main }; });
         }
@@ -494,7 +500,17 @@ function _woRenderExerciseEditor() {
             '</div>' +
 
             '<div class="ex-form-group">' +
-                '<label class="wo-inline-check"><input type="checkbox" id="woeEachSide"' + (e.eachSide ? ' checked' : '') + '> Each side (one arm / one leg — the player runs it twice)</label>' +
+                '<label class="ex-label" for="woeSideMode">How is it done?</label>' +
+                '<select id="woeSideMode">' +
+                    '<option value="both"' + (e.sideMode === 'both' ? ' selected' : '') + '>Both together (push-up, squat)</option>' +
+                    '<option value="each"' + (e.sideMode === 'each' ? ' selected' : '') + '>One side, then the other (lunge, one-arm row)</option>' +
+                    '<option value="alternate"' + (e.sideMode === 'alternate' ? ' selected' : '') + '>Alternating sides (alternating curls)</option>' +
+                '</select>' +
+                '<div id="woeStartRow" class="' + (e.sideMode === 'each' ? '' : 'hidden') + '" style="margin-top:8px;">' +
+                    '<label class="ex-label" for="woeStartSide">Start with</label>' +
+                    '<select id="woeStartSide"><option value="left"' + (e.startSide !== 'right' ? ' selected' : '') + '>Left side</option><option value="right"' + (e.startSide === 'right' ? ' selected' : '') + '>Right side</option></select>' +
+                '</div>' +
+                '<p class="wo-hint">One side, then the other: the player runs the set on one side, a short switch, then the other side. Alternating: one continuous set, swapping every rep — the reps are per side.</p>' +
             '</div>' +
 
             '<div class="ex-form-group">' +
@@ -549,6 +565,9 @@ function _woRenderExerciseEditor() {
         '</div>';
 
     _woUpdateAmountLabel();
+    document.getElementById('woeSideMode').addEventListener('change', function() {
+        document.getElementById('woeStartRow').classList.toggle('hidden', this.value !== 'each');
+    });
 
     el.querySelectorAll('input[name="woeMeasure"]').forEach(function(r) {
         r.addEventListener('change', function() { _woEdit.measure = this.value; _woUpdateAmountLabel(); });
@@ -653,7 +672,9 @@ async function _woSaveExercise() {
         defaultAmount: isNaN(amount) ? null : amount,
         usesWeight:    usesWeight,
         defaultWeight: weight,
-        eachSide:      document.getElementById('woeEachSide').checked,
+        sideMode:      document.getElementById('woeSideMode').value,
+        startSide:     document.getElementById('woeStartSide').value,
+        eachSide:      document.getElementById('woeSideMode').value === 'each',
         equipment:     _woEdit.equipment,
         targets:       _woEdit.targets,
         pushPull:      document.getElementById('woePushPull').value,
@@ -1205,6 +1226,32 @@ async function woLoadExercises() {
 
 function _woStepSets(step) { return step.sets || []; }
 
+/** 'both' | 'each' | 'alternate' — older exercises only have the eachSide tickbox. */
+function woSideModeOf(ex) { return ex.sideMode || (ex.eachSide ? 'each' : 'both'); }
+
+function _woSideBadge(st) {
+    var m = st.sideMode || (st.eachSide ? 'each' : 'both');
+    if (m === 'each') return '<span class="wo-badge wo-badge--neither">Each side' + (st.startSide === 'right' ? ' · right first' : '') + '</span>';
+    if (m === 'alternate') return '<span class="wo-badge wo-badge--neither">Alternating</span>';
+    return '';
+}
+
+/**
+ * Steps copy an exercise's side setting when they are created; this refreshes them from the live
+ * exercise so changing "How is it done?" on an exercise carries into workouts that already use it.
+ */
+function woSyncSideModes(steps) {
+    (steps || []).forEach(function(st) {
+        var list = st.type === 'circuit' ? (st.items || []) : [st];
+        list.forEach(function(it) {
+            var ex = _woExMap[it.exerciseId];
+            if (!ex) return;
+            var m = woSideModeOf(ex);
+            it.sideMode = m; it.startSide = ex.startSide || 'left'; it.eachSide = (m === 'each');
+        });
+    });
+}
+
 /** Every exercise in order, circuit items included. */
 function _woFlatExercises(steps) {
     var out = [];
@@ -1420,7 +1467,7 @@ function _woNewStep(ex, inCircuit) {
     var st = {
         type: 'exercise', section: 'main',
         exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
-        eachSide: !!ex.eachSide, usesWeight: !!ex.usesWeight,
+        sideMode: woSideModeOf(ex), startSide: ex.startSide || 'left', eachSide: woSideModeOf(ex) === 'each', usesWeight: !!ex.usesWeight,
         sets: sets, baseSets: _woCloneSets(sets),
         restBetweenSets: inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_SETS),
         restAfter:       inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_AFTER),
@@ -1462,6 +1509,7 @@ async function loadWorkoutBuilderPage(id) {
             _woW = doc.data();
             _woW.id = doc.id;
             _woW.steps = JSON.parse(JSON.stringify(_woW.steps || []));   // deep copy — edits stay local until Save
+            woSyncSideModes(_woW.steps);
         }
     } catch (err) {
         console.error('Workouts: failed to load workout:', err);
@@ -1618,7 +1666,7 @@ function _woRenderSteps() {
                         return '<div class="wo-item" data-path="' + i + '.' + j + '">' +
                             '<span class="wo-item-name">' + _woEsc(ex ? ex.name : it.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
                             (ex ? _woPushPullBadge(ex.pushPull) : '') +
-                            (it.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') +
+                            _woSideBadge(it) +
                             _woSetsEditor(it, true) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
@@ -1636,7 +1684,7 @@ function _woRenderSteps() {
                     '<span class="wo-step-num">' + (i + 1) + '</span>' +
                     '<span class="wo-step-name">' + _woEsc(ex ? ex.name : st.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
                     (ex ? _woPushPullBadge(ex.pushPull) : '') +
-                    (st.eachSide ? '<span class="wo-badge wo-badge--neither">Each side</span>' : '') +
+                    _woSideBadge(st) +
                     _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                 '</div>' +
                 _woSetsEditor(st, false) +
@@ -1864,7 +1912,8 @@ function _woShowInlineNewExercise() {
         '<div class="ex-form-group"><label class="wo-inline-check"><input type="checkbox" id="woiWeight"> Uses weight</label>' +
             '<div id="woiWeightRow" class="hidden" style="margin-top:8px;"><label class="ex-label" for="woiWeightVal">Default weight (lb)</label>' +
             '<input type="number" id="woiWeightVal" min="0" step="0.5"></div></div>' +
-        '<div class="ex-form-group"><label class="wo-inline-check"><input type="checkbox" id="woiSide"> Each side</label></div>' +
+        '<div class="ex-form-group"><label class="ex-label" for="woiSide">How is it done?</label><select id="woiSide">' +
+            '<option value="both">Both together</option><option value="each">One side, then the other</option><option value="alternate">Alternating sides</option></select></div>' +
         '<div class="ex-form-group"><label class="ex-label" for="woiPP">Push / Pull</label>' +
             '<select id="woiPP">' + ['push', 'pull', 'both', 'neither'].map(function(k) {
                 return '<option value="' + k + '"' + (k === 'neither' ? ' selected' : '') + '>' + WO_PUSHPULL[k].label + '</option>';
@@ -1899,7 +1948,8 @@ async function _woSaveInlineExercise() {
         measure: document.querySelector('input[name=woiMeasure]:checked').value,
         defaultAmount: isNaN(amount) ? null : amount,
         usesWeight: uses, defaultWeight: uses && wRaw !== '' ? parseFloat(wRaw) : null,
-        eachSide: document.getElementById('woiSide').checked,
+        sideMode: document.getElementById('woiSide').value, startSide: 'left',
+        eachSide: document.getElementById('woiSide').value === 'each',
         equipment: [], targets: [],
         pushPull: document.getElementById('woiPP').value,
         videoUrl: '', archived: false, isSeeded: false,

@@ -93,6 +93,7 @@ function _woPhaseSpeech(p, ctx) {
         var line = p.exerciseName + '.';
         if (p.side) line += ' ' + (p.side === 'left' ? 'Left' : 'Right') + ' side.';
         if (!p.round && p.setCount > 1) line += ' Set ' + (p.setIndex + 1) + ' of ' + p.setCount + '.';
+        if (p.sideMode === 'alternate') line += ' Alternate sides.';
         line += ' ' + _woSayAmount(p.measure, p.amount, p.weight) + '.';
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);

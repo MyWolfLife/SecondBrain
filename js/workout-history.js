@@ -58,10 +58,12 @@ function woPRsHtml(prs) {
  * the right-hand line of a left/right pair belongs to the same set as the left one.
  */
 function woSetNumbers(sets) {
-    var counts = {}, out = [];
+    var counts = {}, out = [], firstSide = {};
     sets.forEach(function(s, i) {
         var prev = sets[i - 1];
-        var secondSide = prev && prev.exerciseId === s.exerciseId && prev.side === 'left' && s.side === 'right';
+        if (s.side && !firstSide[s.exerciseId]) firstSide[s.exerciseId] = s.side;       // the side this exercise starts with
+        // the second line of a pair: same exercise, previous line was the starting side, this one is the other side
+        var secondSide = prev && prev.exerciseId === s.exerciseId && prev.side && prev.side === firstSide[s.exerciseId] && s.side && s.side !== prev.side;
         if (secondSide) { out.push(out[i - 1]); return; }
         counts[s.exerciseId] = (counts[s.exerciseId] || 0) + 1;
         out.push(counts[s.exerciseId]);

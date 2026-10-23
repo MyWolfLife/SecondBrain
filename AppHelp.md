@@ -4829,7 +4829,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
-- **Uses weight** adds a default weight; **Each side** is for one-arm / one-leg moves (the workout player will run it twice)
+- **Uses weight** adds a default weight
+- **How is it done?** — **Both together** (push-ups, squats), **One side, then the other** (lunges, one-arm rows: the workout player runs the set on one side, a short switch, then the other — pick which side to start with), or **Alternating sides** (alternating curls: one continuous set, swapping every rep, with the reps counted per side). Changing this updates workouts that already use the exercise
 - **What it works**: tap a muscle once for ★ main target, again for also-works, again to clear
 - **Archive** hides an exercise from lists but keeps it in workouts that already use it; **Delete** removes it for good
 - **Pictures**: after you add an exercise you can add 2–4 pictures that show the motion (start, middle, end). Use 📷 Camera, 🖼️ Gallery (pick several at once), or 📋 Paste (in Chrome: right-click a web image → Copy image, then tap Paste). The preview plays them like a flipbook — that is how the workout player will show the move
