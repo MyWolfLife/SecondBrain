@@ -21914,3 +21914,6 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-ai-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .wo-ai-notes { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .wo-ai-note { font-size: 0.82rem; color: #92400e; }
+
+/* Workout builder notes box: 4x as wide (capped at the form width), 2x as tall */
+#wobDesc { width: 656px; max-width: 100%; box-sizing: border-box; height: 64px; }
