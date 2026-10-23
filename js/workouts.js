@@ -398,11 +398,8 @@ function _woRenderExerciseList() {
         return '<a href="#workout-exercise/' + e.id + '" class="wo-card' + (e.archived ? ' wo-card--archived' : '') + '">' +
                    '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
                    '<div class="wo-card-main">' +
-                       '<div class="wo-card-name">' + _woEsc(e.name) + '</div>' +
-                       '<div class="wo-badges">' +
-                           _woPushPullBadge(e.pushPull) +
-                           (e.archived ? '<span class="wo-badge wo-badge--archived">Archived</span>' : '') +
-                       '</div>' +
+                       '<div class="wo-card-name wo-card-name--row">' + _woEsc(e.name) + ' ' + _woPushPullBadge(e.pushPull) +
+                           (e.archived ? ' <span class="wo-badge wo-badge--archived">Archived</span>' : '') + '</div>' +
                        '<div class="wo-card-meta">' + _woEsc(meta) + equip + '</div>' +
                        '<div class="wo-chips">' + _woTargetChips(e.targets) + '</div>' +
                    '</div>' +

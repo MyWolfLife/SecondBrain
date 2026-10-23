@@ -21900,3 +21900,6 @@ body.wo-playing .offline-banner { display: none !important; }
 .ex-form input.wo-w-narrow { width: 86px; }                         /* default reps/seconds, default weight: half the usual width */
 .ex-form input.wo-w-wide   { width: 346px; max-width: 100%; }       /* video link: double */
 .ex-form textarea.wo-cues  { width: 100%; max-width: 100%; box-sizing: border-box; }   /* form cues: full width; drag size is remembered */
+
+/* Exercise list: Push/Pull badge sits right after the name */
+.wo-card-name--row .wo-badge { margin-left: 6px; vertical-align: middle; }
