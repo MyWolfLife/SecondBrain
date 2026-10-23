@@ -760,6 +760,7 @@ function _woRenderFrames() {
                    '<div class="wo-frame-btns">' +
                        '<button type="button" class="wo-frame-btn" data-act="left"  data-id="' + f.id + '"' + (i === 0 ? ' disabled' : '') + ' title="Move earlier">◀</button>' +
                        '<button type="button" class="wo-frame-btn" data-act="right" data-id="' + f.id + '"' + (i === _woFrames.length - 1 ? ' disabled' : '') + ' title="Move later">▶</button>' +
+                       '<button type="button" class="wo-frame-btn" data-act="crop" data-id="' + f.id + '" title="Crop this picture">✂</button>' +
                        '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" data-id="' + f.id + '" title="Delete frame">✕</button>' +
                    '</div>' +
                '</div>';
@@ -786,7 +787,9 @@ function _woRenderFrames() {
     group.querySelectorAll('.wo-frame-btn').forEach(function(b) {
         b.addEventListener('click', function() {
             var act = this.getAttribute('data-act'), id = this.getAttribute('data-id');
-            if (act === 'del') _woDeleteFrame(id); else _woMoveFrame(id, act === 'left' ? -1 : 1);
+            if (act === 'del') _woDeleteFrame(id);
+            else if (act === 'crop') _woCropFrame(id);
+            else _woMoveFrame(id, act === 'left' ? -1 : 1);
         });
     });
 
@@ -902,6 +905,27 @@ async function _woMoveFrame(id, dir) {
     } catch (err) {
         console.error('Workouts: move frame failed:', err);
         alert('Could not reorder. Please try again.');
+    }
+}
+
+/** ✂ Crop an existing frame: opens the shared crop tool, then saves the cropped picture in the same position. */
+async function _woCropFrame(id) {
+    var f = _woFrames.filter(function(x) { return x.id === id; })[0];
+    if (!f || typeof showCropPreview !== 'function') return;
+    var blob;
+    try { blob = await (await fetch(f.imageData)).blob(); }
+    catch (err) { console.error('Workouts: could not load frame for cropping:', err); alert('Could not load that picture for cropping.'); return; }
+    var cropped;
+    try { cropped = await showCropPreview(blob, true); }   // straight into the cropper
+    catch (e) { return; }                                   // cancelled
+    try {
+        var data = await compressImage(cropped, { maxDimension: WO_FRAME_MAX_DIM, maxBase64: WO_FRAME_MAX_BASE64 });
+        await woLibCol('photos').doc(id).update({ imageData: data });
+        f.imageData = data;
+        await _woAfterFramesChanged();                      // refreshes the list thumbnail if it was the first frame
+    } catch (err) {
+        console.error('Workouts: crop save failed:', err);
+        alert('Could not save the cropped picture. Please try again.');
     }
 }
 

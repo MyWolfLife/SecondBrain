@@ -4833,7 +4833,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **What it works**: tap a muscle once for ★ main target, again for also-works, again to clear
 - **Archive** hides an exercise from lists but keeps it in workouts that already use it; **Delete** removes it for good
 - **Pictures**: after you add an exercise you can add 2–4 pictures that show the motion (start, middle, end). Use 📷 Camera, 🖼️ Gallery (pick several at once), or 📋 Paste (in Chrome: right-click a web image → Copy image, then tap Paste). The preview plays them like a flipbook — that is how the workout player will show the move
-- Use ◀ ▶ under a picture to change its order and ✕ to delete it
+- Use ◀ ▶ under a picture to change its order, **✂** to crop it (drag the box, then Apply Crop) and ✕ to delete it
 - **🎞️ From video / GIF**: the easiest way to get clean frames. Record yourself doing one rep (or pick a saved clip), slide to the start of the move and tap **Grab this frame**, then the middle and the end — or tap **Auto 3 frames**. For a GIF from the web, pick it and choose which of the 4 frames to keep. The video or GIF itself is not saved, only the frames (GIF support needs Chrome)
 
 - Tap **📈 History** to see every time you've done the exercise, a chart of your best weight (or reps / time) over time, and your 🏆 records
