@@ -2063,11 +2063,13 @@ function _woUpdateBuilderSummary() {
 
 // ----- Exercise picker overlay (also hosts the inline "+ New exercise" form) -----
 
-var _woPick = { text: '', area: '', pp: '', circuit: null, onPick: null };
+var _woPick = { text: '', area: '', pp: '', equip: '', circuit: null, onPick: null };
 
 /** onPick (optional): called with the chosen exercise instead of adding a builder step — used by other screens. */
 function _woOpenExercisePicker(circuitIndex, onPick) {
-    _woPick = { text: '', area: '', pp: '', circuit: circuitIndex, onPick: onPick || null };
+    _woPick = { text: '', area: '', pp: '', equip: '', circuit: circuitIndex, onPick: onPick || null };
+    var equipUsed = {};
+    _woExercises.forEach(function(e) { if (!e.archived) (e.equipment || []).forEach(function(q) { equipUsed[q] = true; }); });
     var ov = _woGrabOverlay(
         '<h3>' + (circuitIndex === null ? 'Add exercise' : 'Add exercise to circuit') + '</h3>' +
         '<div class="ex-toolbar-row">' +
@@ -2076,6 +2078,9 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
                 WO_AREAS.map(function(a) { return '<option value="' + a.id + '">' + a.label + '</option>'; }).join('') + '</select>' +
             '<select id="woPickPP"><option value="">Push / Pull</option>' +
                 ['push', 'pull', 'both', 'neither'].map(function(k) { return '<option value="' + k + '">' + WO_PUSHPULL[k].label + '</option>'; }).join('') + '</select>' +
+            '<select id="woPickEquip"><option value="">Any equipment</option>' +
+                Object.keys(equipUsed).sort(function(a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; }).map(function(q) {
+                    return '<option value="' + _woEsc(q) + '">' + _woEsc(q) + '</option>'; }).join('') + '</select>' +
         '</div>' +
         '<div id="woPickList" class="wo-pick-list"></div>' +
         '<div class="ex-form-actions">' +
@@ -2085,6 +2090,7 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
     ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickPP').addEventListener('change', function() { _woPick.pp = this.value; _woRenderPicker(); });
+    ov.querySelector('#woPickEquip').addEventListener('change', function() { _woPick.equip = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickNew').addEventListener('click', _woShowInlineNewExercise);
     ov.querySelector('#woPickClose').addEventListener('click', _woCloseGrabber);
     _woRenderPicker();
@@ -2096,6 +2102,7 @@ function _woRenderPicker() {
         if (e.archived) return false;
         if (text && (e.name || '').toLowerCase().indexOf(text) === -1) return false;
         if (_woPick.pp && e.pushPull !== _woPick.pp) return false;
+        if (_woPick.equip && (e.equipment || []).indexOf(_woPick.equip) === -1) return false;
         if (_woPick.area) {
             var hit = (e.targets || []).some(function(t) { var m = _woMuscleMap[t.muscleId]; return m && m.area === _woPick.area; });
             if (!hit) return false;
