@@ -4863,7 +4863,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
-- Give it a name, then tap **+ Add exercise** and pick from your library — search, or narrow the list by **area**, **push/pull** or **equipment** (works the same when adding to a circuit)
+- Give it a name, then tap **+ Add exercise** and pick from your library — search, or narrow the list by **area**, **muscle** (the muscle list follows the area you pick), **push/pull** or **equipment** (works the same when adding to a circuit)
 - **👁 View** (in the picker, and on every exercise or circuit item in the workout) opens a read-only card with the pictures playing, how it is done, muscles, equipment and cues — handy when two exercises look alike. In the picker it opens on top, so you don't lose your place; tap **Close** and pick as usual. **Edit exercise ↗** opens it for editing in a new tab, so your unsaved workout is safe
 - **What is a circuit?** A circuit is a group of exercises you do one after another with little or no rest between them (for example push-ups, then squats, then planks), and then repeat the whole group for a number of **rounds** — like 3 rounds. You rest briefly between exercises, longer between rounds. It is the opposite of the normal way, where you finish all the sets of one exercise before moving to the next. Tap **+ Add circuit**, add the exercises inside it, and set the rounds
 - For each exercise set **how many sets**, **how many reps (or seconds)**, and the **weight** if it uses one

@@ -2063,11 +2063,11 @@ function _woUpdateBuilderSummary() {
 
 // ----- Exercise picker overlay (also hosts the inline "+ New exercise" form) -----
 
-var _woPick = { text: '', area: '', pp: '', equip: '', circuit: null, onPick: null };
+var _woPick = { text: '', area: '', muscle: '', pp: '', equip: '', circuit: null, onPick: null };
 
 /** onPick (optional): called with the chosen exercise instead of adding a builder step — used by other screens. */
 function _woOpenExercisePicker(circuitIndex, onPick) {
-    _woPick = { text: '', area: '', pp: '', equip: '', circuit: circuitIndex, onPick: onPick || null };
+    _woPick = { text: '', area: '', muscle: '', pp: '', equip: '', circuit: circuitIndex, onPick: onPick || null };
     var equipUsed = {};
     _woExercises.forEach(function(e) { if (!e.archived) (e.equipment || []).forEach(function(q) { equipUsed[q] = true; }); });
     var ov = _woGrabOverlay(
@@ -2076,6 +2076,7 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
             '<input type="search" id="woPickText" class="filter-input" placeholder="Search…">' +
             '<select id="woPickArea"><option value="">All areas</option>' +
                 WO_AREAS.map(function(a) { return '<option value="' + a.id + '">' + a.label + '</option>'; }).join('') + '</select>' +
+            '<select id="woPickMuscle"></select>' +
             '<select id="woPickPP"><option value="">Push / Pull</option>' +
                 ['push', 'pull', 'both', 'neither'].map(function(k) { return '<option value="' + k + '">' + WO_PUSHPULL[k].label + '</option>'; }).join('') + '</select>' +
             '<select id="woPickEquip"><option value="">Any equipment</option>' +
@@ -2088,12 +2089,30 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
             '<button type="button" class="btn btn-secondary" id="woPickClose">Close</button>' +
         '</div>');
     ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
-    ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woRenderPicker(); });
+    _woFillPickMuscle();
+    ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woPick.muscle = ''; _woFillPickMuscle(); _woRenderPicker(); });
+    ov.querySelector('#woPickMuscle').addEventListener('change', function() { _woPick.muscle = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickPP').addEventListener('change', function() { _woPick.pp = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickEquip').addEventListener('change', function() { _woPick.equip = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickNew').addEventListener('click', _woShowInlineNewExercise);
     ov.querySelector('#woPickClose').addEventListener('click', _woCloseGrabber);
     _woRenderPicker();
+}
+
+/** Muscle dropdown for the picker, grouped by area; narrows to the chosen area (same as the Exercises list). */
+function _woFillPickMuscle() {
+    var sel = document.getElementById('woPickMuscle');
+    if (!sel) return;
+    var html = '<option value="">All muscles</option>';
+    WO_AREAS.forEach(function(a) {
+        if (_woPick.area && _woPick.area !== a.id) return;
+        var ms = _woMuscles.filter(function(m) { return m.area === a.id; });
+        if (!ms.length) return;
+        html += '<optgroup label="' + a.label + '">' + ms.map(function(m) {
+            return '<option value="' + m.id + '"' + (_woPick.muscle === m.id ? ' selected' : '') + '>' + _woEsc(m.name) + '</option>';
+        }).join('') + '</optgroup>';
+    });
+    sel.innerHTML = html;
 }
 
 function _woRenderPicker() {
@@ -2103,12 +2122,20 @@ function _woRenderPicker() {
         if (text && (e.name || '').toLowerCase().indexOf(text) === -1) return false;
         if (_woPick.pp && e.pushPull !== _woPick.pp) return false;
         if (_woPick.equip && (e.equipment || []).indexOf(_woPick.equip) === -1) return false;
+        if (_woPick.muscle && !(e.targets || []).some(function(t) { return t.muscleId === _woPick.muscle; })) return false;
         if (_woPick.area) {
             var hit = (e.targets || []).some(function(t) { var m = _woMuscleMap[t.muscleId]; return m && m.area === _woPick.area; });
             if (!hit) return false;
         }
         return true;
-    }).sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    }).sort(function(a, b) {
+        if (_woPick.muscle) {      // ★ main-target matches first, then A–Z
+            var am = (a.targets || []).some(function(t) { return t.muscleId === _woPick.muscle && t.main; });
+            var bm = (b.targets || []).some(function(t) { return t.muscleId === _woPick.muscle && t.main; });
+            if (am !== bm) return am ? -1 : 1;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+    });
 
     var list = document.getElementById('woPickList');
     if (!list) return;
