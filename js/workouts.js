@@ -522,13 +522,24 @@ function _woRenderExerciseEditor() {
                 '</select>' +
             '</div>' +
 
-            '<div class="ex-form-group">' +
-                '<label class="ex-label">What it works <span class="wo-hint">tap once = ★ main, twice = also works, third = off</span></label>' +
-                targetsHtml +
+            // Accordion: the chosen muscles stay visible; open it to change them (open by default for a new exercise)
+            '<div class="collapsible-section wo-acc' + (isNew ? '' : ' collapsed') + '">' +
+                '<div class="collapsible-header wo-acc-head">' +
+                    '<span class="wo-acc-title">What it works<span class="wo-acc-answer" id="woeTargetsAnswer">' + _woTargetsAnswerHtml() + '</span></span>' +
+                    '<span class="collapsible-chevron">▼</span>' +
+                '</div>' +
+                '<div class="collapsible-body">' +
+                    '<p class="wo-hint">Tap once = ★ main, twice = also works, third = off.</p>' +
+                    targetsHtml +
+                '</div>' +
             '</div>' +
 
-            '<div class="ex-form-group">' +
-                '<label class="ex-label">Equipment</label>' +
+            '<div class="collapsible-section wo-acc' + (isNew ? '' : ' collapsed') + '">' +
+                '<div class="collapsible-header wo-acc-head">' +
+                    '<span class="wo-acc-title">Equipment<span class="wo-acc-answer" id="woeEquipAnswer">' + _woEquipAnswerHtml() + '</span></span>' +
+                    '<span class="collapsible-chevron">▼</span>' +
+                '</div>' +
+                '<div class="collapsible-body">' +
                 '<div class="wo-chips" id="woeEquip">' +
                     allEquip.map(function(q) {
                         return '<button type="button" class="wo-chip-toggle" data-equip="' + _woEsc(q) + '" data-state="' +
@@ -537,6 +548,7 @@ function _woRenderExerciseEditor() {
                 '</div>' +
                 '<div class="wo-add-equip"><input type="text" id="woeEquipNew" placeholder="Other equipment…" maxlength="40">' +
                     '<button type="button" class="btn btn-secondary btn-small" id="woeEquipAdd">Add</button></div>' +
+                '</div>' +
             '</div>' +
 
             '<div class="ex-form-group">' +
@@ -565,6 +577,9 @@ function _woRenderExerciseEditor() {
         '</div>';
 
     _woUpdateAmountLabel();
+    el.querySelectorAll('.wo-acc-head').forEach(function(h) {
+        h.addEventListener('click', function() { h.parentNode.classList.toggle('collapsed'); });
+    });
     document.getElementById('woeSideMode').addEventListener('change', function() {
         document.getElementById('woeStartRow').classList.toggle('hidden', this.value !== 'each');
     });
@@ -617,6 +632,23 @@ function _woUpdateAmountLabel() {
     if (lbl) lbl.textContent = _woEdit.measure === 'time' ? 'Default time (seconds)' : 'Default reps';
 }
 
+function _woTargetsAnswerHtml() {
+    var chips = _woTargetChips(_woEdit.targets);
+    return chips ? '<span class="wo-chips">' + chips + '</span>' : '<span class="wo-hint">None selected</span>';
+}
+
+function _woEquipAnswerHtml() {
+    return _woEdit.equipment.length
+        ? '<span class="wo-chips">' + _woEdit.equipment.map(function(q) { return '<span class="wo-chip wo-chip--also">' + _woEsc(q) + '</span>'; }).join('') + '</span>'
+        : '<span class="wo-hint">None selected</span>';
+}
+
+function _woRefreshAccAnswers() {
+    var t = document.getElementById('woeTargetsAnswer'), q = document.getElementById('woeEquipAnswer');
+    if (t) t.innerHTML = _woTargetsAnswerHtml();
+    if (q) q.innerHTML = _woEquipAnswerHtml();
+}
+
 function _woCycleTarget(btn) {
     var id = btn.getAttribute('data-muscle');
     var st = _woTargetState(id);
@@ -626,6 +658,7 @@ function _woCycleTarget(btn) {
     if (next === 'also') _woEdit.targets.push({ muscleId: id, main: false });
     btn.setAttribute('data-state', next);
     btn.textContent = (next === 'main' ? '★ ' : '') + (_woMuscleMap[id] ? _woMuscleMap[id].name : id);
+    _woRefreshAccAnswers();
 }
 
 function _woToggleEquip(btn) {
@@ -633,6 +666,7 @@ function _woToggleEquip(btn) {
     var i = _woEdit.equipment.indexOf(q);
     if (i === -1) { _woEdit.equipment.push(q); btn.setAttribute('data-state', 'main'); }
     else          { _woEdit.equipment.splice(i, 1); btn.setAttribute('data-state', 'off'); }
+    _woRefreshAccAnswers();
 }
 
 function _woAddCustomEquip() {
@@ -653,6 +687,7 @@ function _woAddCustomEquip() {
         b.addEventListener('click', function() { _woToggleEquip(this); });
         document.getElementById('woeEquip').appendChild(b);
     }
+    _woRefreshAccAnswers();
     input.value = '';
 }
 

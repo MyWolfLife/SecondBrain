@@ -21887,3 +21887,11 @@ body.wo-playing .offline-banner { display: none !important; }
 .wb-pp-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #f3f4f6; }
 .wb-pp-push { background: #3b82f6; }
 .wb-pp-pull { background: #f97316; }
+
+/* Exercise editor accordions (What it works / Equipment) */
+.wo-acc { margin-bottom: 14px; }
+.wo-acc .collapsible-header { align-items: flex-start; gap: 10px; }
+.wo-acc-title { display: flex; flex-direction: column; gap: 6px; font-weight: 600; min-width: 0; }
+.wo-acc-answer { font-weight: 400; }
+.wo-acc-answer .wo-chips { margin-top: 0; }
+.wo-acc .collapsible-chevron { margin-top: 2px; }
