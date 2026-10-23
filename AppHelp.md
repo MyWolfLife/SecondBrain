@@ -4828,6 +4828,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Create or edit one exercise.
 
 ### Quick Help
+- **✨ Describe it** (new exercises only): type the exercise in plain words — e.g. “Using the Nordic Stick, lay on stomach and lift my torso up 15 times” — and tap **Fill in the form**. The AI fills in the name, reps or time, sides, push/pull, muscles, equipment and cues, using your own muscle and equipment lists (needs an AI provider in Settings → AI). Check the form over and change anything. If it needs equipment you don't have, a tick box **➕ Add new equipment** appears (on by default); it joins your equipment list only when you tap Add Exercise. It also warns if you already have something similar and lists what it guessed
 - **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
 - **Uses weight** adds a default weight
 - **How is it done?** — **Both together** (push-ups, squats), **One side, then the other** (lunges, one-arm rows: the workout player runs the set on one side, a short switch, then the other — pick which side to start with), or **Alternating sides** (alternating curls: one continuous set, swapping every rep, with the reps counted per side). Changing this updates workouts that already use the exercise

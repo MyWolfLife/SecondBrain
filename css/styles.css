@@ -21908,3 +21908,9 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-equip-list { max-height: 50vh; overflow-y: auto; margin-bottom: 10px; }
 .wo-equip-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
 .wo-equip-main { flex: 1; min-width: 0; }
+
+/* Describe-it box (New Exercise) */
+.wo-ai { border: 1px dashed #99f6e4; background: #f0fdfa; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; max-width: 640px; }
+.wo-ai-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.wo-ai-notes { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.wo-ai-note { font-size: 0.82rem; color: #92400e; }

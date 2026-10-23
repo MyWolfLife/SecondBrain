@@ -441,6 +441,7 @@ async function loadWorkoutExercisePage(id) {
         el.innerHTML = '<div class="ex-status">Could not load this exercise.</div>';
         return;
     }
+    if (typeof woAiReset === 'function') woAiReset();
     _woRenderExerciseEditor();
 }
 
@@ -471,6 +472,7 @@ function _woRenderExerciseEditor() {
     el.innerHTML =
         '<div class="page-header"><h2>' + (isNew ? 'New Exercise' : 'Edit Exercise') + '</h2></div>' +
         '<div class="ex-form">' +
+            (isNew ? '<div id="woeAiBox"></div>' : '') +
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="woeName">Name <span class="ex-required">*</span></label>' +
@@ -576,6 +578,7 @@ function _woRenderExerciseEditor() {
             '</div>' +
         '</div>';
 
+    if (isNew && typeof woAiRenderBox === 'function') woAiRenderBox();
     _woUpdateAmountLabel();
     _woRememberCuesSize();
     el.querySelectorAll('.wo-acc-head').forEach(function(h) {
@@ -752,12 +755,12 @@ async function woLoadEquipment() {
 }
 
 /** Adds a name to the equipment list if it is not there yet (used by the editor's Add box). */
-function woAddEquipmentName(name) {
+function woAddEquipmentName(name, description) {
     if (_woFindEquipment(name)) return;
     var ref = woLibCol('workoutEquipment').doc();
-    var item = { id: ref.id, name: name, description: '' };
+    var item = { id: ref.id, name: name, description: description || '' };
     _woEquipment.push(item); _woSortEquipment();
-    ref.set({ name: name, description: '', createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+    ref.set({ name: name, description: description || '', createdAt: firebase.firestore.FieldValue.serverTimestamp() })
        .catch(function(err) { console.error('Workouts: could not save equipment:', err); });
 }
 
@@ -897,6 +900,8 @@ function _woRebuildEquipChips() {
 async function _woSaveExercise() {
     var name = document.getElementById('woeName').value.trim();
     if (!name) { alert('Please enter a name for the exercise.'); document.getElementById('woeName').focus(); return; }
+
+    if (typeof woAiBeforeSave === 'function') await woAiBeforeSave();     // new equipment from Describe-it joins the list
 
     var amount = parseInt(document.getElementById('woeAmount').value, 10);
     var usesWeight = document.getElementById('woeUsesWeight').checked;
