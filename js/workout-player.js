@@ -418,7 +418,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span>' + _woLastTimeHtml(it.exerciseId) +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + _woLastTimeHtml(it.exerciseId) +
                         '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
@@ -426,7 +426,7 @@ function _woRenderStartPage() {
         }
         return '<div class="wo-step" data-path="' + i + '">' +
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
-            _woSideBadge(st) + '</div>' +
+            _woSideBadge(st) + '<button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + st.exerciseId + '" title="View this exercise">👁</button></div>' +
             _woLastTimeHtml(st.exerciseId) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
@@ -478,6 +478,10 @@ function _woRenderStartPage() {
     var box = document.getElementById('wosSteps');
     box.addEventListener('input',  _woStartInput);
     box.addEventListener('change', _woStartInput);
+    box.addEventListener('click', function(ev) {
+        var v = ev.target.closest('[data-view-ex]');
+        if (v) woViewExercise(v.getAttribute('data-view-ex'));
+    });
     document.getElementById('wosGo').addEventListener('click', _woStartGo);
     document.getElementById('wosSchedule').addEventListener('click', function() { woOpenScheduleDialog(_woS.id, _woS.workout.name); });
     el.removeEventListener('click', woProgHandleClick);

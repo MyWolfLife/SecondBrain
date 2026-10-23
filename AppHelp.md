@@ -4864,6 +4864,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Give it a name, then tap **+ Add exercise** and pick from your library
+- **👁 View** (in the picker, and on every exercise or circuit item in the workout) opens a read-only card with the pictures playing, how it is done, muscles, equipment and cues — handy when two exercises look alike. In the picker it opens on top, so you don't lose your place; tap **Close** and pick as usual. **Edit exercise ↗** opens it for editing in a new tab, so your unsaved workout is safe
 - **What is a circuit?** A circuit is a group of exercises you do one after another with little or no rest between them (for example push-ups, then squats, then planks), and then repeat the whole group for a number of **rounds** — like 3 rounds. You rest briefly between exercises, longer between rounds. It is the opposite of the normal way, where you finish all the sets of one exercise before moving to the next. Tap **+ Add circuit**, add the exercises inside it, and set the rounds
 - For each exercise set **how many sets**, **how many reps (or seconds)**, and the **weight** if it uses one
 - **Rest between sets** and **Rest after exercise** can be **Timed** (counts down by itself) or **Tap when ready** (waits for you — good for heavy sets)
@@ -4886,6 +4887,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- Tap **👁** next to an exercise to see its pictures, cues and muscles without leaving this screen
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
 - **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome

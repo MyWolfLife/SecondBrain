@@ -1911,6 +1911,7 @@ function _woRenderSteps() {
                             '<span class="wo-item-name">' + _woEsc(ex ? ex.name : it.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
                             (ex ? _woPushPullBadge(ex.pushPull) : '') +
                             _woSideBadge(it) +
+                            (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
                             _woSetsEditor(it, true) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
@@ -1929,6 +1930,7 @@ function _woRenderSteps() {
                     '<span class="wo-step-name">' + _woEsc(ex ? ex.name : st.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
                     (ex ? _woPushPullBadge(ex.pushPull) : '') +
                     _woSideBadge(st) +
+                    (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
                     _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                 '</div>' +
                 _woSetsEditor(st, false) +
@@ -1950,6 +1952,7 @@ function _woStepClick(ev) {
     var holder = btn.closest('[data-path]');
     if (!holder) return;
     var path = holder.getAttribute('data-path'), act = btn.getAttribute('data-act');
+    if (act === 'view') { var vs = _woGetStep(path); if (vs) woViewExercise(vs.exerciseId); return; }
     var parts = path.split('.'), i = parseInt(parts[0], 10), j = parts.length > 1 ? parseInt(parts[1], 10) : null;
     var list = j === null ? _woW.steps : _woW.steps[i].items;
     var idx  = j === null ? i : j;
@@ -2109,10 +2112,13 @@ function _woRenderPicker() {
                    '<span class="wo-pick-main"><span class="wo-card-name">' + _woEsc(e.name) + '</span>' +
                    '<span class="wo-card-meta">' + _woEsc(woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null)) + '</span></span>' +
                    _woPushPullBadge(e.pushPull) +
+                   '<span class="wo-view-chip" role="button" tabindex="0" data-view="' + e.id + '" title="View this exercise">👁 View</span>' +
                '</button>';
     }).join('');
     list.querySelectorAll('.wo-pick-row').forEach(function(b) {
-        b.addEventListener('click', function() {
+        b.addEventListener('click', function(ev) {
+            var v = ev.target.closest('[data-view]');
+            if (v) { ev.stopPropagation(); woViewExercise(v.getAttribute('data-view')); return; }   // look, don't pick
             var ex = _woExMap[this.getAttribute('data-id')];
             if (ex) _woPickChosen(ex);
         });

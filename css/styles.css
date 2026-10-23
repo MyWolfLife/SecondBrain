@@ -21917,3 +21917,15 @@ body.wo-playing .offline-banner { display: none !important; }
 
 /* Workout builder notes box: 4x as wide (capped at the form width), 2x as tall */
 #wobDesc { width: 656px; max-width: 100%; box-sizing: border-box; height: 64px; }
+
+/* View exercise (read-only card) */
+.wo-view { max-width: 460px; width: 100%; }
+.wo-view h3 .wo-badge { margin-left: 6px; vertical-align: middle; }
+.wo-view .wo-flip { display: block; max-width: 100%; max-height: 40vh; margin: 8px auto; border-radius: 8px; }
+.wo-view .wo-flip-ph { text-align: center; font-size: 2.5rem; padding: 14px 0; }
+.wo-view-row { margin: 8px 0; font-size: 0.9rem; }
+.wo-view-row .wo-chips { display: inline-flex; vertical-align: middle; margin-top: 0; }
+.wo-view-cues { margin: 4px 0 0 18px; padding: 0; }
+.wo-view-chip { margin-left: auto; padding: 2px 8px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 0.75rem; color: #374151; background: #f9fafb; white-space: nowrap; cursor: pointer; }
+.wo-view-chip:hover { background: #e5e7eb; }
+.wo-view-step { margin-left: 4px; }
