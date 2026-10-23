@@ -4839,6 +4839,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **🎞️ From video / GIF**: the easiest way to get clean frames. Record yourself doing one rep (or pick a saved clip), slide to the start of the move and tap **Grab this frame**, then the middle and the end — or tap **Auto 3 frames**. For a GIF from the web, pick it and choose which of the 4 frames to keep. The video or GIF itself is not saved, only the frames (GIF support needs Chrome)
 
 - Tap **📈 History** to see every time you've done the exercise, a chart of your best weight (or reps / time) over time, and your 🏆 records
+- The **How to do it** box can be dragged bigger with the corner handle — this device remembers the size you choose
 
 ---
 

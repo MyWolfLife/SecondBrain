@@ -21895,3 +21895,8 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-acc-answer { font-weight: 400; }
 .wo-acc-answer .wo-chips { margin-top: 0; }
 .wo-acc .collapsible-chevron { margin-top: 2px; }
+
+/* Exercise editor field widths */
+.ex-form input.wo-w-narrow { width: 86px; }                         /* default reps/seconds, default weight: half the usual width */
+.ex-form input.wo-w-wide   { width: 346px; max-width: 100%; }       /* video link: double */
+.ex-form textarea.wo-cues  { width: 100%; max-width: 100%; box-sizing: border-box; }   /* form cues: full width; drag size is remembered */

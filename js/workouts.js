@@ -488,14 +488,14 @@ function _woRenderExerciseEditor() {
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="woeAmount" id="woeAmountLabel"></label>' +
-                '<input type="number" id="woeAmount" min="1" step="1" value="' + (e.defaultAmount != null ? e.defaultAmount : '') + '">' +
+                '<input type="number" class="wo-w-narrow" id="woeAmount" min="1" step="1" value="' + (e.defaultAmount != null ? e.defaultAmount : '') + '">' +
             '</div>' +
 
             '<div class="ex-form-group">' +
                 '<label class="wo-inline-check"><input type="checkbox" id="woeUsesWeight"' + (e.usesWeight ? ' checked' : '') + '> Uses weight</label>' +
                 '<div id="woeWeightRow" class="' + (e.usesWeight ? '' : 'hidden') + '" style="margin-top:8px;">' +
                     '<label class="ex-label" for="woeWeight">Default weight (lb)</label>' +
-                    '<input type="number" id="woeWeight" min="0" step="0.5" value="' + (e.defaultWeight != null ? e.defaultWeight : '') + '">' +
+                    '<input type="number" class="wo-w-narrow" id="woeWeight" min="0" step="0.5" value="' + (e.defaultWeight != null ? e.defaultWeight : '') + '">' +
                 '</div>' +
             '</div>' +
 
@@ -553,12 +553,12 @@ function _woRenderExerciseEditor() {
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="woeCues">How to do it / form cues</label>' +
-                '<textarea id="woeCues" rows="4" placeholder="One cue per line">' + _woEsc(e.instructions) + '</textarea>' +
+                '<textarea id="woeCues" class="wo-cues" rows="4" placeholder="One cue per line">' + _woEsc(e.instructions) + '</textarea>' +
             '</div>' +
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="woeVideo">Video link (optional)</label>' +
-                '<input type="url" id="woeVideo" value="' + _woEsc(e.videoUrl) + '" placeholder="https://…">' +
+                '<input type="url" class="wo-w-wide" id="woeVideo" value="' + _woEsc(e.videoUrl) + '" placeholder="https://…">' +
             '</div>' +
 
             '<div class="ex-form-group" id="woeFramesGroup">' +
@@ -577,6 +577,7 @@ function _woRenderExerciseEditor() {
         '</div>';
 
     _woUpdateAmountLabel();
+    _woRememberCuesSize();
     el.querySelectorAll('.wo-acc-head').forEach(function(h) {
         h.addEventListener('click', function() { h.parentNode.classList.toggle('collapsed'); });
     });
@@ -625,6 +626,22 @@ function _woRenderExerciseEditor() {
             el.querySelector('.ex-form').insertBefore(banner, el.querySelector('.ex-form').firstChild);
         }
     }
+}
+
+/** The "how to do it" box starts full width, and the size you drag it to is remembered on this device. */
+function _woRememberCuesSize() {
+    var ta = document.getElementById('woeCues');
+    if (!ta) return;
+    try {
+        var saved = JSON.parse(localStorage.getItem('woCuesSize') || 'null');
+        if (saved && saved.w > 80) ta.style.width = saved.w + 'px';
+        if (saved && saved.h > 40) ta.style.height = saved.h + 'px';
+    } catch (e) {}
+    var save = function() {
+        try { localStorage.setItem('woCuesSize', JSON.stringify({ w: ta.offsetWidth, h: ta.offsetHeight })); } catch (e) {}
+    };
+    ta.addEventListener('pointerup', save);     // fires after dragging the resize handle (mouse, pen or touch)
+    ta.addEventListener('touchend', save);
 }
 
 function _woUpdateAmountLabel() {
