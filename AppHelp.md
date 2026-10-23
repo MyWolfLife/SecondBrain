@@ -4748,18 +4748,18 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:exercise
 
-**What this screen is for:** The Fitness hub (formerly "Exercise"). Jump to Activities, Daily Metrics, Goals, Summary, Workouts, or the Exercises library.
+**What this screen is for:** The Fitness hub (formerly "Exercise"). The **left column** is your tracking — Daily Metrics, Activities, Summary, Goals. The **right column** is workouts — Workouts, Workout History, Muscle Balance, Exercises, Programs.
 
 ### Quick Help
+- Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
+- Tap **Activities** to log and view your workouts
+- Tap **Summary** for a year-at-a-glance view of every month's numbers
+- Tap **Goals** to set and manage your yearly exercise and weight goals
 - Tap **Workouts** to build and run guided workouts
 - Tap **Workout History** to see every workout you've finished
 - Tap **Muscle Balance** to see which muscles you've been working lately
 - Tap **Exercises** for your library of exercises (names, form cues, pictures)
 - **Programs** is coming soon — multi-week plans built from your workouts
-- Tap **Activities** to log and view your workouts
-- Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
-- Tap **Goals** to set and manage your yearly exercise and weight goals
-- Tap **Summary** for a year-at-a-glance view of every month's numbers
 
 ---
 

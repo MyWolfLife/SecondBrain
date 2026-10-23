@@ -240,40 +240,43 @@ function loadExercisePage() {
         '<div class="page-header">' +
             '<h2>Fitness</h2>' +
         '</div>' +
+        // Two columns, placed explicitly so each column reads top-down:
+        //   left  = Daily Metrics, Activities, Summary, Goals
+        //   right = Workouts, Workout History, Muscle Balance, Exercises, Programs
         '<div class="landing-grid">' +
-            '<a href="#exercise-activities" class="landing-tile landing-tile--exercise-activities">' +
-                '<span class="landing-tile-icon">🏃</span>' +
-                '<span class="landing-tile-label">Activities</span>' +
-            '</a>' +
-            '<a href="#exercise-metrics" class="landing-tile landing-tile--exercise-metrics">' +
+            '<a href="#exercise-metrics" class="landing-tile landing-tile--exercise-metrics" style="grid-column:1;grid-row:1">' +
                 '<span class="landing-tile-icon">📋</span>' +
                 '<span class="landing-tile-label">Daily Metrics</span>' +
             '</a>' +
-            '<a href="#exercise-goals" class="landing-tile landing-tile--exercise-goals">' +
-                '<span class="landing-tile-icon">🎯</span>' +
-                '<span class="landing-tile-label">Goals</span>' +
+            '<a href="#exercise-activities" class="landing-tile landing-tile--exercise-activities" style="grid-column:1;grid-row:2">' +
+                '<span class="landing-tile-icon">🏃</span>' +
+                '<span class="landing-tile-label">Activities</span>' +
             '</a>' +
-            '<a href="#exercise-summary" class="landing-tile landing-tile--exercise-summary">' +
+            '<a href="#exercise-summary" class="landing-tile landing-tile--exercise-summary" style="grid-column:1;grid-row:3">' +
                 '<span class="landing-tile-icon">📊</span>' +
                 '<span class="landing-tile-label">Summary</span>' +
             '</a>' +
-            '<a href="#workouts" class="landing-tile landing-tile--workouts">' +
+            '<a href="#exercise-goals" class="landing-tile landing-tile--exercise-goals" style="grid-column:1;grid-row:4">' +
+                '<span class="landing-tile-icon">🎯</span>' +
+                '<span class="landing-tile-label">Goals</span>' +
+            '</a>' +
+            '<a href="#workouts" class="landing-tile landing-tile--workouts" style="grid-column:2;grid-row:1">' +
                 '<span class="landing-tile-icon">🏋️</span>' +
                 '<span class="landing-tile-label">Workouts</span>' +
             '</a>' +
-            '<a href="#workout-history" class="landing-tile landing-tile--workout-history">' +
+            '<a href="#workout-history" class="landing-tile landing-tile--workout-history" style="grid-column:2;grid-row:2">' +
                 '<span class="landing-tile-icon">📋</span>' +
                 '<span class="landing-tile-label">Workout History</span>' +
             '</a>' +
-            '<a href="#workout-balance" class="landing-tile landing-tile--workout-balance">' +
+            '<a href="#workout-balance" class="landing-tile landing-tile--workout-balance" style="grid-column:2;grid-row:3">' +
                 '<span class="landing-tile-icon">⚖️</span>' +
                 '<span class="landing-tile-label">Muscle Balance</span>' +
             '</a>' +
-            '<a href="#workout-exercises" class="landing-tile landing-tile--workout-exercises">' +
+            '<a href="#workout-exercises" class="landing-tile landing-tile--workout-exercises" style="grid-column:2;grid-row:4">' +
                 '<span class="landing-tile-icon">🤸</span>' +
                 '<span class="landing-tile-label">Exercises</span>' +
             '</a>' +
-            '<div class="landing-tile landing-tile--coming-soon">' +
+            '<div class="landing-tile landing-tile--coming-soon" style="grid-column:2;grid-row:5">' +
                 '<span class="landing-tile-icon">📅</span>' +
                 '<span class="landing-tile-label">Programs</span>' +
                 '<span class="coming-soon-badge">Coming soon</span>' +

@@ -1193,7 +1193,7 @@ Tracks major life events — trips, milestones, goals, relationships.
 Exercise tracking lives in the Life section. The section is labeled **Fitness** on screen (Life tile, hub title, breadcrumbs); routes (`#exercise…`), files (`exercise.js`) and Firestore collections (`exercise…`) keep the original "exercise" names. Activities, Daily Metrics, Goals, and Summary are all built; Workouts is being built (see below).
 
 ### Fitness Hub (`#exercise`)
-Nine cards: **Activities**, **Daily Metrics**, **Goals**, **Summary**, **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Muscle Balance** (`#workout-balance`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
+Nine cards in **two columns** (placed explicitly so each reads top-down): **left** — **Daily Metrics** (`#exercise-metrics`), **Activities**, **Summary**, **Goals**; **right** — **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Muscle Balance** (`#workout-balance`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
 Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
 
 ### Workouts (`js/workouts.js`) — build in progress
