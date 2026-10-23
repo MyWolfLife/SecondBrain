@@ -1785,6 +1785,7 @@ function _woRenderBuilder() {
                     '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobAddCircuit">+ Add circuit</button>' +
                 '</div>' +
+                '<p class="wo-hint">Circuit = a group of exercises done one after another, then repeated for a number of rounds.</p>' +
             '</div>' +
             '<div class="ex-form-actions">' +
                 '<button type="button" class="btn btn-primary" id="wobSave">' + (isNew ? 'Create Workout' : 'Save') + '</button>' +
