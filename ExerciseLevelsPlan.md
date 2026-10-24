@@ -73,7 +73,9 @@ New optional `levelId`, `levelLabel` (a **snapshot**, so history stays readable 
 | `MyLife-Functional-Spec.md`, `AppHelp.md` | New "Exercise levels" section; screen help for exercise, workout, workout-start, workout-view, workout-run, workout-done, workout-exercise-history, workouts progression. |
 | `index.html`, `css/styles.css`, `sw.js` | New script tag, cache bumps, level tab/chip styles. |
 
-**Status (2026-10-24): L1–L5 are built and tested in the preview.** L5 extras: a level without pictures borrows the nearest level that has some; set numbers count per exercise and level. Records / last-time / exercise history are still per exercise (L6).
+**Status (2026-10-24): L1–L6 are built and tested in the preview.** L6 notes: the exercise History page defaults to my level with an "All levels together" option; Last time falls back to the latest other level with a note.
+
+**(Earlier status:)** L5 extras: a level without pictures borrows the nearest level that has some; set numbers count per exercise and level. Records / last-time / exercise history are still per exercise (L6).
 
 **(Earlier status:)** L4 note: the choice of level for a run is kept in `_woS.runLevels` / `_woS.myPick` and stamped onto the run copy of the steps as `runLevelId`/`runLevelLabel`; the saved workout is never modified.
 

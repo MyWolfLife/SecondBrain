@@ -49,7 +49,7 @@ function woPRsHtml(prs) {
     return '<div class="wo-banner wo-banner--pr"><strong>🏆 New personal record' + (prs.length === 1 ? '' : 's') + '!</strong><ul class="wo-ro-list">' +
         prs.map(function(p) {
             var what = p.kind === 'weight' ? 'heaviest' : (p.kind === 'reps' ? 'most reps' : 'longest');
-            return '<li><strong>' + _woEsc(p.exerciseName) + '</strong> — ' + what + ': ' + p.value + unit[p.kind] + ' (was ' + p.previous + unit[p.kind] + ')</li>';
+            return '<li><strong>' + _woEsc(woLineName(p)) + '</strong> — ' + what + ': ' + p.value + unit[p.kind] + ' (was ' + p.previous + unit[p.kind] + ')</li>';
         }).join('') + '</ul></div>';
 }
 
@@ -549,13 +549,19 @@ async function woRenderActivityWorkoutSummary(el, activityId, act) {
 // A point is a record (🏆) when it beats every earlier session; the first session isn't one.
 
 var _woExChart = null;
+var _woExHistLevel = {};     // exerciseId → chosen level id (null = all levels) for the history page, this visit
 
-/** Chronological [{date, workoutName, value, sets (lines), pr}] for one exercise; plus {kind, unit}. */
-function woExerciseHistory(sessions, exerciseId) {
+/**
+ * Chronological [{date, workoutName, value, sets (lines), pr}] for one exercise; plus {kind, unit}.
+ * levelId: only that level's lines (old lines count as 'base'); omit or null for every level together.
+ */
+function woExerciseHistory(sessions, exerciseId, levelId) {
     var rows = [];
     sessions.forEach(function(s) {
         if (s.status === 'in-progress') return;
-        var lines = (s.sets || []).filter(function(l) { return l.exerciseId === exerciseId && !l.skipped && l.actualAmount != null; });
+        var lines = (s.sets || []).filter(function(l) {
+            return l.exerciseId === exerciseId && !l.skipped && l.actualAmount != null && (!levelId || (l.levelId || WO_BASE_LEVEL_ID) === levelId);
+        });
         if (lines.length) rows.push({ date: s.date, startedAt: s.startedAt || '', workoutName: s.workoutName, lines: lines });
     });
     rows.sort(function(a, b) { return (a.date || '').localeCompare(b.date || '') || a.startedAt.localeCompare(b.startedAt); });
@@ -581,7 +587,8 @@ async function loadWorkoutExerciseHistoryPage(id) {
     try {
         var doc = await woLibCol('workoutExercises').doc(id).get();
         if (!doc.exists) { el.innerHTML = '<div class="ex-status">Exercise not found.</div>'; return; }
-        ex = doc.data();
+        ex = doc.data(); ex.id = id;
+        await woLoadMyLevels();
         var snap = await userCol('workoutSessions').get();
         sessions = snap.docs.map(function(d) { return d.data(); });
     } catch (err) {
@@ -589,7 +596,17 @@ async function loadWorkoutExerciseHistoryPage(id) {
         el.innerHTML = '<div class="ex-status">Could not load the history.</div>';
         return;
     }
-    var H = woExerciseHistory(sessions, id);
+    // Multi-level exercises: records are per level — show one level at a time (starting with mine) or all together
+    var levels = woLevelsOf(ex), multi = levels.length > 1;
+    var levelPick = null;                                       // null = all levels
+    if (multi) {
+        var seen = {};
+        sessions.forEach(function(s) { (s.sets || []).forEach(function(l) { if (l.exerciseId === id) seen[l.levelId || WO_BASE_LEVEL_ID] = true; }); });
+        levels = levels.filter(function(l) { return !l.archived || seen[l.id]; });
+        levelPick = _woExHistLevel[id] === undefined ? woMyLevelId(ex) : _woExHistLevel[id];
+        if (levelPick && !levels.some(function(l) { return l.id === levelPick; })) levelPick = null;
+    }
+    var H = woExerciseHistory(sessions, id, levelPick);
     var rows = H.rows;
     var label = H.kind === 'weight' ? 'Heaviest weight' : (H.kind === 'time' ? 'Longest time' : 'Most reps in a set');
     var best = rows.length ? rows.reduce(function(m, r) { return r.value > m.value ? r : m; }, rows[0]) : null;
@@ -598,6 +615,11 @@ async function loadWorkoutExerciseHistoryPage(id) {
     el.innerHTML =
         '<div class="page-header"><h2>' + _woEsc(ex.name) + ' — history</h2>' +
             '<div class="page-header-actions"><a href="#workout-exercise/' + id + '" class="btn btn-secondary">Edit exercise</a></div></div>' +
+        (multi ? '<div class="ex-form-group" style="padding:0 16px;"><label class="ex-label" for="woExHistLevel">Level</label><select id="woExHistLevel">' +
+            '<option value="">All levels together</option>' + levels.map(function(l) {
+                var idx = woLevelsOf(ex).findIndex(function(x) { return x.id === l.id; });
+                return '<option value="' + _woEsc(l.id) + '"' + (levelPick === l.id ? ' selected' : '') + '>' + (idx + 1) + '. ' + _woEsc(woLevelDisplay(l, idx)) + '</option>'; }).join('') +
+            '</select> <span class="wo-hint">Records are kept separately for each level.</span></div>' : '') +
         (rows.length ?
             '<div class="wo-stats">' +
                 '<div><strong>' + rows.length + '</strong><span>session' + (rows.length === 1 ? '' : 's') + '</span></div>' +
@@ -612,7 +634,10 @@ async function loadWorkoutExerciseHistoryPage(id) {
                     return '<tr><td>' + _woEsc(_woFmtLongDate(r.date)) + '</td><td>' + _woEsc(r.workoutName) + '</td><td>' + _woEsc(woFmtLastSets(r.lines.filter(function(l) { return l.side !== 'right'; }))) +
                            '</td><td>' + r.value + ' ' + H.unit + (r.pr ? ' 🏆' : '') + '</td></tr>';
                 }).join('') + '</tbody></table></div>'
-        : '<div class="ex-status">You haven\'t done this exercise in a finished workout yet.</div>');
+        : '<div class="ex-status">' + (levelPick ? 'You haven\'t done this level in a finished workout yet.' : 'You haven\'t done this exercise in a finished workout yet.') + '</div>');
+
+    var pick = document.getElementById('woExHistLevel');
+    if (pick) pick.addEventListener('change', function() { _woExHistLevel[id] = this.value || null; loadWorkoutExerciseHistoryPage(id); });
 
     if (rows.length && typeof Chart !== 'undefined') {
         if (_woExChart) { _woExChart.destroy(); _woExChart = null; }

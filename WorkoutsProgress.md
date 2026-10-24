@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (L6):** Exercise levels **L6 (records, Last time and exercise history per level) is built and pushed**. Next: **L7 (progression: streak per level, move up/down a level, settings)**.
 > **2026-10-24 (L5):** Exercise levels **L5 (player: level label, per-level pictures with fallback, spoken name; set lines store the level; day checklist, Finished screen, activity summary, per-level set numbers) is built and pushed**. Next: **L6 (records, last-time and exercise history per level)**.
 > **2026-10-24 (L4):** Exercise levels **L4 (Start screen: first-time question, Level today dropdown, Make this my level, run-level stamp) is built and pushed**. Next: **L5 (player and saving: level in timeline, pictures, spoken name, set lines store levelId/levelLabel)**.
 > **2026-10-24 (L3):** Exercise levels **L3 (workout steps: Start at My level / pinned, picker level count, fallback notice) is built and pushed**. Next: **L4 (Start screen: first-time 'Which version can you do?', per-step level selector, resolve + snapshot)**.

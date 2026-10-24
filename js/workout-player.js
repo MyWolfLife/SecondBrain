@@ -352,7 +352,10 @@ function woFmtLastSets(lines) {
     return lines.map(function(l) { return l.actualAmount + (l.actualWeight != null ? ' @ ' + l.actualWeight : ''); }).join(' / ') + (timed ? ' sec' : (lines.some(function(l) { return l.actualWeight != null; }) ? ' lb' : ' reps'));
 }
 
-/** exerciseId → {date, text} from the most recent finished workout that included it (any workout). */
+/**
+ * exerciseId → { byLevel: {levelId → {date, text}}, any: {date, text, levelLabel} } from the most recent
+ * finished workouts that included it (any workout). Lines without a level count as 'base'.
+ */
 async function _woLastTimeMap(steps) {
     var want = {};
     _woFlatExercises(steps).forEach(function(st) { want[st.exerciseId] = true; });
@@ -362,23 +365,38 @@ async function _woLastTimeMap(steps) {
     var out = {};
     sessions.forEach(function(sess) {
         Object.keys(want).forEach(function(exId) {
-            if (out[exId]) return;
             // a left/right pair counts as one set — keep the left (or only) line
             var lines = (sess.sets || []).filter(function(l) {
                 return l.exerciseId === exId && !l.skipped && l.actualAmount != null && l.side !== 'right';
             });
-            if (lines.length) out[exId] = { date: sess.date, text: woFmtLastSets(lines) };
+            if (!lines.length) return;
+            var rec = out[exId] || (out[exId] = { byLevel: {}, any: null });
+            var levels = {};
+            lines.forEach(function(l) { var id = l.levelId || WO_BASE_LEVEL_ID; (levels[id] = levels[id] || []).push(l); });
+            Object.keys(levels).forEach(function(id) {
+                if (rec.byLevel[id]) return;
+                rec.byLevel[id] = { date: sess.date, text: woFmtLastSets(levels[id]) };
+                if (!rec.any) rec.any = { date: sess.date, text: rec.byLevel[id].text, levelLabel: levels[id][0].levelLabel || null };
+            });
         });
     });
     return out;
 }
 
-function _woLastTimeHtml(exerciseId) {
-    var l = _woS && _woS.last && _woS.last[exerciseId];
-    if (!l) return '';
-    var p = l.date.split('-');
-    var d = new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return '<div class="wo-lasttime">Last time: ' + _woEsc(l.text) + ' · ' + _woEsc(d) + '</div>';
+/** "Last time: 3×12 @ 25 lb · Oct 20" — for a multi-level step, at the level it will play today. */
+function _woLastTimeHtml(step, path) {
+    var rec = _woS && _woS.last && _woS.last[step.exerciseId];
+    if (!rec) return '';
+    var ex = _woExMap[step.exerciseId], hit = rec.any, note = '';
+    if (ex && woIsMultiLevel(ex)) {
+        var lv = woStartLevelFor(step, path);
+        if (lv && rec.byLevel[lv.id]) hit = rec.byLevel[lv.id];
+        else if (lv) { hit = rec.any; note = hit && hit.levelLabel ? ' (at ' + hit.levelLabel + ')' : ' (a different level)'; }
+    }
+    if (!hit) return '';
+    var q = hit.date.split('-');
+    var d = new Date(+q[0], +q[1] - 1, +q[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return '<div class="wo-lasttime">Last time' + _woEsc(note) + ': ' + _woEsc(hit.text) + ' · ' + _woEsc(d) + '</div>';
 }
 
 async function loadWorkoutStartPage(id) {
@@ -423,7 +441,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woLastTimeHtml(it.exerciseId) +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woLastTimeHtml(it, i + '.' + j) +
                         '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
@@ -433,7 +451,7 @@ function _woRenderStartPage() {
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             _woSideBadge(st) + '<button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + st.exerciseId + '" title="View this exercise">👁</button></div>' +
             woStartLevelRowHtml(st, String(i), false) +
-            _woLastTimeHtml(st.exerciseId) +
+            _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
             (st.sets || []).map(function(set, k) {
@@ -969,35 +987,38 @@ function woSetLinesFromRun(phases, results) {
 
 /**
  * Personal records in a just-finished run, compared with every earlier Workout History record.
- * One metric per exercise: weighted → heaviest weight, unweighted reps → most reps in a set,
- * timed → longest time. The very first time you do an exercise is not a record.
- * Returns [{exerciseId, exerciseName, kind:'weight'|'reps'|'time', value, previous}].
+ * One metric per exercise AND level (Push-up on a wall is a different record from Push-up on the floor):
+ * weighted → heaviest weight, unweighted reps → most reps in a set, timed → longest time.
+ * The very first time you do an exercise (at that level) is not a record.
+ * Returns [{exerciseId, exerciseName, levelId, levelLabel, kind:'weight'|'reps'|'time', value, previous}].
  */
 async function woComputePRs(sets, excludeId) {
     var snap = await userCol('workoutSessions').get();
-    var prior = {};   // exerciseId → {weight, reps, time}
+    var prior = {};   // exerciseId|levelId → {weight, reps, time}
     snap.docs.forEach(function(d) {
         if (d.id === excludeId || d.data().status === 'in-progress') return;   // an open day workout doesn't count as history
         (d.data().sets || []).forEach(function(l) {
             if (l.skipped || l.actualAmount == null) return;
-            var b = prior[l.exerciseId] || (prior[l.exerciseId] = { weight: null, reps: null, time: null });
+            var rk = woRecordKey(l);
+            var b = prior[rk] || (prior[rk] = { weight: null, reps: null, time: null });
             if (l.measure === 'time')            b.time   = Math.max(b.time   || 0, l.actualAmount);
             else if (l.actualWeight != null)     b.weight = Math.max(b.weight || 0, l.actualWeight);
             else                                 b.reps   = Math.max(b.reps   || 0, l.actualAmount);
         });
     });
-    var now = {};     // this run's best per exercise + kind
+    var now = {};     // this run's best per exercise + level + kind
     sets.forEach(function(l) {
         if (l.skipped || l.actualAmount == null) return;
         var kind  = l.measure === 'time' ? 'time' : (l.actualWeight != null ? 'weight' : 'reps');
         var value = kind === 'weight' ? l.actualWeight : l.actualAmount;
-        var key   = l.exerciseId + '|' + kind;
-        if (!now[key] || value > now[key].value) now[key] = { exerciseId: l.exerciseId, exerciseName: l.exerciseName, kind: kind, value: value };
+        var key   = woRecordKey(l) + '|' + kind;
+        if (!now[key]) now[key] = { rk: woRecordKey(l), exerciseId: l.exerciseId, exerciseName: l.exerciseName, levelId: l.levelId || null, levelLabel: l.levelLabel || null, kind: kind, value: value };
+        else if (value > now[key].value) now[key].value = value;
     });
     var prs = [];
     Object.keys(now).forEach(function(k) {
-        var n = now[k], p = prior[n.exerciseId] && prior[n.exerciseId][n.kind];
-        if (p && n.value > p) prs.push({ exerciseId: n.exerciseId, exerciseName: n.exerciseName, kind: n.kind, value: n.value, previous: p });
+        var n = now[k], pv = prior[n.rk] && prior[n.rk][n.kind];
+        if (pv && n.value > pv) prs.push({ exerciseId: n.exerciseId, exerciseName: n.exerciseName, levelId: n.levelId, levelLabel: n.levelLabel, kind: n.kind, value: n.value, previous: pv });
     });
     return prs;
 }
