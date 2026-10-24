@@ -1236,7 +1236,7 @@ function _woOpenGrabber() {
     var ov = _woGrabOverlay(
         '<h3>Add pictures from a video or GIF</h3>' +
         '<p class="wo-hint">Copy a GIF or video <strong>file</strong> (in File Explorer: select it, Ctrl+C), then press <strong>Ctrl+V</strong> here or tap Paste. ' +
-        'You can also paste the web address of a .gif or .mp4. Copying a <em>picture</em> from a web page only gives a still, so for those save the GIF first and choose the file.</p>' +
+        'Or, on a web page, right-click a GIF → <strong>Copy image</strong> and paste it here — the app fetches the animated original. If the website refuses, save the GIF and choose the file.</p>' +
         '<div class="ex-form-actions">' +
             '<button type="button" class="btn btn-primary" id="woGrabPaste">📋 Paste from clipboard</button>' +
             '<button type="button" class="btn btn-secondary" id="woGrabFile">📁 Choose a file</button>' +
@@ -1252,6 +1252,16 @@ function _woOpenGrabber() {
         _woGrabFromClipboardData(ev.clipboardData);
     };
     document.addEventListener('paste', _woPasteHandler);
+}
+
+/** "Copy image" on a web page puts <img src="…"> HTML on the clipboard next to the flattened still — return that address. */
+function _woImgSrcFromHtml(html) {
+    if (!html) return '';
+    try {
+        var img = new DOMParser().parseFromString(html, 'text/html').querySelector('img[src]');
+        var src = img ? img.getAttribute('src') : '';
+        return /^https?:\/\//i.test(src) ? src : '';
+    } catch (e) { return ''; }
 }
 
 function _woGrabMsg(text) {
@@ -1288,6 +1298,8 @@ function _woGrabFromClipboardData(cd) {
     var files = Array.prototype.slice.call(cd.files || []);
     var hit = files.filter(function(f) { return f.type === 'image/gif' || (f.type || '').indexOf('video/') === 0 || /\.(gif|mp4|webm|mov|m4v)$/i.test(f.name || ''); })[0];
     if (hit) { _woGrabHandleFile(hit); return; }
+    var src = _woImgSrcFromHtml(cd.getData && cd.getData('text/html'));      // right-click → Copy image
+    if (src) { _woGrabFromUrl(src); return; }
     var text = (cd.getData && cd.getData('text/plain') || '').trim();
     if (/^https?:\/\/\S+$/i.test(text)) { _woGrabFromUrl(text); return; }
     _woGrabMsg(files.length
@@ -1303,6 +1315,12 @@ async function _woGrabPasteButton() {
         for (var i = 0; i < items.length; i++) {
             var t = items[i].types.find(function(x) { return x === 'image/gif' || x.indexOf('video/') === 0; });
             if (t) { var b = await items[i].getType(t); _woGrabHandleFile(new File([b], 'pasted.' + (t === 'image/gif' ? 'gif' : 'mp4'), { type: t })); return; }
+        }
+        for (var h = 0; h < items.length; h++) {
+            if (items[h].types.indexOf('text/html') !== -1) {
+                var src = _woImgSrcFromHtml(await (await items[h].getType('text/html')).text());
+                if (src) { _woGrabFromUrl(src); return; }
+            }
         }
         for (var j = 0; j < items.length; j++) {
             if (items[j].types.indexOf('text/plain') !== -1) {
@@ -1323,11 +1341,12 @@ async function _woGrabFromUrl(url) {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         var blob = await resp.blob();
         var ext = (url.split('?')[0].match(/\.(gif|mp4|webm|mov|m4v)$/i) || [])[1];
-        var type = blob.type || (ext && ext.toLowerCase() === 'gif' ? 'image/gif' : 'video/mp4');
-        _woGrabHandleFile(new File([blob], 'pasted.' + (ext || 'bin'), { type: type }));
+        var known = blob.type === 'image/gif' || (blob.type || '').indexOf('video/') === 0;
+        var type = known ? blob.type : (blob.type || (ext && ext.toLowerCase() === 'gif' ? 'image/gif' : 'video/mp4'));
+        _woGrabHandleFile(new File([blob], 'pasted.' + (type === 'image/gif' ? 'gif' : (ext || 'bin')), { type: type }));
     } catch (err) {
         console.error('Workouts: could not fetch pasted address:', err);
-        _woGrabMsg('That website does not allow downloading it here. Save the file, then choose it with Choose a file.');
+        _woGrabMsg('That website does not allow other sites to download it. Right-click the GIF → Save image as…, then use Choose a file.');
     }
 }
 
