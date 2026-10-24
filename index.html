@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=523">
+    <link rel="stylesheet" href="css/styles.css?v=524">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7746,6 +7746,11 @@ service firebase.storage {
             <!-- Populated by loadWorkoutBalancePage() in workout-balance.js -->
         </section>
 
+        <!-- Page: Import exercises (#workout-import) -->
+        <section class="page hidden" id="page-workout-import">
+            <!-- Populated by loadWorkoutImportPage() in workout-import.js -->
+        </section>
+
         <!-- Page: Throughout-the-day checklist (#workout-day/:id) -->
         <section class="page hidden" id="page-workout-day">
             <!-- Populated by loadWorkoutDayPage() in workout-day.js -->
@@ -12196,7 +12201,7 @@ export default {
     <script src="js/workout-amounts.js?v=8"></script>
     <script src="js/workout-sides.js?v=1"></script>
     <script src="js/workout-start-levels.js?v=1"></script>
-    <script src="js/workouts.js?v=40"></script>
+    <script src="js/workouts.js?v=41"></script>
     <script src="js/workout-player.js?v=31"></script>
     <script src="js/workout-voice.js?v=12"></script>
     <script src="js/workout-commands.js?v=4"></script>
@@ -12204,6 +12209,7 @@ export default {
     <script src="js/workout-day.js?v=5"></script>
     <script src="js/workout-progress.js?v=6"></script>
     <script src="js/workout-balance.js?v=1"></script>
+    <script src="js/workout-import.js?v=1"></script>
     <script src="js/workout-ai.js?v=9"></script>
     <script src="js/workout-view.js?v=5"></script>
     <script src="js/workout-level-editor.js?v=3"></script>
@@ -12247,7 +12253,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=495"></script>
+    <script src="js/app.js?v=496"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

@@ -21990,3 +21990,10 @@ body.wo-playing .offline-banner { display: none !important; }
 
 /* Ladder */
 .wo-ladder-down { margin-top: 10px; font-size: 1rem; padding: 10px 18px; }
+
+/* Import exercises */
+.wo-imp-tools { margin: 6px 0; font-size: 0.85rem; }
+.wo-imp-row { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+.wo-imp-main { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.wo-imp-flags { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.wo-imp-remove { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 12px; }

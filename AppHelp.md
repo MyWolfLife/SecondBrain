@@ -4817,12 +4817,29 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Your library of exercises — the moves you build workouts from.
 
 ### Quick Help
+- **⬆ Import** adds a batch of exercises from a file, with a review step first
 - The **Any category** filter narrows the list to Push, Pull, Core, Legs & glutes or Full body exercises; the category also shows as a small tag next to the name
 - Tap **+ New Exercise** to add one; tap any exercise to edit it
 - Use the filters to find what you need — pick **Calves** under Muscle to see every exercise that works your calves (★ main targets are listed first)
 - **Push / Pull** shows whether a move pushes (push-up) or pulls (curl) — handy for balancing a workout
 - **Show archived** brings back exercises you've hidden
 - A starter set of 20 exercises is added the first time you open this screen; edit, archive or delete any of them
+
+
+---
+
+## screen:workout-import
+
+**What this screen is for:** Add a batch of exercises from a file on your computer, after reviewing them.
+
+### Quick Help
+- Tap **Choose an exercise file** and pick a .json file. The file stays on your computer — the app only reads it
+- You get a **review list** first. Tick the exercises you want (ones you already have are unticked). **Preview** shows each one's cues, levels and precaution
+- Muscles are matched to your own muscle list (the first two the file lists become ★ main). Any it can't match are shown as “skipped muscles”
+- **➕** tags show equipment that isn't in your Equipment list yet — it is added, with a short description, when you import
+- Exercises with easier and harder versions are imported as **levels**
+- **Import** adds everything you ticked. Nothing is written before that
+- **Remove an import** (at the bottom) deletes everything that was imported from one source in one go. Exercises that one of your workouts uses are kept
 
 ---
 

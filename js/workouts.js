@@ -297,6 +297,7 @@ function _woRenderExerciseListShell() {
         '<div class="page-header">' +
             '<h2>Exercises</h2>' +
             '<div class="page-header-actions">' +
+                '<a href="#workout-import" class="btn btn-secondary" title="Add exercises from a file">⬆ Import</a>' +
                 '<a href="#workout-exercise/new" class="btn btn-primary">+ New Exercise</a>' +
             '</div>' +
         '</div>' +
