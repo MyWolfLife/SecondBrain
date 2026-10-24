@@ -79,6 +79,18 @@ Every entry has:
 - **Tempo / pause modifiers** ("lower 3 s, hold 1 s") stay on the *step*, not the level.
 - **Step display:** "Push-up · Chair (level 2 of 6)" with a quick change-level control while building or starting a workout.
 
+**Decision (user, 2026-10-24): the workout chooses.** Each workout step has a **Start at** setting: **My level** or **a specific level**.
+- **My level** (default for steps you build yourself): the step plays whichever level the exercise says you are at.
+- **A specific level** (used for the book's programs, which name exact variations such as "hands elevated"): the step always plays that level, whatever your level is.
+- You can change it per step when building a workout, and flip it while starting a workout ("start one level easier today").
+
+**How the app knows "my level"** (proposal):
+1. Each exercise stores *my level*. It starts at the **easiest** level.
+2. **First time you start a workout** that includes a multi-level exercise you've never set, the Start screen asks once: "Which version can you do?" with the levels listed (with pictures). That sets it.
+3. After that it changes only when you **accept a progression suggestion** (next level up, or back down) or change it by hand (on the exercise, or on the Start screen).
+4. Optional later: quick "too easy / too hard" buttons after a set.
+5. A pinned step never changes your level; only "My level" steps and progression do.
+
 **Open sub-questions**
 1. Should a workout step *follow my level* by default, or pin a level? (Recommendation: follow by default; pin as an option.)
 2. Is level order a simple 1…N list, or can a ladder branch (e.g. two different harder versions)? (Recommendation: a simple list; the book's few branches become separate exercises.)
