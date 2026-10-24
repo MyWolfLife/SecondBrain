@@ -4867,6 +4867,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
+- **Reps targets**: next to each set's number there is a small dropdown — **exactly** (like 10), **a range** (like 6–12) or **to failure** (as many as you can; the box then means “at least”). Timed exercises offer **exactly** or **as long as you can**. Ranges and to-failure sets work together with the usual sets, pyramids and circuits
 - Give it a name, then tap **+ Add exercise** and pick from your library — search, or narrow the list by **area**, **muscle** (the muscle list follows the area you pick), **push/pull** or **equipment** (works the same when adding to a circuit)
 - **👁 View** (in the picker, and on every exercise or circuit item in the workout) opens a read-only card with the pictures playing, how it is done, muscles, equipment and cues — handy when two exercises look alike. In the picker it opens on top, so you don't lose your place; tap **Close** and pick as usual. **Edit exercise ↗** opens it for editing in a new tab, so your unsaved workout is safe
 - **What is a circuit?** A circuit is a group of exercises you do one after another with little or no rest between them (for example push-ups, then squats, then planks), and then repeat the whole group for a number of **rounds** — like 3 rounds. You rest briefly between exercises, longer between rounds. It is the opposite of the normal way, where you finish all the sets of one exercise before moving to the next. Tap **+ Add circuit**, add the exercises inside it, and set the rounds
@@ -4892,6 +4893,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- The same **exactly / a range / to failure** dropdown is on each set here, so you can change today's target. Sets with a range or “to failure” will ask you to type how many you really did
 - Tap **👁** next to an exercise to see its pictures, cues and muscles without leaving this screen
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
 - **Which version can you do?** If the workout has an exercise with levels (like push-ups on a wall, chair or floor) and I don't know your level yet, I ask once. Pick the version you can do; it is remembered when you tap Start (you can change it later on the exercise)
@@ -4916,6 +4918,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- For a set with a range (like 6–12) or “to failure”, the screen shows “6–12” or “MAX” and a **Did** box. Type how many you did, then tap **DONE** (tapping elsewhere doesn't count, so the number is never guessed). The voice says “6 to 12 reps” or “as many as you can”
 - For exercises with levels (easier or harder versions), the screen shows which level you are on (for example “Chair”) under the exercise name, shows that level's pictures, and speaks it (“Push-up, Chair”). If a level has no pictures yet, it shows the nearest level that does
 - The **colour** tells you where you are: teal = exercise, blue = rest, amber = get ready, purple = switch sides
 - In **Self-paced** mode every exercise waits for you: type what you actually did (if different) and tap **DONE**
@@ -4937,6 +4940,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
+- Sets with a range or “to failure” show their target (like “6–12” or “max”) in the greyed hint inside the box; type what you actually did
 - Exercises with levels list the level you did next to the name (for example “Push-up · Chair”). Sets are numbered separately for each level, and any line you add yourself uses your current level
 - Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**, and Save takes you back to your Workouts list
 - Enter **Calories burned** from your watch — Save sends the calories, time and date to the matching Activity too

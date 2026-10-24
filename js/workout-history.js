@@ -184,7 +184,7 @@ function _woRenderDoneLines() {
                 '</span>' +
                 '<span class="wo-line-name">' + label + (skipped ? ' <span class="wo-badge wo-badge--neither">skipped</span>' : '') + (s.manual ? ' <span class="wo-badge wo-badge--both">added</span>' : '') + '</span>' +
                 '<span class="wo-line-vals">' +
-                    '<input type="number" min="0" data-f="amount" value="' + (s.actualAmount != null ? s.actualAmount : '') + '" placeholder="' + (s.targetAmount != null ? s.targetAmount : '') + '"> ' + unit +
+                    '<input type="number" min="0" data-f="amount" value="' + (s.actualAmount != null ? s.actualAmount : '') + '" placeholder="' + (s.failure ? 'max' : (s.targetMax != null ? s.targetAmount + '–' + s.targetMax : (s.targetAmount != null ? s.targetAmount : ''))) + '"> ' + unit +
                     (showWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" value="' + (s.actualWeight != null ? s.actualWeight : '') + '" placeholder="' + (s.targetWeight != null ? s.targetWeight : '') + '"> lb' : '') +
                 '</span>' +
                 '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" title="Delete this line">🗑</button>' +

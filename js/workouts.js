@@ -1596,7 +1596,8 @@ function _woRestSeconds(rest) {
 
 function _woSetSeconds(st, set) {
     var sides = st.eachSide ? 2 : 1;
-    var work  = st.measure === 'time' ? (set.amount || 0) : (set.amount || 0) * WO_SECONDS_PER_REP;
+    var amt   = set.amount || (set.failure ? (st.measure === 'time' ? 30 : 12) : 0);        // a to-failure set counts as a typical set
+    var work  = st.measure === 'time' ? amt : amt * WO_SECONDS_PER_REP;
     return work * sides;
 }
 
@@ -1781,7 +1782,14 @@ function _woRenderWorkoutList() {
 var _woW = null;   // working copy of the workout being built
 
 function _woBlankRest(seconds) { return { mode: 'timed', seconds: seconds }; }
-function _woCloneSets(sets) { return (sets || []).map(function(s) { return { amount: s.amount, weight: s.weight }; }); }
+function _woCloneSets(sets) {
+    return (sets || []).map(function(s) {
+        var c = { amount: s.amount, weight: s.weight };
+        if (s.amountMax != null) c.amountMax = s.amountMax;      // rep range (workout-amounts.js)
+        if (s.failure) c.failure = true;                          // to failure
+        return c;
+    });
+}
 
 /** New exercise step from a library exercise, using its defaults. In a circuit it has one set and no rests. */
 function _woNewStep(ex, inCircuit) {
@@ -1936,7 +1944,7 @@ function _woSectionSelect(st) {
 
 function _woSetsUniform(st) {
     var sets = _woStepSets(st);
-    return sets.every(function(s) { return s.amount === sets[0].amount && s.weight === sets[0].weight; });
+    return sets.every(function(s) { return s.amount === sets[0].amount && s.weight === sets[0].weight && s.amountMax === sets[0].amountMax && !!s.failure === !!sets[0].failure; });
 }
 
 /** Sets editor for one exercise: quick row, or one row per set ("custom"). */
@@ -1950,18 +1958,18 @@ function _woSetsEditor(st, inCircuit) {
     };
 
     if (inCircuit) {   // one set per round — just amount (+ weight)
-        return '<span class="wo-item-sets"><input type="number" min="1" data-f="qamount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit + wField(s0.weight) + '</span>';
+        return '<span class="wo-item-sets">' + woAmountEditorHtml(st.measure, s0, 'q', null) + wField(s0.weight) + '</span>';
     }
     if (!st._custom && _woSetsUniform(st)) {
         return '<div class="wo-step-sets">' +
                    '<input type="number" min="1" max="20" data-f="qcount" value="' + sets.length + '"> sets × ' +
-                   '<input type="number" min="1" data-f="qamount" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + unit + wField(s0.weight) +
+                   woAmountEditorHtml(st.measure, s0, 'q', null) + wField(s0.weight) +
                    ' <button type="button" class="wo-link-btn" data-act="custom">Customize sets</button>' +
                '</div>';
     }
     var rows = sets.map(function(s, k) {
         return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
-               '<input type="number" min="1" data-f="amount" data-k="' + k + '" value="' + (s.amount != null ? s.amount : '') + '"> ' + unit + wField(s.weight, k) +
+               woAmountEditorHtml(st.measure, s, '', k) + wField(s.weight, k) +
                (sets.length > 1 ? ' <button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="delset" data-k="' + k + '" title="Remove set">✕</button>' : '') +
                '</div>';
     }).join('');
@@ -2116,25 +2124,35 @@ function _woStepInput(ev) {
     }
 
     // Quick row: N sets × amount @ weight → rewrites every set
-    if (f === 'qcount' || f === 'qamount' || f === 'qweight') {
+    if (f === 'qcount' || f === 'qamount' || f === 'qweight' || f === 'qamode' || f === 'qamax') {
         var scope = inp.closest('.wo-step-sets, .wo-item-sets');
         var cEl = scope.querySelector('[data-f=qcount]'), aEl = scope.querySelector('[data-f=qamount]'), wEl = scope.querySelector('[data-f=qweight]');
+        var mEl = scope.querySelector('[data-f=qamode]'), xEl = scope.querySelector('[data-f=qamax]');
         var count  = cEl ? Math.max(1, Math.min(20, parseInt(cEl.value, 10) || 1)) : 1;
         var amount = parseInt(aEl.value, 10);
         var weight = wEl && wEl.value !== '' ? parseFloat(wEl.value) : null;
+        var mode = mEl ? mEl.value : 'fixed', top = xEl ? parseInt(xEl.value, 10) : NaN;
         var sets = [];
-        for (var k = 0; k < count; k++) sets.push({ amount: isNaN(amount) ? null : amount, weight: weight });
+        for (var k = 0; k < count; k++) {
+            var one = { amount: isNaN(amount) ? null : amount, weight: weight };
+            if (mode === 'range') { one.amountMax = isNaN(top) ? null : top; woApplyAmountMode(one, 'range', st.measure); if (!isNaN(top)) one.amountMax = Math.max(top, one.amount); }
+            else if (mode === 'max') woApplyAmountMode(one, 'max', st.measure);
+            sets.push(one);
+        }
         st.sets = sets;
         _woSyncBase(st);
         _woUpdateBuilderSummary();
+        if (f === 'qamode') _woRenderSteps();                         // the boxes change with the mode
         return;
     }
 
     // Custom per-set row
-    if (f === 'amount' || f === 'weight') {
+    if (f === 'amount' || f === 'weight' || f === 'amode' || f === 'amax') {
         var set = st.sets[parseInt(inp.getAttribute('data-k'), 10)];
         if (!set) return;
-        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; }
+        if (f === 'amode') { woApplyAmountMode(set, inp.value, st.measure); _woSyncBase(st); _woUpdateBuilderSummary(); _woRenderSteps(); return; }
+        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; woFixRange(set); }
+        else if (f === 'amax') { var mx = parseInt(inp.value, 10); set.amountMax = isNaN(mx) ? set.amount : mx; woFixRange(set); }
         else                { set.weight = inp.value !== '' ? parseFloat(inp.value) : null; }
         _woSyncBase(st);
         _woUpdateBuilderSummary();

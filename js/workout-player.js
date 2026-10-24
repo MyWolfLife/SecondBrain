@@ -24,7 +24,8 @@ var WO_SWITCH_SEC   = 5;
 
 /** Builds the work phase(s) for one set of one exercise (two phases + a switch for each-side moves). */
 function _woSetPhases(st, set, ctx) {
-    var amount = set.amount != null ? set.amount : (st.measure === 'time' ? 30 : 10);
+    var amount = set.amount != null ? set.amount : (set.failure ? 1 : (st.measure === 'time' ? 30 : 10));   // a to-failure set means "at least 1" by default
+    var amountMax = set.amountMax != null ? set.amountMax : null, failure = !!set.failure;
     var weight = set.weight != null ? set.weight : null;
     var sides  = st.eachSide ? (st.startSide === 'right' ? ['right', 'left'] : ['left', 'right']) : [null];
     var out = [];
@@ -33,13 +34,13 @@ function _woSetPhases(st, set, ctx) {
             kind: 'work', label: st.exerciseName, section: ctx.section,
             stepIndex: ctx.stepIndex, itemIndex: ctx.itemIndex,
             exerciseId: st.exerciseId, exerciseName: st.exerciseName,
-            measure: st.measure, amount: amount, weight: weight,
+            measure: st.measure, amount: amount, amountMax: amountMax, failure: failure, weight: weight,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
             restKind: null,
-            durationSec: (st.measure === 'time' && !ctx.allTap) ? amount : null,
-            tap: st.measure !== 'time' || !!ctx.allTap
+            durationSec: (st.measure === 'time' && !ctx.allTap && !failure) ? amount : null,
+            tap: st.measure !== 'time' || !!ctx.allTap || failure
         });
         if (si === 0 && sides.length > 1) {
             out.push({ kind: 'switch', label: 'Switch sides', section: ctx.section,
@@ -122,7 +123,7 @@ function woNextWork(phases, i) {
 /** Seconds a phase is expected to take (display only; tap phases use the same rough figures as the builder). */
 function woPhaseEstimateSec(p) {
     if (p.durationSec != null) return p.durationSec;
-    if (p.kind === 'work') return (p.measure === 'time' ? (p.amount || 30) : (p.amount || 10) * WO_SECONDS_PER_REP);
+    if (p.kind === 'work') return (p.measure === 'time' ? (p.amount || 30) : (p.failure ? Math.max(p.amount || 0, 12) : (p.amount || 10)) * WO_SECONDS_PER_REP);
     return WO_TAP_REST_ASSUMED;
 }
 
@@ -442,7 +443,7 @@ function _woRenderStartPage() {
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
                     return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woLastTimeHtml(it, i + '.' + j) +
-                        '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
+                        '<span class="wo-item-sets">' + woAmountEditorHtml(it.measure, s0, '', 0) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
                 }).join('') + '</div>';
@@ -456,7 +457,7 @@ function _woRenderStartPage() {
             '<div class="wo-step-sets wo-step-sets--custom">' +
             (st.sets || []).map(function(set, k) {
                 return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
-                    '<input type="number" min="1" data-f="amount" data-k="' + k + '" value="' + (set.amount != null ? set.amount : '') + '"> ' + _woStartUnit(st) +
+                    woAmountEditorHtml(st.measure, set, '', k) +
                     (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="' + k + '" value="' + (set.weight != null ? set.weight : '') + '"> lb' : '') + '</div>';
             }).join('') + '</div></div>';
     }).join('');
@@ -530,7 +531,9 @@ function _woStartInput(ev) {
     else {
         var set = (st.sets || [])[parseInt(inp.getAttribute('data-k'), 10)];
         if (!set) return;
-        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; }
+        if (f === 'amode') { woApplyAmountMode(set, inp.value, st.measure); _woUpdateStartEstimate(); _woRenderStartPage(); return; }
+        if (f === 'amount') { var a = parseInt(inp.value, 10); set.amount = isNaN(a) ? null : a; woFixRange(set); }
+        else if (f === 'amax') { var mx = parseInt(inp.value, 10); set.amountMax = isNaN(mx) ? set.amount : mx; woFixRange(set); }
         else                { set.weight = inp.value !== '' ? parseFloat(inp.value) : null; }
     }
     _woUpdateStartEstimate();
@@ -744,7 +747,7 @@ function _woSetText(p) {
 }
 
 /** "5 reps @ 45 lb" / "30 sec" */
-function _woWorkText(p) { return woFmtAmount(p.measure, p.amount, p.weight); }
+function _woWorkText(p) { return woFmtPhase(p); }
 
 function _woSideText(p) { return p.side === 'left' ? 'Left side' : (p.side === 'right' ? 'Right side' : ''); }
 
@@ -797,13 +800,14 @@ function _woPlayerRender() {
     var selfMode = _woP.session.mode === 'self';
     if (p.kind === 'work' && tap) {
         var unit = p.measure === 'time' ? 'sec' : 'reps';
-        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + p.amount + '<span class="wo-ring-unit">' + unit + '</span>' +
+        center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + woBigAmount(p) + '<span class="wo-ring-unit">' + unit + '</span>' +
                  (p.weight != null ? '<span class="wo-ring-weight">@ ' + p.weight + ' lb</span>' : '') + '</div></div>' +
-                 (selfMode ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
+                 ((selfMode || woNeedsActual(p)) ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
                              (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
                  '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
                  (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
-                           : '<div class="wo-tap-hint">or tap anywhere · say “done”</div>');
+                           : (woNeedsActual(p) ? '<div class="wo-tap-hint">type how many you did, then tap DONE · say “done”</div>'
+                                               : '<div class="wo-tap-hint">or tap anywhere · say “done”</div>'));
     } else if (p.kind === 'rest' && tap) {
         center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text wo-ring-text--sm">Rest</div></div>' +
                  '<button type="button" class="wo-bigbtn" id="woDone">I’M READY</button><div class="wo-tap-hint">or tap anywhere · say “ready”</div>';
@@ -875,7 +879,7 @@ function _woPlayerRender() {
         R.done(actual);
     });
     // Guided: tap anywhere = Done. Self-paced has number boxes on screen, so only the DONE button counts.
-    if (tap && !selfMode) document.getElementById('woMain').addEventListener('click', function() { R.done(); });
+    if (tap && !selfMode && !woNeedsActual(p)) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // ranges / failure need the number typed first
 
     _woPlayerUpdateLive({ index: R.index, phase: p, secondsLeft: secs, state: R.state });
 }
@@ -976,6 +980,7 @@ function woSetLinesFromRun(phases, results) {
             stepIndex: p.stepIndex, itemIndex: p.itemIndex == null ? null : p.itemIndex,   // which workout step this came from (progression)
             section: p.section || 'main', side: p.side || null,
             targetAmount: p.amount, targetWeight: p.weight,
+            targetMax: p.amountMax != null ? p.amountMax : null, failure: !!p.failure,                // rep range / to failure
             actualAmount: done ? ((r.actual && r.actual.amount != null) ? r.actual.amount : p.amount) : null,
             actualWeight: done ? ((r.actual && r.actual.weight != null) ? r.actual.weight : p.weight) : null,
             doneAt: done ? _woISODate(r.doneAt) : null,

@@ -50,6 +50,14 @@ function woSpeak(text) {
     } catch (e) { console.error('Workouts: speech failed:', e); }
 }
 
+/** What the voice says for a phase's target: "10 reps", "6 to 12 reps", "as many as you can". */
+function _woSayPhase(p) {
+    var wt = p.weight != null ? ', ' + p.weight + ' pounds' : '';
+    if (p.failure) return (p.measure === 'time' ? 'as long as you can' : (p.amount > 1 ? 'at least ' + p.amount + ', as many as you can' : 'as many as you can')) + wt;
+    if (p.amountMax != null && p.measure !== 'time') return p.amount + ' to ' + p.amountMax + ' reps' + wt;
+    return _woSayAmount(p.measure, p.amount, p.weight);
+}
+
 function _woSayAmount(measure, amount, weight) {
     var out = '';
     if (measure === 'time') {
@@ -86,7 +94,7 @@ function _woPhaseSpeech(p, ctx) {
     } else if (p.kind === 'rest') {
         parts.push('Rest.');
         var next = ctx.runner.nextWork();
-        if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayAmount(next.measure, next.amount, next.weight) + '.');
+        if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayPhase(next) + '.');
         if (p.durationSec == null) parts.push('Say ready, or tap, when you are ready.');
     } else if (p.kind === 'work') {
         if (p.round && p.itemIndex === 0) parts.push('Round ' + p.round + ' of ' + p.rounds + '.');
@@ -94,7 +102,7 @@ function _woPhaseSpeech(p, ctx) {
         if (p.side) line += ' ' + (p.side === 'left' ? 'Left' : 'Right') + ' side.';
         if (!p.round && p.setCount > 1) line += ' Set ' + (p.setIndex + 1) + ' of ' + p.setCount + '.';
         if (p.sideMode === 'alternate') line += ' Alternate sides.';
-        line += ' ' + _woSayAmount(p.measure, p.amount, p.weight) + '.';
+        line += ' ' + _woSayPhase(p) + '.';
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);
     }

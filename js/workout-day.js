@@ -119,7 +119,7 @@ function _woRenderDayLines() {
         var isDone = _woDayIsDone(s);
         var head = '';
         if (woRecordKey(s) !== lastEx) { head = '<div class="wd-ex-name">' + _woEsc(woLineName(s)) + '</div>'; lastEx = woRecordKey(s); }
-        var target = woFmtAmount(s.measure, s.targetAmount, s.targetWeight);
+        var target = woFmtPhase(s);
         var when = isDone && s.doneAt ? new Date(s.doneAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
         return head + '<div class="wo-line wd-line' + (isDone ? ' wd-line--done' : '') + '" data-i="' + i + '">' +
             '<button type="button" class="wd-check" data-act="toggle" title="' + (isDone ? 'Undo' : 'Mark done') + '">' + (isDone ? '✓' : '') + '</button>' +

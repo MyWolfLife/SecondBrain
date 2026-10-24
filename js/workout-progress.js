@@ -54,7 +54,7 @@ async function woProgSettings(force) {
 function _woRound25(x) { return Math.max(0, Math.round(x / 2.5) * 2.5); }
 function _woHasWeight(st) { return (st.sets || []).some(function(s) { return s.weight != null; }); }
 function _woSameNumbers(a, b) { return JSON.stringify(a || []) === JSON.stringify(b || []); }
-function _woCloneSetList(sets) { return (sets || []).map(function(s) { return { amount: s.amount, weight: s.weight }; }); }
+function _woCloneSetList(sets) { return _woCloneSets(sets); }       // keeps rep ranges / to-failure flags
 
 /** Visits every exercise step and circuit item: cb(step, path). Path "2" or "2.1". */
 function woEachExerciseStep(steps, cb) {
@@ -74,16 +74,26 @@ function woStepAt(steps, path) {
 
 function _woLineDone(l) { return !l.skipped && l.actualAmount != null; }
 
-/** Did every set of this step hit its Current numbers? lines = this step's lines, in order. */
-function _woStepMetTargets(st, lines, isCircuitItem) {
-    if (!lines.length || !lines.every(_woLineDone)) return false;
-    var sides = st.eachSide ? 2 : 1, cur = st.sets || [];
-    return lines.every(function(l, j) {
+/**
+ * How a finished step went against its Current numbers: {met} every set reached its minimum (the number, or 1 for a
+ * to-failure set); {top} every set reached the TOP of its range (same as met for fixed sets). lines = this step's lines.
+ */
+function _woStepResult(st, lines, isCircuitItem) {
+    if (!lines.length || !lines.every(_woLineDone)) return { met: false, top: false };
+    var sides = st.eachSide ? 2 : 1, cur = st.sets || [], met = true, top = true;
+    lines.forEach(function(l, j) {
         var set = isCircuitItem ? cur[0] : cur[Math.floor(j / sides)];
-        if (!set) return true;
-        return l.actualAmount >= (set.amount || 0) && (set.weight == null || (l.actualWeight || 0) >= set.weight);
+        if (!set) return;
+        var weightOk = set.weight == null || (l.actualWeight || 0) >= set.weight;
+        if (!(l.actualAmount >= (set.amount || 0) && weightOk)) met = false;
+        var goal = set.amountMax != null ? set.amountMax : (set.amount || 0);
+        if (!(l.actualAmount >= goal && weightOk)) top = false;
     });
+    return { met: met, top: top };
 }
+
+/** Did every set of this step hit its Current numbers? */
+function _woStepMetTargets(st, lines, isCircuitItem) { return _woStepResult(st, lines, isCircuitItem).met; }
 
 /** Moves Current up toward previousBestSets by rampPct of the old numbers. Ends the comeback when it gets there. */
 function woClimbComeback(st, S) {
@@ -99,6 +109,7 @@ function woClimbComeback(st, S) {
             set.amount = Math.min(p.amount, (set.amount || 0) + Math.max(1, Math.round(p.amount * S.rampPct / 100)));
             if (set.amount < p.amount) allThere = false;
         }
+        if (p.amountMax != null && set.amountMax != null) set.amountMax = Math.max(set.amount, Math.min(p.amountMax, set.amountMax + 1));
     });
     if (allThere) { st.comeback = null; st.previousBestSets = null; st.successStreak = 0; }
 }
@@ -116,14 +127,14 @@ function woEvaluateProgression(steps, lines, dateISO, S) {
         });
         if (!mine.some(_woLineDone)) return;                       // not attempted → leave everything as it was
         st.lastDoneDate = dateISO; changed = true;
-        var met = _woStepMetTargets(st, mine, j != null);
+        var res = _woStepResult(st, mine, j != null), met = res.met;
         var played = (mine.filter(_woLineDone)[0] || {}).levelId || null;            // multi-level exercises only
         if (played) {
             if (st.streakLevelId && st.streakLevelId !== played) { st.successStreak = 0; st.missStreak = 0; }   // a new level starts a new streak
             st.streakLevelId = played;
         }
         if (st.comeback) { if (met) woClimbComeback(st, S); }      // comeback: climb, no 10-session wait
-        else             { st.successStreak = met ? (st.successStreak || 0) + 1 : 0; }
+        else             { st.successStreak = res.top ? (st.successStreak || 0) + 1 : 0; }      // a range counts when you reach its top
         if (played) st.missStreak = met ? 0 : (st.missStreak || 0) + 1;
     });
     return changed ? out : null;
@@ -155,9 +166,18 @@ function woSuggestLevelUp(st, S) {
     if (!sets.length) return null;
     var wStep = st.weightStep > 0 ? st.weightStep : S.weightStep;
     var unit = st.measure === 'time' ? ' sec' : ' reps';
-    var before = woFmtAmount(st.measure, sets[0].amount, sets[0].weight), text;
+    var before = woFmtSet(st.measure, sets[0]), text;
+    var shaped = sets.some(function(s) { return s.amountMax != null || s.failure; });
 
-    if (st.measure === 'time') {
+    if (shaped && st.measure !== 'time') {                      // rep ranges / to-failure sets
+        if (_woHasWeight(st)) {
+            sets.forEach(function(s) { s.weight = (s.weight || 0) + wStep; });
+            text = '+' + wStep + ' lb on every set (the rep ranges stay)';
+        } else {
+            sets.forEach(function(s) { s.amount = (s.amount || 0) + 1; if (s.amountMax != null) s.amountMax += 1; });
+            text = woFmtSet(st.measure, st.sets[0]) + ' → ' + woFmtSet(st.measure, sets[0]);
+        }
+    } else if (st.measure === 'time') {
         sets.forEach(function(s) { s.amount = (s.amount || 0) + S.timeStep; });
         text = (sets[0].amount - S.timeStep) + ' → ' + sets[0].amount + ' sec';
     } else if (_woHasWeight(st)) {
@@ -214,7 +234,10 @@ function _woHasHarderLevel(st, path) {
 function woComebackSets(st, S) {
     return _woCloneSetList(st.sets).map(function(s) {
         if (s.weight != null) { s.weight = Math.max(2.5, _woRound25(s.weight * S.comebackPct / 100)); }
-        else if (s.amount != null) { s.amount = Math.max(1, Math.round(s.amount * S.comebackPct / 100)); }
+        else if (s.amount != null) {
+            s.amount = Math.max(1, Math.round(s.amount * S.comebackPct / 100));
+            if (s.amountMax != null) s.amountMax = Math.max(s.amount, Math.round(s.amountMax * S.comebackPct / 100));
+        }
         return s;
     });
 }

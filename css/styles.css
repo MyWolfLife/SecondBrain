@@ -21956,3 +21956,6 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Finished workout screen: roomy notes box, small per-line buttons */
 .wo-notes-box { width: 100%; max-width: 100%; box-sizing: border-box; min-height: 96px; }
 .wo-line > .wo-frame-btn { flex: 0 0 auto; min-width: 30px; padding: 3px 8px; }
+
+/* Rep ranges / to-failure: the amount mode dropdown */
+.wo-amode { font-size: 0.8rem; max-width: 130px; margin-right: 2px; }
