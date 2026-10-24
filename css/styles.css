@@ -21959,3 +21959,7 @@ body.wo-playing .offline-banner { display: none !important; }
 
 /* Rep ranges / to-failure: the amount mode dropdown */
 .wo-amode { font-size: 0.8rem; max-width: 130px; margin-right: 2px; }
+
+/* Tempo row */
+.wo-tempo-row input { width: 52px; }
+.wo-item .wo-tempo-row { flex: 1 0 100%; margin-left: 0; }

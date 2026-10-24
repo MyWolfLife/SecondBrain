@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (E2):** **E2 (tempo and pauses on steps) is built and pushed.** Next: **E3 (swap start side, weaker side first)**, then E4 captions, E5 labels.
 > **2026-10-24 (E1):** **E1 (rep ranges and to-failure sets) is built and pushed.** Next: **E2 (tempo and pauses on steps)**, then E3 sides, E4 captions, E5 labels.
 > **2026-10-24 (plan):** `ExerciseAdditionsPlan.md` written (chunks E1–E5: rep ranges/failure, tempo, sides, captions, labels). Building E1 first.
 > **2026-10-24 (L8):** **Exercise levels are COMPLETE (L1–L8).** Describe-it can now create levels. Next per `YAYOGAnalysis.md` §7: the remaining exercise-model additions (rep ranges / to-failure sets, tempo/pause on steps, swap-start-side and weaker-side-first, per-picture captions, category/source/precaution), then the book's workout formats, the import tool, and Programs.

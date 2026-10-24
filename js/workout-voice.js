@@ -103,6 +103,11 @@ function _woPhaseSpeech(p, ctx) {
         if (!p.round && p.setCount > 1) line += ' Set ' + (p.setIndex + 1) + ' of ' + p.setCount + '.';
         if (p.sideMode === 'alternate') line += ' Alternate sides.';
         line += ' ' + _woSayPhase(p) + '.';
+        if (p.tempo) {                                          // tempo is said once per exercise per run
+            var tkey = p.stepIndex + '.' + (p.itemIndex == null ? '' : p.itemIndex);
+            _woV.tempoSaid = _woV.tempoSaid || {};
+            if (!_woV.tempoSaid[tkey]) { _woV.tempoSaid[tkey] = true; line += ' ' + woTempoSpoken(p.tempo); }
+        }
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);
     }
@@ -156,7 +161,7 @@ function _woReleaseWake() {
 
 function _woVStart(ctx) {
     _woV.started = true;
-    _woV.phase = -1; _woV.said = {}; _woV.lastSection = null; _woV.completeSpoken = false;
+    _woV.phase = -1; _woV.said = {}; _woV.lastSection = null; _woV.completeSpoken = false; _woV.tempoSaid = {};
     _woAcquireWake();
     // The first tap/click inside the player also unlocks audio on browsers that need a gesture
     _woV.unlockHandler = function() { var ac = _woAudioCtx(); if (ac && ac.state === 'suspended') ac.resume(); };

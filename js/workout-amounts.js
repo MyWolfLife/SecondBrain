@@ -78,3 +78,44 @@ function woAmountEditorHtml(measure, set, pre, k) {
 function woFixRange(set) {
     if (set.amountMax != null && set.amount != null && set.amountMax < set.amount) set.amountMax = set.amount;
 }
+
+// ─── Tempo and pauses (chunk E2) ──────────────────────────────────────────────
+//
+// step.tempo = { down, pauseBottom, up, pauseTop } in seconds, every part optional ("blank = not set").
+// It is shown in the player and spoken once per exercise; it is not counted out loud.
+
+var WO_TEMPO_PARTS = [
+    { key: 'down',        label: 'lower',               short: 'lower',        say: 'Lower for' },
+    { key: 'pauseBottom', label: 'pause at the bottom', short: 'bottom pause', say: 'pause at the bottom for' },
+    { key: 'up',          label: 'lift',                short: 'lift',         say: 'lift for' },
+    { key: 'pauseTop',    label: 'pause at the top',    short: 'top pause',    say: 'pause at the top for' }
+];
+
+function woHasTempo(t) { return !!t && WO_TEMPO_PARTS.some(function(p) { return t[p.key] > 0; }); }
+
+/** "lower 3 s · pause at the bottom 1 s · lift 1 s" (only the parts that are set). */
+function woTempoText(t) {
+    if (!woHasTempo(t)) return '';
+    return WO_TEMPO_PARTS.filter(function(p) { return t[p.key] > 0; }).map(function(p) { return p.label + ' ' + t[p.key] + ' s'; }).join(' · ');
+}
+
+/** "Lower for three seconds, pause at the bottom for one second, lift for one second." */
+function woTempoSpoken(t) {
+    if (!woHasTempo(t)) return '';
+    var word = function(n) { var w = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']; return Number.isInteger(n) && n >= 0 && n <= 10 ? w[n] : String(n); };
+    var parts = WO_TEMPO_PARTS.filter(function(p) { return t[p.key] > 0; }).map(function(p) {
+        return p.say + ' ' + word(t[p.key]) + (t[p.key] === 1 ? ' second' : ' seconds');
+    });
+    var out = parts.join(', ');
+    return out.charAt(0).toUpperCase() + out.slice(1) + '.';
+}
+
+/** The builder's tempo row for a step or circuit item (four small boxes). */
+function woTempoRowHtml(st) {
+    var t = st.tempo || {};
+    var box = function(p) {
+        return p.short + ' <input type="number" min="0" step="0.5" data-f="tempo" data-t="' + p.key + '" value="' + (t[p.key] > 0 ? t[p.key] : '') + '"> s';
+    };
+    return '<div class="wo-rest-row wo-tempo-row"><span class="wo-rest-label">Tempo (optional)</span>' +
+        WO_TEMPO_PARTS.map(box).join(' · ') + ' <span class="wo-hint">seconds; blank = none</span></div>';
+}

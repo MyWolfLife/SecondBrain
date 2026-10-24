@@ -34,7 +34,7 @@ function _woSetPhases(st, set, ctx) {
             kind: 'work', label: st.exerciseName, section: ctx.section,
             stepIndex: ctx.stepIndex, itemIndex: ctx.itemIndex,
             exerciseId: st.exerciseId, exerciseName: st.exerciseName,
-            measure: st.measure, amount: amount, amountMax: amountMax, failure: failure, weight: weight,
+            measure: st.measure, amount: amount, amountMax: amountMax, failure: failure, weight: weight, tempo: woHasTempo(st.tempo) ? st.tempo : null,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
@@ -442,7 +442,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woLastTimeHtml(it, i + '.' + j) +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + (woHasTempo(it.tempo) ? ' <span class="wo-hint">tempo: ' + _woEsc(woTempoText(it.tempo)) + '</span>' : '') + _woLastTimeHtml(it, i + '.' + j) +
                         '<span class="wo-item-sets">' + woAmountEditorHtml(it.measure, s0, '', 0) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
@@ -452,6 +452,7 @@ function _woRenderStartPage() {
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             _woSideBadge(st) + '<button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + st.exerciseId + '" title="View this exercise">👁</button></div>' +
             woStartLevelRowHtml(st, String(i), false) +
+            (woHasTempo(st.tempo) ? '<div class="wo-rest-row"><span class="wo-rest-label">Tempo</span>' + _woEsc(woTempoText(st.tempo)) + '</div>' : '') +
             _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
@@ -786,7 +787,7 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : ''].filter(Boolean);
+        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     }
 

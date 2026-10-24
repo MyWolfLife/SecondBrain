@@ -2015,6 +2015,7 @@ function _woRenderSteps() {
                             (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
                             (ex ? woLevelSelectHtml(it, ex) : '') +
                             _woSetsEditor(it, true) +
+                            woTempoRowHtml(it) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
                     }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
@@ -2037,6 +2038,7 @@ function _woRenderSteps() {
                 '</div>' +
                 (ex && woIsMultiLevel(ex) ? '<div class="wo-rest-row"><span class="wo-rest-label">Start at</span>' + woLevelSelectHtml(st, ex) + '</div>' : '') +
                 _woSetsEditor(st, false) +
+                woTempoRowHtml(st) +
                 _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
                 _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
                 '<div class="wo-rest-row"><span class="wo-rest-label">Level-up (optional)</span>' +
@@ -2097,6 +2099,13 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'tempo') {                                       // Tempo row: seconds for lower / pause / lift / pause
+        var tk = inp.getAttribute('data-t'), tv = parseFloat(inp.value);
+        st.tempo = st.tempo || {};
+        if (tv > 0) st.tempo[tk] = tv; else delete st.tempo[tk];
+        if (!woHasTempo(st.tempo)) delete st.tempo;
+        return;
+    }
     if (f === 'levelSel') {                                   // Start at: my level, or pin one level
         if (inp.value === 'mine') { st.levelMode = 'mine'; delete st.levelId; }
         else { st.levelMode = 'pinned'; st.levelId = inp.value; }
