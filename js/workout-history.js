@@ -119,7 +119,7 @@ function _woRenderDonePage() {
                 '</div></div>' +
 
             '<div class="ex-form-group"><label class="ex-label" for="wodNotes">Notes</label>' +
-                '<textarea id="wodNotes" rows="2" placeholder="felt strong, left shoulder tight…">' + _woEsc(d.notes) + '</textarea></div>' +
+                '<textarea id="wodNotes" class="wo-notes-box" rows="4" placeholder="felt strong, left shoulder tight…">' + _woEsc(d.notes) + '</textarea></div>' +
 
             '<div class="ex-form-group"><label class="ex-label">Sets <span class="wo-hint">change any number, remove a line, or add one</span></label>' +
                 '<div id="wodTotals" class="wo-builder-summary"></div>' +
@@ -303,8 +303,8 @@ async function _woDoneSave() {
             await userCol('exerciseActivities').doc(_woD.data.activityId).update(_woDoneActivityFields(f));
         }
         _woD.dirty = false;
-        var banner = document.getElementById('wodSaved');
-        if (banner) { banner.classList.remove('hidden'); banner.scrollIntoView({ block: 'center' }); }
+        location.hash = '#workouts';                    // saved: back to the Workouts list
+        return;
     } catch (err) {
         console.error('Workouts: save finished workout failed:', err);
         alert('Failed to save. Please try again.');

@@ -4938,7 +4938,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Exercises with levels list the level you did next to the name (for example “Push-up · Chair”). Sets are numbered separately for each level, and any line you add yourself uses your current level
-- Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**
+- Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**, and Save takes you back to your Workouts list
 - Enter **Calories burned** from your watch — Save sends the calories, time and date to the matching Activity too
 - **Sets**: change any reps/seconds or weight, tap 🗑 to remove a line, **↑ ↓** to reorder, **+ Add line** to add an exercise you did that wasn't in the workout. Set numbers update by themselves
 - Sets you skipped are greyed — type a number to count one as done

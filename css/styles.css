@@ -21952,3 +21952,7 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-ask-opt { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 0.9rem; }
 .wo-ask-pic { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #f3f4f6; }
 .wo-prog--down { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+
+/* Finished workout screen: roomy notes box, small per-line buttons */
+.wo-notes-box { width: 100%; max-width: 100%; box-sizing: border-box; min-height: 96px; }
+.wo-line > .wo-frame-btn { flex: 0 0 auto; min-width: 30px; padding: 3px 8px; }
