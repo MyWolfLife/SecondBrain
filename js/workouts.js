@@ -1230,17 +1230,105 @@ var _woGrab = null;   // {kind:'video'|'gif', url, video, gifFrames:[{dataUrl, o
 
 function _woGrabSupportsGif() { return typeof ImageDecoder !== 'undefined'; }
 
+var _woPasteHandler = null;   // document 'paste' listener while the chooser is open
+
 function _woOpenGrabber() {
+    var ov = _woGrabOverlay(
+        '<h3>Add pictures from a video or GIF</h3>' +
+        '<p class="wo-hint">Copy a GIF or video <strong>file</strong> (in File Explorer: select it, Ctrl+C), then press <strong>Ctrl+V</strong> here or tap Paste. ' +
+        'You can also paste the web address of a .gif or .mp4. Copying a <em>picture</em> from a web page only gives a still, so for those save the GIF first and choose the file.</p>' +
+        '<div class="ex-form-actions">' +
+            '<button type="button" class="btn btn-primary" id="woGrabPaste">📋 Paste from clipboard</button>' +
+            '<button type="button" class="btn btn-secondary" id="woGrabFile">📁 Choose a file</button>' +
+            '<button type="button" class="btn btn-secondary" id="woGrabCancel">Cancel</button>' +
+        '</div>' +
+        '<div id="woGrabMsg" class="wo-hint"></div>');
+    ov.querySelector('#woGrabCancel').addEventListener('click', _woCloseGrabber);
+    ov.querySelector('#woGrabFile').addEventListener('click', _woChooseGrabFile);
+    ov.querySelector('#woGrabPaste').addEventListener('click', _woGrabPasteButton);
+    _woPasteHandler = function(ev) {
+        if (!ev.clipboardData) return;
+        ev.preventDefault();
+        _woGrabFromClipboardData(ev.clipboardData);
+    };
+    document.addEventListener('paste', _woPasteHandler);
+}
+
+function _woGrabMsg(text) {
+    var m = document.getElementById('woGrabMsg');
+    if (m) m.textContent = text;
+}
+
+function _woChooseGrabFile() {
     var input = document.createElement('input');
     input.type = 'file';
     input.accept = _woGrabSupportsGif() ? 'video/*,image/gif' : 'video/*';
     input.addEventListener('change', function() {
         var file = input.files && input.files[0];
-        if (!file) return;
-        if (file.type === 'image/gif') _woGrabStartGif(file);
-        else                           _woGrabStartVideo(file);
+        if (file) _woGrabHandleFile(file);
     });
     input.click();
+}
+
+/** A GIF or video file arrived (chosen or pasted): start the matching grabber. */
+function _woGrabHandleFile(file) {
+    var isGif = file.type === 'image/gif' || /\.gif$/i.test(file.name || '');
+    if (isGif) {
+        if (!_woGrabSupportsGif()) { _woGrabMsg('This browser cannot read GIFs. Use Chrome, or choose a video.'); return; }
+        _woGrabStartGif(file);
+    } else if ((file.type || '').indexOf('video/') === 0 || /\.(mp4|webm|mov|m4v)$/i.test(file.name || '')) {
+        _woGrabStartVideo(file);
+    } else {
+        _woGrabMsg('That is not a GIF or video. For a still picture, use Paste next to Camera and Gallery.');
+    }
+}
+
+/** Ctrl+V: a copied file wins; otherwise a pasted web address of a .gif/.mp4. */
+function _woGrabFromClipboardData(cd) {
+    var files = Array.prototype.slice.call(cd.files || []);
+    var hit = files.filter(function(f) { return f.type === 'image/gif' || (f.type || '').indexOf('video/') === 0 || /\.(gif|mp4|webm|mov|m4v)$/i.test(f.name || ''); })[0];
+    if (hit) { _woGrabHandleFile(hit); return; }
+    var text = (cd.getData && cd.getData('text/plain') || '').trim();
+    if (/^https?:\/\/\S+$/i.test(text)) { _woGrabFromUrl(text); return; }
+    _woGrabMsg(files.length
+        ? 'That is a still picture, not a GIF or video. Use Paste next to Camera and Gallery for stills.'
+        : 'No GIF or video on the clipboard. Copy the file in File Explorer, or paste a web address.');
+}
+
+/** Paste button: needs the browser's clipboard permission; handles a copied file or a copied web address. */
+async function _woGrabPasteButton() {
+    if (!navigator.clipboard || !navigator.clipboard.read) { _woGrabMsg('Press Ctrl+V on this screen instead.'); return; }
+    try {
+        var items = await navigator.clipboard.read();
+        for (var i = 0; i < items.length; i++) {
+            var t = items[i].types.find(function(x) { return x === 'image/gif' || x.indexOf('video/') === 0; });
+            if (t) { var b = await items[i].getType(t); _woGrabHandleFile(new File([b], 'pasted.' + (t === 'image/gif' ? 'gif' : 'mp4'), { type: t })); return; }
+        }
+        for (var j = 0; j < items.length; j++) {
+            if (items[j].types.indexOf('text/plain') !== -1) {
+                var txt = (await (await items[j].getType('text/plain')).text()).trim();
+                if (/^https?:\/\/\S+$/i.test(txt)) { _woGrabFromUrl(txt); return; }
+            }
+        }
+        _woGrabMsg('No GIF or video on the clipboard. Copy the file in File Explorer and press Ctrl+V here, or paste a web address.');
+    } catch (err) {
+        _woGrabMsg(err.name === 'NotAllowedError' ? 'Clipboard access was denied. Press Ctrl+V on this screen instead.' : 'Could not read the clipboard. Press Ctrl+V on this screen instead.');
+    }
+}
+
+async function _woGrabFromUrl(url) {
+    _woGrabMsg('Downloading…');
+    try {
+        var resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var blob = await resp.blob();
+        var ext = (url.split('?')[0].match(/\.(gif|mp4|webm|mov|m4v)$/i) || [])[1];
+        var type = blob.type || (ext && ext.toLowerCase() === 'gif' ? 'image/gif' : 'video/mp4');
+        _woGrabHandleFile(new File([blob], 'pasted.' + (ext || 'bin'), { type: type }));
+    } catch (err) {
+        console.error('Workouts: could not fetch pasted address:', err);
+        _woGrabMsg('That website does not allow downloading it here. Save the file, then choose it with Choose a file.');
+    }
 }
 
 function _woGrabOverlay(innerHtml) {
@@ -1254,6 +1342,7 @@ function _woGrabOverlay(innerHtml) {
 }
 
 function _woCloseGrabber() {
+    if (_woPasteHandler) { document.removeEventListener('paste', _woPasteHandler); _woPasteHandler = null; }
     var ov = document.getElementById('woGrabOverlay');
     if (ov) ov.remove();
     if (_woGrab && _woGrab.url) URL.revokeObjectURL(_woGrab.url);
