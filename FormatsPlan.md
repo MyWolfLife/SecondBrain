@@ -38,7 +38,7 @@ So the formats are built in an order that adds those two abilities one at a time
 
 **Day mode ("throughout the day"):** a format step just becomes its sets as a checklist (the clock features only apply in the guided player).
 
-**Status:** F1–F4 built and tested (2026-10-24). F5–F6 to do. (Design note: instead of generating phases live, a Stapper creates enough cycles up front and the runner ends the block at a deadline — simpler and the same result for the person. Ladders will need genuinely live phases because the peak is chosen while you work.) (Design note: a superset is a circuit with an interval, so it reuses F1's clock.) (Design note: Tabata / timed sets are a property of an exercise step like intervals — `step.timed` — rather than a new step type, so levels, sides, history and Start keep working.)
+**Status:** F1–F5 built and tested (2026-10-24). F6 to do (lower priority). (Design note: Ladders re-plan the phases that have not run when you tap Start coming down; the runner splices the new rungs in.) (Design note: instead of generating phases live, a Stapper creates enough cycles up front and the runner ends the block at a deadline — simpler and the same result for the person. Ladders will need genuinely live phases because the peak is chosen while you work.) (Design note: a superset is a circuit with an interval, so it reuses F1's clock.) (Design note: Tabata / timed sets are a property of an exercise step like intervals — `step.timed` — rather than a new step type, so levels, sides, history and Start keep working.)
 
 ## Chunks
 

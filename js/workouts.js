@@ -1645,7 +1645,9 @@ function _woSetSeconds(st, set) {
 function woEstimateSeconds(steps) {
     var total = 0;
     (steps || []).forEach(function(st) {
-        if (st.type === 'exercise' && st.timed) {                          // Tabata / timed sets: rounds of work and rest
+        if (st.type === 'exercise' && st.ladder) {                         // Ladder: the whole time box
+            total += (st.ladder.minutes || 7.5) * 60 + _woRestSeconds(st.restAfter);
+        } else if (st.type === 'exercise' && st.timed) {                   // Tabata / timed sets: rounds of work and rest
             total += st.timed.rounds * st.timed.workSec + Math.max(0, st.timed.rounds - 1) * st.timed.restSec + _woRestSeconds(st.restAfter);
         } else if (st.type === 'exercise' && st.interval) {                // interval sets: every set takes one interval
             total += _woStepSets(st).length * st.interval.seconds;
@@ -1931,6 +1933,7 @@ function _woRenderBuilder() {
                 '<div class="wo-frame-actions">' +
                     '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobAddCircuit">+ Add circuit</button>' +
+                    '<button type="button" class="btn btn-secondary" id="wobLadderAll" title="Make every reps exercise a Ladder (1, 2, 3 … up and back down, 7.5 minutes)">🪜 Ladder format</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobTabataAll" title="Make every exercise a Tabata (20 s on, 10 s off, 8 rounds)">🔥 Tabata format</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobIntervalAll" title="Make every exercise an Interval Set (the book\'s 3-minute intervals)">⏱ Interval format</button>' +
                 '</div>' +
@@ -1961,6 +1964,7 @@ function _woRenderBuilder() {
     var sched = document.getElementById('wobSchedule'); if (sched) sched.addEventListener('click', function() { woOpenScheduleDialog(_woW.id, _woW.name); });
     document.getElementById('wobIntervalAll').addEventListener('click', _woApplyIntervalFormat);
     document.getElementById('wobTabataAll').addEventListener('click', _woApplyTabataFormat);
+    document.getElementById('wobLadderAll').addEventListener('click', _woApplyLadderFormat);
     var copy = document.getElementById('wobCopy');    if (copy) copy.addEventListener('click', _woCopyWorkout);
     var arch = document.getElementById('wobArchive'); if (arch) arch.addEventListener('click', _woArchiveWorkout);
     var del  = document.getElementById('wobDelete');  if (del)  del.addEventListener('click', _woDeleteWorkout);
@@ -2089,12 +2093,14 @@ function _woRenderSteps() {
                     _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                 '</div>' +
                 (ex && woIsMultiLevel(ex) ? '<div class="wo-rest-row"><span class="wo-rest-label">Start at</span>' + woLevelSelectHtml(st, ex) + '</div>' : '') +
-                (st.timed ? '<div class="wo-hint wo-timed-note">' + _woEsc(woTimedText(st.timed)) + (st.measure === 'time' ? ' — hold for the work time.' : ' — as many reps as you can each round (you count them in the player).') + '</div>'
+                (st.ladder ? '<div class="wo-hint wo-timed-note">' + _woEsc(woLadderText(st.ladder)) + ' (rung 1 to ' + st.ladder.maxRung + ' at most; you tap Start coming down in the player).</div>'
+                : st.timed ? '<div class="wo-hint wo-timed-note">' + _woEsc(woTimedText(st.timed)) + (st.measure === 'time' ? ' — hold for the work time.' : ' — as many reps as you can each round (you count them in the player).') + '</div>'
                           : _woSetsEditor(st, false)) +
                 woTempoRowHtml(st) +
                 woIntervalRowHtml(st) +
                 woTimedRowHtml(st) +
-                (st.interval ? '' : (st.timed ? '' : _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets)) +
+                woLadderRowHtml(st) +
+                (st.interval ? '' : (st.timed || st.ladder ? '' : _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets)) +
                                     _woRestEditor('Rest after exercise', 'restAfter', st.restAfter)) +
                 '<div class="wo-rest-row"><span class="wo-rest-label">Level-up (optional)</span>' +
                     'after <input type="number" min="1" data-f="levelUpAfter" placeholder="10" value="' + (st.levelUpAfter || '') + '"> sessions' +
@@ -2135,6 +2141,21 @@ function _woRestoreDefaultSets(st) {
     var fresh = _woNewStep(ex, false);
     st.sets = fresh.sets;
     _woSyncBase(st);
+}
+
+/** 🪜 Ladder format: every REPS exercise step becomes a 7.5-minute ladder (timed exercises are left as they are). */
+function _woApplyLadderFormat() {
+    var steps = _woW.steps.filter(function(s) { return s.type === 'exercise' && s.measure !== 'time'; });
+    if (!steps.length) { alert('Add some reps exercises first (ladders count reps).'); return; }
+    if (!confirm('Make every reps exercise a Ladder?\n\nEach becomes 1 rep, 2 reps, 3 reps … up to a peak you choose while you work, then back down, with a rest after each rung equal to the time it took, for 7.5 minutes. Their current sets will be replaced. You can change any of it afterwards.')) return;
+    steps.forEach(function(st) {
+        var w0 = st.sets && st.sets[0] && st.sets[0].weight != null ? st.sets[0].weight : null;
+        delete st.interval; delete st.timed;
+        st.ladder = { minutes: WO_LADDER_DEFAULT.minutes, maxRung: WO_LADDER_DEFAULT.maxRung };
+        st.sets = [{ amount: 1, weight: w0 }];
+        _woSyncBase(st);
+    });
+    _woRenderSteps();
 }
 
 /** 🔥 Tabata format: every exercise step becomes a Tabata (20 s on / 10 s off × 8) with 2 minutes' rest before the next exercise. */
@@ -2245,14 +2266,35 @@ function _woStepInput(ev) {
         return;
     }
     if (f === 'intervalOn') {                                  // Interval sets: each set starts on a clock
-        if (inp.checked) { st.interval = { seconds: WO_INTERVAL_DEFAULT.seconds, capSec: WO_INTERVAL_DEFAULT.capSec }; if (st.timed) { delete st.timed; _woRestoreDefaultSets(st); } }
+        if (inp.checked) { st.interval = { seconds: WO_INTERVAL_DEFAULT.seconds, capSec: WO_INTERVAL_DEFAULT.capSec }; if (st.timed || st.ladder) { delete st.timed; delete st.ladder; _woRestoreDefaultSets(st); } }
         else delete st.interval;
         _woUpdateBuilderSummary(); _woRenderSteps();
         return;
     }
+    if (f === 'ladderOn') {                                    // Ladder: 1, 2, 3 … up, then back down
+        if (inp.checked) {
+            delete st.interval; delete st.timed;
+            st.ladder = { minutes: WO_LADDER_DEFAULT.minutes, maxRung: WO_LADDER_DEFAULT.maxRung };
+            var lw = st.sets && st.sets[0] && st.sets[0].weight != null ? st.sets[0].weight : null;
+            st.sets = [{ amount: 1, weight: lw }];
+            _woSyncBase(st);
+        } else { delete st.ladder; _woRestoreDefaultSets(st); }
+        _woUpdateBuilderSummary(); _woRenderSteps();
+        return;
+    }
+    if (f === 'ladderMin' || f === 'ladderMax') {
+        if (!st.ladder) return;
+        var ln = parseFloat(inp.value);
+        if (!isNaN(ln)) {
+            if (f === 'ladderMin' && ln >= 1) st.ladder.minutes = Math.min(ln, 60);
+            if (f === 'ladderMax' && ln >= 2) st.ladder.maxRung = Math.min(Math.round(ln), 40);
+        }
+        _woUpdateBuilderSummary();
+        return;
+    }
     if (f === 'timedOn') {                                     // Tabata / timed sets: work, rest, work, rest …
         if (inp.checked) {
-            delete st.interval;
+            delete st.interval; delete st.ladder;
             st.timed = { workSec: WO_TIMED_PRESETS.tabata.workSec, restSec: WO_TIMED_PRESETS.tabata.restSec, rounds: WO_TIMED_PRESETS.tabata.rounds };
             var w0 = st.sets && st.sets[0] && st.sets[0].weight != null ? st.sets[0].weight : null;
             if (st.measure !== 'time') st.sets = [{ amount: 1, weight: w0, failure: true }];

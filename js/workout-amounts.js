@@ -267,24 +267,54 @@ function woBlockSummaries(phases, results) {
     var byBlock = {}, order = [];
     phases.forEach(function(p, i) {
         if (p.kind !== 'work' || !p.blockId) return;
-        var b = byBlock[p.blockId] || (byBlock[p.blockId] = { type: 'stapper', stepIndex: p.stepIndex, minutes: Math.round((p.blockSecTotal || 0) / 60), items: p.blockItems, rounds: {} });
-        if (!order.includes(p.blockId)) order.push(p.blockId);
-        if (done[i]) b.rounds[p.round] = (b.rounds[p.round] || 0) + 1;
+        var b = byBlock[p.blockId] || (byBlock[p.blockId] = { ladder: p.blockId.charAt(0) === 'l', stepIndex: p.stepIndex, minutes: (p.blockSecTotal || 0) / 60, items: p.blockItems, rounds: {}, peak: 0, rungs: 0 });
+        if (order.indexOf(p.blockId) === -1) order.push(p.blockId);
+        if (!done[i]) return;
+        b.rounds[p.round] = (b.rounds[p.round] || 0) + 1;
+        if (b.ladder) { b.rungs++; b.peak = Math.max(b.peak, p.rung || 0); }
     });
     return order.map(function(id) {
         var b = byBlock[id], cycles = 0, partial = 0;
+        if (b.ladder) return { type: 'ladder', stepIndex: b.stepIndex, minutes: b.minutes, peak: b.peak, rungs: b.rungs };
         Object.keys(b.rounds).map(Number).sort(function(x, y) { return x - y; }).forEach(function(r) {
             if (b.rounds[r] >= b.items) cycles++; else partial = b.rounds[r];
         });
-        return { type: b.type, stepIndex: b.stepIndex, minutes: b.minutes, cycles: cycles, partial: partial, items: b.items };
-    }).filter(function(b) { return b.cycles || b.partial; });
+        return { type: 'stapper', stepIndex: b.stepIndex, minutes: Math.round(b.minutes), cycles: cycles, partial: partial, items: b.items };
+    }).filter(function(b) { return b.type === 'ladder' ? b.rungs : (b.cycles || b.partial); });
 }
 
 /** "🔁 Stapper: 7 cycles + 2 exercises in 20 min" lines for the Finished screen. */
 function woBlocksHtml(blocks) {
     if (!blocks || !blocks.length) return '';
     return '<div class="wo-banner">' + blocks.map(function(b) {
+        if (b.type === 'ladder') return '🪜 <strong>Ladder:</strong> reached ' + b.peak + ' reps, ' + b.rungs + ' rung' + (b.rungs === 1 ? '' : 's') + ' in ' + (Math.round(b.minutes * 10) / 10) + ' min';
         return '🔁 <strong>Stapper:</strong> ' + b.cycles + ' full cycle' + (b.cycles === 1 ? '' : 's') +
                (b.partial ? ' + ' + b.partial + ' exercise' + (b.partial === 1 ? '' : 's') : '') + ' in ' + b.minutes + ' min';
     }).join('<br>') + '</div>';
+}
+
+// ─── Ladders (FormatsPlan.md, chunk F5) ───────────────────────────────────────
+//
+// step.ladder = { minutes, maxRung } on a REPS exercise step: 1 rep, rest, 2 reps, rest, 3 reps … up to a peak YOU choose
+// while doing it (tap "Start coming down"), then back down to 1 without repeating the top rung; if you reach 1 with time
+// left, start another ladder. Rest after each rung = the time that rung took (min 3 s). The whole step has a time box
+// (the book uses 7.5 minutes per exercise) enforced by the runner's block deadline. maxRung is where it turns by itself.
+
+var WO_LADDER_DEFAULT = { minutes: 7.5, maxRung: 12 };
+
+/** The builder's ladder row for a reps exercise step. */
+function woLadderRowHtml(st) {
+    if (st.measure === 'time') return '';
+    var l = st.ladder;
+    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Ladder</span>' +
+        '<label class="wo-inline-check"><input type="checkbox" data-f="ladderOn"' + (l ? ' checked' : '') + '> 1, 2, 3 … up, then back down</label>' +
+        (l ? ' for <input type="number" class="wo-clock-box" min="1" max="60" step="0.5" data-f="ladderMin" value="' + l.minutes + '"> min · turns by itself at rung ' +
+             '<input type="number" class="wo-clock-box" min="2" max="40" data-f="ladderMax" value="' + l.maxRung + '"> ' +
+             '<span class="wo-hint">stay away from failure — you choose when to start coming down</span>' : '') +
+        '</div>';
+}
+
+/** "7.5 min ladder — 1, 2, 3 … up to a peak you choose, then back down; rest = the time each set took" */
+function woLadderText(l) {
+    return l ? l.minutes + ' min ladder — 1, 2, 3 … up to a peak you choose, then back down; rest = the time each set took' : '';
 }

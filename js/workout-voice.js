@@ -98,7 +98,7 @@ function _woPhaseSpeech(p, ctx) {
         if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayPhase(next) + '.');
         if (p.durationSec == null) parts.push('Say ready, or tap, when you are ready.');
     } else if (p.kind === 'work') {
-        if (p.blockStart) parts.push('Stapper. As many cycles as you can in ' + woSayClock(p.blockSec) + '. Go.');
+        if (p.blockStart) parts.push(p.blockId.charAt(0) === 'l' ? 'Ladder for ' + woSayClock(Math.round(p.blockSec)) + '. Go up one rep at a time, and tap Start coming down when you reach your peak.' : 'Stapper. As many cycles as you can in ' + woSayClock(p.blockSec) + '. Go.');
         if (p.round && p.itemIndex === 0) parts.push('Round ' + p.round + (p.rounds ? ' of ' + p.rounds : '') + '.');
         var line = woSpokenName(p) + '.';
         if (p.side) line += ' ' + (p.side === 'left' ? 'Left' : 'Right') + ' side.';

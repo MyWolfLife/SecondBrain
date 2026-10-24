@@ -21987,3 +21987,6 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-bigbtn--rep { min-width: 160px; }
 .wo-repundo { min-width: 48px; }
 .wo-timed-note { margin: 6px 0 0 32px; }
+
+/* Ladder */
+.wo-ladder-down { margin-top: 10px; font-size: 1rem; padding: 10px 18px; }

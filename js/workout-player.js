@@ -76,6 +76,43 @@ function _woTimedWorkPhase(step, ctx, round) {
     return ph;
 }
 
+/** Rung order for a ladder: [optional coming-down start], then repeated 1..cap up and cap-1..1 down, enough to fill `seconds`. */
+function _woLadderSeq(cap, seconds, downFrom) {
+    var seq = [], t = 0, r;
+    var add = function(rung, dir) { seq.push({ rung: rung, dir: dir }); t += 5 * rung; };       // ~2.5 s per rep, work + equal rest
+    for (r = downFrom || 0; r >= 1; r--) add(r, 'down');
+    while (t < (seconds || 0) * 1.3 && seq.length < 300) {
+        for (r = 1; r <= cap; r++) add(r, 'up');
+        for (r = cap - 1; r >= 1; r--) add(r, 'down');
+    }
+    return seq;
+}
+
+/** Phases for a list of rungs: each rung = work (both sides if each-side) then a rest equal to the time it took. */
+function _woLadderPhases(step, si, section, seq, blockSecTotal, withStart, gen) {
+    var out = [], id = 'l' + si;
+    var base = Object.assign({}, step, { interval: null, timed: null, ladder: null });
+    var wt = (step.sets && step.sets[0] && step.sets[0].weight != null) ? step.sets[0].weight : null;
+    seq.forEach(function(item, idx) {
+        var ctx = { section: section, stepIndex: si, itemIndex: null, setIndex: idx, setCount: 1, round: null, rounds: null, allTap: false };
+        var ph = _woSetPhases(base, { amount: item.rung, weight: wt }, ctx);
+        ph.forEach(function(x) {
+            x.rung = item.rung; x.ladderDir = item.dir; x.setCount = 1;
+            x.blockId = id; x.blockItems = 1; x.blockSecTotal = blockSecTotal; x.ladderGen = gen;
+        });
+        ph[0].rungStart = true;
+        if (withStart && idx === 0) { ph[0].blockStart = true; ph[0].blockSec = blockSecTotal; }
+        out = out.concat(ph);
+        out.push({ kind: 'rest', label: 'Rest', section: section, stepIndex: si, itemIndex: null,
+                   exerciseId: null, exerciseName: null, measure: null, amount: null, weight: null,
+                   setIndex: null, setCount: null, round: null, rounds: null, side: null,
+                   restKind: 'ladder', restFromRung: true, rung: item.rung, ladderDir: item.dir,
+                   durationSec: Math.max(3, item.rung * 3), tap: false,
+                   blockId: id, blockItems: 1, blockSecTotal: blockSecTotal, ladderGen: gen });
+    });
+    return out;
+}
+
 /**
  * The rest that fills the rest of an interval: its length is worked out by the runner when it STARTS
  * (interval seconds minus the time since the set began). durationSec here is only the estimate used before then.
@@ -117,6 +154,16 @@ function woBuildTimeline(workout, opts) {
 
         if (step.type === 'exercise') {
             var sets = step.sets || [];
+            if (step.ladder) {                                          // Ladder: 1, 2, 3 … up, then down; the runner re-plans when you start coming down
+                var secsTotal = (step.ladder.minutes || 7.5) * 60, cap = step.ladder.maxRung || 12;
+                var gen = function(downFrom, secondsLeft) { return _woLadderPhases(step, si, section, _woLadderSeq(cap, secondsLeft, downFrom), secsTotal, false, gen); };
+                var firstSeq = opts.stapperCycles                       // day checklist: one small ladder up to 5 and back
+                    ? [1, 2, 3, 4, 5, 4, 3, 2, 1].map(function(r, i) { return { rung: r, dir: i < 5 ? 'up' : 'down' }; })
+                    : _woLadderSeq(cap, secsTotal, 0);
+                phases = phases.concat(_woLadderPhases(step, si, section, firstSeq, secsTotal, true, gen));
+                phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+                return;
+            }
             if (step.timed) {                                           // Tabata / timed sets: work, rest, work, rest …
                 var T = step.timed;
                 for (var r = 1; r <= T.rounds; r++) {
@@ -242,6 +289,7 @@ function woCreateRunner(phases, cb, opts) {
         blockId: null,             // the Stapper block the current phase belongs to (null = none)
         blockEndsAt: null,         // ms: when that block's time runs out
         blockRemainingMs: null,    // ms left on the block while paused
+        rungStartedAt: null,       // ms: when the current ladder rung began (phases with rungStart)
         results: []            // one per work phase visited: {index, status:'done'|'skipped', doneAt}
     };
 
@@ -252,12 +300,17 @@ function woCreateRunner(phases, cb, opts) {
         var p = phase();
         if (!p) return finish();
         if (p.kind === 'work') {
+            if (p.rungStart) R.rungStartedAt = now();                                          // a ladder rung's clock
             if (p.intervalStart) R.intervalStartedAt = now();                                   // the interval clock starts with the set
             R.capEndsAt = p.capSec > 0 ? now() + p.capSec * 1000 : null; R.capRemainingMs = null;
         } else { R.capEndsAt = null; R.capRemainingMs = null; }
         if (p.blockId) {                                                                       // Stapper: one deadline for the whole block
             if (p.blockStart || R.blockId !== p.blockId) { R.blockId = p.blockId; R.blockEndsAt = now() + (p.blockSecTotal || p.blockSec || 0) * 1000; R.blockRemainingMs = null; }
         } else { R.blockId = null; R.blockEndsAt = null; R.blockRemainingMs = null; }
+        if (p.restFromRung) {                                                                  // ladder: rest = the time that rung took (at least 3 s)
+            var took = R.rungStartedAt != null ? (now() - R.rungStartedAt) / 1000 : 0;
+            p.durationSec = Math.max(3, Math.round(took));
+        }
         if (p.untilIntervalEnd) {                                                              // rest = what is left of the interval
             var used = R.intervalStartedAt != null ? (now() - R.intervalStartedAt) / 1000 : 0;
             p.durationSec = Math.max(0, Math.ceil(p.intervalSec - used));
@@ -352,6 +405,7 @@ function woCreateRunner(phases, cb, opts) {
         if (R.intervalStartedAt != null) R.intervalStartedAt += pausedFor;                     // a pause doesn't use up the interval
         if (R.capRemainingMs != null) { R.capEndsAt = now() + R.capRemainingMs; R.capRemainingMs = null; }
         if (R.blockRemainingMs != null) { R.blockEndsAt = now() + R.blockRemainingMs; R.blockRemainingMs = null; }
+        if (R.rungStartedAt != null) R.rungStartedAt += pausedFor;                             // a pause doesn't count as set time
         R.pausedTotalMs += pausedFor;
         R.pausedAt = null;
         R.state = 'running';
@@ -405,6 +459,26 @@ function woCreateRunner(phases, cb, opts) {
         if (R.state === 'paused') return Math.ceil((R.blockRemainingMs || 0) / 1000);
         return Math.max(0, Math.ceil((R.blockEndsAt - now()) / 1000));
     };
+    /**
+     * Ladders: "Start coming down" — the rest of this rung (other side, rest) is kept, then the rungs go down from one below
+     * the current rung to 1, and a fresh ladder follows if time is left. Re-plans the phases of this block that haven't run.
+     */
+    R.ladderDown = function() {
+        var p = phase();
+        if (!p || !p.ladderGen || R.state === 'done' || R.state === 'idle' || p.ladderDir === 'down' || !(p.rung > 1)) return;
+        if (R.state === 'paused') R.resume();
+        var id = p.blockId, k = p.rung, keepEnd = R.index;
+        if (p.kind === 'work') { while (R.phases[keepEnd + 1] && R.phases[keepEnd + 1].blockId === id && R.phases[keepEnd + 1].rung === k) keepEnd++; }   // finish this rung (other side) and its rest
+        var from = keepEnd + 1, to = from;
+        while (to < R.phases.length && R.phases[to].blockId === id) to++;
+        var fresh = p.ladderGen(k - 1, R.blockSecondsLeft() || 0);
+        Array.prototype.splice.apply(R.phases, [from, to - from].concat(fresh));
+        // mark the rest of this rung as coming down too (the screen and the next-rung preview read ladderDir)
+        for (var m = R.index; m <= keepEnd; m++) R.phases[m].ladderDir = 'down';
+        if (cb.onRePlan) cb.onRePlan();
+        emitTick();
+    };
+
     /** "End this Stapper" — finish the block now and carry on. */
     R.endBlock = function() {
         if (R.state === 'paused') R.resume();
@@ -600,16 +674,17 @@ function _woRenderStartPage() {
             _woStartPrecautionHtml(st) +
             (woHasTempo(st.tempo) ? '<div class="wo-rest-row"><span class="wo-rest-label">Tempo</span>' + _woEsc(woTempoText(st.tempo)) + '</div>' : '') +
             (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Interval sets</span>' + _woEsc(woIntervalText(st.interval)) + '</div>' : '') +
+            (st.ladder ? '<div class="wo-rest-row"><span class="wo-rest-label">Ladder</span>' + _woEsc(woLadderText(st.ladder)) + '</div>' : '') +
             (st.timed ? '<div class="wo-rest-row"><span class="wo-rest-label">' + (woTimedPresetKey(st.timed) === 'tabata' ? 'Tabata' : 'Timed rounds') + '</span>' + _woEsc(woTimedText(st.timed)) +
                 (st.measure === 'time' ? '' : ' — count your reps with +1') + '</div>' : '') +
             _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +
-            (st.timed ? '' : '<div class="wo-step-sets wo-step-sets--custom">') +
-            (st.timed ? [] : (st.sets || [])).map(function(set, k) {
+            (st.timed || st.ladder ? '' : '<div class="wo-step-sets wo-step-sets--custom">') +
+            (st.timed || st.ladder ? [] : (st.sets || [])).map(function(set, k) {
                 return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
                     woAmountEditorHtml(st.measure, set, '', k) +
                     (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="' + k + '" value="' + (set.weight != null ? set.weight : '') + '"> lb' : '') + '</div>';
-            }).join('') + (st.timed ? '' : '</div>') + '</div>';
+            }).join('') + (st.timed || st.ladder ? '' : '</div>') + '</div>';
     }).join('');
 
     el.innerHTML =
@@ -801,7 +876,8 @@ async function loadWorkoutRunPage() {
         onPhase: _woPlayerOnPhase,
         onTick:  _woPlayerOnTick,
         onDone:  _woPlayerOnDone,
-        onBlockEnd: function() { if (typeof woBeep === 'function') woBeep(880, 500); if (_woP && _woP.session.voiceCues && typeof woSpeak === 'function') woSpeak('Time. Stapper complete.'); },
+        onBlockEnd: function(id) { if (typeof woBeep === 'function') woBeep(880, 500); if (_woP && _woP.session.voiceCues && typeof woSpeak === 'function') woSpeak(id.charAt(0) === 'l' ? 'Time. Ladder complete.' : 'Time. Stapper complete.'); },
+        onRePlan: function() { _woPlayerRender(); },
         getActual: function(ph, idx) { return { amount: (_woP && _woP.repCounts[idx]) || 0, weight: ph.weight != null ? ph.weight : null }; }
     });
 
@@ -947,7 +1023,7 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
+        var bits = [p.levelLabel, p.rung ? 'Rung ' + p.rung + (p.ladderDir === 'down' ? ' · coming down' : ' · going up') : '', _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     } else if (p.kind === 'rest' && p.restKind === 'interval') {
         sub = 'Next ' + (p.intervalUnit === 'round' ? 'round' : 'set') + ' starts when the clock reaches zero';
@@ -968,8 +1044,6 @@ function _woPlayerRender() {
                  ((selfMode || woNeedsActual(p)) ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
                              (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
                  (p.capSec ? '<div class="wo-cap" id="woCap">Work time left: <strong id="woCapLeft"></strong></div>' : '') +
-                 (p.blockId ? '<div class="wo-cap" id="woBlock">Stapper time left: <strong id="woBlockLeft"></strong> · cycles done: <strong id="woBlockCycles"></strong> ' +
-                              '<button type="button" class="wo-link-btn wo-link-btn--light" id="woEndBlock">End Stapper</button></div>' : '') +
                  '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
                  (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
                            : (woNeedsActual(p) ? '<div class="wo-tap-hint">type how many you did, then tap DONE · say “done”</div>'
@@ -985,6 +1059,14 @@ function _woPlayerRender() {
             '<div class="wo-tap-hint">tap anywhere to count a rep</div></div>';
     } else {
         center = ring;
+    }
+
+    if (p.blockId) {                                                           // Stapper / Ladder: time left, progress, controls
+        var isLadder = p.blockId.charAt(0) === 'l';
+        center += '<div class="wo-cap" id="woBlock">' + (isLadder ? 'Ladder' : 'Stapper') + ' time left: <strong id="woBlockLeft"></strong>' +
+            (isLadder ? '' : ' · cycles done: <strong id="woBlockCycles"></strong>') +
+            ' <button type="button" class="wo-link-btn wo-link-btn--light" id="woEndBlock">End ' + (isLadder ? 'ladder' : 'Stapper') + '</button></div>' +
+            (isLadder && p.ladderDir !== 'down' && p.rung > 1 ? '<button type="button" class="btn btn-secondary wo-ladder-down" id="woLadderDown">⬇ Start coming down</button>' : '');
     }
 
     // UP NEXT (rest / switch / get-ready screens)
@@ -1062,7 +1144,9 @@ function _woPlayerRender() {
         document.getElementById('woMain').addEventListener('click', function() { countRep(1); });
     }
     var eb = document.getElementById('woEndBlock');
-    if (eb) eb.addEventListener('click', function(ev) { ev.stopPropagation(); if (confirm('End the Stapper now? The exercise you are on will not be counted.')) R.endBlock(); });
+    if (eb) eb.addEventListener('click', function(ev) { ev.stopPropagation(); if (confirm('End this ' + (p.blockId.charAt(0) === 'l' ? 'ladder' : 'Stapper') + ' now? The set you are on will not be counted.')) R.endBlock(); });
+    var ld = document.getElementById('woLadderDown');
+    if (ld) ld.addEventListener('click', function(ev) { ev.stopPropagation(); R.ladderDown(); });
     // Guided: tap anywhere = Done. Self-paced has number boxes on screen, so only the DONE button counts.
     if (tap && !selfMode && !woNeedsActual(p)) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // ranges / failure need the number typed first
 
