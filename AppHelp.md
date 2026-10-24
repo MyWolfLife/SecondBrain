@@ -4858,7 +4858,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Each card shows how many exercises, about how long it takes, how many push vs. pull moves, and which parts of the body it works
 - **Show archived** brings back workouts you've hidden
 - Tap **▶ Start** on a workout to run it with the guided countdown
-- **⚙ Progression** sets when the app suggests heavier weights (default: after 10 good sessions) and how a comeback after a long break works
+- **⚙ Progression** sets when the app suggests heavier weights (default: after 10 good sessions) and how a comeback after a long break works. For exercises with levels (easier or harder versions) it also sets how many sessions below target before I suggest an easier level (0 = never)
 
 ---
 
@@ -4896,6 +4896,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
 - **Which version can you do?** If the workout has an exercise with levels (like push-ups on a wall, chair or floor) and I don't know your level yet, I ask once. Pick the version you can do; it is remembered when you tap Start (you can change it later on the exercise)
 - **Last time** shows what you did at the level you have selected for today (if you have never done that level it shows your most recent time at another level and says which)
+- **⬆ Ready for the next level / ⬇ Maybe go easier**: for exercises with levels, after enough good sessions in a row at a level I suggest the next harder level (instead of more reps or weight); after a few sessions below your target I suggest an easier one. **Accept** moves your level (or the level the step is set to); your sets keep their numbers, so change them below if the new level needs fewer reps. At the hardest level I go back to suggesting more reps or weight
 - **Level today**: on exercises with levels, each step shows which level it will use. Change it to do an easier or harder version just today. Tap **Make this my level** to keep your choice. A step set to a specific level in the workout stays on that level unless you change it here
 - **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome

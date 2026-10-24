@@ -15,6 +15,11 @@
 //  • After 4+ weeks away the Start screen says "Welcome back" and offers Comeback (60% of Current,
 //    climbing ~10% per session back to your old numbers), Base, or Current.
 //  • "Reset to base" puts a step back to exactly what you built.
+//  • Exercises with LEVELS (ExerciseLevelsPlan.md, chunk L7): the streak belongs to the level it was earned at
+//    (step.streakLevelId; playing a different level starts it again). After N good sessions the Start screen
+//    suggests the NEXT LEVEL instead of more reps/weight (the top level falls back to reps/weight). After a few
+//    sessions below target in a row (step.missStreak) it suggests the PREVIOUS level. Accepting moves my level
+//    (or the step's pinned level); the sets keep their numbers.
 
 var WO_PROG_DEFAULTS = {
     levelUpAfter: 10,    // successful sessions in a row before suggesting an increase
@@ -23,7 +28,8 @@ var WO_PROG_DEFAULTS = {
     timeStep: 5,         // seconds added to a timed exercise
     comebackWeeks: 4,    // away this long → "Welcome back"
     comebackPct: 60,     // comeback starts at this % of Current
-    rampPct: 10          // each completed comeback session climbs this % of your old numbers
+    rampPct: 10,         // each completed comeback session climbs this % of your old numbers
+    levelDownAfter: 3    // sessions below target in a row before suggesting an easier level (0 = never)
 };
 
 var _woProgSettingsCache = null;
@@ -36,7 +42,7 @@ async function woProgSettings(force) {
         var doc = await userCol('settings').doc('workouts').get();
         if (doc.exists && doc.data().progression) Object.keys(s).forEach(function(k) {
             var v = doc.data().progression[k];
-            if (typeof v === 'number' && v > 0) s[k] = v;
+            if (typeof v === 'number' && (v > 0 || (k === 'levelDownAfter' && v === 0))) s[k] = v;
         });
     } catch (err) { console.error('Workouts: could not load progression settings:', err); }
     _woProgSettingsCache = s;
@@ -111,8 +117,14 @@ function woEvaluateProgression(steps, lines, dateISO, S) {
         if (!mine.some(_woLineDone)) return;                       // not attempted → leave everything as it was
         st.lastDoneDate = dateISO; changed = true;
         var met = _woStepMetTargets(st, mine, j != null);
+        var played = (mine.filter(_woLineDone)[0] || {}).levelId || null;            // multi-level exercises only
+        if (played) {
+            if (st.streakLevelId && st.streakLevelId !== played) { st.successStreak = 0; st.missStreak = 0; }   // a new level starts a new streak
+            st.streakLevelId = played;
+        }
         if (st.comeback) { if (met) woClimbComeback(st, S); }      // comeback: climb, no 10-session wait
         else             { st.successStreak = met ? (st.successStreak || 0) + 1 : 0; }
+        if (played) st.missStreak = met ? 0 : (st.missStreak || 0) + 1;
     });
     return changed ? out : null;
 }
@@ -169,6 +181,33 @@ function woSuggestLevelUp(st, S) {
         text = (sets[0].amount - 1) + ' → ' + sets[0].amount + ' reps';
     }
     return { sets: sets, text: text, before: before };
+}
+
+/**
+ * Level-based suggestion for a step of a multi-level exercise, at the level it will play today:
+ * {dir:'up'|'down', to (level), fromLabel, toLabel} or null. Up needs a finished streak and a harder active
+ * level (the top level falls back to reps/weight); down needs missStreak sessions below target and an easier level.
+ */
+function woSuggestLevelMove(st, path, S) {
+    var ex = _woExMap[st.exerciseId];
+    if (!ex || !woIsMultiLevel(ex)) return null;
+    var cur = woStartLevelFor(st, path);
+    if (!cur) return null;
+    if (st.streakLevelId && st.streakLevelId !== cur.id) return null;            // that streak belongs to another level
+    var act = woActiveLevelsOf(ex), all = woLevelsOf(ex);
+    var i = act.findIndex(function(l) { return l.id === cur.id; });
+    var name = function(l) { return woLevelDisplay(l, all.findIndex(function(x) { return x.id === l.id; })); };
+    if (woLevelUpReady(st, S) && i < act.length - 1) return { dir: 'up', to: act[i + 1], fromLabel: name(cur), toLabel: name(act[i + 1]) };
+    if (S.levelDownAfter > 0 && (st.missStreak || 0) >= S.levelDownAfter && i > 0) return { dir: 'down', to: act[i - 1], fromLabel: name(cur), toLabel: name(act[i - 1]) };
+    return null;
+}
+
+/** Multi-level step that still has a harder level: reps/weight suggestions are replaced by the level move. */
+function _woHasHarderLevel(st, path) {
+    var ex = _woExMap[st.exerciseId];
+    if (!ex || !woIsMultiLevel(ex)) return false;
+    var cur = woStartLevelFor(st, path), act = woActiveLevelsOf(ex);
+    return !!cur && act.findIndex(function(l) { return l.id === cur.id; }) < act.length - 1;
 }
 
 /** 60% (default) of Current for the Comeback choice — weights drop, unweighted exercises drop reps/seconds. */
@@ -252,13 +291,23 @@ function woProgStepHtml(st, path) {
     if (st.comeback && st.previousBestSets) {
         var target = woFmtAmount(st.measure, st.previousBestSets[0].amount, st.previousBestSets[0].weight);
         out += '<div class="wo-prog wo-prog--comeback">↗ Comeback — climbing back toward ' + _woEsc(target) + '</div>';
-    } else if (woLevelUpReady(st, P.S) && !P.dismissed[path]) {
+    } else if (woSuggestLevelMove(st, path, P.S) && !P.dismissed[path + ':' + woSuggestLevelMove(st, path, P.S).dir]) {
+        var mv = woSuggestLevelMove(st, path, P.S);
+        out += mv.dir === 'up'
+            ? '<div class="wo-prog wo-prog--up"><strong>⬆ Ready for the next level</strong> — ' + (st.successStreak || 0) + ' good sessions in a row at ' + _woEsc(mv.fromLabel) + '. Suggestion: <strong>' + _woEsc(mv.fromLabel) + ' → ' + _woEsc(mv.toLabel) + '</strong>'
+            : '<div class="wo-prog wo-prog--down"><strong>⬇ Maybe go easier</strong> — below target ' + (st.missStreak || 0) + ' sessions in a row at ' + _woEsc(mv.fromLabel) + '. Suggestion: <strong>' + _woEsc(mv.fromLabel) + ' → ' + _woEsc(mv.toLabel) + '</strong>';
+        out += '<div class="wo-hint">Your sets keep their numbers — change them below if the new level needs fewer reps.</div>' +
+            '<div class="wo-prog-btns"><button type="button" class="btn btn-primary btn-small" data-prog="acceptlevel" data-path="' + path + '" data-to="' + _woEsc(mv.to.id) + '">Accept</button>' +
+            '<button type="button" class="btn btn-secondary btn-small" data-prog="notyetlevel" data-path="' + path + '" data-dir="' + mv.dir + '">Not yet</button></div></div>';
+    } else if (woLevelUpReady(st, P.S) && !P.dismissed[path] && !_woHasHarderLevel(st, path)) {
         var sug = woSuggestLevelUp(st, P.S);
         if (sug) out += '<div class="wo-prog wo-prog--up"><strong>⬆ Ready to level up</strong> — ' + (st.successStreak || 0) + ' good sessions in a row. Suggestion: <strong>' + _woEsc(sug.text) + '</strong>' +
             '<div class="wo-prog-btns"><button type="button" class="btn btn-primary btn-small" data-prog="accept" data-path="' + path + '">Accept</button>' +
             '<button type="button" class="btn btn-secondary btn-small" data-prog="notyet" data-path="' + path + '">Not yet</button></div></div>';
     } else if ((st.successStreak || 0) > 0 && !st.comeback) {
-        out += '<div class="wo-prog wo-prog--streak">' + st.successStreak + ' of ' + woLevelUpAfter(st, P.S) + ' good sessions toward the next level-up</div>';
+        var curLv = woStartLevelFor(st, path);
+        out += '<div class="wo-prog wo-prog--streak">' + st.successStreak + ' of ' + woLevelUpAfter(st, P.S) + ' good sessions toward the next ' + (_woHasHarderLevel(st, path) ? 'level' : 'level-up') +
+               (curLv && _woHasHarderLevel(st, path) ? ' (at ' + _woEsc(woLevelDisplay(curLv, woLevelsOf(_woExMap[st.exerciseId]).findIndex(function(x) { return x.id === curLv.id; }))) + ')' : '') + '</div>';
     }
     if (st.comeback || !_woSameNumbers(st.sets, st.baseSets)) {
         out += '<div class="wo-prog-reset"><button type="button" class="wo-link-btn" data-prog="reset" data-path="' + path + '">Reset to base</button></div>';
@@ -289,8 +338,17 @@ async function woProgHandleClick(ev) {
     if (!orig || !work) return;
 
     if (act === 'notyet') { P.dismissed[path] = true; _woRenderStartPage(); return; }
+    if (act === 'notyetlevel') { P.dismissed[path + ':' + btn.getAttribute('data-dir')] = true; _woRenderStartPage(); return; }
     try {
-        if (act === 'accept') {
+        if (act === 'acceptlevel') {                                // move up/down a level
+            var to = btn.getAttribute('data-to');
+            if (work.levelMode === 'pinned') { [orig, work].forEach(function(st) { st.levelId = to; }); }   // pinned step: move the pin
+            else {                                                                                       // follows my level: move my level
+                await woSetMyLevel(orig.exerciseId, to);
+                delete _woS.runLevels[path]; delete _woS.myPick[orig.exerciseId];
+            }
+            [orig, work].forEach(function(st) { st.successStreak = 0; st.missStreak = 0; st.streakLevelId = to; });
+        } else if (act === 'accept') {
             var sug = woSuggestLevelUp(orig, P.S);
             if (!sug) return;
             [orig, work].forEach(function(st) { st.sets = _woCloneSetList(sug.sets); st.successStreak = 0; });
@@ -324,6 +382,8 @@ async function woOpenProgressionSettings() {
         field('comebackWeeks', 'Welcome back after', 'weeks away') +
         field('comebackPct', 'Comeback starts at', '% of your weights') +
         field('rampPct', 'Comeback climbs', '% of your old weights per session') +
+        '<div class="ex-form-group"><label class="ex-label" for="wps_levelDownAfter">Suggest an easier level after <span class="wo-hint">sessions below target in a row, for exercises with levels (0 = never)</span></label>' +
+            '<input type="number" id="wps_levelDownAfter" min="0" step="1" value="' + S.levelDownAfter + '"></div>' +
         '<div class="ex-form-actions"><button type="button" class="btn btn-primary" id="wpsSave">Save</button>' +
         '<button type="button" class="btn btn-secondary" id="wpsReset">Defaults</button>' +
         '<button type="button" class="btn btn-secondary" id="wpsClose">Cancel</button></div>');
@@ -335,7 +395,7 @@ async function woOpenProgressionSettings() {
         var prog = {};
         Object.keys(WO_PROG_DEFAULTS).forEach(function(k) {
             var v = parseFloat(ov.querySelector('#wps_' + k).value);
-            prog[k] = v > 0 ? v : WO_PROG_DEFAULTS[k];
+            prog[k] = (v > 0 || (k === 'levelDownAfter' && v === 0)) ? v : WO_PROG_DEFAULTS[k];
         });
         try {
             await userCol('settings').doc('workouts').set({ progression: prog }, { merge: true });
