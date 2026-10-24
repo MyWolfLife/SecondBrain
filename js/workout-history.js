@@ -96,6 +96,7 @@ function _woRenderDonePage() {
         '<div class="ex-form">' +
             '<div id="wodSaved" class="wo-banner hidden">✓ Saved</div>' +
             woPRsHtml(d.prs) +
+            woBlocksHtml(d.blocks) +
 
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="wodCal">Calories burned <span class="wo-hint">from your watch</span></label>' +

@@ -1658,6 +1658,7 @@ function woEstimateSeconds(steps) {
             total += _woRestSeconds(st.restAfter);
         } else if (st.type === 'circuit') {
             var items = st.items || [], rounds = st.rounds || 1, perRound = 0;
+            if (st.stapper) { total += (st.stapper.minutes || 20) * 60; return; }               // Stapper: the whole time box
             if (st.interval) { total += rounds * st.interval.seconds; return; }                 // superset: every round takes one interval
             items.forEach(function(it, i) {
                 perRound += (it.sets && it.sets[0]) ? _woSetSeconds(it, it.sets[0]) : 0;
@@ -2052,7 +2053,7 @@ function _woRenderSteps() {
                     '<div class="wo-step-head">' +
                         '<span class="wo-step-num">' + (i + 1) + '</span>' +
                         '<span class="wo-step-name">Circuit</span>' +
-                        '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>' +
+                        (st.stapper ? '' : '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>') +
                         _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                     '</div>' +
                     (items.length ? items.map(function(it, j) {
@@ -2070,9 +2071,10 @@ function _woRenderSteps() {
                     }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
                     '<div class="wo-set-actions"><button type="button" class="wo-link-btn" data-act="additem">+ Add exercise to circuit</button></div>' +
                     woSupersetRowHtml(st) +
+                    woStapperRowHtml(st) +
                     _woRestEditor('Rest between exercises', 'restBetweenItems', st.restBetweenItems) +
-                    (st.interval ? '' : _woRestEditor('Rest between rounds', 'restBetweenRounds', st.restBetweenRounds) +
-                                        _woRestEditor('Rest after circuit', 'restAfter', st.restAfter)) +
+                    (st.interval || st.stapper ? '' : _woRestEditor('Rest between rounds', 'restBetweenRounds', st.restBetweenRounds)) +
+                    (st.interval ? '' : _woRestEditor('Rest after circuit', 'restAfter', st.restAfter)) +
                 '</div>';
             }
 
@@ -2215,8 +2217,21 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'stapperOn') {                                   // Stapper: go round the exercises until time is up
+        if (inp.checked) { st.stapper = { minutes: WO_STAPPER_DEFAULT.minutes }; delete st.interval; st.restBetweenItems = _woBlankRest(0); }
+        else delete st.stapper;
+        _woUpdateBuilderSummary(); _woRenderSteps();
+        return;
+    }
+    if (f === 'stapperMin') {
+        var sm = parseInt(inp.value, 10);
+        if (st.stapper && sm >= 1) st.stapper.minutes = Math.min(sm, 120);
+        _woUpdateBuilderSummary();
+        return;
+    }
     if (f === 'cIntervalOn') {                                 // Superset: each round of a circuit starts on a clock
         if (inp.checked) {
+            delete st.stapper;
             st.interval = { seconds: WO_SUPERSET_DEFAULT.seconds, capSec: null };
             st.restBetweenItems = _woBlankRest(0);                // back to back
         } else delete st.interval;

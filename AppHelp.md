@@ -4871,6 +4871,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
+- **Stapper**: in a circuit, tick **go round the exercises until time is up** and set the minutes (the book uses 20). You go round the exercises as many times as you can — each with its own reps, no planned rest — and the clock stops the workout at the end. Keep the reps low enough that you don't hit failure in the first rounds. A Stapper replaces rounds and rests, and can't be combined with the superset clock
 - **Supersets**: in a circuit, tick **each round starts on a clock** (like every 4:00) so each round — the exercises done back to back — starts on the clock and you rest for whatever is left. **Apply superset format** sets it up the book's way: every 4:00, 2 rounds, the first exercise 1–5 slow reps (not to failure) and the other 6–12 reps. Add the exercises to the circuit first (a pair works best)
 - **Tabata / timed sets**: tick **Tabata / timed sets** under an exercise and pick a preset — **Tabata** (20 seconds on, 10 seconds off, 8 rounds) or **Timed sets** (20 on, 40 off, 20 rounds) — or set your own work, rest and rounds. For a rep exercise each round is “as many reps as you can”, and you count them in the player. The **🔥 Tabata format** button turns every exercise in the workout into a Tabata (with 2 minutes' rest between exercises)
 - **Interval sets**: tick **each set starts on a clock** under an exercise and choose how often a set starts (like every 3:00) and an optional **work cap** (like 1:30). You do the set (up to the cap), then rest for whatever is left of the interval, and the next set starts on the clock. The **⏱ Interval format** button makes every exercise in the workout an interval set in one tap (3 sets of 6–12 reps every 3:00 with a 1:30 cap) so you can then adjust them
@@ -4901,6 +4902,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- A circuit set up as a **Stapper** shows “as many cycles as you can in 20 min” under its title
 - A circuit set up as a **Superset** shows “each round starts every 4:00” under its title; each exercise's tempo is shown next to it
 - An exercise set up as **Tabata / timed rounds** shows its pattern (for example “20 s on / 10 s off × 8 rounds”) instead of sets. Change it in the workout builder
 - An exercise set up as **Interval sets** shows its clock (for example “every 3:00, work cap 1:30”) under its name. Change it in the workout builder
@@ -4932,6 +4934,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- **Stapper**: do each exercise and tap **DONE**, then go straight on to the next, round after round. The screen shows the **time left** and the **cycles done**. When time is up it beeps and says “Time” — the exercise you were on isn't counted. **End Stapper** finishes it early
 - **Supersets**: do the exercises in the round back to back. When the round is done, the rest fills the rest of the interval and the next round starts when the clock reaches zero (if you took longer than the interval, the next round starts straight away)
 - **Tabata / timed rounds**: each work period counts down on the ring. Tap **+1 rep** — or tap anywhere on the screen — for every rep you do (**−1** fixes a mis-tap). When the time is up the reps are saved for that round and the rest starts; the next round begins on its own. A held exercise like a plank just counts down
 - **Interval sets**: each set starts on the clock. A **Work time left** timer counts down the cap; at zero it beeps and says “Time” but does not stop you — finish the set, type your reps and tap **DONE**. The rest then fills the rest of the interval, and the next set starts when the clock reaches zero. If a set took longer than the interval, the next one starts straight away
@@ -4958,6 +4961,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
+- A Stapper shows a line like “🔁 Stapper: 7 full cycles + 2 exercises in 20 min” at the top, and each exercise you did is listed as a set
 - Tabata and timed-sets rounds show as separate sets with the reps you counted in each round
 - Sets with a range or “to failure” show their target (like “6–12” or “max”) in the greyed hint inside the box; type what you actually did
 - Exercises with levels list the level you did next to the name (for example “Push-up · Chair”). Sets are numbered separately for each level, and any line you add yourself uses your current level

@@ -142,10 +142,15 @@ function woBuildTimeline(workout, opts) {
 
         } else if (step.type === 'circuit') {
             var items = step.items || [], rounds = step.rounds || 1;
+            var circuitStart = phases.length;
+            if (step.stapper) {                                         // enough cycles to fill the time; the runner ends the block at the deadline
+                var perCycle = items.reduce(function(sum, it) { var s0 = (it.sets && it.sets[0]) || {}; return sum + (it.measure === 'time' ? (s0.amount || 30) : (s0.amount || 10) * 1.5); }, 0);
+                rounds = opts.stapperCycles || Math.min(80, Math.max(2, Math.ceil((step.stapper.minutes || 20) * 60 / Math.max(10, perCycle)) + 1));
+            }
             for (var r = 1; r <= rounds; r++) {
                 items.forEach(function(it, ij) {
                     var set = (it.sets && it.sets[0]) || { amount: null, weight: null };
-                    var ctx = { section: section, stepIndex: si, itemIndex: ij, setIndex: r - 1, setCount: rounds, round: r, rounds: rounds, allTap: !!opts.allTap };
+                    var ctx = { section: section, stepIndex: si, itemIndex: ij, setIndex: r - 1, setCount: rounds, round: r, rounds: step.stapper ? null : rounds, allTap: !!opts.allTap };
                     var itemForPhase = step.interval ? Object.assign({}, it, { interval: { seconds: step.interval.seconds, capSec: null } }) : it;   // superset: show the interval on each exercise
                     var ph = _woSetPhases(itemForPhase, set, ctx);
                     if (step.interval && ij === 0) ph[0].intervalStart = true;                    // the round's clock starts with its first exercise
@@ -153,9 +158,17 @@ function woBuildTimeline(workout, opts) {
                     if (ij < items.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenItems, 'items', ctx));
                 });
                 if (step.interval) phases = phases.concat(_woIntervalRest(step, { section: section, stepIndex: si, round: r, rounds: rounds }));   // rest fills the rest of the interval
-                else if (r < rounds) phases = phases.concat(_woRestPhase(step.restBetweenRounds, 'rounds', { section: section, stepIndex: si, round: r, rounds: rounds }));
+                else if (r < rounds && !step.stapper) phases = phases.concat(_woRestPhase(step.restBetweenRounds, 'rounds', { section: section, stepIndex: si, round: r, rounds: rounds }));
             }
-            if (!step.interval) phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+            if (step.stapper) {                                         // tag the block: the runner stops it at the deadline
+                var firstWork = true;
+                for (var bk = circuitStart; bk < phases.length; bk++) {
+                    phases[bk].blockId = 's' + si; phases[bk].blockItems = items.length; phases[bk].blockSecTotal = (step.stapper.minutes || 20) * 60;
+                    if (firstWork && phases[bk].kind === 'work') { phases[bk].blockStart = true; phases[bk].blockSec = (step.stapper.minutes || 20) * 60; firstWork = false; }
+                }
+            }
+            if (!step.interval && !step.stapper) phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+            else if (step.stapper) phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
         }
     });
 
@@ -226,6 +239,9 @@ function woCreateRunner(phases, cb, opts) {
         intervalStartedAt: null,   // ms: when the current interval set began (phases with intervalStart)
         capEndsAt: null,           // ms: when the work cap of the current work phase runs out
         capRemainingMs: null,      // ms left on the cap while paused
+        blockId: null,             // the Stapper block the current phase belongs to (null = none)
+        blockEndsAt: null,         // ms: when that block's time runs out
+        blockRemainingMs: null,    // ms left on the block while paused
         results: []            // one per work phase visited: {index, status:'done'|'skipped', doneAt}
     };
 
@@ -239,6 +255,9 @@ function woCreateRunner(phases, cb, opts) {
             if (p.intervalStart) R.intervalStartedAt = now();                                   // the interval clock starts with the set
             R.capEndsAt = p.capSec > 0 ? now() + p.capSec * 1000 : null; R.capRemainingMs = null;
         } else { R.capEndsAt = null; R.capRemainingMs = null; }
+        if (p.blockId) {                                                                       // Stapper: one deadline for the whole block
+            if (p.blockStart || R.blockId !== p.blockId) { R.blockId = p.blockId; R.blockEndsAt = now() + (p.blockSecTotal || p.blockSec || 0) * 1000; R.blockRemainingMs = null; }
+        } else { R.blockId = null; R.blockEndsAt = null; R.blockRemainingMs = null; }
         if (p.untilIntervalEnd) {                                                              // rest = what is left of the interval
             var used = R.intervalStartedAt != null ? (now() - R.intervalStartedAt) / 1000 : 0;
             p.durationSec = Math.max(0, Math.ceil(p.intervalSec - used));
@@ -253,6 +272,18 @@ function woCreateRunner(phases, cb, opts) {
         R.state = 'done';
         R.phaseEndsAt = null;
         if (cb.onDone) cb.onDone(R.results);
+    }
+
+    /** Time is up for a Stapper: the exercise in progress isn't counted; carry on after the block. */
+    function endBlock() {
+        var id = R.blockId;
+        if (!id) return;
+        if (cb.onBlockEnd) cb.onBlockEnd(id);
+        var j = R.index + 1;
+        while (j < R.phases.length && R.phases[j].blockId === id) j++;
+        R.blockId = null; R.blockEndsAt = null; R.blockRemainingMs = null;
+        if (j >= R.phases.length) return finish();
+        enter(j);
     }
 
     /** Records how a work phase ended, replacing any earlier result for the same phase (after Back). */
@@ -298,7 +329,8 @@ function woCreateRunner(phases, cb, opts) {
     R.tick = function() {
         if (R.state !== 'running') return;
         var p = phase();
-        if (p && p.durationSec != null && now() >= R.phaseEndsAt) advance('done');
+        if (R.blockId && R.blockEndsAt != null && now() >= R.blockEndsAt) endBlock();          // Stapper deadline
+        else if (p && p.durationSec != null && now() >= R.phaseEndsAt) advance('done');
         else emitTick();
     };
 
@@ -308,6 +340,7 @@ function woCreateRunner(phases, cb, opts) {
         R.state = 'paused';
         R.pausedAt = now();
         if (R.capEndsAt != null) R.capRemainingMs = Math.max(0, R.capEndsAt - now());
+        if (R.blockEndsAt != null) R.blockRemainingMs = Math.max(0, R.blockEndsAt - now());
         if (p && p.durationSec != null) R.remainingMs = Math.max(0, R.phaseEndsAt - now());
         emitTick();
     };
@@ -318,6 +351,7 @@ function woCreateRunner(phases, cb, opts) {
         var pausedFor = now() - R.pausedAt;
         if (R.intervalStartedAt != null) R.intervalStartedAt += pausedFor;                     // a pause doesn't use up the interval
         if (R.capRemainingMs != null) { R.capEndsAt = now() + R.capRemainingMs; R.capRemainingMs = null; }
+        if (R.blockRemainingMs != null) { R.blockEndsAt = now() + R.blockRemainingMs; R.blockRemainingMs = null; }
         R.pausedTotalMs += pausedFor;
         R.pausedAt = null;
         R.state = 'running';
@@ -365,6 +399,18 @@ function woCreateRunner(phases, cb, opts) {
 
     R.current      = phase;
     R.secondsLeft  = secondsLeft;
+    /** Seconds left in the current Stapper block (null outside one). */
+    R.blockSecondsLeft = function() {
+        if (!R.blockId || (R.blockEndsAt == null && R.blockRemainingMs == null)) return null;
+        if (R.state === 'paused') return Math.ceil((R.blockRemainingMs || 0) / 1000);
+        return Math.max(0, Math.ceil((R.blockEndsAt - now()) / 1000));
+    };
+    /** "End this Stapper" — finish the block now and carry on. */
+    R.endBlock = function() {
+        if (R.state === 'paused') R.resume();
+        if (R.state !== 'running') return;
+        endBlock();
+    };
     /** Seconds left on the work cap of the current work phase (null when it has none). */
     R.capSecondsLeft = function() {
         var p = phase();
@@ -380,18 +426,26 @@ function woCreateRunner(phases, cb, opts) {
     };
     /** Rough seconds still to go (timed phases use their clock, tap phases a typical figure). */
     R.remainingEstimateSec = function() {
-        var total = 0;
+        var total = 0, seenBlocks = {};
         for (var i = Math.max(R.index, 0); i < R.phases.length; i++) {
+            var ph = R.phases[i];
+            if (ph.blockId) {                                              // a Stapper block counts once: the time left in it
+                if (seenBlocks[ph.blockId]) continue;
+                seenBlocks[ph.blockId] = true;
+                var left = (R.blockId === ph.blockId && R.blockSecondsLeft() != null) ? R.blockSecondsLeft() : (ph.blockSecTotal || 0);
+                total += left;
+                continue;
+            }
             if (i === R.index && R.state !== 'idle') {
-                var left = secondsLeft();
-                total += left != null ? left : woPhaseEstimateSec(R.phases[i]);
+                var l2 = secondsLeft();
+                total += l2 != null ? l2 : woPhaseEstimateSec(ph);
             } else {
-                total += woPhaseEstimateSec(R.phases[i]);
+                total += woPhaseEstimateSec(ph);
             }
         }
         return total;
     };
-    R.workPhaseCount = function() { return R.phases.filter(function(p) { return p.kind === 'work'; }).length; };
+    R.workPhaseCount = function() { return R.phases.filter(function(p) { return p.kind === 'work' && !p.blockId; }).length; };   // Stapper cycles are counted from what was done
 
     return R;
 }
@@ -528,7 +582,8 @@ function _woRenderStartPage() {
         if (st.type === 'circuit') {
             return '<div class="wo-step wo-circuit" data-path="' + i + '">' +
                 '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">Circuit</span>' +
-                '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
+                (st.stapper ? '' : '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>') + '</div>' +
+                (st.stapper ? '<div class="wo-rest-row"><span class="wo-rest-label">Stapper</span>as many cycles as you can in ' + st.stapper.minutes + ' min — go round the exercises until time is up</div>' : '') +
                 (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Superset</span>each round starts ' + _woEsc(woIntervalText({ seconds: st.interval.seconds })) + '</div>' : '') +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
@@ -746,6 +801,7 @@ async function loadWorkoutRunPage() {
         onPhase: _woPlayerOnPhase,
         onTick:  _woPlayerOnTick,
         onDone:  _woPlayerOnDone,
+        onBlockEnd: function() { if (typeof woBeep === 'function') woBeep(880, 500); if (_woP && _woP.session.voiceCues && typeof woSpeak === 'function') woSpeak('Time. Stapper complete.'); },
         getActual: function(ph, idx) { return { amount: (_woP && _woP.repCounts[idx]) || 0, weight: ph.weight != null ? ph.weight : null }; }
     });
 
@@ -846,7 +902,7 @@ function _woFmtClock(sec) {
 
 /** "Set 2 of 3" / "Round 2 of 4" */
 function _woSetText(p) {
-    if (p.round) return 'Round ' + p.round + ' of ' + p.rounds;
+    if (p.round) return 'Round ' + p.round + (p.rounds ? ' of ' + p.rounds : '');
     return p.setCount > 1 ? 'Set ' + (p.setIndex + 1) + ' of ' + p.setCount : '';
 }
 
@@ -912,6 +968,8 @@ function _woPlayerRender() {
                  ((selfMode || woNeedsActual(p)) ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
                              (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
                  (p.capSec ? '<div class="wo-cap" id="woCap">Work time left: <strong id="woCapLeft"></strong></div>' : '') +
+                 (p.blockId ? '<div class="wo-cap" id="woBlock">Stapper time left: <strong id="woBlockLeft"></strong> · cycles done: <strong id="woBlockCycles"></strong> ' +
+                              '<button type="button" class="wo-link-btn wo-link-btn--light" id="woEndBlock">End Stapper</button></div>' : '') +
                  '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
                  (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
                            : (woNeedsActual(p) ? '<div class="wo-tap-hint">type how many you did, then tap DONE · say “done”</div>'
@@ -1003,6 +1061,8 @@ function _woPlayerRender() {
         document.getElementById('woRepUndo').addEventListener('click', function(ev) { ev.stopPropagation(); countRep(-1); });
         document.getElementById('woMain').addEventListener('click', function() { countRep(1); });
     }
+    var eb = document.getElementById('woEndBlock');
+    if (eb) eb.addEventListener('click', function(ev) { ev.stopPropagation(); if (confirm('End the Stapper now? The exercise you are on will not be counted.')) R.endBlock(); });
     // Guided: tap anywhere = Done. Self-paced has number boxes on screen, so only the DONE button counts.
     if (tap && !selfMode && !woNeedsActual(p)) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // ranges / failure need the number typed first
 
@@ -1021,6 +1081,13 @@ function _woPlayerUpdateLive(info) {
     }
     if (txt && info.secondsLeft != null) txt.textContent = _woFmtClock(info.secondsLeft);
 
+    var blEl = document.getElementById('woBlockLeft');                                  // Stapper: time left and cycles done
+    if (blEl) {
+        var bl = R.blockSecondsLeft();
+        blEl.textContent = bl == null ? '' : woClockText(bl);
+        var cyc = document.getElementById('woBlockCycles');
+        if (cyc && p.blockItems) cyc.textContent = Math.floor(R.results.filter(function(x) { return x.status === 'done' && R.phases[x.index] && R.phases[x.index].blockId === p.blockId; }).length / p.blockItems);
+    }
     var capEl = document.getElementById('woCapLeft');                                   // interval sets: the work cap
     if (capEl) {
         var cl = R.capSecondsLeft();
@@ -1059,7 +1126,7 @@ function _woPlayerOnDone(results) {
     clearInterval(_woP.flipTimer);
     var done = results.filter(function(r) { return r.status === 'done'; }).length;
     var skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
-    var totalWork = R.workPhaseCount();
+    var totalWork = R.workPhaseCount() + results.filter(function(r) { return R.phases[r.index] && R.phases[r.index].blockId; }).length;   // Stapper: what was actually attempted
     _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), startedAt: R.startedAt, endedAt: Date.now() };
     window._woFinished = _woP.finished;
 
@@ -1099,13 +1166,14 @@ function _woLocalDateTime(dateISO, ms) {
 }
 
 /** One set line per work phase, in timeline order. Phases never reached (ended early) are logged as skipped. */
-function woSetLinesFromRun(phases, results) {
+function woSetLinesFromRun(phases, results, keepUnreachedBlocks) {
     var byIndex = {};
     results.forEach(function(r) { byIndex[r.index] = r; });
     var lines = [];
     phases.forEach(function(p, i) {
         if (p.kind !== 'work') return;
         var r = byIndex[i], done = !!(r && r.status === 'done');
+        if (p.blockId && !r && !keepUnreachedBlocks) return;                 // Stapper cycles that were never reached aren't logged as skipped
         lines.push({
             exerciseId: p.exerciseId, exerciseName: p.exerciseName, measure: p.measure,
             levelId: p.levelId || null, levelLabel: p.levelLabel || null,                    // multi-level exercises only
@@ -1201,6 +1269,7 @@ async function woSaveFinishedWorkout(fin) {
     var sess = fin.session;
     var durationMinutes = Math.max(0.1, Math.round(fin.elapsedMs / 6000) / 10);
     var sets = woSetLinesFromRun(fin.phases, fin.results);
+    var blocks = woBlockSummaries(fin.phases, fin.results);       // Stapper cycles
     var prs = [];
     try { prs = await woComputePRs(sets); } catch (err) { console.error('Workouts: could not check records:', err); }
 
@@ -1217,6 +1286,7 @@ async function woSaveFinishedWorkout(fin) {
         notes:           '',
         rating:          null,
         sets:            sets,
+        blocks:          blocks,
         prs:             prs,
         activityId:      null,
         createdAt:       firebase.firestore.FieldValue.serverTimestamp()

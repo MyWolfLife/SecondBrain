@@ -238,3 +238,53 @@ function woSupersetRowHtml(st) {
         ' <button type="button" class="wo-link-btn" data-act="supersetfmt" title="The book\'s recipe: 4:00 interval, 2 rounds, first exercise 1–5 slow reps, the rest 6–12">Apply superset format</button>' +
         '</div>';
 }
+
+// ─── Stappers (FormatsPlan.md, chunk F4) ──────────────────────────────────────
+//
+// circuit.stapper = { minutes } on a CIRCUIT: go round the exercises (each with its own reps) as many times as you can in
+// `minutes`, no planned rest. The clock has a block deadline: enough cycles are created up front to fill the time, and
+// when the deadline passes the runner ends the block (the exercise in progress is not counted). The circuit's rounds,
+// rest between rounds and rest after are not used; "rest between exercises" is normally 0.
+
+var WO_STAPPER_DEFAULT = { minutes: 20 };
+
+/** The builder's Stapper row inside a circuit card. */
+function woStapperRowHtml(st) {
+    var s = st.stapper;
+    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Stapper (as many cycles as you can)</span>' +
+        '<label class="wo-inline-check"><input type="checkbox" data-f="stapperOn"' + (s ? ' checked' : '') + '> go round the exercises until time is up</label>' +
+        (s ? ' for <input type="number" class="wo-clock-box" min="1" max="120" data-f="stapperMin" value="' + s.minutes + '"> minutes <span class="wo-hint">keep the reps low enough that you don\'t hit failure in the first rounds</span>' : '') +
+        '</div>';
+}
+
+/**
+ * One summary per Stapper in a finished run: { type:'stapper', stepIndex, minutes, cycles, partial, items }.
+ * cycles = rounds where every exercise was done; partial = exercises done in the round that was cut off.
+ */
+function woBlockSummaries(phases, results) {
+    var done = {};
+    results.forEach(function(r) { if (r.status === 'done') done[r.index] = true; });
+    var byBlock = {}, order = [];
+    phases.forEach(function(p, i) {
+        if (p.kind !== 'work' || !p.blockId) return;
+        var b = byBlock[p.blockId] || (byBlock[p.blockId] = { type: 'stapper', stepIndex: p.stepIndex, minutes: Math.round((p.blockSecTotal || 0) / 60), items: p.blockItems, rounds: {} });
+        if (!order.includes(p.blockId)) order.push(p.blockId);
+        if (done[i]) b.rounds[p.round] = (b.rounds[p.round] || 0) + 1;
+    });
+    return order.map(function(id) {
+        var b = byBlock[id], cycles = 0, partial = 0;
+        Object.keys(b.rounds).map(Number).sort(function(x, y) { return x - y; }).forEach(function(r) {
+            if (b.rounds[r] >= b.items) cycles++; else partial = b.rounds[r];
+        });
+        return { type: b.type, stepIndex: b.stepIndex, minutes: b.minutes, cycles: cycles, partial: partial, items: b.items };
+    }).filter(function(b) { return b.cycles || b.partial; });
+}
+
+/** "🔁 Stapper: 7 cycles + 2 exercises in 20 min" lines for the Finished screen. */
+function woBlocksHtml(blocks) {
+    if (!blocks || !blocks.length) return '';
+    return '<div class="wo-banner">' + blocks.map(function(b) {
+        return '🔁 <strong>Stapper:</strong> ' + b.cycles + ' full cycle' + (b.cycles === 1 ? '' : 's') +
+               (b.partial ? ' + ' + b.partial + ' exercise' + (b.partial === 1 ? '' : 's') : '') + ' in ' + b.minutes + ' min';
+    }).join('<br>') + '</div>';
+}

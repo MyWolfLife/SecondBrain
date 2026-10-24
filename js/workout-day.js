@@ -15,8 +15,8 @@ var _woDay = null;   // {id, data, sets[], unsub}
 
 /** One pending set line per work phase of the workout, in timeline order. */
 function woPendingLines(workout) {
-    var phases = woBuildTimeline(workout, { getReadySec: 0 });
-    return woSetLinesFromRun(phases, []).map(function(l) { l.skipped = false; return l; });
+    var phases = woBuildTimeline(workout, { getReadySec: 0, stapperCycles: 1 });          // a Stapper is one cycle on the checklist (add lines for more)
+    return woSetLinesFromRun(phases, [], true).map(function(l) { l.skipped = false; return l; });
 }
 
 /** Creates the open record and returns its id. */
