@@ -38,6 +38,8 @@
 **Phases 1–5 are complete.** The user asked for Phase 5 only — **do NOT start Phase 6** unless they ask (Phase 6 = Programs, EMOM/AMRAP/Tabata presets, AI workout builder, SecondBrain action + help entry per CLAUDE.md). Other open items: Shared Spaces (SharedSpacesPlan.md) is a separate later effort; known gaps — leaving the guided/self-paced player mid-workout discards the run; the "in progress" card isn't on the app's home screen; voice, speech and wake lock are untested on real hardware; editing set lines on the Finished screen doesn't re-run progression or personal records; completing a scheduled workout's calendar event doesn't create a workout record.
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
+
+> **2026-10-24:** the user supplied the YAYOG book. Read it and wrote `YAYOGAnalysis.md` (what the book does, gaps in our exercise/workout model, proposed block formats, programs, build order, open questions). Answer its §9 questions before changing the data model or importing anything.
 Discuss first, then build. Open questions already prepared:
 - **Programs** (needs a full planning conversation): fixed multi-week plan (YAYOG-style) vs rotation of own workouts? scheduling (fixed weekdays vs "next in list")? weekly difficulty ramp vs the §5a progression? missed days / breaks? build-your-own vs starters? where it lives (greyed Programs tile on the Fitness hub).
 - **Presets** (EMOM / AMRAP / Tabata / Ladder): which ones? AMRAP counts rounds not sets (needs player + record changes) — tap "round done"?
