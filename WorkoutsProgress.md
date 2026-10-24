@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (E4):** **E4 (picture captions) is built and pushed.** Next: **E5 (category, source, precaution)**, the last of this plan.
 > **2026-10-24 (E3):** **E3 (weaker side first, swap the starting side each set) is built and pushed.** Next: **E4 (picture captions)**, then E5 labels.
 > **2026-10-24 (E2):** **E2 (tempo and pauses on steps) is built and pushed.** Next: **E3 (swap start side, weaker side first)**, then E4 captions, E5 labels.
 > **2026-10-24 (E1):** **E1 (rep ranges and to-failure sets) is built and pushed.** Next: **E2 (tempo and pauses on steps)**, then E3 sides, E4 captions, E5 labels.

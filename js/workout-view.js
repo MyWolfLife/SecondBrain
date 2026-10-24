@@ -13,7 +13,7 @@ var _woViewTimer  = null;
 async function _woViewLoadFrames(exerciseId) {
     if (_woViewFrames[exerciseId]) return _woViewFrames[exerciseId];
     var snap = await woLibCol('photos').where('targetType', '==', 'workoutExercise').where('targetId', '==', exerciseId).get();
-    var list = snap.docs.map(function(d) { var p = d.data(); return { order: p.frameOrder || 0, data: p.imageData, levelId: p.levelId || null }; });
+    var list = snap.docs.map(function(d) { var p = d.data(); return { order: p.frameOrder || 0, data: p.imageData, levelId: p.levelId || null, caption: p.caption || '' }; });
     list.sort(function(a, b) { return a.order - b.order; });
     return (_woViewFrames[exerciseId] = list);
 }
@@ -88,11 +88,11 @@ async function woViewExercise(exerciseId) {
             (safeVideo ? '<div class="wo-view-row"><a href="' + _woEsc(safeVideo) + '" target="_blank" rel="noopener">▶ Video</a></div>' : '');
 
         _woViewLoadFrames(exerciseId).then(function(all) {
-            var frames = (multi ? all.filter(function(f) { return woFrameLevelId(f) === lv.id; }) : all).map(function(f) { return f.data; });
+            var frames = (multi ? all.filter(function(f) { return woFrameLevelId(f) === lv.id; }) : all);
             var box = document.getElementById('woViewPics');
             if (!box || !document.getElementById('woViewOverlay')) return;
             if (!frames.length) { box.innerHTML = '<p class="wo-hint">No pictures yet.</p>'; return; }
-            box.innerHTML = '<img class="wo-flip" id="woViewFlip" alt="' + _woEsc(e.name) + '" src="' + frames[0] + '">';
+            box.innerHTML = '<img class="wo-flip" id="woViewFlip" alt="' + _woEsc(e.name) + '" src="' + frames[0].data + '"><div class="wo-flip-cap" id="woViewCap">' + _woEsc(frames[0].caption) + '</div>';
             if (frames.length < 2) return;
             var n = 0;
             clearInterval(_woViewTimer);
@@ -100,7 +100,8 @@ async function woViewExercise(exerciseId) {
                 var img = document.getElementById('woViewFlip');
                 if (!img) { clearInterval(_woViewTimer); return; }
                 n = (n + 1) % frames.length;
-                img.src = frames[n];
+                img.src = frames[n].data;
+                var cp = document.getElementById('woViewCap'); if (cp) cp.textContent = frames[n].caption;
             }, WO_FLIP_MS);
         }).catch(function(err) {
             console.error('Workouts: could not load pictures for view:', err);

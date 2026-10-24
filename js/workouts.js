@@ -978,7 +978,7 @@ async function _woLoadFrames() {
         .where('targetId', '==', _woEdit.id).get();
     _woFrames = snap.docs.map(function(d) {
         var p = d.data();
-        return { id: d.id, imageData: p.imageData, frameOrder: p.frameOrder || 0, levelId: p.levelId || null };
+        return { id: d.id, imageData: p.imageData, frameOrder: p.frameOrder || 0, levelId: p.levelId || null, caption: p.caption || '' };
     });
     _woFrames.sort(function(a, b) { return a.frameOrder - b.frameOrder; });
     _woFramesFor = _woEdit.id;
@@ -994,6 +994,7 @@ function _woRenderFrames() {
         return '<div class="wo-frame">' +
                    '<img src="' + f.imageData + '" alt="Frame ' + (i + 1) + '">' +
                    '<div class="wo-frame-num">' + (i + 1) + '</div>' +
+                   '<input type="text" class="wo-frame-cap" data-cap="' + f.id + '" value="' + _woEsc(f.caption || '') + '" maxlength="80" placeholder="Caption (optional)" title="Shown under this picture while it plays">' +
                    '<div class="wo-frame-btns">' +
                        '<button type="button" class="wo-frame-btn" data-act="left"  data-id="' + f.id + '"' + (i === 0 ? ' disabled' : '') + ' title="Move earlier">◀</button>' +
                        '<button type="button" class="wo-frame-btn" data-act="right" data-id="' + f.id + '"' + (i === frames.length - 1 ? ' disabled' : '') + ' title="Move later">▶</button>' +
@@ -1006,7 +1007,7 @@ function _woRenderFrames() {
     group.innerHTML =
         '<label class="ex-label">Pictures <span class="wo-hint">2–4 frames that show the motion: start, middle, end</span></label>' +
         (frames.length
-            ? '<div class="wo-flip-wrap"><img id="woeFlip" class="wo-flip" alt="Preview"><div class="wo-hint">Preview — how the player will show it</div></div>' +
+            ? '<div class="wo-flip-wrap"><img id="woeFlip" class="wo-flip" alt="Preview"><div id="woeFlipCap" class="wo-flip-cap"></div><div class="wo-hint">Preview — how the player will show it</div></div>' +
               '<div class="wo-frame-strip">' + strip + '</div>'
             : '<p class="wo-hint">No pictures yet.</p>') +
         '<div class="wo-frame-actions">' +
@@ -1021,6 +1022,15 @@ function _woRenderFrames() {
     document.getElementById('woeFrameGallery').addEventListener('click', function() { _woPickFrameFile(false); });
     document.getElementById('woeFramePaste').addEventListener('click', _woPasteFrame);
     document.getElementById('woeFrameVideo').addEventListener('click', _woOpenGrabber);
+    group.querySelectorAll('.wo-frame-cap').forEach(function(inp) {          // captions save when you leave the box
+        inp.addEventListener('change', async function() {
+            var id = this.getAttribute('data-cap'), text = this.value.trim();
+            var f = _woFrames.filter(function(x) { return x.id === id; })[0];
+            if (f) f.caption = text;
+            try { await woLibCol('photos').doc(id).update({ caption: text }); }
+            catch (err) { console.error('Workouts: could not save the caption:', err); alert('Could not save the caption. Please try again.'); }
+        });
+    });
     group.querySelectorAll('.wo-frame-btn').forEach(function(b) {
         b.addEventListener('click', function() {
             var act = this.getAttribute('data-act'), id = this.getAttribute('data-id');
@@ -1038,14 +1048,16 @@ function _woStartFlipbook() {
     var frames = _woLevelFrames();
     var img = document.getElementById('woeFlip');
     if (!img || !frames.length) return;
-    var i = 0;
+    var i = 0, cap = document.getElementById('woeFlipCap');
     img.src = frames[0].imageData;
+    if (cap) cap.textContent = frames[0].caption || '';
     if (frames.length < 2) return;
     _woFlipTimer = setInterval(function() {
         var el = document.getElementById('woeFlip');
         if (!el) { clearInterval(_woFlipTimer); return; }
         i = (i + 1) % frames.length;
         el.src = frames[i].imageData;
+        var c2 = document.getElementById('woeFlipCap'); if (c2) c2.textContent = frames[i].caption || '';
     }, WO_FLIP_MS);
 }
 
@@ -1124,7 +1136,7 @@ async function woAddFrameData(dataUrl) {
         levelId:    _woActiveLevelId(),
         createdAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
-    _woFrames.push({ id: ref.id, imageData: dataUrl, frameOrder: next, levelId: _woActiveLevelId() });
+    _woFrames.push({ id: ref.id, imageData: dataUrl, frameOrder: next, levelId: _woActiveLevelId(), caption: '' });
     await _woAfterFramesChanged();
 }
 

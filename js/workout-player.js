@@ -645,7 +645,7 @@ async function loadWorkoutRunPage() {
     }
     el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess.workoutName) + '</h2></div><div class="ex-status">Getting ready…</div>';
 
-    _woP = { session: sess, phases: phases, runner: null, frames: {}, tickTimer: null, flipTimer: null,
+    _woP = { session: sess, phases: phases, runner: null, frames: {}, captions: {}, tickTimer: null, flipTimer: null,
              keyHandler: null, hashHandler: null, finished: null };
     try { await _woPlayerLoadFrames(); } catch (err) { console.error('Workouts: could not load frames for player:', err); }
     if (!_woP) return;   // user left while loading
@@ -699,11 +699,12 @@ async function _woPlayerLoadFrames() {
         if (!ids[p.targetId]) return;
         var fex = _woExMap[p.targetId];
         var key = fex && woIsMultiLevel(fex) ? p.targetId + '|' + woFrameLevelId(p) : p.targetId;     // pictures are kept per level
-        (byEx[key] = byEx[key] || []).push({ order: p.frameOrder || 0, data: p.imageData });
+        (byEx[key] = byEx[key] || []).push({ order: p.frameOrder || 0, data: p.imageData, caption: p.caption || '' });
     });
     Object.keys(byEx).forEach(function(k) {
         byEx[k].sort(function(a, b) { return a.order - b.order; });
         _woP.frames[k] = byEx[k].map(function(f) { return f.data; });
+        if (byEx[k].some(function(f) { return f.caption; })) _woP.captions[k] = byEx[k].map(function(f) { return f.caption; });   // only when someone wrote one
     });
     // A level with no pictures of its own borrows the nearest level that has some
     Object.keys(ids).forEach(function(exId) {
@@ -714,7 +715,7 @@ async function _woPlayerLoadFrames() {
             if (l.archived || _woP.frames[exId + '|' + l.id]) return;
             for (var d = 1; d < lv.length; d++) {
                 var near = [lv[i - d], lv[i + d]].filter(function(x) { return x && _woP.frames[exId + '|' + x.id]; })[0];
-                if (near) { _woP.frames[exId + '|' + l.id] = _woP.frames[exId + '|' + near.id]; return; }
+                if (near) { _woP.frames[exId + '|' + l.id] = _woP.frames[exId + '|' + near.id]; if (_woP.captions[exId + '|' + near.id]) _woP.captions[exId + '|' + l.id] = _woP.captions[exId + '|' + near.id]; return; }
             }
         });
     });
@@ -724,7 +725,9 @@ async function _woPlayerLoadFrames() {
 function _woFlipHtml(exerciseId, cls) {   // exerciseId is really the frames key (see woPhaseFramesKey)
     var fr = _woP.frames[exerciseId];
     if (!fr || !fr.length) return '<div class="wo-flip-ph ' + cls + '">🤸</div>';
-    return '<img class="wo-flipbook ' + cls + '" data-ex="' + exerciseId + '" data-i="0" src="' + fr[0] + '" alt="">';
+    var img = '<img class="wo-flipbook ' + cls + '" data-ex="' + exerciseId + '" data-i="0" src="' + fr[0] + '" alt="">';
+    var caps = _woP.captions[exerciseId];
+    return caps && cls === 'wo-hero-img' ? img + '<div class="wo-flip-cap wo-flip-cap--player" data-capfor="' + exerciseId + '">' + _woEsc(caps[0] || '') + '</div>' : img;
 }
 
 function _woPlayerFlip() {
@@ -735,6 +738,8 @@ function _woPlayerFlip() {
         var i = (parseInt(img.getAttribute('data-i'), 10) + 1) % fr.length;
         img.setAttribute('data-i', i);
         img.src = fr[i];
+        var capEl = img.nextElementSibling, caps = _woP.captions[img.getAttribute('data-ex')];
+        if (caps && capEl && capEl.classList.contains('wo-flip-cap')) capEl.textContent = caps[i] || '';
     });
 }
 
