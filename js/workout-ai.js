@@ -107,7 +107,7 @@ async function _woAiAsk(text) {
             return { name: e.name, equipment: e.equipment || [], cues: (e.instructions || '').split('\n').slice(0, 2).join(' / ') };
         })) + '\n\n' +
         'Return ONLY one JSON object with exactly these keys:\n' +
-        '{ "name": string (short, title case),\n' +
+        '{ "name": string (short, title case; the exercise itself such as "Push-up", never a word like "progression" or "levels"),\n' +
         '  "measure": "reps" | "time",\n' +
         '  "amount": number (reps, or seconds if measure is time; use the number in the description if there is one),\n' +
         '  "usesWeight": boolean,\n' +

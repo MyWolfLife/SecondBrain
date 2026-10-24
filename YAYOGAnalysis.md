@@ -143,6 +143,8 @@ This depends on §4 and §5 being built first.
 
 ---
 
+> **Status (2026-10-24):** step 1's levels part and step 2 are **built** (see `ExerciseLevelsPlan.md`, chunks L1–L8). The other model additions in step 1 and everything from step 3 on are still to do.
+
 ## 7. Suggested build order
 
 1. **Exercise model additions** (the large one): **levels ladder + "my level"**, category, rep range / failure, swap-start-side, weaker-side-first, per-frame captions, source, precaution. Plus a "family" display in the exercise list.

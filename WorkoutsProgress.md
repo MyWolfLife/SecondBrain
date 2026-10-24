@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (L8):** **Exercise levels are COMPLETE (L1–L8).** Describe-it can now create levels. Next per `YAYOGAnalysis.md` §7: the remaining exercise-model additions (rep ranges / to-failure sets, tempo/pause on steps, swap-start-side and weaker-side-first, per-picture captions, category/source/precaution), then the book's workout formats, the import tool, and Programs.
 > **2026-10-24 (L7):** Exercise levels **L7 (progression: streak per level, next/previous level suggestions, accept moves my level or the pin, easier-level setting) is built and pushed**. Next: **L8 (Describe-it creates levels; final docs pass)**.
 > **2026-10-24 (L6):** Exercise levels **L6 (records, Last time and exercise history per level) is built and pushed**. Next: **L7 (progression: streak per level, move up/down a level, settings)**.
 > **2026-10-24 (L5):** Exercise levels **L5 (player: level label, per-level pictures with fallback, spoken name; set lines store the level; day checklist, Finished screen, activity summary, per-level set numbers) is built and pushed**. Next: **L6 (records, last-time and exercise history per level)**.
