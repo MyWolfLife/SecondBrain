@@ -4871,6 +4871,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
+- **Interval sets**: tick **each set starts on a clock** under an exercise and choose how often a set starts (like every 3:00) and an optional **work cap** (like 1:30). You do the set (up to the cap), then rest for whatever is left of the interval, and the next set starts on the clock. The **⏱ Interval format** button makes every exercise in the workout an interval set in one tap (3 sets of 6–12 reps every 3:00 with a 1:30 cap) so you can then adjust them
 - **Tempo (optional)**: under an exercise's sets you can set how slowly to move — seconds to **lower**, **pause at the bottom**, **lift**, and **pause at the top**. Leave a box blank to skip that part. The player shows it and the voice reads it out the first time the exercise comes up
 - **Reps targets**: next to each set's number there is a small dropdown — **exactly** (like 10), **a range** (like 6–12) or **to failure** (as many as you can; the box then means “at least”). Timed exercises offer **exactly** or **as long as you can**. Ranges and to-failure sets work together with the usual sets, pyramids and circuits
 - Give it a name, then tap **+ Add exercise** and pick from your library — search, or narrow the list by **area**, **muscle** (the muscle list follows the area you pick), **push/pull** or **equipment** (works the same when adding to a circuit)
@@ -4898,6 +4899,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- An exercise set up as **Interval sets** shows its clock (for example “every 3:00, work cap 1:30”) under its name. Change it in the workout builder
 - If an exercise has a **Tempo** it is shown under its name (for example “lower 3 s · pause at the bottom 1 s · lift 1 s”). Change it in the workout builder
 - The same **exactly / a range / to failure** dropdown is on each set here, so you can change today's target. Sets with a range or “to failure” will ask you to type how many you really did
 - Tap **👁** next to an exercise to see its pictures, cues and muscles without leaving this screen
@@ -4926,6 +4928,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- **Interval sets**: each set starts on the clock. A **Work time left** timer counts down the cap; at zero it beeps and says “Time” but does not stop you — finish the set, type your reps and tap **DONE**. The rest then fills the rest of the interval, and the next set starts when the clock reaches zero. If a set took longer than the interval, the next one starts straight away
 - When an exercise has a tempo it appears under the name (“Tempo: lower 3 s · …”) and the voice says it once at the start of that exercise — it does not count the seconds aloud
 - For a set with a range (like 6–12) or “to failure”, the screen shows “6–12” or “MAX” and a **Did** box. Type how many you did, then tap **DONE** (tapping elsewhere doesn't count, so the number is never guessed). The voice says “6 to 12 reps” or “as many as you can”
 - For exercises with levels (easier or harder versions), the screen shows which level you are on (for example “Chair”) under the exercise name, shows that level's pictures, and speaks it (“Push-up, Chair”). If a level has no pictures yet, it shows the nearest level that does

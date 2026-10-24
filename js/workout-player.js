@@ -39,6 +39,7 @@ function _woSetPhases(st, set, ctx) {
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
+            interval: st.interval || null, capSec: (st.interval && st.interval.capSec > 0) ? st.interval.capSec : null,
             restKind: null,
             durationSec: (st.measure === 'time' && !ctx.allTap && !failure) ? amount : null,
             tap: st.measure !== 'time' || !!ctx.allTap || failure
@@ -53,6 +54,21 @@ function _woSetPhases(st, set, ctx) {
         }
     });
     return out;
+}
+
+/**
+ * The rest that fills the rest of an interval: its length is worked out by the runner when it STARTS
+ * (interval seconds minus the time since the set began). durationSec here is only the estimate used before then.
+ */
+function _woIntervalRest(step, ctx) {
+    var iv = step.interval;
+    var estWork = Math.min(iv.capSec > 0 ? iv.capSec : 60, 45);
+    return [{ kind: 'rest', label: 'Rest', section: ctx.section,
+              stepIndex: ctx.stepIndex, itemIndex: null,
+              exerciseId: null, exerciseName: null, measure: null, amount: null, weight: null,
+              setIndex: null, setCount: null, round: null, rounds: null,
+              side: null, restKind: 'interval', untilIntervalEnd: true, intervalSec: iv.seconds,
+              durationSec: Math.max(0, iv.seconds - estWork), tap: false }];
 }
 
 /** A rest phase from a {mode, seconds} setting; returns [] for a zero-length timed rest. */
@@ -83,10 +99,16 @@ function woBuildTimeline(workout, opts) {
             var sets = step.sets || [];
             sets.forEach(function(set, k) {
                 var ctx = { section: section, stepIndex: si, itemIndex: null, setIndex: k, setCount: sets.length, round: null, rounds: null, allTap: !!opts.allTap };
-                phases = phases.concat(_woSetPhases(step, set, ctx));
-                if (k < sets.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenSets, 'sets', ctx));
+                var ph = _woSetPhases(step, set, ctx);
+                if (step.interval) {                                    // interval set: the clock starts with the set, the rest fills the interval
+                    ph[0].intervalStart = true;
+                    phases = phases.concat(ph).concat(_woIntervalRest(step, ctx));
+                } else {
+                    phases = phases.concat(ph);
+                    if (k < sets.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenSets, 'sets', ctx));
+                }
             });
-            phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+            if (!step.interval) phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
 
         } else if (step.type === 'circuit') {
             var items = step.items || [], rounds = step.rounds || 1;
@@ -167,6 +189,9 @@ function woCreateRunner(phases, cb, opts) {
         startedAt: null,
         pausedAt: null,
         pausedTotalMs: 0,
+        intervalStartedAt: null,   // ms: when the current interval set began (phases with intervalStart)
+        capEndsAt: null,           // ms: when the work cap of the current work phase runs out
+        capRemainingMs: null,      // ms left on the cap while paused
         results: []            // one per work phase visited: {index, status:'done'|'skipped', doneAt}
     };
 
@@ -176,6 +201,14 @@ function woCreateRunner(phases, cb, opts) {
         R.index = i;
         var p = phase();
         if (!p) return finish();
+        if (p.kind === 'work') {
+            if (p.intervalStart) R.intervalStartedAt = now();                                   // the interval clock starts with the set
+            R.capEndsAt = p.capSec > 0 ? now() + p.capSec * 1000 : null; R.capRemainingMs = null;
+        } else { R.capEndsAt = null; R.capRemainingMs = null; }
+        if (p.untilIntervalEnd) {                                                              // rest = what is left of the interval
+            var used = R.intervalStartedAt != null ? (now() - R.intervalStartedAt) / 1000 : 0;
+            p.durationSec = Math.max(0, Math.ceil(p.intervalSec - used));
+        }
         if (p.durationSec != null) { R.phaseEndsAt = now() + p.durationSec * 1000; R.remainingMs = null; }
         else                       { R.phaseEndsAt = null; R.remainingMs = null; }
         if (cb.onPhase) cb.onPhase(p, i);
@@ -238,6 +271,7 @@ function woCreateRunner(phases, cb, opts) {
         var p = phase();
         R.state = 'paused';
         R.pausedAt = now();
+        if (R.capEndsAt != null) R.capRemainingMs = Math.max(0, R.capEndsAt - now());
         if (p && p.durationSec != null) R.remainingMs = Math.max(0, R.phaseEndsAt - now());
         emitTick();
     };
@@ -245,7 +279,10 @@ function woCreateRunner(phases, cb, opts) {
     R.resume = function() {
         if (R.state !== 'paused') return;
         var p = phase();
-        R.pausedTotalMs += now() - R.pausedAt;
+        var pausedFor = now() - R.pausedAt;
+        if (R.intervalStartedAt != null) R.intervalStartedAt += pausedFor;                     // a pause doesn't use up the interval
+        if (R.capRemainingMs != null) { R.capEndsAt = now() + R.capRemainingMs; R.capRemainingMs = null; }
+        R.pausedTotalMs += pausedFor;
         R.pausedAt = null;
         R.state = 'running';
         if (p && p.durationSec != null) { R.phaseEndsAt = now() + R.remainingMs; R.remainingMs = null; }
@@ -292,6 +329,13 @@ function woCreateRunner(phases, cb, opts) {
 
     R.current      = phase;
     R.secondsLeft  = secondsLeft;
+    /** Seconds left on the work cap of the current work phase (null when it has none). */
+    R.capSecondsLeft = function() {
+        var p = phase();
+        if (!p || !(p.capSec > 0) || R.capEndsAt == null && R.capRemainingMs == null) return null;
+        if (R.state === 'paused') return Math.ceil((R.capRemainingMs || 0) / 1000);
+        return Math.max(0, Math.ceil((R.capEndsAt - now()) / 1000));
+    };
     R.nextWork     = function() { return woNextWork(R.phases, R.index); };
     R.elapsedMs    = function() {
         if (R.startedAt == null) return 0;
@@ -463,6 +507,7 @@ function _woRenderStartPage() {
             woStartLevelRowHtml(st, String(i), false) +
             _woStartPrecautionHtml(st) +
             (woHasTempo(st.tempo) ? '<div class="wo-rest-row"><span class="wo-rest-label">Tempo</span>' + _woEsc(woTempoText(st.tempo)) + '</div>' : '') +
+            (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Interval sets</span>' + _woEsc(woIntervalText(st.interval)) + '</div>' : '') +
             _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
@@ -805,8 +850,10 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
+        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
+    } else if (p.kind === 'rest' && p.restKind === 'interval') {
+        sub = 'Next set starts when the clock reaches zero';
     }
 
     // The centre: a countdown ring for timed phases, a big number for reps, a tap prompt for tap rests
@@ -823,6 +870,7 @@ function _woPlayerRender() {
                  (p.weight != null ? '<span class="wo-ring-weight">@ ' + p.weight + ' lb</span>' : '') + '</div></div>' +
                  ((selfMode || woNeedsActual(p)) ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
                              (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
+                 (p.capSec ? '<div class="wo-cap" id="woCap">Work time left: <strong id="woCapLeft"></strong></div>' : '') +
                  '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
                  (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
                            : (woNeedsActual(p) ? '<div class="wo-tap-hint">type how many you did, then tap DONE · say “done”</div>'
@@ -914,6 +962,13 @@ function _woPlayerUpdateLive(info) {
         fg.setAttribute('stroke-dashoffset', String(WO_RING_C * (1 - frac)));
     }
     if (txt && info.secondsLeft != null) txt.textContent = _woFmtClock(info.secondsLeft);
+
+    var capEl = document.getElementById('woCapLeft');                                   // interval sets: the work cap
+    if (capEl) {
+        var cl = R.capSecondsLeft();
+        capEl.textContent = cl == null ? '' : (cl > 0 ? woClockText(cl) : 'Time! Stop and enter your reps');
+        var capBox = document.getElementById('woCap'); if (capBox) capBox.classList.toggle('wo-cap--over', cl === 0);
+    }
 
     var bar = document.getElementById('woProgress');
     if (bar) bar.style.width = Math.round(100 * R.index / R.phases.length) + '%';

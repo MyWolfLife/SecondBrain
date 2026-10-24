@@ -93,6 +93,7 @@ function _woPhaseSpeech(p, ctx) {
         parts.push('Switch sides.');
     } else if (p.kind === 'rest') {
         parts.push('Rest.');
+        if (p.restKind === 'interval' && p.durationSec > 0) parts.push('Next set in ' + woSayClock(p.durationSec) + '.');
         var next = ctx.runner.nextWork();
         if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayPhase(next) + '.');
         if (p.durationSec == null) parts.push('Say ready, or tap, when you are ready.');
@@ -108,6 +109,7 @@ function _woPhaseSpeech(p, ctx) {
             _woV.tempoSaid = _woV.tempoSaid || {};
             if (!_woV.tempoSaid[tkey]) { _woV.tempoSaid[tkey] = true; line += ' ' + woTempoSpoken(p.tempo); }
         }
+        if (p.capSec > 0) line += ' Up to ' + woSayClock(p.capSec) + '.';
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);
     }
@@ -183,6 +185,11 @@ function woVoiceOnPhase(p, index, ctx) {
 
 function woVoiceOnTick(info, ctx) {
     var p = info.phase;
+    if (p && p.kind === 'work' && p.capSec > 0 && info.state === 'running' && !_woV.said.cap && ctx.runner.capSecondsLeft() === 0) {   // interval sets: work cap reached
+        _woV.said.cap = true;
+        woBeep(880, 400);
+        if (ctx.session.voiceCues) woSpeak('Time.');
+    }
     if (!p || info.state !== 'running' || info.secondsLeft == null || p.durationSec == null) return;
     var sec = info.secondsLeft;
     if (sec >= 1 && sec <= 3 && !_woV.said['b' + sec]) {          // 3-2-1 beeps

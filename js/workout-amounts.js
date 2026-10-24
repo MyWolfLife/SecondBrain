@@ -128,3 +128,50 @@ function woTempoRowHtml(st) {
 var WO_CATEGORIES = { push: 'Push', pull: 'Pull', core: 'Core', legs: 'Legs & glutes', full: 'Full body' };
 
 function woCategoryLabel(c) { return WO_CATEGORIES[c] || ''; }
+
+// ─── Interval sets (FormatsPlan.md, chunk F1) ─────────────────────────────────
+//
+// step.interval = { seconds, capSec|null } on an exercise step: every set starts on a fixed clock (e.g. every 3:00);
+// you go to failure or up to the work cap (the cap only beeps — you still type your reps), then rest for whatever is
+// left of the interval. The step's own "rest between sets" / "rest after" are not used.
+
+var WO_INTERVAL_DEFAULT = { seconds: 180, capSec: 90 };
+
+/** 180 → "3:00", 90 → "1:30", 45 → "0:45" */
+function woClockText(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+
+/** "3:00" → 180, "1:30" → 90, "45" → 45 (a plain number is seconds); NaN when it can't be read. */
+function woParseClock(text) {
+    var t = String(text || '').trim();
+    if (!t) return NaN;
+    var m = t.match(/^(\d+):(\d{1,2})$/);
+    if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    return /^\d+$/.test(t) ? parseInt(t, 10) : NaN;
+}
+
+/** "every 3:00, work cap 1:30" (empty when the step has no interval). */
+function woIntervalText(iv) {
+    if (!iv || !(iv.seconds > 0)) return '';
+    return 'every ' + woClockText(iv.seconds) + (iv.capSec > 0 ? ', work cap ' + woClockText(iv.capSec) : '');
+}
+
+/** "one minute thirty" style for the voice (digits are fine for the speech engine). */
+function woSayClock(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60, out = [];
+    if (m) out.push(m + (m === 1 ? ' minute' : ' minutes'));
+    if (s) out.push(s + (s === 1 ? ' second' : ' seconds'));
+    return out.join(' ');
+}
+
+/** The builder's interval row for an exercise step. */
+function woIntervalRowHtml(st) {
+    var iv = st.interval;
+    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Interval sets</span>' +
+        '<label class="wo-inline-check"><input type="checkbox" data-f="intervalOn"' + (iv ? ' checked' : '') + '> each set starts on a clock</label>' +
+        (iv ? ' every <input type="text" class="wo-clock-box" data-f="intervalSec" value="' + woClockText(iv.seconds) + '" placeholder="3:00"> · work cap ' +
+              '<input type="text" class="wo-clock-box" data-f="intervalCap" value="' + (iv.capSec ? woClockText(iv.capSec) : '') + '" placeholder="none"> <span class="wo-hint">min:sec</span>' : '') +
+        '</div>';
+}

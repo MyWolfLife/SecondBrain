@@ -1645,7 +1645,9 @@ function _woSetSeconds(st, set) {
 function woEstimateSeconds(steps) {
     var total = 0;
     (steps || []).forEach(function(st) {
-        if (st.type === 'exercise') {
+        if (st.type === 'exercise' && st.interval) {                       // interval sets: every set takes one interval
+            total += _woStepSets(st).length * st.interval.seconds;
+        } else if (st.type === 'exercise') {
             var sets = _woStepSets(st);
             sets.forEach(function(s, i) {
                 total += _woSetSeconds(st, s);
@@ -1925,6 +1927,7 @@ function _woRenderBuilder() {
                 '<div class="wo-frame-actions">' +
                     '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
                     '<button type="button" class="btn btn-secondary" id="wobAddCircuit">+ Add circuit</button>' +
+                    '<button type="button" class="btn btn-secondary" id="wobIntervalAll" title="Make every exercise an Interval Set (the book\'s 3-minute intervals)">⏱ Interval format</button>' +
                 '</div>' +
                 '<p class="wo-hint">Circuit = a group of exercises done one after another, then repeated for a number of rounds.</p>' +
             '</div>' +
@@ -1951,6 +1954,7 @@ function _woRenderBuilder() {
     });
     document.getElementById('wobSave').addEventListener('click', _woSaveWorkout);
     var sched = document.getElementById('wobSchedule'); if (sched) sched.addEventListener('click', function() { woOpenScheduleDialog(_woW.id, _woW.name); });
+    document.getElementById('wobIntervalAll').addEventListener('click', _woApplyIntervalFormat);
     var copy = document.getElementById('wobCopy');    if (copy) copy.addEventListener('click', _woCopyWorkout);
     var arch = document.getElementById('wobArchive'); if (arch) arch.addEventListener('click', _woArchiveWorkout);
     var del  = document.getElementById('wobDelete');  if (del)  del.addEventListener('click', _woDeleteWorkout);
@@ -2079,8 +2083,9 @@ function _woRenderSteps() {
                 (ex && woIsMultiLevel(ex) ? '<div class="wo-rest-row"><span class="wo-rest-label">Start at</span>' + woLevelSelectHtml(st, ex) + '</div>' : '') +
                 _woSetsEditor(st, false) +
                 woTempoRowHtml(st) +
-                _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
-                _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
+                woIntervalRowHtml(st) +
+                (st.interval ? '' : _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
+                                    _woRestEditor('Rest after exercise', 'restAfter', st.restAfter)) +
                 '<div class="wo-rest-row"><span class="wo-rest-label">Level-up (optional)</span>' +
                     'after <input type="number" min="1" data-f="levelUpAfter" placeholder="10" value="' + (st.levelUpAfter || '') + '"> sessions' +
                     (st.usesWeight ? ' · weight step <input type="number" min="0.5" step="0.5" data-f="weightStep" placeholder="5" value="' + (st.weightStep || '') + '"> lb' : '') +
@@ -2089,6 +2094,22 @@ function _woRenderSteps() {
         }).join('');
     }
     _woUpdateBuilderSummary();
+}
+
+/** ⏱ Interval format: every exercise step becomes an Interval Set — 3 sets, a range of 6–12 reps (timed: as long as you can), every 3:00, work cap 1:30. */
+function _woApplyIntervalFormat() {
+    var steps = _woW.steps.filter(function(s) { return s.type === 'exercise'; });
+    if (!steps.length) { alert('Add some exercises first.'); return; }
+    if (!confirm('Make every exercise an Interval Set?\n\nEach gets 3 sets (a range of 6–12 reps, or “as long as you can” for timed exercises), starting every 3:00 with a 1:30 work cap. Their current sets will be replaced. You can change any of it afterwards.')) return;
+    steps.forEach(function(st) {
+        var first = (st.sets && st.sets[0]) || {}, wt = first.weight != null ? first.weight : null;
+        st.sets = [0, 1, 2].map(function() {
+            return st.measure === 'time' ? { amount: first.amount || 30, weight: wt, failure: true } : { amount: 6, amountMax: 12, weight: wt };
+        });
+        st.interval = { seconds: WO_INTERVAL_DEFAULT.seconds, capSec: WO_INTERVAL_DEFAULT.capSec };
+        _woSyncBase(st);
+    });
+    _woRenderSteps();
 }
 
 function _woStepClick(ev) {
@@ -2139,6 +2160,19 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'intervalOn') {                                  // Interval sets: each set starts on a clock
+        if (inp.checked) st.interval = { seconds: WO_INTERVAL_DEFAULT.seconds, capSec: WO_INTERVAL_DEFAULT.capSec }; else delete st.interval;
+        _woUpdateBuilderSummary(); _woRenderSteps();
+        return;
+    }
+    if (f === 'intervalSec' || f === 'intervalCap') {
+        if (!st.interval) return;
+        var clk = woParseClock(inp.value);
+        if (f === 'intervalSec') { if (clk >= 10) st.interval.seconds = clk; }
+        else st.interval.capSec = clk > 0 ? clk : null;
+        _woUpdateBuilderSummary();
+        return;
+    }
     if (f === 'tempo') {                                       // Tempo row: seconds for lower / pause / lift / pause
         var tk = inp.getAttribute('data-t'), tv = parseFloat(inp.value);
         st.tempo = st.tempo || {};

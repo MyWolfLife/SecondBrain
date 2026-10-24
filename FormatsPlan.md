@@ -38,6 +38,8 @@ So the formats are built in an order that adds those two abilities one at a time
 
 **Day mode ("throughout the day"):** a format step just becomes its sets as a checklist (the clock features only apply in the guided player).
 
+**Status:** F1 built and tested (2026-10-24). F2–F6 to do.
+
 ## Chunks
 
 | # | Chunk | Done when |

@@ -21974,3 +21974,8 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-prec { margin: 4px 0 2px 32px; font-size: 0.82rem; color: #92400e; background: #fffbeb; border-radius: 6px; padding: 3px 8px; }
 .wo-item .wo-prec { margin: 0; }
 .wo-view-warn { color: #92400e; background: #fffbeb; border-radius: 6px; padding: 4px 8px; }
+
+/* Interval sets */
+.wo-clock-box { width: 64px; text-align: center; }
+.wo-cap { font-size: 1rem; margin: 8px 0 0; opacity: 0.95; }
+.wo-cap--over { color: #fecaca; font-weight: 700; }
