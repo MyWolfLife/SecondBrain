@@ -28,7 +28,7 @@ levels: [ { id, label, difficulty(1-4|null), instructions, equipment[], videoUrl
 - Level ids are short random strings (`'base'` for the original). Order in the array = difficulty order. Ids never change; labels and order can.
 
 ### 2b. `photos` (pictures; `targetType 'workoutExercise'`)
-New optional field `levelId`. Missing = the exercise's first level (`levels[0].id`, i.e. `'base'`). When an exercise becomes multi-level, existing frames are stamped `levelId:'base'` in one batch.
+New optional field `levelId`. Missing = the exercise's first level (`levels[0].id`, i.e. `'base'`). When an exercise becomes multi-level, existing frames are left as they are (missing `levelId` = `'base'` permanently, so no batch rewrite is needed).
 
 ### 2c. NEW personal collection `workoutMyLevels` (`userCol`, doc id = exerciseId)
 `{ levelId, updatedAt }`. Personal on purpose (the library may move to a shared space later; your level never should). Added to the `js/settings.js` backup list. Deleted with the exercise.
@@ -72,6 +72,8 @@ New optional `levelId`, `levelLabel` (a **snapshot**, so history stays readable 
 | `js/settings.js` | Add `workoutMyLevels` to backup list. |
 | `MyLife-Functional-Spec.md`, `AppHelp.md` | New "Exercise levels" section; screen help for exercise, workout, workout-start, workout-view, workout-run, workout-done, workout-exercise-history, workouts progression. |
 | `index.html`, `css/styles.css`, `sw.js` | New script tag, cache bumps, level tab/chip styles. |
+
+**Status (2026-10-24): L1 and L2 are built and tested in the preview.** Built extras: a *My level* line in the editor ("Make this level my level"), per-level tab names that update as you type, and archive/remove rules (a saved level is archived, only an unsaved new level can be removed). The View card already shows level tabs.
 
 ## 5. Chunks (each shippable and tested on its own)
 

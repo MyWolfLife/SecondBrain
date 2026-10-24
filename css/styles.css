@@ -21930,3 +21930,13 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-view-chip:hover { background: #e5e7eb; }
 .wo-view-step { margin-left: 4px; }
 .wo-view-chip--inline { margin-left: 2px; }
+
+/* Exercise levels (editor + view card) */
+.wo-level-wrap { margin: 6px 0 14px; }
+.wo-level-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.wo-level-tab { padding: 5px 12px; border: 1px solid #d1d5db; border-radius: 16px; background: #f9fafb; font-size: 0.85rem; cursor: pointer; color: #374151; }
+.wo-level-tab--on { background: #0f766e; border-color: #0f766e; color: #fff; }
+.wo-level-tab--off { opacity: 0.55; font-style: italic; }
+.wo-level-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.wo-level-box--multi { border-left: 3px solid #99f6e4; padding-left: 12px; margin-top: 8px; }
+.wo-view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }

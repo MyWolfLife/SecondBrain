@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (build):** Exercise levels **L1 (data layer) and L2 (editor level tabs, per-level pictures, View card tabs, list chip) are built and pushed**. Next: **L3 (steps: Start-at My level / pinned level in the builder)**, then L4–L8 per `ExerciseLevelsPlan.md`.
 > **2026-10-24 (plan):** `ExerciseLevelsPlan.md` is the agreed build plan for exercise levels (chunks L1–L8). Next: build L1 then L2 when the user says go. Formats, rep ranges, programs and import come after.
 > **2026-10-24:** the user supplied the YAYOG book. Read it and wrote `YAYOGAnalysis.md` (what the book does, gaps in our exercise/workout model, proposed block formats, programs, build order, open questions). Answer its §9 questions before changing the data model or importing anything.
 Discuss first, then build. Open questions already prepared:

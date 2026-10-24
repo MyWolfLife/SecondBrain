@@ -184,11 +184,14 @@ function _woAiApply(r) {
 
     (r.guesses || []).forEach(function(g) { if (g) notes.push('Guess: ' + String(g).trim()); });
     _woAi.notes = notes;
+    ex.levels = null; ex._levelsReady = false;      // the level editor rebuilds from these top-level fields
 }
 
 /** Before saving: any equipment name not yet on the list is added there (with the AI's description). */
 async function woAiBeforeSave() {
-    _woEdit.equipment.forEach(function(name) {
+    var names = [];
+    (_woEdit.levels || [{ equipment: _woEdit.equipment }]).forEach(function(l) { l.equipment.forEach(function(q) { if (names.indexOf(q) === -1) names.push(q); }); });
+    names.forEach(function(name) {
         if (_woFindEquipment(name)) return;
         var hit = _woAi.newEquip.filter(function(q) { return q.name === name; })[0];
         woAddEquipmentName(name, hit ? hit.description : '');

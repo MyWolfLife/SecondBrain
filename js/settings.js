@@ -908,7 +908,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'exerciseActivities', 'exerciseTypes', 'exerciseDailyMetrics', 'exerciseMetricDefs', 'exerciseGoals',
 
     // Workouts (Fitness → Workouts / Exercises)
-    'workoutMuscles', 'workoutExercises', 'workoutEquipment', 'workouts', 'workoutSessions', 'workoutMeta',
+    'workoutMuscles', 'workoutExercises', 'workoutEquipment', 'workoutMyLevels', 'workouts', 'workoutSessions', 'workoutMeta',
 
     // Private Vault (exported as ciphertext — useful for Firestore disaster recovery)
     'privateVault', 'privateBookmarks', 'privateDocuments', 'privatePhotoAlbums', 'privatePhotos'

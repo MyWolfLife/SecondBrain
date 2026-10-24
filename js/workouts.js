@@ -400,6 +400,7 @@ function _woRenderExerciseList() {
                    '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name wo-card-name--row">' + _woEsc(e.name) + ' ' + _woPushPullBadge(e.pushPull) +
+                           (woIsMultiLevel(e) ? ' <span class="wo-badge wo-badge--neither">' + woActiveLevelsOf(e).length + ' levels</span>' : '') +
                            (e.archived ? ' <span class="wo-badge wo-badge--archived">Archived</span>' : '') + '</div>' +
                        '<div class="wo-card-meta">' + _woEsc(meta) + equip + '</div>' +
                        '<div class="wo-chips">' + _woTargetChips(e.targets) + '</div>' +
@@ -420,8 +421,10 @@ async function loadWorkoutExercisePage(id) {
     el.innerHTML = '<div class="page-header"><h2>' + (isNew ? 'New Exercise' : 'Edit Exercise') + '</h2></div><div class="ex-status">Loading…</div>';
 
     try {
+        _woFramesFor = null;                       // frames are re-read for each editor visit
         await woLoadMuscles();
         await woLoadEquipment();
+        await woLoadMyLevels();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
                         usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', eachSide: false, equipment: [],
@@ -455,8 +458,7 @@ function _woRenderExerciseEditor() {
     var isNew = !e.id;
     var el    = document.getElementById('page-workout-exercise');
 
-    var allEquip = _woEquipment.map(function(q) { return q.name; });
-    e.equipment.forEach(function(q) { if (allEquip.indexOf(q) === -1) allEquip.push(q); });
+    _woEnsureLevels();                              // levels[] working copy (workout-level-editor.js)
 
     var targetsHtml = WO_AREAS.map(function(a) {
         var ms = _woMuscles.filter(function(m) { return m.area === a.id; });
@@ -535,38 +537,8 @@ function _woRenderExerciseEditor() {
                 '</div>' +
             '</div>' +
 
-            '<div class="collapsible-section wo-acc' + (isNew ? '' : ' collapsed') + '">' +
-                '<div class="collapsible-header wo-acc-head">' +
-                    '<span class="wo-acc-title">Equipment<span class="wo-acc-answer" id="woeEquipAnswer">' + _woEquipAnswerHtml() + '</span></span>' +
-                    '<span class="collapsible-chevron">▼</span>' +
-                '</div>' +
-                '<div class="collapsible-body">' +
-                '<div class="wo-chips" id="woeEquip">' +
-                    allEquip.map(function(q) {
-                        return '<button type="button" class="wo-chip-toggle" data-equip="' + _woEsc(q) + '" data-state="' +
-                               (e.equipment.indexOf(q) !== -1 ? 'main' : 'off') + '">' + _woEsc(q) + '</button>';
-                    }).join('') +
-                '</div>' +
-                '<div class="wo-add-equip"><input type="text" id="woeEquipNew" placeholder="Other equipment…" maxlength="40">' +
-                    '<button type="button" class="btn btn-secondary btn-small" id="woeEquipAdd">Add</button>' +
-                    '<button type="button" class="btn btn-secondary btn-small" id="woeEquipEdit">Edit</button></div>' +
-                '</div>' +
-            '</div>' +
-
-            '<div class="ex-form-group">' +
-                '<label class="ex-label" for="woeCues">How to do it / form cues</label>' +
-                '<textarea id="woeCues" class="wo-cues" rows="4" placeholder="One cue per line">' + _woEsc(e.instructions) + '</textarea>' +
-            '</div>' +
-
-            '<div class="ex-form-group">' +
-                '<label class="ex-label" for="woeVideo">Video link (optional)</label>' +
-                '<input type="url" class="wo-w-wide" id="woeVideo" value="' + _woEsc(e.videoUrl) + '" placeholder="https://…">' +
-            '</div>' +
-
-            '<div class="ex-form-group" id="woeFramesGroup">' +
-                '<label class="ex-label">Pictures</label>' +
-                '<p class="wo-hint">' + (isNew ? 'Add the exercise first — you will then be able to add the pictures that show the motion.' : 'Loading…') + '</p>' +
-            '</div>' +
+            // Levels, equipment, cues, video and pictures: drawn by woLevelGroupRender() (workout-level-editor.js)
+            '<div id="woeLevelGroup"></div>' +
 
             '<div class="ex-form-actions">' +
                 '<button type="button" class="btn btn-primary" id="woeSave">' + (isNew ? 'Add Exercise' : 'Save') + '</button>' +
@@ -580,7 +552,7 @@ function _woRenderExerciseEditor() {
 
     if (isNew && typeof woAiRenderBox === 'function') woAiRenderBox();
     _woUpdateAmountLabel();
-    _woRememberCuesSize();
+    woLevelGroupRender();
     el.querySelectorAll('.wo-acc-head').forEach(function(h) {
         h.addEventListener('click', function() { h.parentNode.classList.toggle('collapsed'); });
     });
@@ -589,39 +561,29 @@ function _woRenderExerciseEditor() {
     });
 
     el.querySelectorAll('input[name="woeMeasure"]').forEach(function(r) {
-        r.addEventListener('change', function() { _woEdit.measure = this.value; _woUpdateAmountLabel(); });
+        r.addEventListener('change', function() {
+            _woEdit.measure = this.value; _woUpdateAmountLabel();
+            if (_woEdit.levels.length > 1) { _woSyncActiveLevel(); woLevelGroupRender(); }
+        });
     });
     document.getElementById('woeUsesWeight').addEventListener('change', function() {
         document.getElementById('woeWeightRow').classList.toggle('hidden', !this.checked);
+        _woEdit.usesWeight = this.checked;
+        if (_woEdit.levels.length > 1) { _woSyncActiveLevel(); woLevelGroupRender(); }
     });
 
     // Target chips: off → ★ main → also → off
     el.querySelectorAll('.wo-chip-toggle[data-muscle]').forEach(function(btn) {
         btn.addEventListener('click', function() { _woCycleTarget(this); });
     });
-    // Equipment chips: on / off
-    el.querySelectorAll('.wo-chip-toggle[data-equip]').forEach(function(btn) {
-        btn.addEventListener('click', function() { _woToggleEquip(this); });
-    });
-    document.getElementById('woeEquipAdd').addEventListener('click', _woAddCustomEquip);
-    document.getElementById('woeEquipEdit').addEventListener('click', woOpenEquipmentManager);
-    document.getElementById('woeEquipNew').addEventListener('keydown', function(ev) {
-        if (ev.key === 'Enter') { ev.preventDefault(); _woAddCustomEquip(); }
-    });
-
     document.getElementById('woeSave').addEventListener('click', _woSaveExercise);
     var arch = document.getElementById('woeArchive');
     if (arch) arch.addEventListener('click', _woArchiveExercise);
     var del = document.getElementById('woeDelete');
     if (del) del.addEventListener('click', _woDeleteExercise);
 
-    // Pictures (existing exercises only — a new one has no id to attach frames to yet)
+    // Pictures are loaded by woLevelGroupRender() (existing exercises only — a new one has no id to attach frames to yet)
     if (!isNew) {
-        _woLoadFrames().then(_woRenderFrames).catch(function(err) {
-            console.error('Workouts: failed to load frames:', err);
-            var g = document.getElementById('woeFramesGroup');
-            if (g) g.innerHTML = '<label class="ex-label">Pictures</label><p class="wo-hint">Could not load pictures.</p>';
-        });
         if (_woJustAdded) {
             _woJustAdded = false;
             var banner = document.createElement('div');
@@ -843,7 +805,7 @@ function _woRenderEquipmentForm(id) {
             await _woChangeEquipmentOnExercises(used, item.name, null);
             await woLibCol('workoutEquipment').doc(item.id).delete();
             _woEquipment = _woEquipment.filter(function(q) { return q.id !== item.id; });
-            if (_woEdit) _woEdit.equipment = _woEdit.equipment.filter(function(q) { return q !== item.name; });
+            _woEditApplyEquipChange(item.name, null);
             _woRebuildEquipChips();
             _woRenderEquipmentList('✓ Deleted' + (used.length ? ' and removed from ' + used.length + ' exercise' + (used.length === 1 ? '' : 's') : '') + '.');
         } catch (err) {
@@ -861,7 +823,7 @@ async function _woSaveEquipmentEdit(item, name, desc) {
         await woLoadExercises();
         var used = _woExercises.filter(function(e) { return (e.equipment || []).indexOf(oldName) !== -1; });
         await _woChangeEquipmentOnExercises(used, oldName, name);
-        if (_woEdit) _woEdit.equipment = _woEdit.equipment.map(function(q) { return q === oldName ? name : q; });
+        _woEditApplyEquipChange(oldName, name);
     }
     await woLibCol('workoutEquipment').doc(item.id).update({ name: name, description: desc });
     item.name = name; item.description = desc;
@@ -902,6 +864,7 @@ async function _woSaveExercise() {
     if (!name) { alert('Please enter a name for the exercise.'); document.getElementById('woeName').focus(); return; }
 
     if (typeof woAiBeforeSave === 'function') await woAiBeforeSave();     // new equipment from Describe-it joins the list
+    var lvs = woCollectLevelsForSave();                                   // mirror fields + levels[] (workout-level-editor.js)
 
     var amount = parseInt(document.getElementById('woeAmount').value, 10);
     var usesWeight = document.getElementById('woeUsesWeight').checked;
@@ -910,7 +873,7 @@ async function _woSaveExercise() {
 
     var data = {
         name:          name,
-        instructions:  document.getElementById('woeCues').value.trim(),
+        instructions:  lvs.instructions,
         measure:       _woEdit.measure,
         defaultAmount: isNaN(amount) ? null : amount,
         usesWeight:    usesWeight,
@@ -918,12 +881,15 @@ async function _woSaveExercise() {
         sideMode:      document.getElementById('woeSideMode').value,
         startSide:     document.getElementById('woeStartSide').value,
         eachSide:      document.getElementById('woeSideMode').value === 'each',
-        equipment:     _woEdit.equipment,
+        equipment:     lvs.equipment,
         targets:       _woEdit.targets,
         pushPull:      document.getElementById('woePushPull').value,
-        videoUrl:      document.getElementById('woeVideo').value.trim(),
+        videoUrl:      lvs.videoUrl,
         archived:      !!_woEdit.archived
     };
+
+    if (lvs.levels) data.levels = lvs.levels;
+    else if (_woEdit.id) data.levels = firebase.firestore.FieldValue.delete();   // back to a single level
 
     var btn = document.getElementById('woeSave');
     btn.disabled = true;
@@ -981,6 +947,7 @@ async function _woDeleteExercise() {
         frames.forEach(function(d) { batch.delete(d.ref); });
         batch.delete(woLibCol('workoutExercises').doc(_woEdit.id));
         await batch.commit();
+        woClearMyLevel(_woEdit.id);
         location.hash = '#workout-exercises';
     } catch (err) {
         console.error('Workouts: delete exercise failed:', err);
@@ -998,7 +965,8 @@ var WO_FRAME_MAX_DIM    = 720;      // px, longest side
 var WO_FRAME_MAX_BASE64 = 150000;   // ~110 KB — several frames per exercise stay light
 var WO_FLIP_MS          = 800;      // flipbook speed (ms per frame)
 
-var _woFrames    = [];     // [{id, imageData, frameOrder}] in display order
+var _woFrames    = [];     // [{id, imageData, frameOrder, levelId}] in display order (all levels)
+var _woFramesFor = null;   // exercise id the frames above were loaded for
 var _woFlipTimer = null;
 
 async function _woLoadFrames() {
@@ -1007,9 +975,10 @@ async function _woLoadFrames() {
         .where('targetId', '==', _woEdit.id).get();
     _woFrames = snap.docs.map(function(d) {
         var p = d.data();
-        return { id: d.id, imageData: p.imageData, frameOrder: p.frameOrder || 0 };
+        return { id: d.id, imageData: p.imageData, frameOrder: p.frameOrder || 0, levelId: p.levelId || null };
     });
     _woFrames.sort(function(a, b) { return a.frameOrder - b.frameOrder; });
+    _woFramesFor = _woEdit.id;
 }
 
 function _woRenderFrames() {
@@ -1017,13 +986,14 @@ function _woRenderFrames() {
     if (!group) return;
     clearInterval(_woFlipTimer);
 
-    var strip = _woFrames.map(function(f, i) {
+    var frames = _woLevelFrames();
+    var strip = frames.map(function(f, i) {
         return '<div class="wo-frame">' +
                    '<img src="' + f.imageData + '" alt="Frame ' + (i + 1) + '">' +
                    '<div class="wo-frame-num">' + (i + 1) + '</div>' +
                    '<div class="wo-frame-btns">' +
                        '<button type="button" class="wo-frame-btn" data-act="left"  data-id="' + f.id + '"' + (i === 0 ? ' disabled' : '') + ' title="Move earlier">◀</button>' +
-                       '<button type="button" class="wo-frame-btn" data-act="right" data-id="' + f.id + '"' + (i === _woFrames.length - 1 ? ' disabled' : '') + ' title="Move later">▶</button>' +
+                       '<button type="button" class="wo-frame-btn" data-act="right" data-id="' + f.id + '"' + (i === frames.length - 1 ? ' disabled' : '') + ' title="Move later">▶</button>' +
                        '<button type="button" class="wo-frame-btn" data-act="crop" data-id="' + f.id + '" title="Crop this picture">✂</button>' +
                        '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" data-id="' + f.id + '" title="Delete frame">✕</button>' +
                    '</div>' +
@@ -1032,7 +1002,7 @@ function _woRenderFrames() {
 
     group.innerHTML =
         '<label class="ex-label">Pictures <span class="wo-hint">2–4 frames that show the motion: start, middle, end</span></label>' +
-        (_woFrames.length
+        (frames.length
             ? '<div class="wo-flip-wrap"><img id="woeFlip" class="wo-flip" alt="Preview"><div class="wo-hint">Preview — how the player will show it</div></div>' +
               '<div class="wo-frame-strip">' + strip + '</div>'
             : '<p class="wo-hint">No pictures yet.</p>') +
@@ -1062,16 +1032,17 @@ function _woRenderFrames() {
 
 /** Cycles the preview <img> through the frames; stops itself when the page is left. */
 function _woStartFlipbook() {
+    var frames = _woLevelFrames();
     var img = document.getElementById('woeFlip');
-    if (!img || !_woFrames.length) return;
+    if (!img || !frames.length) return;
     var i = 0;
-    img.src = _woFrames[0].imageData;
-    if (_woFrames.length < 2) return;
+    img.src = frames[0].imageData;
+    if (frames.length < 2) return;
     _woFlipTimer = setInterval(function() {
         var el = document.getElementById('woeFlip');
         if (!el) { clearInterval(_woFlipTimer); return; }
-        i = (i + 1) % _woFrames.length;
-        el.src = _woFrames[i].imageData;
+        i = (i + 1) % frames.length;
+        el.src = frames[i].imageData;
     }, WO_FLIP_MS);
 }
 
@@ -1147,17 +1118,19 @@ async function woAddFrameData(dataUrl) {
         imageData:  dataUrl,
         caption:    '',
         frameOrder: next,
+        levelId:    _woActiveLevelId(),
         createdAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
-    _woFrames.push({ id: ref.id, imageData: dataUrl, frameOrder: next });
+    _woFrames.push({ id: ref.id, imageData: dataUrl, frameOrder: next, levelId: _woActiveLevelId() });
     await _woAfterFramesChanged();
 }
 
 async function _woMoveFrame(id, dir) {
-    var i = _woFrames.findIndex(function(f) { return f.id === id; });
+    var list = _woLevelFrames();
+    var i = list.findIndex(function(f) { return f.id === id; });
     var j = i + dir;
-    if (i < 0 || j < 0 || j >= _woFrames.length) return;
-    var a = _woFrames[i], b = _woFrames[j];
+    if (i < 0 || j < 0 || j >= list.length) return;
+    var a = list[i], b = list[j];
     try {
         var batch = db.batch();
         batch.update(woLibCol('photos').doc(a.id), { frameOrder: b.frameOrder });
@@ -1208,7 +1181,10 @@ async function _woDeleteFrame(id) {
 /** Keeps the exercise's list thumbnail in sync with its first frame, then redraws. */
 async function _woAfterFramesChanged() {
     try {
-        var thumb = _woFrames.length ? await _compressToThumb(_woFrames[0].imageData) : null;
+        var firstId = _woEdit.levels ? _woEdit.levels[0].id : WO_BASE_LEVEL_ID;
+        var thumbFrame = (_woEdit.levels && _woEdit.levels.length > 1)
+            ? (_woFrames.filter(function(f) { return woFrameLevelId(f) === firstId; })[0] || _woFrames[0]) : _woFrames[0];
+        var thumb = thumbFrame ? await _compressToThumb(thumbFrame.imageData) : null;
         await woLibCol('workoutExercises').doc(_woEdit.id).update({
             thumbData: thumb !== null ? thumb : firebase.firestore.FieldValue.delete()
         });
