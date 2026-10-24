@@ -164,3 +164,23 @@ function woLevelSelectHtml(st, ex) {
     });
     return '<select class="wo-level-select" data-f="levelSel" title="Which version of this exercise to start at">' + opts + '</select>';
 }
+
+// ─── Player and saving (chunk L5) ─────────────────────────────────────────────
+
+/** Timeline phases and set lines carry levelId / levelLabel (absent for one-level exercises). */
+
+/** Key for a phase's pictures: "exerciseId|levelId" for a level, plain exerciseId otherwise. */
+function woPhaseFramesKey(p) { return p.levelId ? p.exerciseId + '|' + p.levelId : p.exerciseId; }
+
+/** What the voice says for a phase: "Push-up, Chair". */
+function woSpokenName(p) { return p.exerciseName + (p.levelLabel ? ', ' + p.levelLabel : ''); }
+
+/** On-screen name for a set line or phase: "Push-up · Chair". */
+function woLineName(p) { return p.exerciseName + (p.levelLabel ? ' · ' + p.levelLabel : ''); }
+
+/** Fields to add to a manually added line for an exercise (my level for a multi-level one). */
+function woLevelFieldsFor(ex) {
+    if (!ex || !woIsMultiLevel(ex)) return {};
+    var lv = woResolveLevel({}, ex), idx = woLevelsOf(ex).findIndex(function(l) { return l.id === lv.id; });
+    return { levelId: lv.id, levelLabel: woLevelDisplay(lv, idx) };
+}

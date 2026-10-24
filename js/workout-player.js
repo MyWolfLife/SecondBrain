@@ -36,6 +36,7 @@ function _woSetPhases(st, set, ctx) {
             measure: st.measure, amount: amount, weight: weight,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
+            levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
             restKind: null,
             durationSec: (st.measure === 'time' && !ctx.allTap) ? amount : null,
             tap: st.measure !== 'time' || !!ctx.allTap
@@ -45,6 +46,7 @@ function _woSetPhases(st, set, ctx) {
                        stepIndex: ctx.stepIndex, itemIndex: ctx.itemIndex, exerciseId: st.exerciseId,
                        exerciseName: st.exerciseName, measure: st.measure, amount: null, weight: null,
                        setIndex: ctx.setIndex, setCount: ctx.setCount, round: ctx.round, rounds: ctx.rounds,
+                       levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
                        side: null, restKind: null, durationSec: WO_SWITCH_SEC, tap: false });
         }
     });
@@ -668,18 +670,31 @@ async function _woPlayerLoadFrames() {
     snap.docs.forEach(function(d) {
         var p = d.data();
         if (!ids[p.targetId]) return;
-        var fex = _woExMap[p.targetId];                       // multi-level: only my level's pictures (per-step levels arrive in a later chunk)
-        if (fex && woIsMultiLevel(fex) && woFrameLevelId(p) !== woResolveLevel({}, fex).id) return;
-        (byEx[p.targetId] = byEx[p.targetId] || []).push({ order: p.frameOrder || 0, data: p.imageData });
+        var fex = _woExMap[p.targetId];
+        var key = fex && woIsMultiLevel(fex) ? p.targetId + '|' + woFrameLevelId(p) : p.targetId;     // pictures are kept per level
+        (byEx[key] = byEx[key] || []).push({ order: p.frameOrder || 0, data: p.imageData });
     });
     Object.keys(byEx).forEach(function(k) {
         byEx[k].sort(function(a, b) { return a.order - b.order; });
         _woP.frames[k] = byEx[k].map(function(f) { return f.data; });
     });
+    // A level with no pictures of its own borrows the nearest level that has some
+    Object.keys(ids).forEach(function(exId) {
+        var ex = _woExMap[exId];
+        if (!ex || !woIsMultiLevel(ex)) return;
+        var lv = woLevelsOf(ex);
+        lv.forEach(function(l, i) {
+            if (l.archived || _woP.frames[exId + '|' + l.id]) return;
+            for (var d = 1; d < lv.length; d++) {
+                var near = [lv[i - d], lv[i + d]].filter(function(x) { return x && _woP.frames[exId + '|' + x.id]; })[0];
+                if (near) { _woP.frames[exId + '|' + l.id] = _woP.frames[exId + '|' + near.id]; return; }
+            }
+        });
+    });
 }
 
 /** One <img> (or the 🤸 placeholder) that the flip timer cycles through the exercise's frames. */
-function _woFlipHtml(exerciseId, cls) {
+function _woFlipHtml(exerciseId, cls) {   // exerciseId is really the frames key (see woPhaseFramesKey)
     var fr = _woP.frames[exerciseId];
     if (!fr || !fr.length) return '<div class="wo-flip-ph ' + cls + '">🤸</div>';
     return '<img class="wo-flipbook ' + cls + '" data-ex="' + exerciseId + '" data-i="0" src="' + fr[0] + '" alt="">';
@@ -750,7 +765,7 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [_woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : ''].filter(Boolean);
+        var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     }
 
@@ -781,15 +796,15 @@ function _woPlayerRender() {
     // UP NEXT (rest / switch / get-ready screens)
     var upnext = '';
     if (p.kind !== 'work' && next) {
-        var nb = [_woSetText(next), _woSideText(next), _woWorkText(next)].filter(Boolean).join(' · ');
-        upnext = '<div class="wo-upnext"><div class="wo-upnext-media">' + _woFlipHtml(next.exerciseId, 'wo-upnext-img') + '</div>' +
+        var nb = [next.levelLabel, _woSetText(next), _woSideText(next), _woWorkText(next)].filter(Boolean).join(' · ');
+        upnext = '<div class="wo-upnext"><div class="wo-upnext-media">' + _woFlipHtml(woPhaseFramesKey(next), 'wo-upnext-img') + '</div>' +
                  '<div><div class="wo-upnext-label">UP NEXT</div><div class="wo-upnext-name">' + _woEsc(next.exerciseName) + '</div>' +
                  '<div class="wo-upnext-meta">' + _woEsc(nb) + '</div></div></div>';
     }
 
     var showSection = p.section && p.section !== 'main';
-    var media = p.kind === 'work' ? '<div class="wo-player-media">' + _woFlipHtml(p.exerciseId, 'wo-hero-img') + '</div>'
-              : (p.kind === 'switch' && p.exerciseId ? '<div class="wo-player-media">' + _woFlipHtml(p.exerciseId, 'wo-hero-img') + '</div>' : '');
+    var media = p.kind === 'work' ? '<div class="wo-player-media">' + _woFlipHtml(woPhaseFramesKey(p), 'wo-hero-img') + '</div>'
+              : (p.kind === 'switch' && p.exerciseId ? '<div class="wo-player-media">' + _woFlipHtml(woPhaseFramesKey(p), 'wo-hero-img') + '</div>' : '');
 
     el.innerHTML =
         '<div class="wo-player ' + cls + '" id="woPlayer">' +
@@ -939,6 +954,7 @@ function woSetLinesFromRun(phases, results) {
         var r = byIndex[i], done = !!(r && r.status === 'done');
         lines.push({
             exerciseId: p.exerciseId, exerciseName: p.exerciseName, measure: p.measure,
+            levelId: p.levelId || null, levelLabel: p.levelLabel || null,                    // multi-level exercises only
             stepIndex: p.stepIndex, itemIndex: p.itemIndex == null ? null : p.itemIndex,   // which workout step this came from (progression)
             section: p.section || 'main', side: p.side || null,
             targetAmount: p.amount, targetWeight: p.weight,

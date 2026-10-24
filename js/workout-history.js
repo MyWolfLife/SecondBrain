@@ -54,19 +54,19 @@ function woPRsHtml(prs) {
 }
 
 /**
- * Set numbers are not stored — they follow line order. Each exercise counts its own sets;
+ * Set numbers are not stored — they follow line order. Each exercise (and level) counts its own sets;
  * the right-hand line of a left/right pair belongs to the same set as the left one.
  */
 function woSetNumbers(sets) {
     var counts = {}, out = [], firstSide = {};
     sets.forEach(function(s, i) {
-        var prev = sets[i - 1];
-        if (s.side && !firstSide[s.exerciseId]) firstSide[s.exerciseId] = s.side;       // the side this exercise starts with
-        // the second line of a pair: same exercise, previous line was the starting side, this one is the other side
-        var secondSide = prev && prev.exerciseId === s.exerciseId && prev.side && prev.side === firstSide[s.exerciseId] && s.side && s.side !== prev.side;
+        var prev = sets[i - 1], key = woRecordKey(s);                                    // each exercise AND level counts its own sets
+        if (s.side && !firstSide[key]) firstSide[key] = s.side;                          // the side this exercise starts with
+        // the second line of a pair: same exercise and level, previous line was the starting side, this one is the other side
+        var secondSide = prev && woRecordKey(prev) === key && prev.side && prev.side === firstSide[key] && s.side && s.side !== prev.side;
         if (secondSide) { out.push(out[i - 1]); return; }
-        counts[s.exerciseId] = (counts[s.exerciseId] || 0) + 1;
-        out.push(counts[s.exerciseId]);
+        counts[key] = (counts[key] || 0) + 1;
+        out.push(counts[key]);
     });
     return out;
 }
@@ -176,7 +176,7 @@ function _woRenderDoneLines() {
             var unit = s.measure === 'time' ? 'sec' : 'reps';
             var showWeight = s.measure !== 'time' && (s.targetWeight != null || s.actualWeight != null || (ex && ex.usesWeight));
             var skipped = !!s.skipped || s.actualAmount == null;
-            var label = _woEsc(s.exerciseName) + ' <span class="wo-line-set">Set ' + nums[i] + (s.side ? ' · ' + s.side : '') + '</span>';
+            var label = _woEsc(woLineName(s)) + ' <span class="wo-line-set">Set ' + nums[i] + (s.side ? ' · ' + s.side : '') + '</span>';
             return '<div class="wo-line' + (skipped ? ' wo-line--skipped' : '') + '" data-i="' + i + '">' +
                 '<span class="wo-step-btns wo-line-btns">' +
                     '<button type="button" class="wo-frame-btn" data-act="up" title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
@@ -241,14 +241,14 @@ function _woDoneLineInput(ev) {
 
 function _woDoneAddLine() {
     _woOpenExercisePicker(null, function(ex) {
-        _woD.sets.push({
+        _woD.sets.push(Object.assign({
             exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
             section: 'main', side: null,
             targetAmount: null, targetWeight: null,
             actualAmount: ex.defaultAmount != null ? ex.defaultAmount : (ex.measure === 'time' ? 30 : 10),
             actualWeight: ex.usesWeight && ex.defaultWeight != null ? ex.defaultWeight : null,
             doneAt: new Date().toISOString(), skipped: false, manual: true
-        });
+        }, woLevelFieldsFor(ex)));
         _woD.dirty = true;
         _woRenderDoneLines();
         var rows = document.querySelectorAll('.wo-line');
@@ -480,9 +480,10 @@ async function woRenderActivityWorkoutSummary(el, activityId, act) {
     // Compact list: each exercise once (in order) with the sets that were done
     var order = [], byEx = {};
     (w.sets || []).forEach(function(s) {
-        if (!byEx[s.exerciseId]) { byEx[s.exerciseId] = { name: s.exerciseName, parts: [] }; order.push(s.exerciseId); }
+        var key = woRecordKey(s);                                   // one entry per exercise AND level
+        if (!byEx[key]) { byEx[key] = { name: woLineName(s), parts: [] }; order.push(key); }
         if (s.skipped || s.actualAmount == null) return;
-        byEx[s.exerciseId].parts.push(woFmtAmount(s.measure, s.actualAmount, s.actualWeight) + (s.side ? ' (' + s.side + ')' : ''));
+        byEx[key].parts.push(woFmtAmount(s.measure, s.actualAmount, s.actualWeight) + (s.side ? ' (' + s.side + ')' : ''));
     });
     var list = order.map(function(id) {
         var e = byEx[id];

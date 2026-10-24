@@ -80,17 +80,17 @@ function _woPhaseSpeech(p, ctx) {
     if (p.kind === 'getready') {
         var first = ctx.runner.nextWork();
         parts.push('Get ready.');
-        if (first) parts.push('First up: ' + first.exerciseName + '.');
+        if (first) parts.push('First up: ' + woSpokenName(first) + '.');
     } else if (p.kind === 'switch') {
         parts.push('Switch sides.');
     } else if (p.kind === 'rest') {
         parts.push('Rest.');
         var next = ctx.runner.nextWork();
-        if (next) parts.push('Up next: ' + next.exerciseName + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayAmount(next.measure, next.amount, next.weight) + '.');
+        if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayAmount(next.measure, next.amount, next.weight) + '.');
         if (p.durationSec == null) parts.push('Say ready, or tap, when you are ready.');
     } else if (p.kind === 'work') {
         if (p.round && p.itemIndex === 0) parts.push('Round ' + p.round + ' of ' + p.rounds + '.');
-        var line = p.exerciseName + '.';
+        var line = woSpokenName(p) + '.';
         if (p.side) line += ' ' + (p.side === 'left' ? 'Left' : 'Right') + ' side.';
         if (!p.round && p.setCount > 1) line += ' Set ' + (p.setIndex + 1) + ' of ' + p.setCount + '.';
         if (p.sideMode === 'alternate') line += ' Alternate sides.';

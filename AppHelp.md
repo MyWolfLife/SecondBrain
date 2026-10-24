@@ -4768,6 +4768,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Your workout for today as a checklist — do the sets whenever you like.
 
 ### Quick Help
+- Exercises with levels show the level you chose on the Start screen next to their name in the checklist
 - Tap the circle next to a set when you finish it. Change the reps or weight first if you did something different. Tap a ticked circle to undo it
 - Close this screen and come back later — even from another device, your ticks are saved
 - When you're done tap **Finish workout** (sets you didn't do are logged as skipped). **Discard** throws the whole workout away
@@ -4912,6 +4913,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- For exercises with levels (easier or harder versions), the screen shows which level you are on (for example “Chair”) under the exercise name, shows that level's pictures, and speaks it (“Push-up, Chair”). If a level has no pictures yet, it shows the nearest level that does
 - The **colour** tells you where you are: teal = exercise, blue = rest, amber = get ready, purple = switch sides
 - In **Self-paced** mode every exercise waits for you: type what you actually did (if different) and tap **DONE**
 - **Timed** exercises count down by themselves. **Reps** exercises wait — tap **DONE** (or tap anywhere on the screen) when you finish the set
@@ -4932,6 +4934,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
+- Exercises with levels list the level you did next to the name (for example “Push-up · Chair”). Sets are numbered separately for each level, and any line you add yourself uses your current level
 - Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**
 - Enter **Calories burned** from your watch — Save sends the calories, time and date to the matching Activity too
 - **Sets**: change any reps/seconds or weight, tap 🗑 to remove a line, **↑ ↓** to reorder, **+ Add line** to add an exercise you did that wasn't in the workout. Set numbers update by themselves

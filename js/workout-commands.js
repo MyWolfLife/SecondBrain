@@ -92,7 +92,7 @@ function _woCmdApply(action, ctx) {
         case 'repeat':    woSpeak(_woRepeatSpeech(p, ctx)); return true;
         case 'whats_next': {
             var next = R.nextWork();
-            woSpeak(next ? 'Next: ' + next.exerciseName + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayAmount(next.measure, next.amount, next.weight) + '.'
+            woSpeak(next ? 'Next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayAmount(next.measure, next.amount, next.weight) + '.'
                          : 'That is the last one.');
             return true;
         }
