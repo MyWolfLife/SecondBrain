@@ -96,7 +96,7 @@ async function _woAiAsk(text) {
         '  "weight": number | null (pounds, only if the description gives one),\n' +
         '  "sideMode": "both" | "each" | "alternate" (both = both sides together; each = one side then the other; alternate = swapping sides every rep),\n' +
         '  "startSide": "left" | "right",\n' +
-        '  "pushPull": "push" | "pull" | "both" | "neither",\n' +
+        '  "pushPull": "push" | "pull" | "both" | "neither" (REQUIRED, lowercase, always decide: push = pressing or extending away from the body such as push-ups, dips, presses, triceps work; pull = pulling toward the body such as rows, curls, pull-ups, back extensions; use "neither" only for legs-only, core-only or cardio moves),\n' +
         '  "equipment": [names taken exactly from the EQUIPMENT list that the exercise uses],\n' +
         '  "newEquipment": [{ "name": string, "description": string }] (ONLY equipment the description needs that is truly not in the EQUIPMENT list; match loosely first, e.g. "nordic pole" = "Nordic Stick"; "description" is one short sentence, and say you are guessing if you do not know what it is),\n' +
         '  "muscles": [{ "id": string from the MUSCLE list, "main": boolean }] (main = ONLY the 1 to 3 muscles that do most of the work; everything else that merely braces or assists is main:false. Think about which muscles actually move the body in this exact movement. Abs are main only for trunk curls or crunch-type moves; a sideways or side-lying torso lift is a side bend, so obliques and lower back are main and abs are a helper at most),\n' +
@@ -135,7 +135,9 @@ function _woAiApply(r) {
     ex.sideMode = ['both', 'each', 'alternate'].indexOf(r.sideMode) !== -1 ? r.sideMode : 'both';
     ex.eachSide = ex.sideMode === 'each';
     ex.startSide = r.startSide === 'right' ? 'right' : 'left';
-    ex.pushPull = WO_PUSHPULL[r.pushPull] ? r.pushPull : 'neither';
+    var pp = String(r.pushPull || '').trim().toLowerCase();             // tolerate "Push", " pull " ...
+    if (WO_PUSHPULL[pp]) ex.pushPull = pp;
+    else { ex.pushPull = 'neither'; notes.push('The AI did not say push or pull - choose it below.'); console.warn('Describe-it: unusable pushPull value:', r.pushPull); }
     ex.instructions = (Array.isArray(r.cues) ? r.cues : String(r.cues || '').split('\n'))
         .map(function(c) { return String(c).trim(); }).filter(Boolean).join('\n');
 
