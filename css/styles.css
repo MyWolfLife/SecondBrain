@@ -21940,3 +21940,7 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-level-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
 .wo-level-box--multi { border-left: 3px solid #99f6e4; padding-left: 12px; margin-top: 8px; }
 .wo-view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+
+/* Start-at level dropdown on workout steps */
+.wo-level-select { max-width: 220px; font-size: 0.85rem; }
+.wo-item .wo-level-select { margin-left: 6px; }

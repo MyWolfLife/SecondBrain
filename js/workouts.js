@@ -1786,10 +1786,14 @@ function _woCloneSets(sets) { return (sets || []).map(function(s) { return { amo
 /** New exercise step from a library exercise, using its defaults. In a circuit it has one set and no rests. */
 function _woNewStep(ex, inCircuit) {
     var count = inCircuit ? 1 : WO_DEFAULT_SETS;
+    var multi = woIsMultiLevel(ex);
+    var lv = multi ? woResolveLevel({}, ex) : null;                 // my level supplies the starting numbers
+    var amt = lv && lv.defaultAmount != null ? lv.defaultAmount : ex.defaultAmount;
+    var wgt = lv && lv.defaultWeight != null ? lv.defaultWeight : ex.defaultWeight;
     var sets = [];
     for (var i = 0; i < count; i++) {
-        sets.push({ amount: ex.defaultAmount != null ? ex.defaultAmount : (ex.measure === 'time' ? 30 : 10),
-                    weight: ex.usesWeight && ex.defaultWeight != null ? ex.defaultWeight : null });
+        sets.push({ amount: amt != null ? amt : (ex.measure === 'time' ? 30 : 10),
+                    weight: ex.usesWeight && wgt != null ? wgt : null });
     }
     var st = {
         type: 'exercise', section: 'main',
@@ -1800,6 +1804,7 @@ function _woNewStep(ex, inCircuit) {
         restAfter:       inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_AFTER),
         successStreak: 0, lastDoneDate: null, previousBestSets: null, comeback: null
     };
+    if (multi) st.levelMode = 'mine';
     if (inCircuit) delete st.section;
     return st;
 }
@@ -1828,6 +1833,7 @@ async function loadWorkoutBuilderPage(id) {
     try {
         await woLoadMuscles();
         await woLoadExercises();
+        await woLoadMyLevels();
         if (isNew) {
             _woW = { id: null, name: '', description: '', steps: [], archived: false };
         } else {
@@ -1837,6 +1843,7 @@ async function loadWorkoutBuilderPage(id) {
             _woW.id = doc.id;
             _woW.steps = JSON.parse(JSON.stringify(_woW.steps || []));   // deep copy — edits stay local until Save
             woSyncSideModes(_woW.steps);
+            _woW._levelFixes = woSyncLevelModes(_woW.steps);   // pinned levels that were archived/removed move to the nearest easier one
         }
     } catch (err) {
         console.error('Workouts: failed to load workout:', err);
@@ -1864,6 +1871,8 @@ function _woRenderBuilder() {
                 '<label class="ex-label">Exercises</label>' +
                 '<div id="wobSummary" class="wo-builder-summary"></div>' +
                 '<div id="wobHint" class="wo-hint-box hidden"></div>' +
+                '<div id="wobLevelNotice" class="wo-banner' + (w._levelFixes ? '' : ' hidden') + '">' + (w._levelFixes || 0) + ' step' + (w._levelFixes === 1 ? '' : 's') +
+                    ' pointed at a level that was archived or removed, so ' + (w._levelFixes === 1 ? 'it was' : 'they were') + ' moved to the nearest easier level. Save to keep the change.</div>' +
                 '<div id="wobSteps"></div>' +
                 '<div class="wo-frame-actions">' +
                     '<button type="button" class="btn btn-secondary" id="wobAdd">+ Add exercise</button>' +
@@ -1996,6 +2005,7 @@ function _woRenderSteps() {
                             (ex ? _woPushPullBadge(ex.pushPull) : '') +
                             _woSideBadge(it) +
                             (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
+                            (ex ? woLevelSelectHtml(it, ex) : '') +
                             _woSetsEditor(it, true) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
@@ -2017,6 +2027,7 @@ function _woRenderSteps() {
                     (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
                     _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                 '</div>' +
+                (ex && woIsMultiLevel(ex) ? '<div class="wo-rest-row"><span class="wo-rest-label">Start at</span>' + woLevelSelectHtml(st, ex) + '</div>' : '') +
                 _woSetsEditor(st, false) +
                 _woRestEditor('Rest between sets', 'restBetweenSets', st.restBetweenSets) +
                 _woRestEditor('Rest after exercise', 'restAfter', st.restAfter) +
@@ -2078,6 +2089,11 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'levelSel') {                                   // Start at: my level, or pin one level
+        if (inp.value === 'mine') { st.levelMode = 'mine'; delete st.levelId; }
+        else { st.levelMode = 'pinned'; st.levelId = inp.value; }
+        return;
+    }
     if (f === 'levelUpAfter' || f === 'weightStep') {          // per-step progression overrides (blank = use the default)
         var n = parseFloat(inp.value);
         if (n > 0) st[f] = n; else delete st[f];
@@ -2228,7 +2244,8 @@ function _woRenderPicker() {
         return '<button type="button" class="wo-pick-row" data-id="' + e.id + '">' +
                    '<span class="wo-thumb wo-thumb--sm">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</span>' +
                    '<span class="wo-pick-main"><span class="wo-card-name">' + _woEsc(e.name) + '</span>' +
-                   '<span class="wo-card-meta">' + _woEsc(woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null)) + '</span></span>' +
+                   '<span class="wo-card-meta">' + _woEsc(woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null) +
+                       (woIsMultiLevel(e) ? ' · ' + woActiveLevelsOf(e).length + ' levels' : '')) + '</span></span>' +
                    _woPushPullBadge(e.pushPull) +
                    '<span class="wo-view-chip" role="button" tabindex="0" data-view="' + e.id + '" title="View this exercise">👁 View</span>' +
                '</button>';

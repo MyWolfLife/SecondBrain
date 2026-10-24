@@ -122,3 +122,45 @@ function woResolveLevel(step, ex) {
     var mine = woMyLevelId(ex);
     return act.filter(function(l) { return l.id === mine; })[0] || act[0];
 }
+
+// ─── Workout steps (chunk L3) ─────────────────────────────────────────────────
+//
+// A step of a multi-level exercise says which level it starts at:
+//   levelMode 'mine'   (default; also what a missing field means) → plays my level
+//   levelMode 'pinned' + levelId                                   → always plays that level
+// One-level exercises never get these fields.
+
+/**
+ * Keeps saved steps honest after exercises were edited: a pinned level that was archived or removed moves
+ * to the nearest easier level (returns how many steps moved, so the builder can say so); steps of an
+ * exercise that is no longer multi-level lose their level fields.
+ */
+function woSyncLevelModes(steps) {
+    var moved = 0;
+    (steps || []).forEach(function(st) {
+        var list = st.type === 'circuit' ? (st.items || []) : [st];
+        list.forEach(function(it) {
+            var ex = _woExMap[it.exerciseId];
+            if (!ex) return;
+            if (!woIsMultiLevel(ex)) { delete it.levelMode; delete it.levelId; return; }
+            if (it.levelMode === 'pinned') {
+                var lv = woResolveLevel(it, ex);
+                if (lv.id !== it.levelId) { it.levelId = lv.id; moved++; }
+            }
+        });
+    });
+    return moved;
+}
+
+/** The "Start at" dropdown for a step (empty string for one-level exercises). */
+function woLevelSelectHtml(st, ex) {
+    if (!ex || !woIsMultiLevel(ex)) return '';
+    var all = woLevelsOf(ex), pinned = st.levelMode === 'pinned' && st.levelId;
+    var mineId = woMyLevelId(ex), mineLabel = woLevelLabel(ex, mineId);
+    var opts = '<option value="mine"' + (pinned ? '' : ' selected') + '>My level (' + _woEsc(mineLabel) + ')</option>';
+    all.forEach(function(l, i) {
+        if (l.archived) return;
+        opts += '<option value="' + _woEsc(l.id) + '"' + (pinned && st.levelId === l.id ? ' selected' : '') + '>' + (i + 1) + '. ' + _woEsc(woLevelDisplay(l, i)) + '</option>';
+    });
+    return '<select class="wo-level-select" data-f="levelSel" title="Which version of this exercise to start at">' + opts + '</select>';
+}

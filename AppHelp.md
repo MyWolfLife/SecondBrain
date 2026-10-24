@@ -4875,6 +4875,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Each exercise has an optional **Level-up** row: how many good sessions before a suggested increase, and the weight step (blank uses your default)
 - **📅 Schedule** adds the workout to your Calendar with a ▶ Start button
 - **Copy as new** makes a duplicate workout you can change; **Archive** hides it; **Delete** removes it (your history is kept)
+- **Start at** (only on exercises that have levels, like a push-up with wall / chair / floor versions): choose **My level** to always use the version you are currently at, or pick a specific level to always start there (handy for a warm-up that should stay easy). If a level you picked is later archived, the step moves to the nearest easier level and a note tells you
 - **Customize sets**: for a pyramid (like 10 @ 25 lb, 5 @ 45 lb, 3 @ 60 lb) tap **Customize sets** and give each set its own reps (or seconds) and weight. **+ Add set** adds another
 - **+ Add circuit** (see "What is a circuit?" above) — inside a circuit each exercise is done for one set per round; you set the number of rounds and the rest between exercises, between rounds, and after the circuit
 - The little dropdown on each step lets you mark it **Warm-up**, **Main** or **Cool-down**

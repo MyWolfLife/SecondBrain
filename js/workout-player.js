@@ -661,6 +661,8 @@ async function _woPlayerLoadFrames() {
     snap.docs.forEach(function(d) {
         var p = d.data();
         if (!ids[p.targetId]) return;
+        var fex = _woExMap[p.targetId];                       // multi-level: only my level's pictures (per-step levels arrive in a later chunk)
+        if (fex && woIsMultiLevel(fex) && woFrameLevelId(p) !== woResolveLevel({}, fex).id) return;
         (byEx[p.targetId] = byEx[p.targetId] || []).push({ order: p.frameOrder || 0, data: p.imageData });
     });
     Object.keys(byEx).forEach(function(k) {
