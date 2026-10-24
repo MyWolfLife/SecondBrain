@@ -27,7 +27,8 @@ function _woSetPhases(st, set, ctx) {
     var amount = set.amount != null ? set.amount : (set.failure ? 1 : (st.measure === 'time' ? 30 : 10));   // a to-failure set means "at least 1" by default
     var amountMax = set.amountMax != null ? set.amountMax : null, failure = !!set.failure;
     var weight = set.weight != null ? set.weight : null;
-    var sides  = st.eachSide ? (st.startSide === 'right' ? ['right', 'left'] : ['left', 'right']) : [null];
+    var first  = st.eachSide ? woStartSideForSet(st, ctx.setIndex) : null;         // weaker side / swap each set (workout-sides.js)
+    var sides  = st.eachSide ? (first === 'right' ? ['right', 'left'] : ['left', 'right']) : [null];
     var out = [];
     sides.forEach(function(side, si) {
         out.push({
@@ -414,6 +415,7 @@ async function loadWorkoutStartPage(id) {
         woSyncSideModes(w.steps);                 // pick up any change made to an exercise's side setting
         woSyncLevelModes(w.steps);                // a pinned level that was archived moves to the nearest easier one
         await woLoadMyLevels();
+        await woLoadWeakerSide();                 // for exercises that start with the weaker side
         var last = await _woLastTimeMap(w.steps);
         var prefs = _woLoadPlayerPrefs();
         _woS = { last: last, id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
@@ -469,6 +471,7 @@ function _woRenderStartPage() {
             '<div class="wo-banner" id="wosEstimate"></div>' +
             woProgBannerHtml() +
             woStartLevelsAskHtml() +
+            woStartSidesAskHtml() +
 
             '<div class="ex-form-group"><label class="ex-label" for="wosDate">Date</label>' +
                 '<input type="date" id="wosDate" value="' + s.date + '" max="' + _woTodayISO() + '"></div>' +
@@ -514,6 +517,7 @@ function _woRenderStartPage() {
     el.removeEventListener('click', woProgHandleClick);
     el.addEventListener('click', woProgHandleClick);   // level-up / reset buttons and Welcome-back choices
     woStartLevelsBind();
+    woStartSidesBind();
     _woUpdateStartEstimate();
 }
 
@@ -578,6 +582,7 @@ async function _woStartGo() {
         var steps = s.workout.steps;
         if (s.prog && s.prog.welcome && s.prog.choice !== 'current') await _woProgPersist();   // Comeback / Base choices stick
         await woStartLevelsCommit();                  // first-time 'which version can you do?' answers are saved now
+        await woStartSidesCommit();                   // 'which side is weaker?' is saved now
         if (s.saveBack && _woStartChanged()) {
             steps = _woStepsWithSavedChanges();
             var ids = [];
@@ -590,14 +595,14 @@ async function _woStartGo() {
         var chosen = (document.querySelector('input[name=wosMode]:checked') || {}).value;
         if (chosen === 'day') {                       // Throughout the day: open a checklist record instead of running the player
             var dayId = await woStartDaySession({ workoutId: s.id, workoutName: s.workout.name, date: s.date,
-                                                  workout: { id: s.id, name: s.workout.name, steps: woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps))) } });
+                                                  workout: { id: s.id, name: s.workout.name, steps: woStartApplySides(woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps)))) } });
             location.hash = '#workout-day/' + dayId;
             return;
         }
         window._woSession = {
             workoutId:   s.id,
             workoutName: s.workout.name,
-            workout:     { id: s.id, name: s.workout.name, steps: woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps))) },   // each step stamped with the level it plays today
+            workout:     { id: s.id, name: s.workout.name, steps: woStartApplySides(woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps)))) },   // each step stamped with the level it plays today and the side it starts with
             date:        s.date,
             mode:        (document.querySelector('input[name=wosMode]:checked') || {}).value === 'self' ? 'self' : 'guided',
             voiceCues:   s.voiceCues,

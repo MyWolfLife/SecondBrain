@@ -393,7 +393,7 @@ function _woRenderExerciseList() {
     list.innerHTML = rows.map(function(e) {
         var meta = woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null);
         var sm = woSideModeOf(e);
-        if (sm === 'each') meta += ' · each side' + (e.startSide === 'right' ? ' (right first)' : '');
+        if (sm === 'each') meta += ' · each side' + (e.startSide === 'right' ? ' (right first)' : (e.startSide === 'weaker' ? ' (weaker first)' : '')) + (e.swapStart ? ', swapping' : '');
         else if (sm === 'alternate') meta += ' · alternating';
         var equip = (e.equipment || []).length ? ' · ' + _woEsc(e.equipment.join(', ')) : '';
         return '<a href="#workout-exercise/' + e.id + '" class="wo-card' + (e.archived ? ' wo-card--archived' : '') + '">' +
@@ -427,7 +427,7 @@ async function loadWorkoutExercisePage(id) {
         await woLoadMyLevels();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
-                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', eachSide: false, equipment: [],
+                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', swapStart: false, eachSide: false, equipment: [],
                         targets: [], pushPull: 'neither', videoUrl: '', archived: false };
         } else {
             var doc = await woLibCol('workoutExercises').doc(id).get();
@@ -511,7 +511,9 @@ function _woRenderExerciseEditor() {
                 '</select>' +
                 '<div id="woeStartRow" class="' + (e.sideMode === 'each' ? '' : 'hidden') + '" style="margin-top:8px;">' +
                     '<label class="ex-label" for="woeStartSide">Start with</label>' +
-                    '<select id="woeStartSide"><option value="left"' + (e.startSide !== 'right' ? ' selected' : '') + '>Left side</option><option value="right"' + (e.startSide === 'right' ? ' selected' : '') + '>Right side</option></select>' +
+                    '<select id="woeStartSide"><option value="left"' + (e.startSide !== 'right' && e.startSide !== 'weaker' ? ' selected' : '') + '>Left side</option><option value="right"' + (e.startSide === 'right' ? ' selected' : '') + '>Right side</option>' +
+                        '<option value="weaker"' + (e.startSide === 'weaker' ? ' selected' : '') + '>My weaker side</option></select>' +
+                    '<label class="wo-inline-check" style="margin-top:6px;"><input type="checkbox" id="woeSwapStart"' + (e.swapStart ? ' checked' : '') + '> Swap the starting side every set (left, then right, then left…)</label>' +
                 '</div>' +
                 '<p class="wo-hint">One side, then the other: the player runs the set on one side, a short switch, then the other side. Alternating: one continuous set, swapping every rep — the reps are per side.</p>' +
             '</div>' +
@@ -880,6 +882,7 @@ async function _woSaveExercise() {
         defaultWeight: weight,
         sideMode:      document.getElementById('woeSideMode').value,
         startSide:     document.getElementById('woeStartSide').value,
+        swapStart:     document.getElementById('woeSideMode').value === 'each' && document.getElementById('woeSwapStart').checked,
         eachSide:      document.getElementById('woeSideMode').value === 'each',
         equipment:     lvs.equipment,
         targets:       _woEdit.targets,
@@ -1558,7 +1561,7 @@ function woSideModeOf(ex) { return ex.sideMode || (ex.eachSide ? 'each' : 'both'
 
 function _woSideBadge(st) {
     var m = st.sideMode || (st.eachSide ? 'each' : 'both');
-    if (m === 'each') return '<span class="wo-badge wo-badge--neither">Each side' + (st.startSide === 'right' ? ' · right first' : '') + '</span>';
+    if (m === 'each') return '<span class="wo-badge wo-badge--neither">Each side' + (st.startSide === 'right' ? ' · right first' : (st.startSide === 'weaker' ? ' · weaker first' : '')) + (st.swapStart ? ' · swaps' : '') + '</span>';
     if (m === 'alternate') return '<span class="wo-badge wo-badge--neither">Alternating</span>';
     return '';
 }
@@ -1574,7 +1577,7 @@ function woSyncSideModes(steps) {
             var ex = _woExMap[it.exerciseId];
             if (!ex) return;
             var m = woSideModeOf(ex);
-            it.sideMode = m; it.startSide = ex.startSide || 'left'; it.eachSide = (m === 'each');
+            it.sideMode = m; it.startSide = ex.startSide || 'left'; it.eachSide = (m === 'each'); it.swapStart = !!ex.swapStart && m === 'each';
         });
     });
 }
@@ -1806,7 +1809,7 @@ function _woNewStep(ex, inCircuit) {
     var st = {
         type: 'exercise', section: 'main',
         exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
-        sideMode: woSideModeOf(ex), startSide: ex.startSide || 'left', eachSide: woSideModeOf(ex) === 'each', usesWeight: !!ex.usesWeight,
+        sideMode: woSideModeOf(ex), startSide: ex.startSide || 'left', swapStart: !!ex.swapStart && woSideModeOf(ex) === 'each', eachSide: woSideModeOf(ex) === 'each', usesWeight: !!ex.usesWeight,
         sets: sets, baseSets: _woCloneSets(sets),
         restBetweenSets: inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_SETS),
         restAfter:       inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_AFTER),

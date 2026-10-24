@@ -39,7 +39,7 @@ async function woViewExercise(exerciseId) {
     levels.forEach(function(l, i) { if (l.id === mineId) cur = i; });
 
     var sm = woSideModeOf(e);
-    var how = sm === 'each' ? 'One side, then the other' + (e.startSide === 'right' ? ' (right first)' : ' (left first)')
+    var how = sm === 'each' ? 'One side, then the other' + (e.startSide === 'right' ? ' (right first)' : (e.startSide === 'weaker' ? ' (weaker side first)' : ' (left first)')) + (e.swapStart ? ', swapping the starting side each set' : '')
             : sm === 'alternate' ? 'Alternating sides' : 'Both together';
     var chips = _woTargetChips(e.targets);
 

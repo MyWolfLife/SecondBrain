@@ -58,15 +58,15 @@ function woPRsHtml(prs) {
  * the right-hand line of a left/right pair belongs to the same set as the left one.
  */
 function woSetNumbers(sets) {
-    var counts = {}, out = [], firstSide = {};
+    var counts = {}, out = [], openKey = null, openSide = null;
     sets.forEach(function(s, i) {
-        var prev = sets[i - 1], key = woRecordKey(s);                                    // each exercise AND level counts its own sets
-        if (s.side && !firstSide[key]) firstSide[key] = s.side;                          // the side this exercise starts with
-        // the second line of a pair: same exercise and level, previous line was the starting side, this one is the other side
-        var secondSide = prev && woRecordKey(prev) === key && prev.side && prev.side === firstSide[key] && s.side && s.side !== prev.side;
-        if (secondSide) { out.push(out[i - 1]); return; }
+        var key = woRecordKey(s);                                                        // each exercise AND level counts its own sets
+        // the second line of a left/right pair: same exercise and level, the other side from the line that opened the set
+        // (works when the starting side changes from set to set, e.g. "swap the starting side")
+        if (s.side && openKey === key && openSide && s.side !== openSide) { out.push(out[i - 1]); openKey = null; openSide = null; return; }
         counts[key] = (counts[key] || 0) + 1;
         out.push(counts[key]);
+        if (s.side) { openKey = key; openSide = s.side; } else { openKey = null; openSide = null; }
     });
     return out;
 }

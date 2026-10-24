@@ -4830,6 +4830,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Create or edit one exercise.
 
 ### Quick Help
+- For exercises done **one side, then the other**, **Start with** can be left, right or **My weaker side**, and **Swap the starting side every set** makes the sets go left-then-right, then right-then-left, and so on. Which side is weaker is set once in ⚙ Progression on the Workouts list (I ask the first time it is needed)
 - **✨ Describe it** (new exercises only): type the exercise in plain words — e.g. “Using the Nordic Stick, lay on stomach and lift my torso up 15 times” — and tap **Fill in the form**. The AI fills in the name, reps or time, sides, push/pull, muscles, equipment and cues, using your own muscle and equipment lists (needs an AI provider in Settings → AI). Check the form over and change anything. If it needs equipment you don't have, a tick box **➕ Add new equipment** appears (on by default); it joins your equipment list only when you tap Add Exercise. If you describe several versions of one move (for example “push-ups against a wall, then on a chair, then on the floor”) it creates the levels too, each with its own cues, shown as tabs for you to check. It also lists any exercise you already have that might be the same (tap **👁 View** to compare — it can be a different variation) and what it guessed
 - **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
 - **Uses weight** adds a default weight
@@ -4898,6 +4899,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - The same **exactly / a range / to failure** dropdown is on each set here, so you can change today's target. Sets with a range or “to failure” will ask you to type how many you really did
 - Tap **👁** next to an exercise to see its pictures, cues and muscles without leaving this screen
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
+- **Which side is your weaker side?** If a step starts with your weaker side and I don't know yet which one it is, I ask once. It is remembered when you tap Start; change it any time in ⚙ Progression on the Workouts list
 - **Which version can you do?** If the workout has an exercise with levels (like push-ups on a wall, chair or floor) and I don't know your level yet, I ask once. Pick the version you can do; it is remembered when you tap Start (you can change it later on the exercise)
 - **Last time** shows what you did at the level you have selected for today (if you have never done that level it shows your most recent time at another level and says which)
 - **⬆ Ready for the next level / ⬇ Maybe go easier**: for exercises with levels, after enough good sessions in a row at a level I suggest the next harder level (instead of more reps or weight); after a few sessions below your target I suggest an easier one. **Accept** moves your level (or the level the step is set to); your sets keep their numbers, so change them below if the new level needs fewer reps. At the hardest level I go back to suggesting more reps or weight

@@ -392,12 +392,15 @@ async function woProgHandleClick(ev) {
 
 async function woOpenProgressionSettings() {
     var S = await woProgSettings(true);
+    await woLoadWeakerSide();
     var field = function(key, label, hint, step) {
         return '<div class="ex-form-group"><label class="ex-label" for="wps_' + key + '">' + label + ' <span class="wo-hint">' + hint + '</span></label>' +
                '<input type="number" id="wps_' + key + '" min="1" step="' + (step || 1) + '" value="' + S[key] + '"></div>';
     };
     var ov = _woGrabOverlay(
         '<h3>Progression settings</h3>' +
+        '<div class="ex-form-group"><label class="ex-label" for="wps_weakerSide">My weaker side <span class="wo-hint">used by exercises set to “weaker side first”</span></label>' +
+            '<select id="wps_weakerSide"><option value=""' + (_woWeakerSide ? '' : ' selected') + '>Not set yet</option><option value="left"' + (_woWeakerSide === 'left' ? ' selected' : '') + '>Left</option><option value="right"' + (_woWeakerSide === 'right' ? ' selected' : '') + '>Right</option></select></div>' +
         field('levelUpAfter', 'Level up after', 'good sessions in a row') +
         field('weightStep', 'Weight step', 'lb added when levelling up', 0.5) +
         field('repsAboveBase', 'Reps above base', 'reps climb this far before the weight goes up') +
@@ -421,7 +424,9 @@ async function woOpenProgressionSettings() {
             prog[k] = (v > 0 || (k === 'levelDownAfter' && v === 0)) ? v : WO_PROG_DEFAULTS[k];
         });
         try {
-            await userCol('settings').doc('workouts').set({ progression: prog }, { merge: true });
+            var ws = ov.querySelector('#wps_weakerSide').value;
+            await userCol('settings').doc('workouts').set({ progression: prog, weakerSide: ws || firebase.firestore.FieldValue.delete() }, { merge: true });
+            _woWeakerSide = ws || null;
             _woProgSettingsCache = null;
             _woCloseGrabber();
         } catch (err) {
