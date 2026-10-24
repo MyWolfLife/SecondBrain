@@ -87,7 +87,7 @@ function _woIntervalRest(step, ctx) {
               stepIndex: ctx.stepIndex, itemIndex: null,
               exerciseId: null, exerciseName: null, measure: null, amount: null, weight: null,
               setIndex: null, setCount: null, round: null, rounds: null,
-              side: null, restKind: 'interval', untilIntervalEnd: true, intervalSec: iv.seconds,
+              side: null, restKind: 'interval', untilIntervalEnd: true, intervalSec: iv.seconds, intervalUnit: ctx.round ? 'round' : 'set',
               durationSec: Math.max(0, iv.seconds - estWork), tap: false }];
 }
 
@@ -146,12 +146,16 @@ function woBuildTimeline(workout, opts) {
                 items.forEach(function(it, ij) {
                     var set = (it.sets && it.sets[0]) || { amount: null, weight: null };
                     var ctx = { section: section, stepIndex: si, itemIndex: ij, setIndex: r - 1, setCount: rounds, round: r, rounds: rounds, allTap: !!opts.allTap };
-                    phases = phases.concat(_woSetPhases(it, set, ctx));
+                    var itemForPhase = step.interval ? Object.assign({}, it, { interval: { seconds: step.interval.seconds, capSec: null } }) : it;   // superset: show the interval on each exercise
+                    var ph = _woSetPhases(itemForPhase, set, ctx);
+                    if (step.interval && ij === 0) ph[0].intervalStart = true;                    // the round's clock starts with its first exercise
+                    phases = phases.concat(ph);
                     if (ij < items.length - 1) phases = phases.concat(_woRestPhase(step.restBetweenItems, 'items', ctx));
                 });
-                if (r < rounds) phases = phases.concat(_woRestPhase(step.restBetweenRounds, 'rounds', { section: section, stepIndex: si, round: r, rounds: rounds }));
+                if (step.interval) phases = phases.concat(_woIntervalRest(step, { section: section, stepIndex: si, round: r, rounds: rounds }));   // rest fills the rest of the interval
+                else if (r < rounds) phases = phases.concat(_woRestPhase(step.restBetweenRounds, 'rounds', { section: section, stepIndex: si, round: r, rounds: rounds }));
             }
-            phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+            if (!step.interval) phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
         }
     });
 
@@ -525,6 +529,7 @@ function _woRenderStartPage() {
             return '<div class="wo-step wo-circuit" data-path="' + i + '">' +
                 '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">Circuit</span>' +
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
+                (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Superset</span>each round starts ' + _woEsc(woIntervalText({ seconds: st.interval.seconds })) + '</div>' : '') +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
                     return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woStartPrecautionHtml(it, true) + (woHasTempo(it.tempo) ? ' <span class="wo-hint">tempo: ' + _woEsc(woTempoText(it.tempo)) + '</span>' : '') + _woLastTimeHtml(it, i + '.' + j) +
@@ -889,7 +894,7 @@ function _woPlayerRender() {
         var bits = [p.levelLabel, _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     } else if (p.kind === 'rest' && p.restKind === 'interval') {
-        sub = 'Next set starts when the clock reaches zero';
+        sub = 'Next ' + (p.intervalUnit === 'round' ? 'round' : 'set') + ' starts when the clock reaches zero';
     }
 
     // The centre: a countdown ring for timed phases, a big number for reps, a tap prompt for tap rests

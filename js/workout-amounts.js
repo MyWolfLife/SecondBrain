@@ -219,3 +219,22 @@ function woTimedRowHtml(st) {
              '<span class="wo-hint">' + (st.measure === 'time' ? 'hold for the work time each round' : 'as many reps as you can each round — count them with +1') + '</span>' : '') +
         '</div>';
 }
+
+// ─── Supersets (FormatsPlan.md, chunk F3) ─────────────────────────────────────
+//
+// A superset is a CIRCUIT whose rounds start on the interval clock: circuit.interval = { seconds, capSec: null }.
+// Each round = the exercises back to back (rest between exercises is normally 0), then the rest fills the rest of the
+// interval; the circuit's own "rest between rounds" and "rest after" are not used. The book's recipe: a pair, 4:00
+// interval, 2 rounds; the first (harder) exercise 1–5 slow reps, not to failure; the second 6–12 reps.
+
+var WO_SUPERSET_DEFAULT = { seconds: 240, rounds: 2 };
+
+/** The builder's superset row inside a circuit card. */
+function woSupersetRowHtml(st) {
+    var iv = st.interval;
+    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Superset (interval)</span>' +
+        '<label class="wo-inline-check"><input type="checkbox" data-f="cIntervalOn"' + (iv ? ' checked' : '') + '> each round starts on a clock</label>' +
+        (iv ? ' every <input type="text" class="wo-clock-box" data-f="cIntervalSec" value="' + woClockText(iv.seconds) + '" placeholder="4:00"> <span class="wo-hint">min:sec</span>' : '') +
+        ' <button type="button" class="wo-link-btn" data-act="supersetfmt" title="The book\'s recipe: 4:00 interval, 2 rounds, first exercise 1–5 slow reps, the rest 6–12">Apply superset format</button>' +
+        '</div>';
+}

@@ -1658,6 +1658,7 @@ function woEstimateSeconds(steps) {
             total += _woRestSeconds(st.restAfter);
         } else if (st.type === 'circuit') {
             var items = st.items || [], rounds = st.rounds || 1, perRound = 0;
+            if (st.interval) { total += rounds * st.interval.seconds; return; }                 // superset: every round takes one interval
             items.forEach(function(it, i) {
                 perRound += (it.sets && it.sets[0]) ? _woSetSeconds(it, it.sets[0]) : 0;
                 if (i < items.length - 1) perRound += _woRestSeconds(st.restBetweenItems);
@@ -2068,9 +2069,10 @@ function _woRenderSteps() {
                         '</div>';
                     }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
                     '<div class="wo-set-actions"><button type="button" class="wo-link-btn" data-act="additem">+ Add exercise to circuit</button></div>' +
+                    woSupersetRowHtml(st) +
                     _woRestEditor('Rest between exercises', 'restBetweenItems', st.restBetweenItems) +
-                    _woRestEditor('Rest between rounds', 'restBetweenRounds', st.restBetweenRounds) +
-                    _woRestEditor('Rest after circuit', 'restAfter', st.restAfter) +
+                    (st.interval ? '' : _woRestEditor('Rest between rounds', 'restBetweenRounds', st.restBetweenRounds) +
+                                        _woRestEditor('Rest after circuit', 'restAfter', st.restAfter)) +
                 '</div>';
             }
 
@@ -2103,6 +2105,27 @@ function _woRenderSteps() {
 }
 
 /** ⏱ Interval format: every exercise step becomes an Interval Set — 3 sets, a range of 6–12 reps (timed: as long as you can), every 3:00, work cap 1:30. */
+/**
+ * Apply superset format to a circuit (the book's recipe): rounds start every 4:00, 2 rounds, the exercises back to back;
+ * the first exercise 1–5 slow reps (lower 3 s, pause 1 s, lift 1 s, pause 1 s, not to failure), the others 6–12 reps.
+ */
+function _woApplySupersetFormat(st) {
+    if (!st || st.type !== 'circuit') return;
+    if (!(st.items || []).length) { alert('Add the exercises to the circuit first (the book uses a pair).'); return; }
+    if (!confirm('Apply the superset format to this circuit?\n\nRounds start every 4:00, 2 rounds, exercises back to back. The first exercise becomes 1–5 slow reps (not to failure) and the others 6–12 reps. Their current numbers will be replaced; you can change any of it afterwards.')) return;
+    st.interval = { seconds: WO_SUPERSET_DEFAULT.seconds, capSec: null };
+    st.rounds = WO_SUPERSET_DEFAULT.rounds;
+    st.restBetweenItems = _woBlankRest(0);
+    st.items.forEach(function(it, i) {
+        var w0 = it.sets && it.sets[0] && it.sets[0].weight != null ? it.sets[0].weight : null;
+        if (it.measure === 'time') { it.sets = [{ amount: (it.sets && it.sets[0] && it.sets[0].amount) || 30, weight: w0 }]; }
+        else it.sets = [i === 0 ? { amount: 1, amountMax: 5, weight: w0 } : { amount: 6, amountMax: 12, weight: w0 }];
+        if (i === 0) it.tempo = { down: 3, pauseBottom: 1, up: 1, pauseTop: 1 }; else delete it.tempo;
+        _woSyncBase(it);
+    });
+    _woRenderSteps();
+}
+
 /** After turning off timed rounds: put the exercise's usual sets back (3 × its default). */
 function _woRestoreDefaultSets(st) {
     var ex = _woExMap[st.exerciseId];
@@ -2150,6 +2173,7 @@ function _woStepClick(ev) {
     if (!holder) return;
     var path = holder.getAttribute('data-path'), act = btn.getAttribute('data-act');
     if (act === 'view') { var vs = _woGetStep(path); if (vs) woViewExercise(vs.exerciseId); return; }
+    if (act === 'supersetfmt') { _woApplySupersetFormat(_woGetStep(path)); return; }
     var parts = path.split('.'), i = parseInt(parts[0], 10), j = parts.length > 1 ? parseInt(parts[1], 10) : null;
     var list = j === null ? _woW.steps : _woW.steps[i].items;
     var idx  = j === null ? i : j;
@@ -2191,6 +2215,20 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'cIntervalOn') {                                 // Superset: each round of a circuit starts on a clock
+        if (inp.checked) {
+            st.interval = { seconds: WO_SUPERSET_DEFAULT.seconds, capSec: null };
+            st.restBetweenItems = _woBlankRest(0);                // back to back
+        } else delete st.interval;
+        _woUpdateBuilderSummary(); _woRenderSteps();
+        return;
+    }
+    if (f === 'cIntervalSec') {
+        var cclk = woParseClock(inp.value);
+        if (st.interval && cclk >= 10) st.interval.seconds = cclk;
+        _woUpdateBuilderSummary();
+        return;
+    }
     if (f === 'intervalOn') {                                  // Interval sets: each set starts on a clock
         if (inp.checked) { st.interval = { seconds: WO_INTERVAL_DEFAULT.seconds, capSec: WO_INTERVAL_DEFAULT.capSec }; if (st.timed) { delete st.timed; _woRestoreDefaultSets(st); } }
         else delete st.interval;

@@ -93,7 +93,7 @@ function _woPhaseSpeech(p, ctx) {
         parts.push('Switch sides.');
     } else if (p.kind === 'rest') {
         parts.push('Rest.');
-        if (p.restKind === 'interval' && p.durationSec > 0) parts.push('Next set in ' + woSayClock(p.durationSec) + '.');
+        if (p.restKind === 'interval' && p.durationSec > 0) parts.push('Next ' + (p.intervalUnit === 'round' ? 'round' : 'set') + ' in ' + woSayClock(p.durationSec) + '.');
         var next = ctx.runner.nextWork();
         if (next) parts.push('Up next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayPhase(next) + '.');
         if (p.durationSec == null) parts.push('Say ready, or tap, when you are ready.');

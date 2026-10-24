@@ -4871,6 +4871,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
+- **Supersets**: in a circuit, tick **each round starts on a clock** (like every 4:00) so each round — the exercises done back to back — starts on the clock and you rest for whatever is left. **Apply superset format** sets it up the book's way: every 4:00, 2 rounds, the first exercise 1–5 slow reps (not to failure) and the other 6–12 reps. Add the exercises to the circuit first (a pair works best)
 - **Tabata / timed sets**: tick **Tabata / timed sets** under an exercise and pick a preset — **Tabata** (20 seconds on, 10 seconds off, 8 rounds) or **Timed sets** (20 on, 40 off, 20 rounds) — or set your own work, rest and rounds. For a rep exercise each round is “as many reps as you can”, and you count them in the player. The **🔥 Tabata format** button turns every exercise in the workout into a Tabata (with 2 minutes' rest between exercises)
 - **Interval sets**: tick **each set starts on a clock** under an exercise and choose how often a set starts (like every 3:00) and an optional **work cap** (like 1:30). You do the set (up to the cap), then rest for whatever is left of the interval, and the next set starts on the clock. The **⏱ Interval format** button makes every exercise in the workout an interval set in one tap (3 sets of 6–12 reps every 3:00 with a 1:30 cap) so you can then adjust them
 - **Tempo (optional)**: under an exercise's sets you can set how slowly to move — seconds to **lower**, **pause at the bottom**, **lift**, and **pause at the top**. Leave a box blank to skip that part. The player shows it and the voice reads it out the first time the exercise comes up
@@ -4900,6 +4901,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- A circuit set up as a **Superset** shows “each round starts every 4:00” under its title; each exercise's tempo is shown next to it
 - An exercise set up as **Tabata / timed rounds** shows its pattern (for example “20 s on / 10 s off × 8 rounds”) instead of sets. Change it in the workout builder
 - An exercise set up as **Interval sets** shows its clock (for example “every 3:00, work cap 1:30”) under its name. Change it in the workout builder
 - If an exercise has a **Tempo** it is shown under its name (for example “lower 3 s · pause at the bottom 1 s · lift 1 s”). Change it in the workout builder
@@ -4930,6 +4932,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- **Supersets**: do the exercises in the round back to back. When the round is done, the rest fills the rest of the interval and the next round starts when the clock reaches zero (if you took longer than the interval, the next round starts straight away)
 - **Tabata / timed rounds**: each work period counts down on the ring. Tap **+1 rep** — or tap anywhere on the screen — for every rep you do (**−1** fixes a mis-tap). When the time is up the reps are saved for that round and the rest starts; the next round begins on its own. A held exercise like a plank just counts down
 - **Interval sets**: each set starts on the clock. A **Work time left** timer counts down the cap; at zero it beeps and says “Time” but does not stop you — finish the set, type your reps and tap **DONE**. The rest then fills the rest of the interval, and the next set starts when the clock reaches zero. If a set took longer than the interval, the next one starts straight away
 - When an exercise has a tempo it appears under the name (“Tempo: lower 3 s · …”) and the voice says it once at the start of that exercise — it does not count the seconds aloud

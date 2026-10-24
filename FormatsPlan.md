@@ -38,7 +38,7 @@ So the formats are built in an order that adds those two abilities one at a time
 
 **Day mode ("throughout the day"):** a format step just becomes its sets as a checklist (the clock features only apply in the guided player).
 
-**Status:** F1 and F2 built and tested (2026-10-24). F3–F6 to do. (Design note: Tabata / timed sets are a property of an exercise step like intervals — `step.timed` — rather than a new step type, so levels, sides, history and Start keep working.)
+**Status:** F1, F2 and F3 built and tested (2026-10-24). F4–F6 to do. (Design note: a superset is a circuit with an interval, so it reuses F1's clock.) (Design note: Tabata / timed sets are a property of an exercise step like intervals — `step.timed` — rather than a new step type, so levels, sides, history and Start keep working.)
 
 ## Chunks
 

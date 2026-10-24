@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (F3):** **F3 (Supersets) is built and pushed.** Next: **F4 (Stappers — phases generated as you go, a round counter, time-boxed)**, then F5 Ladders, F6 the rest.
 > **2026-10-24 (F2):** **F2 (Tabata and Timed Sets with a rep counter) is built and pushed.** Next: **F3 (Supersets — several exercises inside one interval)**, then F4 Stappers, F5 Ladders, F6 the rest.
 > **2026-10-24 (F1):** **F1 (Interval Sets) is built and pushed** — the first runner ability (a rest that fills the rest of an interval) is in. Next: **F2 (Tabata and Timed Sets with a rep counter)**, then F3 Supersets, F4 Stappers, F5 Ladders, F6 the rest.
 > **2026-10-24 (plan):** `FormatsPlan.md` written (F1 Interval Sets, F2 Tabata/Timed Sets, F3 Supersets, F4 Stappers, F5 Ladders, F6 the rest). Building F1 first.
