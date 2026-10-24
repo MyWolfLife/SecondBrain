@@ -21944,3 +21944,10 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Start-at level dropdown on workout steps */
 .wo-level-select { max-width: 220px; font-size: 0.85rem; }
 .wo-item .wo-level-select { margin-left: 6px; }
+
+/* Start screen: which version can you do? */
+.wo-level-ask { margin-bottom: 12px; }
+.wo-ask-ex { margin: 8px 0; }
+.wo-ask-name { font-weight: 600; margin-bottom: 2px; }
+.wo-ask-opt { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 0.9rem; }
+.wo-ask-pic { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #f3f4f6; }

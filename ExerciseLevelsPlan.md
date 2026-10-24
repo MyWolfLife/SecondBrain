@@ -73,7 +73,9 @@ New optional `levelId`, `levelLabel` (a **snapshot**, so history stays readable 
 | `MyLife-Functional-Spec.md`, `AppHelp.md` | New "Exercise levels" section; screen help for exercise, workout, workout-start, workout-view, workout-run, workout-done, workout-exercise-history, workouts progression. |
 | `index.html`, `css/styles.css`, `sw.js` | New script tag, cache bumps, level tab/chip styles. |
 
-**Status (2026-10-24): L1, L2 and L3 are built and tested in the preview.** L3 note: a temporary interim patch limits the guided player's flipbook to my level's pictures for multi-level exercises until L5.
+**Status (2026-10-24): L1–L4 are built and tested in the preview.** L4 note: the choice of level for a run is kept in `_woS.runLevels` / `_woS.myPick` and stamped onto the run copy of the steps as `runLevelId`/`runLevelLabel`; the saved workout is never modified.
+
+**(Earlier status:)** L1, L2 and L3 were built first. L3 note: a temporary interim patch limits the guided player's flipbook to my level's pictures for multi-level exercises until L5.
 
 **Status (2026-10-24): L1 and L2 were built and tested in the preview.** Built extras: a *My level* line in the editor ("Make this level my level"), per-level tab names that update as you type, and archive/remove rules (a saved level is archived, only an unsaved new level can be removed). The View card already shows level tabs.
 

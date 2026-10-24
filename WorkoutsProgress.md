@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (L4):** Exercise levels **L4 (Start screen: first-time question, Level today dropdown, Make this my level, run-level stamp) is built and pushed**. Next: **L5 (player and saving: level in timeline, pictures, spoken name, set lines store levelId/levelLabel)**.
 > **2026-10-24 (L3):** Exercise levels **L3 (workout steps: Start at My level / pinned, picker level count, fallback notice) is built and pushed**. Next: **L4 (Start screen: first-time 'Which version can you do?', per-step level selector, resolve + snapshot)**.
 > **2026-10-24 (build):** Exercise levels **L1 (data layer) and L2 (editor level tabs, per-level pictures, View card tabs, list chip) are built and pushed**. Next: **L3 (steps: Start-at My level / pinned level in the builder)**, then L4–L8 per `ExerciseLevelsPlan.md`.
 > **2026-10-24 (plan):** `ExerciseLevelsPlan.md` is the agreed build plan for exercise levels (chunks L1–L8). Next: build L1 then L2 when the user says go. Formats, rep ranges, programs and import come after.

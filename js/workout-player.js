@@ -391,11 +391,14 @@ async function loadWorkoutStartPage(id) {
         var w = doc.data(); w.id = doc.id;
         w.steps = _woCleanSteps(w.steps);
         woSyncSideModes(w.steps);                 // pick up any change made to an exercise's side setting
+        woSyncLevelModes(w.steps);                // a pinned level that was archived moves to the nearest easier one
+        await woLoadMyLevels();
         var last = await _woLastTimeMap(w.steps);
         var prefs = _woLoadPlayerPrefs();
         _woS = { last: last, id: w.id, original: JSON.parse(JSON.stringify(w)), workout: w,
                  date: _woTodayISO(), voiceCues: prefs.cues, voiceCmds: prefs.commands && !!woSpeechRecognitionCtor(),
                  saveBack: false };
+        woStartLevelsInit();                     // today-only level choices + first-time answers (workout-start-levels.js)
         await woProgInitStart();                 // streaks, level-up offers, welcome-back (workout-progress.js)
     } catch (err) {
         console.error('Workouts: failed to load workout for start:', err);
@@ -418,7 +421,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + _woLastTimeHtml(it.exerciseId) +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woLastTimeHtml(it.exerciseId) +
                         '<span class="wo-item-sets"><input type="number" min="1" data-f="amount" data-k="0" value="' + (s0.amount != null ? s0.amount : '') + '"> ' + _woStartUnit(it) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
@@ -427,6 +430,7 @@ function _woRenderStartPage() {
         return '<div class="wo-step" data-path="' + i + '">' +
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             _woSideBadge(st) + '<button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + st.exerciseId + '" title="View this exercise">👁</button></div>' +
+            woStartLevelRowHtml(st, String(i), false) +
             _woLastTimeHtml(st.exerciseId) +
             woProgStepHtml(st, String(i)) +
             '<div class="wo-step-sets wo-step-sets--custom">' +
@@ -442,6 +446,7 @@ function _woRenderStartPage() {
         '<div class="ex-form">' +
             '<div class="wo-banner" id="wosEstimate"></div>' +
             woProgBannerHtml() +
+            woStartLevelsAskHtml() +
 
             '<div class="ex-form-group"><label class="ex-label" for="wosDate">Date</label>' +
                 '<input type="date" id="wosDate" value="' + s.date + '" max="' + _woTodayISO() + '"></div>' +
@@ -486,6 +491,7 @@ function _woRenderStartPage() {
     document.getElementById('wosSchedule').addEventListener('click', function() { woOpenScheduleDialog(_woS.id, _woS.workout.name); });
     el.removeEventListener('click', woProgHandleClick);
     el.addEventListener('click', woProgHandleClick);   // level-up / reset buttons and Welcome-back choices
+    woStartLevelsBind();
     _woUpdateStartEstimate();
 }
 
@@ -547,6 +553,7 @@ async function _woStartGo() {
     try {
         var steps = s.workout.steps;
         if (s.prog && s.prog.welcome && s.prog.choice !== 'current') await _woProgPersist();   // Comeback / Base choices stick
+        await woStartLevelsCommit();                  // first-time 'which version can you do?' answers are saved now
         if (s.saveBack && _woStartChanged()) {
             steps = _woStepsWithSavedChanges();
             var ids = [];
@@ -559,14 +566,14 @@ async function _woStartGo() {
         var chosen = (document.querySelector('input[name=wosMode]:checked') || {}).value;
         if (chosen === 'day') {                       // Throughout the day: open a checklist record instead of running the player
             var dayId = await woStartDaySession({ workoutId: s.id, workoutName: s.workout.name, date: s.date,
-                                                  workout: { id: s.id, name: s.workout.name, steps: JSON.parse(JSON.stringify(s.workout.steps)) } });
+                                                  workout: { id: s.id, name: s.workout.name, steps: woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps))) } });
             location.hash = '#workout-day/' + dayId;
             return;
         }
         window._woSession = {
             workoutId:   s.id,
             workoutName: s.workout.name,
-            workout:     { id: s.id, name: s.workout.name, steps: JSON.parse(JSON.stringify(s.workout.steps)) },
+            workout:     { id: s.id, name: s.workout.name, steps: woStartApplyRunLevels(JSON.parse(JSON.stringify(s.workout.steps))) },   // each step stamped with the level it plays today
             date:        s.date,
             mode:        (document.querySelector('input[name=wosMode]:checked') || {}).value === 'self' ? 'self' : 'guided',
             voiceCues:   s.voiceCues,

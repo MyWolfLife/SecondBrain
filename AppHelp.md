@@ -4892,6 +4892,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Tap **👁** next to an exercise to see its pictures, cues and muscles without leaving this screen
 - **Date** is today by default; pick an earlier date if you are logging a workout you already did
+- **Which version can you do?** If the workout has an exercise with levels (like push-ups on a wall, chair or floor) and I don't know your level yet, I ask once. Pick the version you can do; it is remembered when you tap Start (you can change it later on the exercise)
+- **Level today**: on exercises with levels, each step shows which level it will use. Change it to do an easier or harder version just today. Tap **Make this my level** to keep your choice. A step set to a specific level in the workout stays on that level unless you change it here
 - **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome
 - **Last time** under each exercise shows what you did when you last did it (in any workout), so you know what to beat
