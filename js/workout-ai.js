@@ -9,11 +9,11 @@
 // The LLM is given your muscle list, equipment list (with descriptions) and exercise names, so
 // it can only pick real muscles, reuse your equipment, and warn about duplicates.
 
-var _woAi = { text: '', busy: false, status: '', notes: [], newEquip: [] };   // newEquip: [{name, description}]
+var _woAi = { text: '', busy: false, status: '', notes: [], newEquip: [], similar: [] };   // similar: [{id, name}]   // newEquip: [{name, description}]
 
 /** Called each time a fresh exercise editor opens. */
 function woAiReset() {
-    _woAi = { text: '', busy: false, status: '', notes: [], newEquip: [] };
+    _woAi = { text: '', busy: false, status: '', notes: [], newEquip: [], similar: [] };
 }
 
 /** Draws the box (new exercises only — the editor leaves an empty #woeAiBox placeholder). */
@@ -34,14 +34,21 @@ function woAiRenderBox() {
             '<div class="wo-ai-actions"><button type="button" class="btn btn-secondary btn-small" id="woAiGo"' + (_woAi.busy ? ' disabled' : '') + '>' +
                 (_woAi.busy ? 'Working…' : '✨ Fill in the form') + '</button>' +
                 '<span class="wo-hint" id="woAiStatus">' + _woEsc(_woAi.status) + '</span></div>' +
-            (_woAi.notes.length || newEquipHtml
+            (_woAi.notes.length || newEquipHtml || _woAi.similar.length
                 ? '<div class="wo-ai-notes"><div class="wo-hint">Filled in below — check it over and change anything before adding.</div>' +
-                  newEquipHtml + _woAi.notes.map(function(n) { return '<div class="wo-ai-note">' + _woEsc(n) + '</div>'; }).join('') + '</div>'
+                  newEquipHtml +
+                  (_woAi.similar.length ? '<div class="wo-ai-note">Might be the same as one you have (check — it can be a different variation): ' + _woAi.similar.map(function(s) {
+                      return '<strong>' + _woEsc(s.name) + '</strong> <span class="wo-view-chip wo-view-chip--inline" role="button" tabindex="0" data-ai-view="' + s.id + '">👁 View</span>';
+                  }).join(', ') + '</div>' : '') +
+                  _woAi.notes.map(function(n) { return '<div class="wo-ai-note">' + _woEsc(n) + '</div>'; }).join('') + '</div>'
                 : '') +
         '</div>';
 
     document.getElementById('woAiText').addEventListener('input', function() { _woAi.text = this.value; });
     document.getElementById('woAiGo').addEventListener('click', woAiRun);
+    box.querySelectorAll('[data-ai-view]').forEach(function(b) {
+        b.addEventListener('click', function() { woViewExercise(this.getAttribute('data-ai-view')); });
+    });
     box.querySelectorAll('[data-ai-equip]').forEach(function(cb) {
         cb.addEventListener('change', function() {
             var q = _woAi.newEquip[parseInt(this.getAttribute('data-ai-equip'), 10)];
@@ -57,7 +64,7 @@ async function woAiRun() {
     var text = (document.getElementById('woAiText').value || '').trim();
     _woAi.text = text;
     if (!text) { alert('Type what the exercise is first.'); return; }
-    _woAi.busy = true; _woAi.status = 'Reading your description…'; _woAi.notes = [];
+    _woAi.busy = true; _woAi.status = 'Reading your description…'; _woAi.notes = []; _woAi.similar = [];
     woAiRenderBox();
     try {
         await woLoadExercises();
@@ -87,7 +94,9 @@ async function _woAiAsk(text) {
         'Description: """' + text + '"""\n\n' +
         'The person\'s MUSCLE list (use ONLY these ids): ' + JSON.stringify(muscles) + '\n' +
         'The person\'s EQUIPMENT list with descriptions: ' + JSON.stringify(woEquipmentForLLM()) + '\n' +
-        'Exercises they already have: ' + JSON.stringify(_woExercises.map(function(e) { return e.name; })) + '\n\n' +
+        'Exercises they already have (name, equipment, first cues): ' + JSON.stringify(_woExercises.filter(function(e) { return !e.archived; }).map(function(e) {
+            return { name: e.name, equipment: e.equipment || [], cues: (e.instructions || '').split('\n').slice(0, 2).join(' / ') };
+        })) + '\n\n' +
         'Return ONLY one JSON object with exactly these keys:\n' +
         '{ "name": string (short, title case),\n' +
         '  "measure": "reps" | "time",\n' +
@@ -102,7 +111,7 @@ async function _woAiAsk(text) {
         '  "muscles": [{ "id": string from the MUSCLE list, "main": boolean }] (main = ONLY the 1 to 3 muscles that do most of the work; everything else that merely braces or assists is main:false. Think about which muscles actually move the body in this exact movement. Abs are main only for trunk curls or crunch-type moves; a sideways or side-lying torso lift is a side bend, so obliques and lower back are main and abs are a helper at most),\n' +
         '  "cues": [3 to 5 short spoken-style coaching cues, imperative, one per item],\n' +
         '  "guesses": [short plain sentences about anything you had to assume, such as push/pull choice or unclear equipment],\n' +
-        '  "similarExercises": [names from the existing exercises list that are the same or nearly the same exercise] }\n\n' +
+        '  "similarExercises": [names from the existing exercises list that are the SAME exercise: same movement and same equipment or setup. A variation that uses different equipment or a different body position is a different exercise, not similar (e.g. bench dips with hands behind you on a bench are NOT the same as parallel-bar dips). When unsure, leave it out] }\n\n' +
         'Rules: never invent a muscle id; leave equipment arrays empty if none; respond with ONLY the JSON, no markdown fences.';
 
     var endpoint = (cfg.provider === 'openai') ? 'https://api.openai.com/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
@@ -169,10 +178,9 @@ function _woAiApply(r) {
 
     // Duplicates
     var lower = ex.name.toLowerCase();
-    var dups = _woExercises.filter(function(e) {
+    _woAi.similar = _woExercises.filter(function(e) {
         return e.name.toLowerCase() === lower || (r.similarExercises || []).some(function(s) { return String(s).toLowerCase() === e.name.toLowerCase(); });
-    }).map(function(e) { return e.name; });
-    if (dups.length) notes.push('You already have something similar: ' + dups.join(', ') + '.');
+    }).map(function(e) { return { id: e.id, name: e.name }; });
 
     (r.guesses || []).forEach(function(g) { if (g) notes.push('Guess: ' + String(g).trim()); });
     _woAi.notes = notes;

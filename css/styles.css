@@ -21929,3 +21929,4 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-view-chip { margin-left: auto; padding: 2px 8px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 0.75rem; color: #374151; background: #f9fafb; white-space: nowrap; cursor: pointer; }
 .wo-view-chip:hover { background: #e5e7eb; }
 .wo-view-step { margin-left: 4px; }
+.wo-view-chip--inline { margin-left: 2px; }
