@@ -262,7 +262,7 @@ function _woTargetChips(targets) {
 // ─── Exercises list (#workout-exercises) ──────────────────────────────────────
 
 var _woExercises = [];                       // all exercise docs, loaded each visit
-var _woFilter = { text: '', area: '', muscle: '', equip: '', pp: '', archived: false };
+var _woFilter = { text: '', area: '', muscle: '', equip: '', pp: '', cat: '', archived: false };
 
 async function loadWorkoutExercisesPage() {
     _woSetChrome([['Exercises']]);
@@ -313,6 +313,8 @@ function _woRenderExerciseListShell() {
                         return '<option value="' + k + '"' + (_woFilter.pp === k ? ' selected' : '') + '>' + WO_PUSHPULL[k].label + '</option>';
                     }).join('') +
                 '</select>' +
+                '<select id="woFCat"><option value="">Any category</option>' + Object.keys(WO_CATEGORIES).map(function(k) {
+                    return '<option value="' + k + '"' + (_woFilter.cat === k ? ' selected' : '') + '>' + WO_CATEGORIES[k] + '</option>'; }).join('') + '</select>' +
                 '<select id="woFEquip"><option value="">Any equipment</option>' + equipOpts + '</select>' +
                 '<label class="wo-inline-check"><input type="checkbox" id="woFArchived"' + (_woFilter.archived ? ' checked' : '') + '> Show archived</label>' +
             '</div>' +
@@ -329,6 +331,7 @@ function _woRenderExerciseListShell() {
     document.getElementById('woFMuscle').addEventListener('change', function() { _woFilter.muscle = this.value; _woRenderExerciseList(); });
     document.getElementById('woFPushPull').addEventListener('change', function() { _woFilter.pp = this.value; _woRenderExerciseList(); });
     document.getElementById('woFEquip').addEventListener('change', function() { _woFilter.equip = this.value; _woRenderExerciseList(); });
+    document.getElementById('woFCat').addEventListener('change', function() { _woFilter.cat = this.value; _woRenderExerciseList(); });
     document.getElementById('woFArchived').addEventListener('change', function() { _woFilter.archived = this.checked; _woRenderExerciseList(); });
 }
 
@@ -373,6 +376,7 @@ function _woRenderExerciseList() {
         if (text && (e.name || '').toLowerCase().indexOf(text) === -1) return false;
         if (f.pp && e.pushPull !== f.pp) return false;
         if (f.equip && (e.equipment || []).indexOf(f.equip) === -1) return false;
+        if (f.cat && e.category !== f.cat) return false;
         return _woTargetMatch(e) > 0;
     });
 
@@ -400,6 +404,7 @@ function _woRenderExerciseList() {
                    '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name wo-card-name--row">' + _woEsc(e.name) + ' ' + _woPushPullBadge(e.pushPull) +
+                           (e.category ? ' <span class="wo-badge wo-badge--neither">' + _woEsc(woCategoryLabel(e.category)) + '</span>' : '') +
                            (woIsMultiLevel(e) ? ' <span class="wo-badge wo-badge--neither">' + woActiveLevelsOf(e).length + ' levels</span>' : '') +
                            (e.archived ? ' <span class="wo-badge wo-badge--archived">Archived</span>' : '') + '</div>' +
                        '<div class="wo-card-meta">' + _woEsc(meta) + equip + '</div>' +
@@ -427,7 +432,7 @@ async function loadWorkoutExercisePage(id) {
         await woLoadMyLevels();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
-                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', swapStart: false, eachSide: false, equipment: [],
+                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', swapStart: false, eachSide: false, category: '', source: '', precaution: '', equipment: [],
                         targets: [], pushPull: 'neither', videoUrl: '', archived: false };
         } else {
             var doc = await woLibCol('workoutExercises').doc(id).get();
@@ -525,6 +530,23 @@ function _woRenderExerciseEditor() {
                         return '<option value="' + k + '"' + (e.pushPull === k ? ' selected' : '') + '>' + WO_PUSHPULL[k].label + '</option>';
                     }).join('') +
                 '</select>' +
+            '</div>' +
+
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="woeCategory">Category</label>' +
+                '<select id="woeCategory"><option value="">Not set</option>' + Object.keys(WO_CATEGORIES).map(function(k) {
+                    return '<option value="' + k + '"' + (e.category === k ? ' selected' : '') + '>' + WO_CATEGORIES[k] + '</option>'; }).join('') + '</select>' +
+                ' <span class="wo-hint">separate from Push / Pull — a plank is Core</span>' +
+            '</div>' +
+
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="woePrecaution">Precaution (optional)</label>' +
+                '<textarea id="woePrecaution" rows="2" class="wo-notes-box" placeholder="e.g. Warm up first. Stop if you feel pain in a joint.">' + _woEsc(e.precaution || '') + '</textarea>' +
+            '</div>' +
+
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="woeSource">Source (optional)</label>' +
+                '<input type="text" id="woeSource" maxlength="60" value="' + _woEsc(e.source || '') + '" placeholder="e.g. YAYOG, a trainer, a website">' +
             '</div>' +
 
             // Accordion: the chosen muscles stay visible; open it to change them (open by default for a new exercise)
@@ -887,6 +909,9 @@ async function _woSaveExercise() {
         equipment:     lvs.equipment,
         targets:       _woEdit.targets,
         pushPull:      document.getElementById('woePushPull').value,
+        category:      document.getElementById('woeCategory').value,
+        source:        document.getElementById('woeSource').value.trim(),
+        precaution:    document.getElementById('woePrecaution').value.trim(),
         videoUrl:      lvs.videoUrl,
         archived:      !!_woEdit.archived
     };

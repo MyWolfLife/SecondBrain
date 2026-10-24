@@ -51,7 +51,10 @@ async function woViewExercise(exerciseId) {
         '<h3>' + _woEsc(e.name) + ' ' + _woPushPullBadge(e.pushPull) + '</h3>' +
         (multi ? '<div class="wo-view-tabs" id="woViewTabs"></div>' : '') +
         '<div id="woViewBody"></div>' +
+        (e.precaution ? '<div class="wo-view-row wo-view-warn">⚠ ' + _woEsc(e.precaution) + '</div>' : '') +
         '<div class="wo-view-row"><strong>How:</strong> ' + _woEsc(how) + '</div>' +
+        ((e.category || e.source) ? '<div class="wo-view-row"><strong>' + (e.category ? 'Category:' : 'Source:') + '</strong> ' + _woEsc(e.category ? woCategoryLabel(e.category) : e.source) +
+            (e.category && e.source ? ' · <strong>Source:</strong> ' + _woEsc(e.source) : '') + '</div>' : '') +
         '<div class="wo-view-row"><strong>Works:</strong> ' + (chips ? '<span class="wo-chips">' + chips + '</span>' : '<span class="wo-hint">not set</span>') + '</div>' +
         '<div class="ex-form-actions"><button type="button" class="btn btn-primary" id="woViewClose">Close</button>' +
         '<a class="btn btn-secondary" href="#workout-exercise/' + e.id + '" target="_blank" rel="noopener">Edit exercise ↗</a></div>' +

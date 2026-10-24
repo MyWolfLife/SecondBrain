@@ -119,3 +119,12 @@ function woTempoRowHtml(st) {
     return '<div class="wo-rest-row wo-tempo-row"><span class="wo-rest-label">Tempo (optional)</span>' +
         WO_TEMPO_PARTS.map(box).join(' · ') + ' <span class="wo-hint">seconds; blank = none</span></div>';
 }
+
+// ─── Labels: category, source, precaution (chunk E5) ──────────────────────────
+//
+// Exercise fields: category ('push' | 'pull' | 'core' | 'legs' | 'full' | ''), source (free text, e.g. "YAYOG" for
+// imported exercises), precaution (a safety note shown on the Start screen and the View card).
+
+var WO_CATEGORIES = { push: 'Push', pull: 'Pull', core: 'Core', legs: 'Legs & glutes', full: 'Full body' };
+
+function woCategoryLabel(c) { return WO_CATEGORIES[c] || ''; }

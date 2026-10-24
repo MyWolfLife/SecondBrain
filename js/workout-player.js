@@ -431,6 +431,13 @@ async function loadWorkoutStartPage(id) {
     _woRenderStartPage();
 }
 
+/** ⚠ line for an exercise that has a precaution note (read live from the exercise, so edits show up straight away). */
+function _woStartPrecautionHtml(st, inline) {
+    var ex = _woExMap[st.exerciseId];
+    if (!ex || !ex.precaution) return '';
+    return inline ? ' <span class="wo-prec">⚠ ' + _woEsc(ex.precaution) + '</span>' : '<div class="wo-prec">⚠ ' + _woEsc(ex.precaution) + '</div>';
+}
+
 function _woStartUnit(st) { return st.measure === 'time' ? 'sec' : 'reps'; }
 
 function _woRenderStartPage() {
@@ -444,7 +451,7 @@ function _woRenderStartPage() {
                 '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span></div>' +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
-                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + (woHasTempo(it.tempo) ? ' <span class="wo-hint">tempo: ' + _woEsc(woTempoText(it.tempo)) + '</span>' : '') + _woLastTimeHtml(it, i + '.' + j) +
+                    return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woStartPrecautionHtml(it, true) + (woHasTempo(it.tempo) ? ' <span class="wo-hint">tempo: ' + _woEsc(woTempoText(it.tempo)) + '</span>' : '') + _woLastTimeHtml(it, i + '.' + j) +
                         '<span class="wo-item-sets">' + woAmountEditorHtml(it.measure, s0, '', 0) +
                         (it.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="0" value="' + (s0.weight != null ? s0.weight : '') + '"> lb' : '') + '</span></div>' +
                         woProgStepHtml(it, i + '.' + j);
@@ -454,6 +461,7 @@ function _woRenderStartPage() {
             '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">' + _woEsc(st.exerciseName) + '</span>' +
             _woSideBadge(st) + '<button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + st.exerciseId + '" title="View this exercise">👁</button></div>' +
             woStartLevelRowHtml(st, String(i), false) +
+            _woStartPrecautionHtml(st) +
             (woHasTempo(st.tempo) ? '<div class="wo-rest-row"><span class="wo-rest-label">Tempo</span>' + _woEsc(woTempoText(st.tempo)) + '</div>' : '') +
             _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +

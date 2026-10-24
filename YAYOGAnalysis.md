@@ -143,6 +143,8 @@ This depends on §4 and §5 being built first.
 
 ---
 
+> **Status update (2026-10-24):** the rest of step 1 is now built too (`ExerciseAdditionsPlan.md`, E1–E5). Still to do: the workout formats (§5), the import tool and Programs.
+
 > **Status (2026-10-24):** step 1's levels part and step 2 are **built** (see `ExerciseLevelsPlan.md`, chunks L1–L8). The other model additions in step 1 and everything from step 3 on are still to do.
 
 ## 7. Suggested build order

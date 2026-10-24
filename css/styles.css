@@ -21969,3 +21969,8 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-flip-cap { min-height: 1.2em; margin: 4px 0 0; font-size: 0.85rem; color: #374151; text-align: center; max-width: 320px; }
 .wo-view .wo-flip-cap { max-width: none; }
 .wo-flip-cap--player { max-width: none; color: inherit; font-size: 1rem; font-weight: 600; margin-top: 6px; }
+
+/* Precaution / category */
+.wo-prec { margin: 4px 0 2px 32px; font-size: 0.82rem; color: #92400e; background: #fffbeb; border-radius: 6px; padding: 3px 8px; }
+.wo-item .wo-prec { margin: 0; }
+.wo-view-warn { color: #92400e; background: #fffbeb; border-radius: 6px; padding: 4px 8px; }

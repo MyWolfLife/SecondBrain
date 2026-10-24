@@ -4817,6 +4817,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Your library of exercises — the moves you build workouts from.
 
 ### Quick Help
+- The **Any category** filter narrows the list to Push, Pull, Core, Legs & glutes or Full body exercises; the category also shows as a small tag next to the name
 - Tap **+ New Exercise** to add one; tap any exercise to edit it
 - Use the filters to find what you need — pick **Calves** under Muscle to see every exercise that works your calves (★ main targets are listed first)
 - **Push / Pull** shows whether a move pushes (push-up) or pulls (curl) — handy for balancing a workout
@@ -4830,6 +4831,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Create or edit one exercise.
 
 ### Quick Help
+- **Category** (Push, Pull, Core, Legs & glutes, Full body) is separate from Push / Pull and lets you filter the Exercises list. **Precaution** is a safety note that appears on the Start screen and the 👁 View card whenever the exercise is used. **Source** is just a reminder of where the exercise came from
 - For exercises done **one side, then the other**, **Start with** can be left, right or **My weaker side**, and **Swap the starting side every set** makes the sets go left-then-right, then right-then-left, and so on. Which side is weaker is set once in ⚙ Progression on the Workouts list (I ask the first time it is needed)
 - **✨ Describe it** (new exercises only): type the exercise in plain words — e.g. “Using the Nordic Stick, lay on stomach and lift my torso up 15 times” — and tap **Fill in the form**. The AI fills in the name, reps or time, sides, push/pull, muscles, equipment and cues, using your own muscle and equipment lists (needs an AI provider in Settings → AI). Check the form over and change anything. If it needs equipment you don't have, a tick box **➕ Add new equipment** appears (on by default); it joins your equipment list only when you tap Add Exercise. If you describe several versions of one move (for example “push-ups against a wall, then on a chair, then on the floor”) it creates the levels too, each with its own cues, shown as tabs for you to check. It also lists any exercise you already have that might be the same (tap **👁 View** to compare — it can be a different variation) and what it guessed
 - **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
@@ -4904,6 +4906,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Which version can you do?** If the workout has an exercise with levels (like push-ups on a wall, chair or floor) and I don't know your level yet, I ask once. Pick the version you can do; it is remembered when you tap Start (you can change it later on the exercise)
 - **Last time** shows what you did at the level you have selected for today (if you have never done that level it shows your most recent time at another level and says which)
 - **⬆ Ready for the next level / ⬇ Maybe go easier**: for exercises with levels, after enough good sessions in a row at a level I suggest the next harder level (instead of more reps or weight); after a few sessions below your target I suggest an easier one. **Accept** moves your level (or the level the step is set to); your sets keep their numbers, so change them below if the new level needs fewer reps. At the hardest level I go back to suggesting more reps or weight
+- A **⚠** line under an exercise is its precaution note (a safety reminder you or the AI wrote on the exercise)
 - **Level today**: on exercises with levels, each step shows which level it will use. Change it to do an easier or harder version just today. Tap **Make this my level** to keep your choice. A step set to a specific level in the workout stays on that level unless you change it here
 - **Guided** counts down every exercise and rest for you. **Self-paced** lets you do each set at your own speed and tap **DONE** — rests still count down, and you can correct the reps or weight before tapping. **Throughout the day** gives you a checklist of every set — do them whenever you like and tick each one off (from any device), then tap **Finish workout**
 - **Voice**: turn spoken exercise names/countdowns on or off, and turn voice commands on or off (say "done", "next", "pause"…). Voice commands need Chrome

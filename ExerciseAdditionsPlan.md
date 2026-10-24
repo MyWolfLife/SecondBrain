@@ -2,7 +2,7 @@
 
 *2026-10-24. Follows `YAYOGAnalysis.md` §3 and §7 step 1. Exercise levels (`ExerciseLevelsPlan.md`) are already done. Everything here **adds** to what exists: fixed sets like 3×10 and pyramids like 10 / 5 / 3 keep working exactly as they do now.*
 
-**Status:** E1–E4 built and tested. E5 to do.
+**Status:** ALL chunks E1–E5 built and tested in the preview.
 
 ## Chunks
 
