@@ -6,6 +6,14 @@
 
 ---
 
+## 0. Decisions so far (user, 2026-10-24)
+
+- **Personal app, never sold or shared.** (Softens concern 1 in §8: no redistribution worry; imported text still best kept short/paraphrased, and out of any future Shared Space.)
+- **Keep everything we have and add the book's ways.** Weights stay: **3×10** (same reps every set) and **10 / 5 / 3** (per-set reps and weights) both remain. The book's ranges, failure sets and formats are *additions*.
+- **Escalation lives at the exercise level.** It must work for push-ups against a wall / table / chair / floor, for the book's variations, and for yoga poses that have easier and harder versions of the same pose. It will touch a lot of the existing code, so it is designed once, carefully, before anything is imported.
+
+---
+
 ## 1. What the book is (structure)
 
 | Part | What it contains | Why it matters to us |
@@ -40,7 +48,7 @@ Every entry has:
 | Name, cues, video, pictures, equipment, muscles (★ main / also) | Yes | Muscle list needs a few additions (e.g. traps, forearms, quads naming — to be mapped at import). |
 | **Difficulty 1–4** | No | Add `level` (1–4). |
 | **Section Push / Pull / Core / Legs / Full body** | We have push/pull/both/neither and muscle areas, but not the book's four-way section | Add `category`: push, pull, core, legs, full. Programs need it to pick exercises for a slot. |
-| **Variations, easier ↔ harder chain** | Not at all | **The big one.** See §4. |
+| **Variations, easier ↔ harder chain** | Not at all | **The big one.** Nested levels on the exercise plus "my level" — see §4. |
 | **Reps measure**: fixed reps, or time | Reps or time | Add **rep ranges** ("6–12", "1–5") and **"as many as possible / to failure"** for a set. The book never gives 3×10; it gives ranges and failure. |
 | One side / both / alternating, with a start side | Yes | Add **"swap the starting side each set"** (several exercises say so) and a **"weaker side first"** start (the book says start with the non-dominant side). Needs a dominant-side setting. |
 | Captions on pictures | No | Add an optional caption per frame ("Count 3: perform a push-up"). |
@@ -50,17 +58,31 @@ Every entry has:
 
 ---
 
-## 4. Variations and progression — the core design decision
+## 4. Escalation at the exercise level (revised design)
 
-How the book progresses you: when you can do more than the rep target, **switch to a harder variation, and eventually to a harder exercise**. If you cannot reach the target reps, go easier. That is bodyweight "adding weight".
+**The idea:** an exercise is a *family of levels*, easiest to hardest. One exercise ("Push-up") holds an ordered ladder: wall → table → chair → floor → feet up → one-arm. A yoga pose works the same: "Downward dog" with its easier and harder versions. Weighted exercises are simply a one-level exercise whose escalation is weight and reps, exactly as today.
 
-Program tables name *variations* directly: "Push Ups w/ hands elevated on platform", "Close Grip Push Ups w/ hands elevated", "Seated Dips w/ feet on ground", "Let Me Ins w/ palms up", "Let Me Ups w/ knees bent". And *modifiers that are not different exercises*: "w/ 1–3 second pause at bottom", "w/ 4–6 second contraction at top", "slow negatives".
+**Why nested levels beat separate linked records**
+- **"My level" lives on the exercise.** You are at level 3 of Push-up. Workouts say "Push-up" and play *your* level. When progression moves you up, **every workout that uses Push-up follows automatically**. With separate records you would have to edit each workout. This is the book's own rule ("the outline never changes, only the exercises change") built in.
+- **It fits yoga, wall/chair/floor push-ups and the book's variations with one mechanism.**
+- **Existing exercises keep working**: today's exercises become exercises with one level.
 
-**Proposal**
-- **A variation is its own exercise record**, linked by a `familyId` (e.g. all the push-up types) with an order inside the family (`easier ← → harder`, plus `level`). Reasons: workouts already point at one exercise; history, PRs, pictures and progression stay per variation; import is simple.
-- **The list groups variations by family** (collapsed under the base exercise).
-- **Level-up changes**: today progression adds reps or weight. For bodyweight exercises it should instead **suggest the next harder variation in the family** (and the reverse when targets are missed). Same streak logic, new action.
-- **Tempo and pause modifiers are on the workout step, not the exercise**: a small field such as "lower 3 s · hold 1 s · lift 1 s". The player can show it and speak it ("lower… hold… up").
+**What a level holds** (all optional except a label): label ("Hands on chair"), difficulty 1–4, its own cues, its own pictures, its own equipment, optional video, and optional overrides of the default amount, measure (e.g. a 20 s hold for yoga) and weight. **Shared at the exercise level:** name, muscles, category, push/pull, side mode.
+
+**How it plays out**
+- **Workout step:** `exerciseId` + either *follow my level* (default) or *pinned to level N*. Step keeps its own sets/reps as today.
+- **History and records:** stored against exercise **and** level, so "Push-up (floor)" records don't mix with "Push-up (wall)".
+- **Progression (existing streak logic):**
+  - Weighted one-level exercises: level-up still adds reps/weight (unchanged).
+  - Multi-level exercises: when you beat the target for N sessions, suggest **the next level**; if you can't reach the minimum, suggest **the previous level**. Accepting changes "my level" on the exercise.
+  - Level change optionally resets the streak and Comeback logic per level.
+- **Tempo / pause modifiers** ("lower 3 s, hold 1 s") stay on the *step*, not the level.
+- **Step display:** "Push-up · Chair (level 2 of 6)" with a quick change-level control while building or starting a workout.
+
+**Open sub-questions**
+1. Should a workout step *follow my level* by default, or pin a level? (Recommendation: follow by default; pin as an option.)
+2. Is level order a simple 1…N list, or can a ladder branch (e.g. two different harder versions)? (Recommendation: a simple list; the book's few branches become separate exercises.)
+3. When a level is added or reordered, existing "my level" values are kept by level id, not by number.
 
 ---
 
@@ -111,8 +133,8 @@ This depends on §4 and §5 being built first.
 
 ## 7. Suggested build order
 
-1. **Exercise model additions** (small): level, category, familyId + order, rep range / failure, swap-start-side, weaker-side-first, per-frame captions, source, precaution. Plus a "family" display in the exercise list.
-2. **Variant-aware progression**: level-up suggests the next harder variation; tempo/pause on steps.
+1. **Exercise model additions** (the large one): **levels ladder + "my level"**, category, rep range / failure, swap-start-side, weaker-side-first, per-frame captions, source, precaution. Plus a "family" display in the exercise list.
+2. **Level-aware progression and history**: level-up moves "my level"; records per level; tempo/pause on steps.
 3. **Block formats** in the builder and player, one at a time, in this order: Interval Sets, Ladder, Superset, Stapper, Tabata, then the rest.
 4. **Import tool** (staged review screen, not a blind import). Book → JSON → you approve in batches.
 5. **Programs** (templates, levels, today's workout).
@@ -121,7 +143,7 @@ This depends on §4 and §5 being built first.
 
 ## 8. Concerns
 
-1. **Copyright and sharing.** The book is copyrighted. Importing into your own private app for personal use is one thing; it must not end up in a shared space that other people see. Plan: mark imported items `source: YAYOG`, keep them out of any future sharing, and import **short paraphrased cues** (the LLM can summarize) rather than whole paragraphs. **The book's photos should not be copied into the app**; take your own pictures or use GIFs you already have.
+1. **Copyright.** The user says the app is personal, never sold and never shared, so the earlier worry is much smaller. Still: mark imported items `source: YAYOG`, prefer short paraphrased cues over long verbatim paragraphs, and don't copy the book's photos (own pictures or GIFs instead). Keep these out of any future shared space.
 2. **PDF quality.** The text mostly extracts, but some lines come out garbled (font encoding) and the program tables come out with columns jumbled. I can decode the garbled lines, but the tables need a visual check against the page. This machine has no tool to render PDF pages as images; installing one Python package (PyMuPDF) would fix that.
 3. **Size.** 111 exercises plus perhaps 100+ named variations plus 4 programs is a large import. It is feasible, but it must be staged and checked, not done in one go.
 4. **Muscle names.** The book's muscle names don't match our 19 muscles one-to-one (traps, forearms, deltoid parts, "core stability"). A mapping table is needed first.
@@ -131,9 +153,9 @@ This depends on §4 and §5 being built first.
 
 ## 9. Open questions (for the user)
 
-1. **Variations as separate exercise records** (recommended), or nested inside one exercise?
+1. ~~Variations as separate records or nested?~~ **Decided direction: nested levels on the exercise (§4).** Still open: do steps follow "my level" by default?
 2. **Import scope:** only the 111 base exercises, or also the named variations, or also the 4 programs?
-3. **Pictures:** none from the book (own pictures later)? And paraphrased cues, not verbatim?
+3. **Pictures:** none from the book (own pictures later)? Paraphrased cues are fine for a personal app, but short is still easier to read while exercising.
 4. **PDF pages:** OK to install PyMuPDF so I can render the program tables and check them?
 5. **Dominant side:** a single setting ("my weaker side is: left/right"), used for "weaker side first"?
 6. **Your level:** do you want one level for everything, or Basic/1st/Master/Chief per category?
