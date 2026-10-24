@@ -21979,3 +21979,11 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-clock-box { width: 64px; text-align: center; }
 .wo-cap { font-size: 1rem; margin: 8px 0 0; opacity: 0.95; }
 .wo-cap--over { color: #fecaca; font-weight: 700; }
+
+/* Tabata / timed sets: rep counter */
+.wo-repcount { text-align: center; margin-top: 8px; }
+.wo-repnum { font-size: clamp(2.6rem, 14vh, 4.5rem); font-weight: 800; line-height: 1; }
+.wo-repbtns { display: flex; gap: 12px; justify-content: center; align-items: center; margin: 8px 0 4px; }
+.wo-bigbtn--rep { min-width: 160px; }
+.wo-repundo { min-width: 48px; }
+.wo-timed-note { margin: 6px 0 0 32px; }

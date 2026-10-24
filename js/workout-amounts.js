@@ -175,3 +175,47 @@ function woIntervalRowHtml(st) {
               '<input type="text" class="wo-clock-box" data-f="intervalCap" value="' + (iv.capSec ? woClockText(iv.capSec) : '') + '" placeholder="none"> <span class="wo-hint">min:sec</span>' : '') +
         '</div>';
 }
+
+// ─── Tabata and timed sets (FormatsPlan.md, chunk F2) ─────────────────────────
+//
+// step.timed = { workSec, restSec, rounds } on an exercise step: repeat "work for workSec, rest for restSec" for that
+// many rounds. For a reps exercise each work period is "as many reps as you can" and you count them with the +1 button
+// (the total of each round is saved as that round's set line); a timed exercise (like a plank) is simply held for
+// workSec. The step's own sets / rest-between-sets are not used; "Rest after exercise" is the gap before the next
+// exercise (the book suggests a couple of minutes between Tabatas).
+
+var WO_TIMED_PRESETS = {
+    tabata: { label: 'Tabata — 20 s on, 10 s off, 8 rounds',       workSec: 20, restSec: 10, rounds: 8 },
+    timed:  { label: 'Timed sets — 20 s on, 40 s off, 20 rounds',  workSec: 20, restSec: 40, rounds: 20 }
+};
+
+function woTimedPresetKey(t) {
+    var k = Object.keys(WO_TIMED_PRESETS).filter(function(key) {
+        var p = WO_TIMED_PRESETS[key];
+        return t && t.workSec === p.workSec && t.restSec === p.restSec && t.rounds === p.rounds;
+    })[0];
+    return k || 'custom';
+}
+
+/** "20 s on / 10 s off × 8 rounds (4:00)" */
+function woTimedText(t) {
+    if (!t) return '';
+    var total = t.rounds * t.workSec + Math.max(0, t.rounds - 1) * t.restSec;
+    return t.workSec + ' s on / ' + t.restSec + ' s off × ' + t.rounds + ' round' + (t.rounds === 1 ? '' : 's') + ' (' + woClockText(total) + ')';
+}
+
+/** The builder's timed-rounds row for an exercise step. */
+function woTimedRowHtml(st) {
+    var t = st.timed;
+    var num = function(key, val, title) { return '<input type="number" class="wo-clock-box" min="0" step="1" data-f="' + key + '" value="' + val + '" title="' + title + '">'; };
+    var key = woTimedPresetKey(t);
+    return '<div class="wo-rest-row wo-timed-row"><span class="wo-rest-label">Timed rounds</span>' +
+        '<label class="wo-inline-check"><input type="checkbox" data-f="timedOn"' + (t ? ' checked' : '') + '> Tabata / timed sets</label>' +
+        (t ? ' <select class="wo-amode" data-f="timedPreset">' +
+                Object.keys(WO_TIMED_PRESETS).map(function(k) { return '<option value="' + k + '"' + (key === k ? ' selected' : '') + '>' + WO_TIMED_PRESETS[k].label + '</option>'; }).join('') +
+                '<option value="custom"' + (key === 'custom' ? ' selected' : '') + '>Custom</option></select> ' +
+             'work ' + num('timedWork', t.workSec, 'seconds of work') + ' s · rest ' + num('timedRest', t.restSec, 'seconds of rest') + ' s · ' +
+             num('timedRounds', t.rounds, 'number of rounds') + ' rounds ' +
+             '<span class="wo-hint">' + (st.measure === 'time' ? 'hold for the work time each round' : 'as many reps as you can each round — count them with +1') + '</span>' : '') +
+        '</div>';
+}

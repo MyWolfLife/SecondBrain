@@ -122,6 +122,7 @@ function woClimbComeback(st, S) {
 function woEvaluateProgression(steps, lines, dateISO, S) {
     var out = JSON.parse(JSON.stringify(steps)), changed = false;
     woEachExerciseStep(out, function(st, path, i, j) {
+        if (st.timed) return;                                       // Tabata / timed sets don't use streaks or level-ups
         var mine = lines.filter(function(l) {
             return l.stepIndex === i && ((l.itemIndex == null && j == null) || l.itemIndex === j);
         });
@@ -310,6 +311,7 @@ function woProgBannerHtml() {
 function woProgStepHtml(st, path) {
     var P = _woS && _woS.prog;
     if (!P) return '';
+    if (st.timed) return '';
     var out = '';
     if (st.comeback && st.previousBestSets) {
         var target = woFmtAmount(st.measure, st.previousBestSets[0].amount, st.previousBestSets[0].weight);

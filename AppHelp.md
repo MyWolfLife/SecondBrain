@@ -4871,6 +4871,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Build or edit one workout.
 
 ### Quick Help
+- **Tabata / timed sets**: tick **Tabata / timed sets** under an exercise and pick a preset — **Tabata** (20 seconds on, 10 seconds off, 8 rounds) or **Timed sets** (20 on, 40 off, 20 rounds) — or set your own work, rest and rounds. For a rep exercise each round is “as many reps as you can”, and you count them in the player. The **🔥 Tabata format** button turns every exercise in the workout into a Tabata (with 2 minutes' rest between exercises)
 - **Interval sets**: tick **each set starts on a clock** under an exercise and choose how often a set starts (like every 3:00) and an optional **work cap** (like 1:30). You do the set (up to the cap), then rest for whatever is left of the interval, and the next set starts on the clock. The **⏱ Interval format** button makes every exercise in the workout an interval set in one tap (3 sets of 6–12 reps every 3:00 with a 1:30 cap) so you can then adjust them
 - **Tempo (optional)**: under an exercise's sets you can set how slowly to move — seconds to **lower**, **pause at the bottom**, **lift**, and **pause at the top**. Leave a box blank to skip that part. The player shows it and the voice reads it out the first time the exercise comes up
 - **Reps targets**: next to each set's number there is a small dropdown — **exactly** (like 10), **a range** (like 6–12) or **to failure** (as many as you can; the box then means “at least”). Timed exercises offer **exactly** or **as long as you can**. Ranges and to-failure sets work together with the usual sets, pyramids and circuits
@@ -4899,6 +4900,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Get ready to do a workout — choose the date, how you want to do it, and adjust today's numbers.
 
 ### Quick Help
+- An exercise set up as **Tabata / timed rounds** shows its pattern (for example “20 s on / 10 s off × 8 rounds”) instead of sets. Change it in the workout builder
 - An exercise set up as **Interval sets** shows its clock (for example “every 3:00, work cap 1:30”) under its name. Change it in the workout builder
 - If an exercise has a **Tempo** it is shown under its name (for example “lower 3 s · pause at the bottom 1 s · lift 1 s”). Change it in the workout builder
 - The same **exactly / a range / to failure** dropdown is on each set here, so you can change today's target. Sets with a range or “to failure” will ask you to type how many you really did
@@ -4928,6 +4930,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Do your workout hands-free. The whole screen shows what to do now and counts down for you.
 
 ### Quick Help
+- **Tabata / timed rounds**: each work period counts down on the ring. Tap **+1 rep** — or tap anywhere on the screen — for every rep you do (**−1** fixes a mis-tap). When the time is up the reps are saved for that round and the rest starts; the next round begins on its own. A held exercise like a plank just counts down
 - **Interval sets**: each set starts on the clock. A **Work time left** timer counts down the cap; at zero it beeps and says “Time” but does not stop you — finish the set, type your reps and tap **DONE**. The rest then fills the rest of the interval, and the next set starts when the clock reaches zero. If a set took longer than the interval, the next one starts straight away
 - When an exercise has a tempo it appears under the name (“Tempo: lower 3 s · …”) and the voice says it once at the start of that exercise — it does not count the seconds aloud
 - For a set with a range (like 6–12) or “to failure”, the screen shows “6–12” or “MAX” and a **Did** box. Type how many you did, then tap **DONE** (tapping elsewhere doesn't count, so the number is never guessed). The voice says “6 to 12 reps” or “as many as you can”
@@ -4952,6 +4955,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
+- Tabata and timed-sets rounds show as separate sets with the reps you counted in each round
 - Sets with a range or “to failure” show their target (like “6–12” or “max”) in the greyed hint inside the box; type what you actually did
 - Exercises with levels list the level you did next to the name (for example “Push-up · Chair”). Sets are numbered separately for each level, and any line you add yourself uses your current level
 - Your workout was **saved automatically** and added to your Activities. Nothing on this screen changes until you tap **Save**, and Save takes you back to your Workouts list

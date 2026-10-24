@@ -57,6 +57,26 @@ function _woSetPhases(st, set, ctx) {
 }
 
 /**
+ * One work period of a Tabata / timed-sets step. Reps exercises: timed, "as many reps as you can", counted with the +1 button
+ * (countReps — the count becomes the set line's reps); timed exercises (a plank): an ordinary timed hold. Each-side
+ * exercises alternate sides round by round (no switch phase).
+ */
+function _woTimedWorkPhase(step, ctx, round) {
+    var T = step.timed, reps = step.measure !== 'time';
+    var set = (step.sets && step.sets[0]) || {};
+    var base = Object.assign({}, step, { eachSide: false, interval: null });
+    var ph = _woSetPhases(base, reps ? { amount: 1, failure: true, weight: set.weight != null ? set.weight : null }
+                                     : { amount: T.workSec, weight: set.weight != null ? set.weight : null }, ctx)[0];
+    ph.durationSec = T.workSec; ph.tap = false;
+    if (reps) { ph.countReps = true; ph.failure = true; ph.amountMax = null; }
+    if (step.eachSide) {                                                      // alternate sides each round
+        var first = woFirstSide(step);
+        ph.side = (round % 2 === 1) ? first : woOppositeSide(first);
+    }
+    return ph;
+}
+
+/**
  * The rest that fills the rest of an interval: its length is worked out by the runner when it STARTS
  * (interval seconds minus the time since the set began). durationSec here is only the estimate used before then.
  */
@@ -97,6 +117,16 @@ function woBuildTimeline(workout, opts) {
 
         if (step.type === 'exercise') {
             var sets = step.sets || [];
+            if (step.timed) {                                           // Tabata / timed sets: work, rest, work, rest …
+                var T = step.timed;
+                for (var r = 1; r <= T.rounds; r++) {
+                    var tctx = { section: section, stepIndex: si, itemIndex: null, setIndex: r - 1, setCount: T.rounds, round: r, rounds: T.rounds, allTap: false };
+                    phases.push(_woTimedWorkPhase(step, tctx, r));
+                    if (r < T.rounds) phases = phases.concat(_woRestPhase({ mode: 'timed', seconds: T.restSec }, 'rounds', tctx));
+                }
+                phases = phases.concat(_woRestPhase(step.restAfter, 'after', { section: section, stepIndex: si }));
+                return;
+            }
             sets.forEach(function(set, k) {
                 var ctx = { section: section, stepIndex: si, itemIndex: null, setIndex: k, setCount: sets.length, round: null, rounds: null, allTap: !!opts.allTap };
                 var ph = _woSetPhases(step, set, ctx);
@@ -232,6 +262,8 @@ function woCreateRunner(phases, cb, opts) {
     }
 
     function advance(status, actual) {
+        var cur = phase();
+        if (!actual && status === 'done' && cur && cur.countReps && cb.getActual) actual = cb.getActual(cur, R.index);   // Tabata: the counted reps
         record(status, actual);
         if (R.index + 1 >= R.phases.length) return finish();
         enter(R.index + 1);
@@ -508,14 +540,16 @@ function _woRenderStartPage() {
             _woStartPrecautionHtml(st) +
             (woHasTempo(st.tempo) ? '<div class="wo-rest-row"><span class="wo-rest-label">Tempo</span>' + _woEsc(woTempoText(st.tempo)) + '</div>' : '') +
             (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Interval sets</span>' + _woEsc(woIntervalText(st.interval)) + '</div>' : '') +
+            (st.timed ? '<div class="wo-rest-row"><span class="wo-rest-label">' + (woTimedPresetKey(st.timed) === 'tabata' ? 'Tabata' : 'Timed rounds') + '</span>' + _woEsc(woTimedText(st.timed)) +
+                (st.measure === 'time' ? '' : ' — count your reps with +1') + '</div>' : '') +
             _woLastTimeHtml(st, String(i)) +
             woProgStepHtml(st, String(i)) +
-            '<div class="wo-step-sets wo-step-sets--custom">' +
-            (st.sets || []).map(function(set, k) {
+            (st.timed ? '' : '<div class="wo-step-sets wo-step-sets--custom">') +
+            (st.timed ? [] : (st.sets || [])).map(function(set, k) {
                 return '<div class="wo-set-row"><span class="wo-set-label">Set ' + (k + 1) + '</span>' +
                     woAmountEditorHtml(st.measure, set, '', k) +
                     (st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" data-k="' + k + '" value="' + (set.weight != null ? set.weight : '') + '"> lb' : '') + '</div>';
-            }).join('') + '</div></div>';
+            }).join('') + (st.timed ? '' : '</div>') + '</div>';
     }).join('');
 
     el.innerHTML =
@@ -698,7 +732,7 @@ async function loadWorkoutRunPage() {
     }
     el.innerHTML = '<div class="page-header"><h2>' + _woEsc(sess.workoutName) + '</h2></div><div class="ex-status">Getting ready…</div>';
 
-    _woP = { session: sess, phases: phases, runner: null, frames: {}, captions: {}, tickTimer: null, flipTimer: null,
+    _woP = { session: sess, phases: phases, runner: null, frames: {}, captions: {}, repCounts: {}, tickTimer: null, flipTimer: null,
              keyHandler: null, hashHandler: null, finished: null };
     try { await _woPlayerLoadFrames(); } catch (err) { console.error('Workouts: could not load frames for player:', err); }
     if (!_woP) return;   // user left while loading
@@ -706,7 +740,8 @@ async function loadWorkoutRunPage() {
     _woP.runner = woCreateRunner(phases, {
         onPhase: _woPlayerOnPhase,
         onTick:  _woPlayerOnTick,
-        onDone:  _woPlayerOnDone
+        onDone:  _woPlayerOnDone,
+        getActual: function(ph, idx) { return { amount: (_woP && _woP.repCounts[idx]) || 0, weight: ph.weight != null ? ph.weight : null }; }
     });
 
     _woP.tickTimer = setInterval(function() { if (_woP && _woP.runner) _woP.runner.tick(); }, 200);
@@ -823,6 +858,7 @@ function _woSectionLabel(sec) {
 // ----- rendering -----
 
 function _woPlayerOnPhase(p, index) {
+    if (p.countReps && _woP) _woP.repCounts[index] = 0;                  // a Tabata round starts at zero reps
     _woPlayerRender();
     if (typeof woVoiceOnPhase === 'function') { try { woVoiceOnPhase(p, index, _woP); } catch (e) { console.error(e); } }
 }
@@ -878,6 +914,12 @@ function _woPlayerRender() {
     } else if (p.kind === 'rest' && tap) {
         center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text wo-ring-text--sm">Rest</div></div>' +
                  '<button type="button" class="wo-bigbtn" id="woDone">I’M READY</button><div class="wo-tap-hint">or tap anywhere · say “ready”</div>';
+    } else if (p.kind === 'work' && p.countReps) {                            // Tabata: countdown ring + a big rep counter
+        center = ring +
+            '<div class="wo-repcount"><div class="wo-repnum" id="woRepNum">' + ((_woP.repCounts[R.index]) || 0) + '</div>' +
+            '<div class="wo-repbtns"><button type="button" class="wo-bigbtn wo-bigbtn--rep" id="woRepBtn">+1 rep</button>' +
+            '<button type="button" class="wo-ctl wo-repundo" id="woRepUndo" title="Take one off">−1</button></div>' +
+            '<div class="wo-tap-hint">tap anywhere to count a rep</div></div>';
     } else {
         center = ring;
     }
@@ -945,6 +987,17 @@ function _woPlayerRender() {
         }
         R.done(actual);
     });
+    if (p.kind === 'work' && p.countReps) {                                   // rep counter: the button, or a tap anywhere
+        var countRep = function(d) {
+            if (!_woP) return;
+            var i = R.index;
+            _woP.repCounts[i] = Math.max(0, (_woP.repCounts[i] || 0) + d);
+            var n = document.getElementById('woRepNum'); if (n) n.textContent = _woP.repCounts[i];
+        };
+        document.getElementById('woRepBtn').addEventListener('click', function(ev) { ev.stopPropagation(); countRep(1); });
+        document.getElementById('woRepUndo').addEventListener('click', function(ev) { ev.stopPropagation(); countRep(-1); });
+        document.getElementById('woMain').addEventListener('click', function() { countRep(1); });
+    }
     // Guided: tap anywhere = Done. Self-paced has number boxes on screen, so only the DONE button counts.
     if (tap && !selfMode && !woNeedsActual(p)) document.getElementById('woMain').addEventListener('click', function() { R.done(); });   // ranges / failure need the number typed first
 

@@ -110,6 +110,7 @@ function _woPhaseSpeech(p, ctx) {
             if (!_woV.tempoSaid[tkey]) { _woV.tempoSaid[tkey] = true; line += ' ' + woTempoSpoken(p.tempo); }
         }
         if (p.capSec > 0) line += ' Up to ' + woSayClock(p.capSec) + '.';
+        if (p.countReps) line += ' For ' + woSayClock(p.durationSec) + '.';
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);
     }
