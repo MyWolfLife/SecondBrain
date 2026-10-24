@@ -32,6 +32,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `ExercisePlan.md` | Life → Exercise | Exercise tracking feature — discussion complete, ready to code |
 | `WorkoutsPlan.md` | Life → Exercise → Workouts | Workouts: exercise library (with motion-frame pictures), workout builder, and a YAYOG-style guided countdown player (plus self-paced and throughout-the-day modes), voice commands, muscle targets, progression. Planning complete — ready to code Phase 1 |
 | `YAYOGAnalysis.md` | Life → Exercise → Workouts | Analysis of the book *You Are Your Own Gym* (exercise structure, training formats, 10-week programs) and the exercise/workout data-model and player changes needed before importing it. Analysis only, with open questions |
+| `ExerciseLevelsPlan.md` | Life → Exercise → Workouts | Detailed build plan (chunks L1–L8) for exercise levels: a ladder of levels per exercise, "my level" vs pinned level on workout steps, level-based progression, records per level. Planned, not started |
 | `SharedSpacesPlan.md` | Whole app (data) | Sharing data between accounts (e.g. spouse): member-based shared "spaces" alongside each person's private area. Early idea, nothing decided |
 | `InvestmentPlan.md` | Life → Financial | Investment tracker — retirement account tracking mirroring user's spreadsheet |
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |

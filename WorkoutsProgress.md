@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-24 (plan):** `ExerciseLevelsPlan.md` is the agreed build plan for exercise levels (chunks L1–L8). Next: build L1 then L2 when the user says go. Formats, rep ranges, programs and import come after.
 > **2026-10-24:** the user supplied the YAYOG book. Read it and wrote `YAYOGAnalysis.md` (what the book does, gaps in our exercise/workout model, proposed block formats, programs, build order, open questions). Answer its §9 questions before changing the data model or importing anything.
 Discuss first, then build. Open questions already prepared:
 - **Programs** (needs a full planning conversation): fixed multi-week plan (YAYOG-style) vs rotation of own workouts? scheduling (fixed weekdays vs "next in list")? weekly difficulty ramp vs the §5a progression? missed days / breaks? build-your-own vs starters? where it lives (greyed Programs tile on the Fitness hub).
