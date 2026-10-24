@@ -19,7 +19,7 @@ function _woEnsureLevels() {
         e.levels = woLevelsOf(e);
         if (!had) e.levels[0].equipment = e.equipment || [];        // one level works directly on the exercise's list
         e.curLevel = Math.min(e.curLevel || 0, e.levels.length - 1);
-        e.savedLevelIds = had ? e.levels.map(function(l) { return l.id; }) : (e.id ? [WO_BASE_LEVEL_ID] : []);
+        e.savedLevelIds = e.id ? (had ? e.levels.map(function(l) { return l.id; }) : [WO_BASE_LEVEL_ID]) : [];     // a new exercise has nothing saved yet
         e._levelsReady = true;
     }
     e.equipment = e.levels[e.curLevel].equipment;

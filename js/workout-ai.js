@@ -6,6 +6,9 @@
 // introduce shows up as a tick box (on by default) and is only added to the equipment list
 // when the exercise is saved.
 //
+// When the description names several versions of the same move ("push-ups against a wall, then on a chair, then on the floor")
+// the answer can carry levels[]; the form then opens with one tab per level for review (ExerciseLevelsPlan.md, L8).
+//
 // The LLM is given your muscle list, equipment list (with descriptions) and exercise names, so
 // it can only pick real muscles, reuse your equipment, and warn about duplicates.
 
@@ -22,7 +25,7 @@ function woAiRenderBox() {
     if (!box) return;
 
     var newEquipHtml = _woAi.newEquip.map(function(q, i) {
-        var on = _woEdit.equipment.indexOf(q.name) !== -1;
+        var on = _woAiEquipOn(q.name);
         return '<label class="wo-inline-check"><input type="checkbox" data-ai-equip="' + i + '"' + (on ? ' checked' : '') + '><span>➕ Add new equipment: <strong>' +
                _woEsc(q.name) + '</strong>' + (q.description ? ' — ' + _woEsc(q.description) : '') + '</span></label>';
     }).join('');
@@ -52,12 +55,18 @@ function woAiRenderBox() {
     box.querySelectorAll('[data-ai-equip]').forEach(function(cb) {
         cb.addEventListener('change', function() {
             var q = _woAi.newEquip[parseInt(this.getAttribute('data-ai-equip'), 10)];
-            var i = _woEdit.equipment.indexOf(q.name);
-            if (this.checked && i === -1) _woEdit.equipment.push(q.name);
-            if (!this.checked && i !== -1) _woEdit.equipment.splice(i, 1);
+            var lists = _woEdit.levels ? _woEdit.levels.map(function(l) { return l.equipment; }) : [_woEdit.equipment];
+            if (this.checked) { if (!_woAiEquipOn(q.name)) _woEdit.equipment.push(q.name); }          // added to the level being edited
+            else lists.forEach(function(arr) { var i = arr.indexOf(q.name); if (i !== -1) arr.splice(i, 1); });   // unticked: removed everywhere
             _woRebuildEquipChips();
         });
     });
+}
+
+/** Is this new equipment on any level of the exercise being edited? */
+function _woAiEquipOn(name) {
+    var lists = _woEdit.levels ? _woEdit.levels.map(function(l) { return l.equipment; }) : [_woEdit.equipment];
+    return lists.some(function(arr) { return arr.indexOf(name) !== -1; });
 }
 
 async function woAiRun() {
@@ -110,6 +119,7 @@ async function _woAiAsk(text) {
         '  "newEquipment": [{ "name": string, "description": string }] (ONLY equipment the description needs that is truly not in the EQUIPMENT list; match loosely first, e.g. "nordic pole" = "Nordic Stick"; "description" is one short sentence, and say you are guessing if you do not know what it is),\n' +
         '  "muscles": [{ "id": string from the MUSCLE list, "main": boolean }] (main = ONLY the 1 to 3 muscles that do most of the work; everything else that merely braces or assists is main:false. Think about which muscles actually move the body in this exact movement. Abs are main only for trunk curls or crunch-type moves; a sideways or side-lying torso lift is a side bend, so obliques and lower back are main and abs are a helper at most),\n' +
         '  "cues": [3 to 5 short spoken-style coaching cues, imperative, one per item],\n' +
+        '  "levels": [ ] (LEAVE EMPTY for an ordinary exercise. Only when the description clearly names several easier/harder versions of the same move, such as "against a wall, then on a chair, then on the floor", give 2 to 6 items from easiest to hardest: { "label": short name of that version, "difficulty": 1 to 4, "cues": [3 to 5 cues for THIS version], "equipment": [names for this version, from the EQUIPMENT list when they match], "amount": number or null (default reps or seconds for this version if it differs from the main amount) }. When you give levels, the top-level "cues" and "equipment" describe the FIRST (easiest) level and "amount" is the default for the exercise),\n' +
         '  "guesses": [short plain sentences about anything you had to assume, such as push/pull choice or unclear equipment],\n' +
         '  "similarExercises": [names from the existing exercises list that are the SAME exercise: same movement and same equipment or setup. A variation that uses different equipment or a different body position is a different exercise, not similar (e.g. bench dips with hands behind you on a bench are NOT the same as parallel-bar dips). When unsure, leave it out] }\n\n' +
         'Rules: never invent a muscle id; leave equipment arrays empty if none; respond with ONLY the JSON, no markdown fences.';
@@ -120,7 +130,7 @@ async function _woAiAsk(text) {
     var resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
-        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_completion_tokens: 2000 })
+        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_completion_tokens: 3500 })
     });
     if (!resp.ok) throw new Error('The AI request failed (' + resp.status + ').');
     var data = await resp.json();
@@ -155,15 +165,19 @@ function _woAiApply(r) {
     _woAi.newEquip = [];
     var descByName = {};
     (r.newEquipment || []).forEach(function(q) { if (q && q.name) descByName[String(q.name).trim().toLowerCase()] = String(q.description || '').trim(); });
-    var wanted = (r.equipment || []).concat((r.newEquipment || []).map(function(q) { return q && q.name; }));
-    wanted.forEach(function(raw) {
+    // Returns the person's own name for a piece of equipment; unknown ones are remembered as "new equipment"
+    var matchEquip = function(raw) {
         var n = String(raw || '').trim();
-        if (!n) return;
+        if (!n) return null;
         var have = _woFindEquipment(n);
         var name = have ? have.name : n;
-        if (ex.equipment.indexOf(name) !== -1) return;
-        ex.equipment.push(name);
-        if (!have) _woAi.newEquip.push({ name: name, description: descByName[name.toLowerCase()] || '' });
+        if (!have && !_woAi.newEquip.some(function(q) { return q.name === name; })) _woAi.newEquip.push({ name: name, description: descByName[name.toLowerCase()] || '' });
+        return name;
+    };
+    var wanted = (r.equipment || []).concat((r.newEquipment || []).map(function(q) { return q && q.name; }));
+    wanted.forEach(function(raw) {
+        var name = matchEquip(raw);
+        if (name && ex.equipment.indexOf(name) === -1) ex.equipment.push(name);
     });
 
     // Muscles: only real ids, no repeats
@@ -183,8 +197,27 @@ function _woAiApply(r) {
     }).map(function(e) { return { id: e.id, name: e.name }; });
 
     (r.guesses || []).forEach(function(g) { if (g) notes.push('Guess: ' + String(g).trim()); });
+    // Levels (easier → harder versions), only when the AI clearly gave several
+    var lvIn = (Array.isArray(r.levels) ? r.levels : []).filter(function(l) { return l && (l.label || (l.cues && l.cues.length)); }).slice(0, 6);
+    if (lvIn.length > 1) {
+        ex.levels = lvIn.map(function(l, i) {
+            var eq = [];
+            (l.equipment || []).forEach(function(raw) { var name = matchEquip(raw); if (name && eq.indexOf(name) === -1) eq.push(name); });
+            var d = parseInt(l.difficulty, 10), n = parseInt(l.amount, 10);
+            return { id: i === 0 ? WO_BASE_LEVEL_ID : woNewLevelId(), label: String(l.label || '').trim().slice(0, 40),
+                     difficulty: d >= 1 && d <= 4 ? d : null,
+                     instructions: (Array.isArray(l.cues) ? l.cues : String(l.cues || '').split('\n')).map(function(c) { return String(c).trim(); }).filter(Boolean).join('\n'),
+                     equipment: eq, videoUrl: '',
+                     defaultAmount: n > 0 && n !== ex.defaultAmount ? n : null, defaultWeight: null, archived: false };
+        });
+        ex.equipment = ex.levels[0].equipment.slice();          // top-level fields mirror the first level
+        ex.instructions = ex.levels[0].instructions;
+        notes.unshift('Created ' + ex.levels.length + ' levels (' + ex.levels.map(function(l) { return l.label || 'unnamed'; }).join(' → ') + ') — check each tab.');
+    } else {
+        ex.levels = null;
+    }
     _woAi.notes = notes;
-    ex.levels = null; ex._levelsReady = false;      // the level editor rebuilds from these top-level fields
+    ex._levelsReady = false;                                    // the level editor rebuilds from these fields
 }
 
 /** Before saving: any equipment name not yet on the list is added there (with the AI's description). */
