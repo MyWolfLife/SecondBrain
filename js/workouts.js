@@ -1788,7 +1788,7 @@ async function loadWorkoutsPage() {
         '<div class="ex-toolbar"><div class="ex-toolbar-row">' +
             '<input type="search" id="woWText" class="filter-input" placeholder="Search workouts…" value="' + _woEsc(_woWFilter.text) + '">' +
             '<label class="wo-inline-check"><input type="checkbox" id="woWArchived"' + (_woWFilter.archived ? ' checked' : '') + '> Show archived</label>' +
-        '</div></div>' +
+        '</div><div id="woWTagBar"></div></div>' +
         '<div id="woWorkoutList"></div>';
     if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-workouts');
     document.getElementById('woProgBtn').addEventListener('click', woOpenProgressionSettings);
@@ -1801,13 +1801,23 @@ async function loadWorkoutsPage() {
         ev.preventDefault();
         location.hash = '#workout-start/' + btn.getAttribute('data-start');
     });
+    _woRenderWorkoutTagBar();
     _woRenderWorkoutList();
+}
+
+/** Tag chips for the workouts list (same shared filter as the Exercises list — see workout-tags.js). */
+function _woRenderWorkoutTagBar() {
+    var bar = document.getElementById('woWTagBar');
+    if (!bar) return;
+    bar.innerHTML = woTagChipsHtml(_woWorkouts);
+    woTagChipsWire(bar, function() { _woRenderWorkoutTagBar(); _woRenderWorkoutList(); });
 }
 
 function _woRenderWorkoutList() {
     var text = _woWFilter.text.trim().toLowerCase();
     var rows = _woWorkouts.filter(function(w) {
         if (w.archived && !_woWFilter.archived) return false;
+        if (!woTagPass(w)) return false;
         return !text || (w.name || '').toLowerCase().indexOf(text) !== -1;
     }).sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
 
@@ -1835,7 +1845,8 @@ function _woRenderWorkoutList() {
                    '<div class="wo-thumb">🏋️</div>' +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name">' + _woEsc(w.name) + '</div>' +
-                       (w.archived ? '<div class="wo-badges"><span class="wo-badge wo-badge--archived">Archived</span></div>' : '') +
+                       ((w.archived || woExTags(w).length) ? '<div class="wo-badges">' + (w.archived ? '<span class="wo-badge wo-badge--archived">Archived</span> ' : '') +
+                           woExTags(w).map(function(t) { return '<span class="wo-badge wo-badge--tag">' + _woEsc(t) + '</span>'; }).join(' ') + '</div>' : '') +
                        '<div class="wo-card-meta">' + _woEsc(bits.join(' · ')) + (pp.length ? ' · ' + pp.join(' · ') : '') + '</div>' +
                        (areas.length ? '<div class="wo-chips">' + areas.map(function(a) { return '<span class="wo-chip wo-chip--also">' + _woEsc(a) + '</span>'; }).join('') + '</div>' : '') +
                        (w.description ? '<div class="wo-card-meta">' + _woEsc(w.description) + '</div>' : '') +
@@ -1944,6 +1955,11 @@ function _woRenderBuilder() {
                 '<textarea id="wobDesc" rows="2" placeholder="What this workout is for…">' + _woEsc(w.description) + '</textarea>' +
             '</div>' +
             '<div class="ex-form-group">' +
+                '<label class="ex-label" for="wobTags">Tags (optional)</label>' +
+                '<input type="text" id="wobTags" maxlength="120" value="' + _woEsc((w.tags || []).join(', ')) + '" placeholder="e.g. travel, quick — separate with commas">' +
+                '<p class="wo-hint">Tags let you show or hide groups of workouts in the list' + (w.source ? '. This workout also counts as “' + _woEsc(String(w.source).toLowerCase()) + '” (its source).' : '.') + '</p>' +
+            '</div>' +
+            '<div class="ex-form-group">' +
                 '<label class="ex-label">Exercises</label>' +
                 '<div id="wobSummary" class="wo-builder-summary"></div>' +
                 '<div id="wobHint" class="wo-hint-box hidden"></div>' +
@@ -1973,6 +1989,7 @@ function _woRenderBuilder() {
 
     document.getElementById('wobName').addEventListener('input', function() { _woW.name = this.value; });
     document.getElementById('wobDesc').addEventListener('input', function() { _woW.description = this.value; });
+    document.getElementById('wobTags').addEventListener('input', function() { _woW.tags = woParseTags(this.value); });
     document.getElementById('wobAdd').addEventListener('click', function() { _woOpenExercisePicker(null); });
     document.getElementById('wobAddCircuit').addEventListener('click', function() {
         _woW.steps.push(_woNewCircuit());
@@ -2691,6 +2708,7 @@ function _woWorkoutPayload() {
     return {
         name:             _woW.name.trim(),
         description:      (_woW.description || '').trim(),
+        tags:             woParseTags((_woW.tags || []).join(',')),
         steps:            steps,
         exerciseIds:      ids,
         estimatedSeconds: woEstimateSeconds(steps),
