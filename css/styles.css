@@ -22049,3 +22049,5 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-tagchip--only { background: #dcfce7; border-color: #16a34a; color: #166534; font-weight: 600; }
 .wo-tagchip--hide { background: #fee2e2; border-color: #dc2626; color: #991b1b; text-decoration: line-through; }
 .wo-tagcount { opacity: 0.6; font-size: 0.75rem; }
+
+.wo-badge--tag { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }

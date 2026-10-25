@@ -418,6 +418,7 @@ function _woRenderExerciseList() {
                        '<div class="wo-card-name wo-card-name--row">' + _woEsc(e.name) + ' ' + _woPushPullBadge(e.pushPull) +
                            (e.category ? ' <span class="wo-badge wo-badge--neither">' + _woEsc(woCategoryLabel(e.category)) + '</span>' : '') +
                            (woIsMultiLevel(e) ? ' <span class="wo-badge wo-badge--neither">' + woActiveLevelsOf(e).length + ' levels</span>' : '') +
+                           woExTags(e).map(function(t) { return ' <span class="wo-badge wo-badge--tag">' + _woEsc(t) + '</span>'; }).join('') +
                            (e.archived ? ' <span class="wo-badge wo-badge--archived">Archived</span>' : '') + '</div>' +
                        '<div class="wo-card-meta">' + _woEsc(meta) + equip + '</div>' +
                        '<div class="wo-chips">' + _woTargetChips(e.targets) + '</div>' +

@@ -4820,6 +4820,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - **⬆ Import** adds a batch of exercises from a file, with a review step first
 - **Tags:** the chips under the search box (for example *yayog*, *band*) filter the list. Tap a chip once to show **only** exercises with that tag (green), tap again to **hide** them (red), tap again to turn it off. Several “only” chips mean the exercise needs all of them. **Clear tags** resets. The same filter applies when you pick an exercise for a workout, and it is remembered on this device
+- Each exercise in the list shows its tags as small labels next to its name
 - Add your own tags in an exercise's **Tags** box (separate with commas). Its Source counts as a tag too, so imported exercises are tagged automatically
 - The **Any category** filter narrows the list to Push, Pull, Core, Legs & glutes or Full body exercises; the category also shows as a small tag next to the name
 - Tap **+ New Exercise** to add one; tap any exercise to edit it
