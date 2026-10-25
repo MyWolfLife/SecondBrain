@@ -26,8 +26,8 @@ After week 10: **rest a week or two, then start again**, swapping in harder exer
 3. **Hiding them:** imported workouts get the same **tag** as the exercises (`yayog`), and the Workouts list gets the same only/hide tag chips, so 128 book workouts don't bury your own.
 4. **Schedule = "next up", not fixed weekdays.** You start a run; the app always shows "Week 3 · Day 2 — Legs". Finishing the workout marks the day done and moves on. You can skip, go back, or pause. (Optional later: "put the next 7 days on my calendar".)
 5. **Missed days don't break anything.** The run waits for you. A banner shows the last time you trained.
-6. **One program run at a time** (v1). A finished run can be restarted; "next cycle with harder exercises" is a later chunk (see §6).
-7. **Levels are separate programs** ("YAYOG Basic", "YAYOG 1st Class" …). No automatic level-up between them; you choose.
+6. **One program run at a time** (v1). A finished run can be restarted or followed by the next level's program (see §6).
+7. **Levels are separate programs** ("YAYOG Basic", "YAYOG 1st Class" …). The finished screen offers the next one; no automatic exercise bumping.
 
 ## 3. Data model
 
@@ -63,17 +63,17 @@ Workouts also gain `tags[]` / `source` (same shape as exercises) so the existing
 | P4 | **Session link.** Sessions carry the program position; finishing marks the day done and advances; History shows the program/week/day | Following it is automatic |
 | P5 | **Program page.** The 10-week grid with progress | You can see where you are |
 | P6 | **Import for programs and workouts.** `bishop-programs-v1`: day workouts built with pinned levels and formats, resolved by exercise name + level label, unresolved names reported in the review screen; remove-an-import | The book's programs arrive |
-| P7 | **Next cycle.** After week 10: rest 1–2 weeks suggestion, restart, and an optional "bump every pinned step one level harder" | Endless cycles |
+| P7 | **Next cycle.** After week 10: a finished screen with Restart this program / Start the next level program | Endless cycles |
 
 P1–P5 are useful on their own for programs you write yourself; P6 is the book's data.
 
-## 6. Open questions
+## 6. Decisions on the open questions (2026-10-25)
 
-1. **All four programs or Basic first?** I'd import Basic (and your level) first and the others after you've followed one, to avoid 128 workouts you may never use. Your call.
-2. **Next up vs fixed weekdays.** My choice is "next up". Do you ever want it tied to specific days (Mon/Tue/Thu/Fri)?
-3. **"Bump a level" at the end of a cycle (P7).** Automatic for every pinned step, or only a suggestion you accept per exercise? I'd start with "restart the same program" and add bumping later.
-4. **Your own exercises in the book's slots.** The book allows swapping within a category. v1 lets you edit the program's workouts like any workout; a dedicated "swap this slot" button could come later.
-5. **Building the data.** Same method as the exercises: I write a prompt, ChatGPT reads the program pages (rendered, not text-extracted) and returns JSON, I check it against the exercise list before import. Tell me if you'd rather type the Basic program in by hand through the builder.
+1. **All four programs are imported** (Basic, 1st Class, Master, Chief; 128 workouts), tagged `yayog`.
+2. **"Next up"**, not fixed weekdays.
+3. **End of a cycle:** a "finished — rest a week or two" prompt with **Restart this program** or **Start the next level** (Basic → 1st Class → Master → Chief). No automatic bumping of exercises: the four level programs already do that job (the book: the outline never changes, only the exercises do). P7 becomes "finish screen + restart / next level".
+4. **Swapping exercises in a slot:** v1 has no swap button; edit the program's day workouts like any workout. A swap helper can come later.
+5. **Building the data:** same method as the exercises — a prompt for ChatGPT to read the rendered program pages and return `bishop-programs-v1` JSON; I check it against the exercise list (names, level labels, formats) before import.
 
 ## 7. Not in scope
 
