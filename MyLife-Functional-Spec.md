@@ -94,10 +94,10 @@ When a new service worker activates (after a deploy), the app defers the page re
 - `window._bishopDirty` resets to `false` on every `hashchange` event.
 - This prevents data loss (e.g., a journal entry being wiped by a background update) while still ensuring users get the new version within one navigation.
 
-### Share Target (phone share sheet → Bucket List / Workout Links)
+### Share Target (phone share sheet → Bucket List / Workout Links / Web Links)
 `manifest.json` declares a Web Share Target: `action: /SecondBrain/share-target`, `method: POST`, `enctype: multipart/form-data`, params `title`, `text`, `url` and `files` (field `images`, `image/*`). On Android Chrome the installed app then appears in the system share sheet; sharing a screenshot, text, or link from Instagram, Photos, Maps, etc. sends it to Bishop. (iOS Safari does not support Web Share Targets, so there is no equivalent on iPhone.)
 - **Service worker** (`sw.js`): the `fetch` handler intercepts the POST (`handleShareTarget`) before the normal GET caching logic, reads the form, stores each shared image (`/SecondBrain/__share/file-N`, with `Content-Type` and `X-File-Name` headers) and the text fields (`/SecondBrain/__share/meta`, JSON: title, text, url, fileCount, savedAt) in a dedicated cache `bishop-share`, then answers with a 303 redirect to `/SecondBrain/?share=1#bucketlist`. It redirects even if saving fails so a share never lands on an error page. `bishop-share` is exempted from the activate step that deletes other caches (`CACHE_NAME` is the only versioned cache), and each new share clears any leftover entries first. The POST only works once a service worker controls the page, i.e. in the installed/visited app, not on a bare static host.
-- **App** (`bucketShareCheck()` in `js/bucketlist-links.js`, called from `initApp()` in `app.js` after `handleRoute()`, so it runs only after sign-in): if the URL has `?share=1`, it removes the parameter immediately (a refresh won't replay), reads and deletes the stash from `bishop-share`, then: **images shared** → opens the Bucket List screenshot import with the images staged, the shared title/text (minus any URL, which the AI can't open) as the caption hint, and the shared link remembered so every item imported from that share gets it as a "Shared link" in `links[]`; the user taps **Read with AI** (nothing runs automatically, since that costs an AI call); **text/link only** → if the share contains a link, a **"Save this link to…"** chooser (`wlAskShareDestination` in `js/workout-links.js`, modal `#wlShareModal`) offers **🔗 Workout Links** (opens `#workout-link/new` with the link, name = title/first line, description = remaining text) or **🌎 Bucket List**; Bucket List (or a share with text but no link) opens the Bucket List **Add** form pre-filled (name from the title or first line, notes from the remaining text, the link under Other links). The chooser waits for `closeModal`'s history-back to finish before navigating (`_wlCloseModalThen`). The link is pulled out of the text with a URL pattern because Android usually puts it in `text`, not `url`. Nothing pending (or an empty share) does nothing.
+- **App** (`bucketShareCheck()` in `js/bucketlist-links.js`, called from `initApp()` in `app.js` after `handleRoute()`, so it runs only after sign-in): if the URL has `?share=1`, it removes the parameter immediately (a refresh won't replay), reads and deletes the stash from `bishop-share`, then: **images shared** → opens the Bucket List screenshot import with the images staged, the shared title/text (minus any URL, which the AI can't open) as the caption hint, and the shared link remembered so every item imported from that share gets it as a "Shared link" in `links[]`; the user taps **Read with AI** (nothing runs automatically, since that costs an AI call); **text/link only** → if the share contains a link, a **"Save this link to…"** chooser (`wlAskShareDestination` in `js/workout-links.js`, modal `#wlShareModal`) offers **🌐 Web Links** (opens `#web-link/new`), **🔗 Workout Links** (opens `#workout-link/new`) — both pre-filled with the link, name = title/first line, description = remaining text — or **🌎 Bucket List**; Bucket List (or a share with text but no link) opens the Bucket List **Add** form pre-filled (name from the title or first line, notes from the remaining text, the link under Other links). The chooser waits for `closeModal`'s history-back to finish before navigating (`_wlCloseModalThen`). The link is pulled out of the text with a URL pattern because Android usually puts it in `text`, not `url`. Nothing pending (or an empty share) does nothing.
 
 ### LLM Configuration (`settings.js`)
 - Stored in `userCol('settings').doc('llm')` — behind auth, not in localStorage
@@ -1428,7 +1428,7 @@ A list of web links (Instagram/Facebook reels, YouTube, TikTok, web pages) to wo
 - **Times done** (edit page) — newest-first list of done entries (date · minutes, note) with **Delete** (also deletes the Fitness activity it created) and a **✓ Did it** button.
 - **✓ Did it** dialog (`#wlDidModal`) — Date (default today), Minutes (optional), Note (optional). Saving adds a `doneLog` entry and creates a Fitness **Activity** of type **Workout** (`_woWorkoutTypeId`) with `durationMinutes`, `comment` = note, `workoutName` = the link name (the Activities list shows "Workout: <name>"), and `workoutLinkId`. If the activity can't be created the entry is still saved and the user is told.
 - **Manage tags** — every tag with its link count, **Rename** (rewrites it on every link; renaming onto an existing tag merges them) and **Delete** (removes it from every link; the links stay).
-- **Phone share sheet** — sharing a link to Bishop asks "Save this link to…" Workout Links or Bucket List (see Part 1 → Share Target).
+- **Phone share sheet** — sharing a link to Bishop asks "Save this link to…" Web Links, Workout Links, or Bucket List (see Part 1 → Share Target).
 - **Data** — `workoutLinks` (per-user `userCol`, in the backup list): `name`, `url`, `description`, `tags[]` (lowercase), `favorite`, `doneLog[]` (`{id, date 'YYYY-MM-DD', minutes|null, note, activityId|null}`), `createdAt`. Linking a link to a built Workout is parked in `FutureEnhancements.md`.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
@@ -2629,6 +2629,39 @@ A wish list of places and experiences to visit someday: towns, countries, trails
 
 ---
 
+## Part 8h: Web Links
+
+A catch-all list of saved web links — recipes, things to buy, woodworking builds, anything. Same idea as Fitness → Workout Links (Part 8e) but with **one category per link** and **no "Did it" / done tracking**. Code: `js/web-links.js` (reuses the Workout Links helpers and `wl-*` styles from `js/workout-links.js`).
+
+### Life Page Tile
+**Web Links** (🌐, cyan), placed after Bucket List on the Life page (`data-tile-id="web-links"`, so it can be dragged like the other tiles).
+
+### Routes
+`#web-links` (list), `#web-link/new` and `#web-link/:id` (add / edit), `#web-link-manage` (categories & tags). Breadcrumb Life › Web Links (› Add Link / Edit Link / Categories & tags). All are Life-context pages.
+
+### List (`#web-links`)
+- Header buttons **🏷️ Categories & tags** and **+ Add Link**.
+- **Search box** — matches words in the name, description, or URL.
+- **Category row** — chips **All**, one per category in use ("Cooking (4)"), and **No category (n)**. Pick one at a time; tapping the picked chip again clears it.
+- **Tags row** — same as Workout Links: **All**, a chip per tag, **No tags (n)**; two or more picked shows an **Any / All** switch; No tags stands alone.
+- Search, category and tags all work together. A count shows "n of N links".
+- **Favorites (★) always sort first**; under them a sort menu: **Newest added** (default), **Oldest added**, **Name A–Z**, **Category** (A–Z, no-category last, then name). Filters are kept while moving around the app (not saved across reloads).
+- **Card** — site icon (▶️ YouTube, 📸 Instagram, 🎵 TikTok, 📘 Facebook, 🔗 other), tap-to-toggle ☆/★, name, left-aligned category badge and site, description, tag chips, **Open ↗** (new tab) and **Edit**.
+
+### Add / Edit (`#web-link/new`, `#web-link/:id`)
+**Link** (required; `https://` added if left off) with **📋 Paste**, **Name** (required), **Category** dropdown — **(No category)**, every category in use, and **+ New category…** (shows a text box; a typed name that matches an existing category in any case uses the existing spelling), **Description**, **Tags** (type + Add / Enter, commas for several, tap **+ tag** suggestions, ✕ to remove; lowercased), **★ Favorite**. Save / Cancel / Delete (edit only). A new link starts in the category the list is currently filtered to.
+
+### Categories & tags (`#web-link-manage`)
+Two lists — **Categories** and **Tags** — each with its link count, **Rename** (rewrites it on every link; renaming onto an existing name merges them) and **Delete** (a deleted category leaves its links with no category; a deleted tag is removed from every link; links stay). There is no separate collection for either: the lists are whatever is in use on some link, so a new category or tag appears as soon as a link with it is saved.
+
+### Phone share sheet
+Sharing a link to Bishop shows the "Save this link to…" chooser with **🌐 Web Links** (first), **🔗 Workout Links**, and **🌎 Bucket List** (see Part 1 → Share Target). Web Links opens `#web-link/new` pre-filled (`webStartSharedLink`).
+
+### Data Model
+`webLinks` (per-user `userCol`, in the backup list): `name`, `url`, `description`, `category` (`''` = none), `tags[]` (lowercase), `favorite`, `createdAt`. Moving a link between Web Links and Workout Links is parked in `FutureEnhancements.md`.
+
+---
+
 ## Part 9: Places & Check-In
 
 **JS file**: `js/places.js`
@@ -3823,6 +3856,8 @@ Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{a
 | Collection | Key Fields |
 |------------|------------|
 | `bucketList` | name, kind, why, notes, tags[], geo{country,countryCode,region,city,venue,address,lat,lng,precision,approxLat?,approxLng?,approxFailed?}, timing{type,months[],season,startDate,endDate,yearly,label}, website, links[], status (want/planned/visited/dismissed), priority (1-3), visitedDate, source, createdAt, updatedAt |
+| `webLinks` | name, url, description, category ('' = none), tags[] (lowercase), favorite, createdAt |
+| `workoutLinks` | name, url, description, tags[] (lowercase), favorite, doneLog[{id, date, minutes, note, activityId}], createdAt |
 
 ### Places
 

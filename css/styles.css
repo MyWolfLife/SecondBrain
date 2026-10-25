@@ -22051,3 +22051,24 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-tagcount { opacity: 0.6; font-size: 0.75rem; }
 
 .wo-badge--tag { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+
+/* ── Life → Web Links (web-links.js); list/card/form styles are shared with Workout Links (wl-*) ── */
+.landing-tile--web-links {
+    background: linear-gradient(135deg, #0891b2, #22d3ee);
+    color: #fff;
+}
+.landing-tile--web-links:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(8, 145, 178, 0.35);
+}
+.wl-row-label { font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 8px; flex: 0 0 auto; }
+.web-cat-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #cffafe;
+    color: #0e7490;
+}
+.web-manage-head { margin: 18px 0 4px; }

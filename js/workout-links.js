@@ -647,7 +647,7 @@ async function _wlDeleteTag(tag) {
 
 /**
  * Called by bucketShareCheck (bucketlist-links.js) when a link (no screenshot) is shared to the app:
- * asks whether it goes to the Bucket List or Workout Links. onBucket() opens the Bucket List dialog.
+ * asks whether it goes to Web Links, Workout Links, or the Bucket List. onBucket() opens the Bucket List dialog.
  */
 function wlAskShareDestination(shared, onBucket) {
     document.getElementById('wlShareUrl').textContent = shared.url || shared.name || '';
@@ -660,6 +660,9 @@ function wlAskShareDestination(shared, onBucket) {
     };
     document.getElementById('wlShareBucketBtn').onclick = function() {
         _wlCloseModalThen('wlShareModal', onBucket);
+    };
+    document.getElementById('wlShareWebBtn').onclick = function() {   // web-links.js
+        _wlCloseModalThen('wlShareModal', function() { webStartSharedLink(shared); });
     };
     openModal('wlShareModal');
 }

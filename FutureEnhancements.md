@@ -172,3 +172,11 @@ Related to: Budgets feature, Calendar Events.
 On a Workout Link (Fitness → Workout Links), add an optional "Built as workout" picker that points to one of the user's Workouts (e.g. "I turned this reel into my Band Circuit workout"). Tapping it opens that workout. Parked while Workout Links v1 is built.
 
 Related to: Workout Links, Workouts builder.
+
+---
+
+## Links: Move Between Web Links and Workout Links
+
+A "Move to…" button on a link's edit page to move it from Workout Links (Fitness) to Web Links (Life) or the other way, for links saved in the wrong place. Workout Links' done history would need a decision (keep, drop, or block the move).
+
+Related to: Web Links, Workout Links.

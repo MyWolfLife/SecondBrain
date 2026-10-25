@@ -1872,7 +1872,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 ## screen:life
 
 ### Quick Help
-- The Life home page -- a tile grid linking to Journal, Contacts, Health, Notes, Calendar, Projects, and Checklists
+- The Life home page -- a tile grid linking to Journal, Contacts, Health, Notes, Calendar, Projects, Bucket List, Web Links, Checklists, and more
 - The **Coming Up** section below the tiles shows birthdays, anniversaries, and upcoming life events in the next 30 days
 - **Bucket List — coming up** shows bucket list places that are in season now or start within 30 days (fall color, light shows, festivals)
 - Today's events show a clickable address and phone number so you can navigate or call without digging
@@ -1889,10 +1889,49 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - **Calendar** -- Life Calendar for trips, milestones, goals, and major events
 - **Projects** -- Life Projects (vacation planner, build projects, etc.)
 - **Bucket List** -- places, trails, events, and seasonal sights you want to visit someday, filterable by country, type, priority, and month
+- **Web Links** -- saved links to anything (recipes, things to buy, project ideas), sorted into categories and tags
 - **Checklists** -- reusable checklists for life tasks
 - **My Legacy** -- private end-of-life information for your loved ones (burial wishes, financial accounts, letters, and more)
 - **Credentials** -- passwords, usernames, API keys, and other sensitive data organized by category
 - **Private** -- encrypted vault for bookmarks, documents, and photos that only you can access (only visible after activation in General Settings)
+
+---
+
+## screen:web-links
+
+**What this screen is for:** Links to anything you want to come back to: recipes, things to buy, woodworking or other project ideas.
+
+### Quick Help
+- Tap **+ Add Link** to save one. On an Android phone you can also tap **Share** in any app, pick **Bishop**, then choose **Web Links**
+- **Search** looks at the name, description, and link
+- **Category** chips show one category at a time. Tap the picked one again (or **All**) to clear it. **No category** shows links you haven't put in one
+- **Tags** chips work together: pick two or more and choose **Any** (has at least one) or **All** (has every one). **No tags** shows untagged links
+- Tap the **☆** to make a link a favorite. Favorites always stay at the top. The sort menu (newest, oldest, name, category) orders the rest
+- **🏷️ Categories & tags** lets you rename or delete a category or tag on every link at once
+
+---
+
+## screen:web-link
+
+**What this screen is for:** Adding or editing one web link.
+
+### Quick Help
+- Paste the link into **Link** (or tap **📋 Paste**) and give it a **Name**
+- **Category**: pick one you already have, or choose **+ New category…** and type it. A new link starts in the category the list was filtered to
+- **Tags**: type one and tap **Add** (or press Enter). Separate several with commas. Tap a **+ tag** suggestion to reuse one you already have
+- Check **★ Favorite** to keep it at the top of the list
+- **Delete** removes the link
+
+---
+
+## screen:web-link-manage
+
+**What this screen is for:** Renaming or deleting Web Link categories and tags.
+
+### Quick Help
+- **Rename** changes the category or tag on every link that has it. Renaming to one that already exists merges the two
+- **Delete** a category and its links stay, with no category. **Delete** a tag and it comes off every link
+- New categories and tags are made on a link, not here
 
 ---
 
@@ -3512,7 +3551,7 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
 One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. For well-known places it fills in the state and nearest town from what it already knows, even if the screenshot doesn't say. It also reads the location tag under the account name and comments that say where a place is, and ignores things like like-counts and music credits. Anything it is unsure of is marked medium or low confidence. Items you import show on the map a moment after you first open it.
 
-**Sharing straight from your phone:** on an Android phone with Bishop installed to the home screen, you can skip the screenshot step. In Instagram, Photos, Maps, or any app, tap **Share**, choose **Bishop**, and the Import screen opens with your picture already loaded (the caption comes along as a hint, and a shared link is kept on each place you save). Tap **Read with AI** and review as usual. If you share only a link, Bishop asks whether to save it to **Workout Links** or the **Bucket List**; pick Bucket List (or share only text) and the **Add** form opens with it filled in so you can finish the details. Bishop must be installed (Add to Home Screen) and open at least once after an update before it shows up in the share list, and it can take a day for Android to pick up the change; reinstalling it speeds that up. iPhone does not offer this, so there you still take a screenshot and use **Paste** or **Gallery**.
+**Sharing straight from your phone:** on an Android phone with Bishop installed to the home screen, you can skip the screenshot step. In Instagram, Photos, Maps, or any app, tap **Share**, choose **Bishop**, and the Import screen opens with your picture already loaded (the caption comes along as a hint, and a shared link is kept on each place you save). Tap **Read with AI** and review as usual. If you share only a link, Bishop asks whether to save it to **Web Links**, **Workout Links**, or the **Bucket List**; pick Bucket List (or share only text) and the **Add** form opens with it filled in so you can finish the details. Bishop must be installed (Add to Home Screen) and open at least once after an update before it shows up in the share list, and it can take a day for Android to pick up the change; reinstalling it speeds that up. iPhone does not offer this, so there you still take a screenshot and use **Paste** or **Gallery**.
 
 **No AI key, or prefer your own chat app?** Tap **Copy prompt**, paste it into any chat app along with the screenshot, then copy the JSON it returns into the **Paste JSON** box and tap **Review this JSON**. The review screen works exactly the same way.
 
@@ -4882,6 +4921,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Tap **+ Add Link** to save one. On an Android phone you can also tap **Share** in Instagram, YouTube, etc., pick **Bishop**, then choose **Workout Links**
+- For links that aren't workouts (recipes, things to buy, project ideas) use **Life → Web Links** instead
 - **Search** looks at the name, description, and link
 - Tap **tag chips** to filter. Pick two or more and choose **Any** (has at least one) or **All** (has every one). **No tags** shows links you haven't tagged
 - Tap the **☆** to make a link a favorite. Favorites always stay at the top. The sort menu orders the rest

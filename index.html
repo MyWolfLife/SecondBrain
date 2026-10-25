@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=527">
+    <link rel="stylesheet" href="css/styles.css?v=528">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -4498,7 +4498,8 @@
             <div class="modal-body">
                 <p class="wl-share-url" id="wlShareUrl"></p>
                 <div class="wl-share-btns">
-                    <button type="button" class="btn btn-primary" id="wlShareWorkoutBtn">🔗 Workout Links</button>
+                    <button type="button" class="btn btn-primary" id="wlShareWebBtn">🌐 Web Links</button>
+                    <button type="button" class="btn btn-secondary" id="wlShareWorkoutBtn">🔗 Workout Links</button>
                     <button type="button" class="btn btn-secondary" id="wlShareBucketBtn">🌎 Bucket List</button>
                 </div>
             </div>
@@ -7656,6 +7657,10 @@ service firebase.storage {
                     <span class="landing-tile-icon">🗺️</span>
                     <span class="landing-tile-label">Bucket List</span>
                 </a>
+                <a href="#web-links" class="landing-tile landing-tile--web-links" data-tile-id="web-links">
+                    <span class="landing-tile-icon">🌐</span>
+                    <span class="landing-tile-label">Web Links</span>
+                </a>
                 <a href="#checklists/life" class="landing-tile landing-tile--life-checklists" data-page="checklists" data-tile-id="checklists">
                     <span class="landing-tile-icon">✅</span>
                     <span class="landing-tile-label">Checklists</span>
@@ -7790,6 +7795,21 @@ service firebase.storage {
         <!-- Page: Muscle balance (#workout-balance) -->
         <section class="page hidden" id="page-workout-balance">
             <!-- Populated by loadWorkoutBalancePage() in workout-balance.js -->
+        </section>
+
+        <!-- Page: Web Links list (#web-links) -->
+        <section class="page hidden" id="page-web-links">
+            <!-- Populated by loadWebLinksPage() in web-links.js -->
+        </section>
+
+        <!-- Page: Web Link add / edit (#web-link/new, #web-link/:id) -->
+        <section class="page hidden" id="page-web-link">
+            <!-- Populated by loadWebLinkPage() in web-links.js -->
+        </section>
+
+        <!-- Page: Web Link categories & tags (#web-link-manage) -->
+        <section class="page hidden" id="page-web-link-manage">
+            <!-- Populated by loadWebLinkManagePage() in web-links.js -->
         </section>
 
         <!-- Page: Workout Links list (#workout-links) -->
@@ -12232,7 +12252,7 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=495"></script>
+    <script src="js/settings.js?v=496"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12272,7 +12292,8 @@ export default {
     <script src="js/workout-progress.js?v=6"></script>
     <script src="js/workout-balance.js?v=1"></script>
     <script src="js/workout-import.js?v=3"></script>
-    <script src="js/workout-links.js?v=1"></script>
+    <script src="js/workout-links.js?v=2"></script>
+    <script src="js/web-links.js?v=1"></script>
     <script src="js/workout-ai.js?v=9"></script>
     <script src="js/workout-view.js?v=5"></script>
     <script src="js/workout-level-editor.js?v=3"></script>
@@ -12316,7 +12337,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=497"></script>
+    <script src="js/app.js?v=498"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

@@ -153,7 +153,7 @@ function _pwaDismiss() {
  * List of top-level pages that map to nav links.
  * These pages clear the breadcrumb bar when shown.
  */
-const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals', 'actions', 'tags', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'bucketlist', 'devnotes',
+const TOP_LEVEL_PAGES = ['home', 'weeds', 'calendar', 'maintenance', 'chemicals', 'actions', 'tags', 'house', 'settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'main', 'search', 'activityreport', 'checklists', 'checklist-focus', 'notes', 'chat', 'vehicles', 'garage', 'structures', 'life', 'journal', 'collections', 'changepassword', 'people', 'contacts', 'neighbors', 'places', 'bucketlist', 'web-links', 'devnotes',
                          'health', 'health-visits', 'health-medications', 'health-conditions', 'health-concerns', 'health-bloodwork',
                          'health-vitals', 'health-insurance', 'health-emergency', 'health-appointments', 'health-care-team',
                          'life-calendar', 'life-projects',
@@ -201,7 +201,7 @@ const ALL_PAGES = [
     'budget', 'budget-archive', 'budget-nonmonthly',
     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
-    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'workout-links', 'workout-link', 'workout-link-tags',
+    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'workout-links', 'workout-link', 'workout-link-tags', 'web-link', 'web-link-manage',
     'help'
 ];
 
@@ -222,7 +222,7 @@ const THOUGHTS_PAGES = ['thoughts', 'top10lists', 'top10list-create', 'top10list
 // Settings pages — hide all section navbars (yard/house/life/thoughts)
 const SETTINGS_PAGES = ['settings', 'settings-general', 'settings-contact-lists', 'firebase-setup', 'changepassword', 'backup', 'devnotes', 'devnote', 'sb-issues'];
 
-const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
+const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'web-links', 'web-link', 'web-link-manage', 'journal', 'journal-entry', 'journal-tracking', 'journal-categories', 'people', 'contacts', 'person', 'contact',
                      'neighbors', 'neighborhood', 'neighborhouse', 'neighborarchive',
                      'notes', 'notebook', 'note',
                      'health', 'health-visits', 'health-visit', 'health-visit-step2',
@@ -1160,6 +1160,15 @@ function handleRoute() {
     } else if (page === 'bucketlist') {
         showPage('bucketlist');
         loadBucketListPage();
+    } else if (page === 'web-links') {
+        showPage('web-links');
+        loadWebLinksPage();
+    } else if (page === 'web-link' && id) {
+        showPage('web-link');
+        loadWebLinkPage(id);
+    } else if (page === 'web-link-manage') {
+        showPage('web-link-manage');
+        loadWebLinkManagePage();
     } else if (page === 'bucketitem' && id) {
         showPage('bucketitem');
         loadBucketItemPage(id);
