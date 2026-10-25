@@ -319,11 +319,13 @@ function _woRenderExerciseListShell() {
                 '<select id="woFEquip"><option value="">Any equipment</option>' + equipOpts + '</select>' +
                 '<label class="wo-inline-check"><input type="checkbox" id="woFArchived"' + (_woFilter.archived ? ' checked' : '') + '> Show archived</label>' +
             '</div>' +
+            '<div id="woTagBar"></div>' +
         '</div>' +
         '<div id="woExerciseCount" class="wo-count"></div>' +
         '<div id="woExerciseList"></div>';
 
     _woFillMuscleFilter();
+    _woRenderTagBar();
 
     document.getElementById('woFText').addEventListener('input', function() { _woFilter.text = this.value; _woRenderExerciseList(); });
     document.getElementById('woFArea').addEventListener('change', function() {
@@ -334,6 +336,14 @@ function _woRenderExerciseListShell() {
     document.getElementById('woFEquip').addEventListener('change', function() { _woFilter.equip = this.value; _woRenderExerciseList(); });
     document.getElementById('woFCat').addEventListener('change', function() { _woFilter.cat = this.value; _woRenderExerciseList(); });
     document.getElementById('woFArchived').addEventListener('change', function() { _woFilter.archived = this.checked; _woRenderExerciseList(); });
+}
+
+/** Tag chips under the search box (only / hide); a tap re-draws the chips and the list. */
+function _woRenderTagBar() {
+    var bar = document.getElementById('woTagBar');
+    if (!bar) return;
+    bar.innerHTML = woTagChipsHtml(_woExercises);
+    woTagChipsWire(bar, function() { _woRenderTagBar(); _woRenderExerciseList(); });
 }
 
 /** Muscle dropdown shows only the chosen area's muscles (or all, grouped by area). */
@@ -378,6 +388,7 @@ function _woRenderExerciseList() {
         if (f.pp && e.pushPull !== f.pp) return false;
         if (f.equip && (e.equipment || []).indexOf(f.equip) === -1) return false;
         if (f.cat && e.category !== f.cat) return false;
+        if (!woTagPass(e)) return false;
         return _woTargetMatch(e) > 0;
     });
 
@@ -388,7 +399,7 @@ function _woRenderExerciseList() {
     });
 
     document.getElementById('woExerciseCount').textContent =
-        rows.length + ' exercise' + (rows.length === 1 ? '' : 's');
+        rows.length + ' exercise' + (rows.length === 1 ? '' : 's') + (woTagActive() ? ' (tag filter on)' : '');
 
     var list = document.getElementById('woExerciseList');
     if (!rows.length) {
@@ -543,6 +554,12 @@ function _woRenderExerciseEditor() {
             '<div class="ex-form-group">' +
                 '<label class="ex-label" for="woePrecaution">Precaution (optional)</label>' +
                 '<textarea id="woePrecaution" rows="2" class="wo-notes-box" placeholder="e.g. Warm up first. Stop if you feel pain in a joint.">' + _woEsc(e.precaution || '') + '</textarea>' +
+            '</div>' +
+
+            '<div class="ex-form-group">' +
+                '<label class="ex-label" for="woeTags">Tags (optional)</label>' +
+                '<input type="text" id="woeTags" maxlength="120" value="' + _woEsc((e.tags || []).join(', ')) + '" placeholder="e.g. band, travel, gym — separate with commas">' +
+                '<p class="wo-hint">Use tags to show or hide groups of exercises in the list. The Source below counts as a tag too.</p>' +
             '</div>' +
 
             '<div class="ex-form-group">' +
@@ -912,6 +929,7 @@ async function _woSaveExercise() {
         pushPull:      document.getElementById('woePushPull').value,
         category:      document.getElementById('woeCategory').value,
         source:        document.getElementById('woeSource').value.trim(),
+        tags:          woParseTags(document.getElementById('woeTags').value),
         precaution:    document.getElementById('woePrecaution').value.trim(),
         videoUrl:      lvs.videoUrl,
         archived:      !!_woEdit.archived
@@ -2436,6 +2454,7 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
                 Object.keys(equipUsed).sort(function(a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; }).map(function(q) {
                     return '<option value="' + _woEsc(q) + '">' + _woEsc(q) + '</option>'; }).join('') + '</select>' +
         '</div>' +
+        '<div id="woPickTags"></div>' +
         '<div id="woPickList" class="wo-pick-list"></div>' +
         '<div class="ex-form-actions">' +
             '<button type="button" class="btn btn-secondary" id="woPickNew">+ New exercise</button>' +
@@ -2443,6 +2462,8 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
         '</div>');
     ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
     _woFillPickMuscle();
+    var drawPickTags = function() { var tb = ov.querySelector('#woPickTags'); tb.innerHTML = woTagChipsHtml(_woExercises); woTagChipsWire(tb, function() { drawPickTags(); _woRenderPicker(); }); };
+    drawPickTags();
     ov.querySelector('#woPickArea').addEventListener('change', function() { _woPick.area = this.value; _woPick.muscle = ''; _woFillPickMuscle(); _woRenderPicker(); });
     ov.querySelector('#woPickMuscle').addEventListener('change', function() { _woPick.muscle = this.value; _woRenderPicker(); });
     ov.querySelector('#woPickPP').addEventListener('change', function() { _woPick.pp = this.value; _woRenderPicker(); });
@@ -2474,6 +2495,7 @@ function _woRenderPicker() {
         if (e.archived) return false;
         if (text && (e.name || '').toLowerCase().indexOf(text) === -1) return false;
         if (_woPick.pp && e.pushPull !== _woPick.pp) return false;
+        if (!woTagPass(e)) return false;
         if (_woPick.equip && (e.equipment || []).indexOf(_woPick.equip) === -1) return false;
         if (_woPick.muscle && !(e.targets || []).some(function(t) { return t.muscleId === _woPick.muscle; })) return false;
         if (_woPick.area) {

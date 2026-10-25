@@ -22042,3 +22042,10 @@ body.wo-playing .offline-banner { display: none !important; }
 .wl-row-btns { display: flex; gap: 6px; }
 .wl-share-url { font-size: 0.85rem; color: #6b7280; word-break: break-all; }
 .wl-share-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Exercise tag filter chips */
+.wo-tagbar { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wo-tagchip { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 0.85rem; cursor: pointer; }
+.wo-tagchip--only { background: #dcfce7; border-color: #16a34a; color: #166534; font-weight: 600; }
+.wo-tagchip--hide { background: #fee2e2; border-color: #dc2626; color: #991b1b; text-decoration: line-through; }
+.wo-tagcount { opacity: 0.6; font-size: 0.75rem; }

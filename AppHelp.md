@@ -4819,6 +4819,8 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - **⬆ Import** adds a batch of exercises from a file, with a review step first
+- **Tags:** the chips under the search box (for example *yayog*, *band*) filter the list. Tap a chip once to show **only** exercises with that tag (green), tap again to **hide** them (red), tap again to turn it off. Several “only” chips mean the exercise needs all of them. **Clear tags** resets. The same filter applies when you pick an exercise for a workout, and it is remembered on this device
+- Add your own tags in an exercise's **Tags** box (separate with commas). Its Source counts as a tag too, so imported exercises are tagged automatically
 - The **Any category** filter narrows the list to Push, Pull, Core, Legs & glutes or Full body exercises; the category also shows as a small tag next to the name
 - Tap **+ New Exercise** to add one; tap any exercise to edit it
 - Use the filters to find what you need — pick **Calves** under Muscle to see every exercise that works your calves (★ main targets are listed first)
@@ -4851,6 +4853,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - **Category** (Push, Pull, Core, Legs & glutes, Full body) is separate from Push / Pull and lets you filter the Exercises list. **Precaution** is a safety note that appears on the Start screen and the 👁 View card whenever the exercise is used. **Source** is just a reminder of where the exercise came from
+- **Tags** (optional): short words like *band* or *travel*, separated by commas. They let you show or hide groups of exercises in the list and picker
 - For exercises done **one side, then the other**, **Start with** can be left, right or **My weaker side**, and **Swap the starting side every set** makes the sets go left-then-right, then right-then-left, and so on. Which side is weaker is set once in ⚙ Progression on the Workouts list (I ask the first time it is needed)
 - **✨ Describe it** (new exercises only): type the exercise in plain words — e.g. “Using the Nordic Stick, lay on stomach and lift my torso up 15 times” — and tap **Fill in the form**. The AI fills in the name, reps or time, sides, push/pull, muscles, equipment and cues, using your own muscle and equipment lists (needs an AI provider in Settings → AI). Check the form over and change anything. If it needs equipment you don't have, a tick box **➕ Add new equipment** appears (on by default); it joins your equipment list only when you tap Add Exercise. If you describe several versions of one move (for example “push-ups against a wall, then on a chair, then on the floor”) it creates the levels too, each with its own cues, shown as tabs for you to check. It also lists any exercise you already have that might be the same (tap **👁 View** to compare — it can be a different variation) and what it guessed
 - **Measured by**: Reps (like 10 push-ups) or Time (like a 30-second plank) — an exercise is one or the other
