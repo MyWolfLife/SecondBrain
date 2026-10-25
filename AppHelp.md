@@ -4838,6 +4838,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Muscles are matched to your own muscle list (the first two the file lists become ★ main). Any it can't match are shown as “skipped muscles”
 - **➕** tags show equipment that isn't in your Equipment list yet — it is added, with a short description, when you import
 - Exercises with easier and harder versions are imported as **levels**
+- If the file names pictures, also choose the **Pictures folder** (the folder those picture files are in). Each exercise shows how many pictures were found; any missing ones are skipped. Pictures are shrunk and saved with the exercise, on the right level
 - **Import** adds everything you ticked. Nothing is written before that
 - **Remove an import** (at the bottom) deletes everything that was imported from one source in one go. Exercises that one of your workouts uses are kept
 

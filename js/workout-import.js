@@ -91,8 +91,22 @@ function _woImpBuild(raw, source, newEquip) {
     }
     if (!doc.instructions && !(doc.levels && doc.levels.length)) issues.push('no cues');
 
+    // Pictures: file names only (matched to the folder the person chooses). A level's own picture(s) go to that level;
+    // the rest follow the nearest earlier level picture in the list (before any: the first level).
+    var pics = [], asList = function(v) { return (Array.isArray(v) ? v : (v ? [v] : [])).map(function(x) { return String(x).split(/[\\/]/).pop().trim(); }).filter(Boolean); };
+    var byFile = {};
+    (doc.levels || []).forEach(function(l, i) { asList((lv[i] || {}).image).concat(asList((lv[i] || {}).images)).forEach(function(f) { if (byFile[f.toLowerCase()] === undefined) byFile[f.toLowerCase()] = i; }); });
+    var cur = 0, seen = {};
+    asList(raw.images).concat(asList(raw.image)).forEach(function(f) {
+        var k = f.toLowerCase(); if (seen[k]) return; seen[k] = true;
+        if (byFile[k] !== undefined) cur = byFile[k];
+        pics.push({ file: f, levelIndex: doc.levels ? cur : -1 });
+    });
+    Object.keys(byFile).forEach(function(k) { if (!seen[k]) { seen[k] = true; pics.push({ file: k, levelIndex: byFile[k] }); } });
+    if (doc.levels) pics.sort(function(x, y) { return x.levelIndex - y.levelIndex; });   // stable: keeps list order inside a level
+
     var dup = _woExercises.filter(function(e) { return e.name.trim().toLowerCase() === name.toLowerCase(); })[0];
-    return { raw: raw, doc: doc, include: !dup, issues: issues, unmapped: unmapped, newEquip: newNames, dupId: dup ? dup.id : null };
+    return { raw: raw, doc: doc, include: !dup, issues: issues, unmapped: unmapped, newEquip: newNames, dupId: dup ? dup.id : null, pics: pics };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -103,9 +117,11 @@ async function loadWorkoutImportPage() {
     el.innerHTML = '<div class="page-header"><h2>Import exercises</h2></div><div class="ex-status">Loading…</div>';
     try { await woLoadMuscles(); await woLoadExercises(); await woLoadEquipment(); }
     catch (err) { console.error('Workouts: could not open import:', err); el.innerHTML = '<div class="ex-status">Could not load your library.</div>'; return; }
-    _woImp = null;
+    _woImp = null; _woImpFiles = {};
     _woImpRender();
 }
+
+var _woImpFiles = {};   // lower-case file name → File, from the chosen pictures folder
 
 function _woImpSources() {
     var s = {};
@@ -132,6 +148,8 @@ function _woImpRender(resultHtml) {
                     var d = r.doc, mus = d.targets.map(function(t) { return (t.main ? '★ ' : '') + _woEsc(_woMuscleMap[t.muscleId].name); }).join(', ');
                     var flags = [];
                     if (r.dupId) flags.push('<span class="wo-badge wo-badge--archived">already have it</span>');
+                    var found = r.pics.filter(function(p) { return _woImpFiles[p.file.toLowerCase()]; }).length;
+                    if (r.pics.length) flags.push('<span class="wo-badge wo-badge--' + (found === r.pics.length ? 'neither' : 'pull') + '">🖼 ' + found + (found < r.pics.length ? ' of ' + r.pics.length + ' (' + (Object.keys(_woImpFiles).length ? r.pics.length - found + ' missing' : 'choose the folder') + ')' : ' picture' + (found === 1 ? '' : 's')) + '</span>');
                     if (d.levels) flags.push('<span class="wo-badge wo-badge--neither">' + d.levels.length + ' levels</span>');
                     if (r.newEquip.length) flags.push('<span class="wo-badge wo-badge--both">➕ ' + r.newEquip.map(_woEsc).join(', ') + '</span>');
                     r.issues.forEach(function(x) { flags.push('<span class="wo-badge wo-badge--pull">' + _woEsc(x) + '</span>'); });
@@ -153,6 +171,9 @@ function _woImpRender(resultHtml) {
             '<div class="ex-form-group"><label class="ex-label" for="woImpFile">Choose an exercise file (.json)</label>' +
                 '<input type="file" id="woImpFile" accept=".json,application/json">' +
                 '<p class="wo-hint">The file stays on your computer — the app only reads it. You see a review list before anything is added. Imported exercises are tagged with the file\'s source so they can be removed again below.</p></div>' +
+            '<div class="ex-form-group"><label class="ex-label" for="woImpPics">Pictures folder (optional)</label>' +
+                '<input type="file" id="woImpPics" webkitdirectory multiple>' +
+                '<p class="wo-hint">If the file names pictures, choose the folder that holds them' + (Object.keys(_woImpFiles).length ? ' — ' + Object.keys(_woImpFiles).length + ' picture files found' : '') + '. Pictures are shrunk and saved with each exercise.</p></div>' +
             '<div id="woImpMsg" class="wo-hint"></div>' +
             review +
             (srcKeys.length ? '<div class="ex-form-group wo-imp-remove"><label class="ex-label">Remove an import</label>' +
@@ -161,6 +182,11 @@ function _woImpRender(resultHtml) {
         '</div>';
 
     document.getElementById('woImpFile').addEventListener('change', _woImpFileChosen);
+    document.getElementById('woImpPics').addEventListener('change', function() {
+        _woImpFiles = {};
+        Array.prototype.forEach.call(this.files || [], function(f) { if (/^image\//.test(f.type)) _woImpFiles[f.name.toLowerCase()] = f; });
+        _woImpRender();
+    });
     if (!_woImp) { el.querySelectorAll('[data-rm]').forEach(function(b) { b.addEventListener('click', function() { _woImpRemove(this.getAttribute('data-rm')); }); }); return; }
     el.querySelectorAll('[data-imp]').forEach(function(cb) {
         cb.addEventListener('change', function() { _woImp.rows[parseInt(this.getAttribute('data-imp'), 10)].include = this.checked; _woImpRender(); });
@@ -226,17 +252,42 @@ async function _woImpGo() {
         });
         inc.forEach(function(r) {
             var data = Object.assign({}, r.doc, { createdAt: ts });
-            ops.push({ ref: woLibCol('workoutExercises').doc(), data: data });
+            r.ref = woLibCol('workoutExercises').doc();
+            ops.push({ ref: r.ref, data: data });
         });
         for (var i = 0; i < ops.length; i += 400) {
             var batch = db.batch();
             ops.slice(i, i + 400).forEach(function(o) { batch.set(o.ref, o.data); });
             await batch.commit();
         }
+        // pictures: one photo doc per file, in order; the exercise thumbnail comes from the first level's first picture
+        var picsDone = 0, picsFailed = 0;
+        for (var k = 0; k < inc.length; k++) {
+            var r2 = inc[k], order = 0, thumbSet = false;
+            for (var j = 0; j < r2.pics.length; j++) {
+                var pic = r2.pics[j], f = _woImpFiles[pic.file.toLowerCase()];
+                if (!f) continue;
+                btn.textContent = 'Pictures… ' + (picsDone + picsFailed + 1);
+                try {
+                    var dataUrl = await compressImage(f, { maxDimension: WO_FRAME_MAX_DIM, maxBase64: WO_FRAME_MAX_BASE64 });
+                    var lvlId = r2.doc.levels && pic.levelIndex >= 0 ? r2.doc.levels[pic.levelIndex].id : WO_BASE_LEVEL_ID;
+                    await woLibCol('photos').add({ targetType: 'workoutExercise', targetId: r2.ref.id, imageData: dataUrl, caption: '',
+                                                   frameOrder: order++, levelId: lvlId, createdAt: ts });
+                    var hasFirstLevelPic = !r2.doc.levels || r2.pics.some(function(q) { return q.levelIndex === 0 && _woImpFiles[q.file.toLowerCase()]; });
+                    if (!thumbSet && (!hasFirstLevelPic || !r2.doc.levels || pic.levelIndex === 0)) {
+                        thumbSet = true;
+                        var thumb = await _compressToThumb(dataUrl);
+                        if (thumb) await r2.ref.update({ thumbData: thumb });
+                    }
+                    picsDone++;
+                } catch (perr) { console.error('Workouts: picture import failed for ' + pic.file + ':', perr); picsFailed++; }
+            }
+        }
         var eqCount = Object.keys(needed).length;
-        _woImp = null;
+        _woImp = null; _woImpFiles = {};
         await woLoadExercises(); await woLoadEquipment();
         _woImpRender('✓ Imported ' + inc.length + ' exercise' + (inc.length === 1 ? '' : 's') + (eqCount ? ' and ' + eqCount + ' new equipment item' + (eqCount === 1 ? '' : 's') : '') +
+                     (picsDone ? ', ' + picsDone + ' picture' + (picsDone === 1 ? '' : 's') : '') + (picsFailed ? ' (' + picsFailed + ' picture' + (picsFailed === 1 ? '' : 's') + ' could not be saved)' : '') +
                      '. <a href="#workout-exercises">See them in Exercises</a>.');
     } catch (err) {
         console.error('Workouts: import failed:', err);
