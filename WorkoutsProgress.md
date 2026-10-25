@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-25 (programs plan):** all five chapters of the book's exercises are imported by the user (with pictures and the `yayog` tag; tag filter chips built). `ProgramsPlan.md` written (P1–P7, open questions at the end). Next: the user answers its §6 questions, then P1.
 > **2026-10-24 (import A):** the **Import screen is built and pushed** (`#workout-import`: file → review → import, remove an import). Next: part B, the local data file `import-data/yayog-exercises.json`.
 > **2026-10-24 (import):** `ImportPlan.md` written; building the Import screen, then the local data file (`import-data/`, gitignored).
 > **2026-10-24 (F5):** **F5 (Ladders) is built and pushed** — rest equals the last set's time and 'Start coming down' re-plans the remaining rungs live. Next: **F6 (the rest: Easy Gleason, circuit work/rest, timed workout, 52 Pick-Up, active recovery)** — lower priority — then the import tool and Programs.
