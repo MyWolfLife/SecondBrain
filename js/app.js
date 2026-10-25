@@ -201,7 +201,7 @@ const ALL_PAGES = [
     'budget', 'budget-archive', 'budget-nonmonthly',
     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
-    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import',
+    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'workout-links', 'workout-link', 'workout-link-tags',
     'help'
 ];
 
@@ -247,7 +247,7 @@ const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'journal', 'journal-ent
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises', 'exercise-summary',
-                     'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import'];
+                     'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'workout-links', 'workout-link', 'workout-link-tags'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -858,6 +858,15 @@ function handleRoute() {
     } else if (page === 'workout-day' && id) {
         showPage('workout-day');
         loadWorkoutDayPage(id);
+    } else if (page === 'workout-links') {
+        showPage('workout-links');
+        loadWorkoutLinksPage();
+    } else if (page === 'workout-link' && id) {
+        showPage('workout-link');
+        loadWorkoutLinkPage(id);
+    } else if (page === 'workout-link-tags') {
+        showPage('workout-link-tags');
+        loadWorkoutLinkTagsPage();
     } else if (page === 'workout-history') {
         showPage('workout-history');
         loadWorkoutHistoryPage();

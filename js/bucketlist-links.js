@@ -496,11 +496,20 @@ async function bucketShareCheck() {
     if (!combined.trim()) return;
 
     var firstLine = (meta.title || textNoUrl.split('\n')[0] || '').trim().slice(0, 80);
-    _blOpenModal(null, {
-        name : firstLine,
-        notes: textNoUrl && textNoUrl !== firstLine ? textNoUrl : null,
-        links: sharedUrl ? [{ url: sharedUrl, label: 'Shared link' }] : []
-    });
+    var notes = textNoUrl && textNoUrl !== firstLine ? textNoUrl : null;
+    var openBucket = function() {
+        _blOpenModal(null, {
+            name : firstLine,
+            notes: notes,
+            links: sharedUrl ? [{ url: sharedUrl, label: 'Shared link' }] : []
+        });
+    };
+    // A shared link can be a Bucket List idea or a workout to try — ask which (workout-links.js)
+    if (sharedUrl && typeof wlAskShareDestination === 'function') {
+        wlAskShareDestination({ url: sharedUrl, name: firstLine, description: notes || '' }, openBucket);
+        return;
+    }
+    openBucket();
 }
 
 // ============================================================

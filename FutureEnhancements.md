@@ -164,3 +164,11 @@ Create and manage daily, weekly, monthly, and yearly goals. Details TBD.
 Budget line items have an "Est. Due Day" field. In a future phase, allow those items to optionally generate calendar reminders on their due day each month — so bills show up on the calendar automatically from the budget rather than needing to be entered twice.
 
 Related to: Budgets feature, Calendar Events.
+
+---
+
+## Fitness: Workout Links → Built Workout
+
+On a Workout Link (Fitness → Workout Links), add an optional "Built as workout" picker that points to one of the user's Workouts (e.g. "I turned this reel into my Band Circuit workout"). Tapping it opens that workout. Parked while Workout Links v1 is built.
+
+Related to: Workout Links, Workouts builder.

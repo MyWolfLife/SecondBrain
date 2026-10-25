@@ -3512,7 +3512,7 @@ Log an interaction from a resident's contact page and the pin recolors automatic
 - Tap **Add selected** to save. When and website details are shown for reference; change them afterwards with **Edit**
 One post can name several places, so you may get several cards. The AI is told not to guess websites, dates, or coordinates, so those are often blank. For well-known places it fills in the state and nearest town from what it already knows, even if the screenshot doesn't say. It also reads the location tag under the account name and comments that say where a place is, and ignores things like like-counts and music credits. Anything it is unsure of is marked medium or low confidence. Items you import show on the map a moment after you first open it.
 
-**Sharing straight from your phone:** on an Android phone with Bishop installed to the home screen, you can skip the screenshot step. In Instagram, Photos, Maps, or any app, tap **Share**, choose **Bishop**, and the Import screen opens with your picture already loaded (the caption comes along as a hint, and a shared link is kept on each place you save). Tap **Read with AI** and review as usual. If you share only a link or some text, the **Add** form opens with it filled in so you can finish the details. Bishop must be installed (Add to Home Screen) and open at least once after an update before it shows up in the share list, and it can take a day for Android to pick up the change; reinstalling it speeds that up. iPhone does not offer this, so there you still take a screenshot and use **Paste** or **Gallery**.
+**Sharing straight from your phone:** on an Android phone with Bishop installed to the home screen, you can skip the screenshot step. In Instagram, Photos, Maps, or any app, tap **Share**, choose **Bishop**, and the Import screen opens with your picture already loaded (the caption comes along as a hint, and a shared link is kept on each place you save). Tap **Read with AI** and review as usual. If you share only a link, Bishop asks whether to save it to **Workout Links** or the **Bucket List**; pick Bucket List (or share only text) and the **Add** form opens with it filled in so you can finish the details. Bishop must be installed (Add to Home Screen) and open at least once after an update before it shows up in the share list, and it can take a day for Android to pick up the change; reinstalling it speeds that up. iPhone does not offer this, so there you still take a screenshot and use **Paste** or **Gallery**.
 
 **No AI key, or prefer your own chat app?** Tap **Copy prompt**, paste it into any chat app along with the screenshot, then copy the JSON it returns into the **Paste JSON** box and tap **Review this JSON**. The review screen works exactly the same way.
 
@@ -4748,13 +4748,14 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:exercise
 
-**What this screen is for:** The Fitness hub (formerly "Exercise"). The **left column** is your tracking — Daily Metrics, Activities, Summary, Goals. The **right column** is workouts — Workouts, Workout History, Muscle Balance, Exercises, Programs.
+**What this screen is for:** The Fitness hub (formerly "Exercise"). The **left column** is your tracking — Daily Metrics, Activities, Summary, Goals, Workout Links. The **right column** is workouts — Workouts, Workout History, Muscle Balance, Exercises, Programs.
 
 ### Quick Help
 - Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
 - Tap **Activities** to log and view your workouts
 - Tap **Summary** for a year-at-a-glance view of every month's numbers
 - Tap **Goals** to set and manage your yearly exercise and weight goals
+- Tap **Workout Links** for reels, videos, and web pages of workouts you want to try
 - Tap **Workouts** to build and run guided workouts
 - Tap **Workout History** to see every workout you've finished
 - Tap **Muscle Balance** to see which muscles you've been working lately
@@ -4868,6 +4869,45 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 - Tap **📈 History** to see every time you've done the exercise, a chart of your best weight (or reps / time) over time, and your 🏆 records
 - The **How to do it** box can be dragged bigger with the corner handle — this device remembers the size you choose
+
+---
+
+## screen:workout-links
+
+**What this screen is for:** Links to workouts you saw and want to try later: reels, YouTube videos, web pages.
+
+### Quick Help
+- Tap **+ Add Link** to save one. On an Android phone you can also tap **Share** in Instagram, YouTube, etc., pick **Bishop**, then choose **Workout Links**
+- **Search** looks at the name, description, and link
+- Tap **tag chips** to filter. Pick two or more and choose **Any** (has at least one) or **All** (has every one). **No tags** shows links you haven't tagged
+- Tap the **☆** to make a link a favorite. Favorites always stay at the top. The sort menu orders the rest
+- **Open ↗** just opens the link. It doesn't count as doing the workout
+- Tap **✓ Did it** after you do the workout. It records the date and adds a Workout activity to Fitness → Activities. The card then shows how many times you've done it and when you last did it
+- **🏷️ Manage tags** lets you rename or delete a tag on every link at once
+
+---
+
+## screen:workout-link
+
+**What this screen is for:** Adding or editing one workout link.
+
+### Quick Help
+- Paste the link into **Link** (or tap **📋 Paste**). Give it a **Name**, and a **Description** if you like
+- **Tags**: type one and tap **Add** (or press Enter). Separate several with commas. Tap a **+ tag** suggestion to reuse one you already have. A new tag joins the tag list when you save
+- Check **★ Favorite** to keep it at the top of the list
+- **Times done** lists every time you tapped ✓ Did it. Deleting an entry also deletes its Fitness activity
+- **Delete** removes the link. Activities you already logged from it stay
+
+---
+
+## screen:workout-link-tags
+
+**What this screen is for:** Renaming or deleting Workout Link tags.
+
+### Quick Help
+- **Rename** changes the tag on every link that has it. Renaming to a tag that already exists merges the two
+- **Delete** removes the tag from every link. The links themselves stay
+- New tags are made by typing them on a link, not here
 
 ---
 

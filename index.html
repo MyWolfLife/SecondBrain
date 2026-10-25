@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=524">
+    <link rel="stylesheet" href="css/styles.css?v=525">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -4459,6 +4459,52 @@
         </div>
     </div>
 
+    <!-- Workout Links: "✓ Did it" (workout-links.js) -->
+    <div class="modal-overlay" id="wlDidModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="wlDidTitle">✓ Did it</h3>
+                <button class="modal-close" onclick="closeModal('wlDidModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <p class="wl-hint">Saves this as a time you did it and adds a Workout activity to Fitness → Activities.</p>
+                <div class="form-group">
+                    <label for="wlDidDate">Date <span class="required">*</span></label>
+                    <input type="date" id="wlDidDate">
+                </div>
+                <div class="form-group">
+                    <label for="wlDidMinutes">Minutes <span class="optional-label">(optional)</span></label>
+                    <input type="number" id="wlDidMinutes" min="1" step="1" inputmode="decimal" placeholder="e.g. 20">
+                </div>
+                <div class="form-group">
+                    <label for="wlDidNote">Note <span class="optional-label">(optional)</span></label>
+                    <input type="text" id="wlDidNote" placeholder="e.g. used the heavy band">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('wlDidModal')">Cancel</button>
+                <button class="btn btn-primary" id="wlDidSaveBtn" onclick="wlSaveDidIt()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phone share sheet: where a shared link goes (workout-links.js / bucketlist-links.js) -->
+    <div class="modal-overlay" id="wlShareModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Save this link to…</h3>
+                <button class="modal-close" onclick="closeModal('wlShareModal')">&#x2715;</button>
+            </div>
+            <div class="modal-body">
+                <p class="wl-share-url" id="wlShareUrl"></p>
+                <div class="wl-share-btns">
+                    <button type="button" class="btn btn-primary" id="wlShareWorkoutBtn">🔗 Workout Links</button>
+                    <button type="button" class="btn btn-secondary" id="wlShareBucketBtn">🌎 Bucket List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Add / Edit House Pin -->
     <div class="modal-overlay" id="nbHouseModal">
         <div class="modal">
@@ -7744,6 +7790,21 @@ service firebase.storage {
         <!-- Page: Muscle balance (#workout-balance) -->
         <section class="page hidden" id="page-workout-balance">
             <!-- Populated by loadWorkoutBalancePage() in workout-balance.js -->
+        </section>
+
+        <!-- Page: Workout Links list (#workout-links) -->
+        <section class="page hidden" id="page-workout-links">
+            <!-- Populated by loadWorkoutLinksPage() in workout-links.js -->
+        </section>
+
+        <!-- Page: Workout Link add / edit (#workout-link/new, #workout-link/:id) -->
+        <section class="page hidden" id="page-workout-link">
+            <!-- Populated by loadWorkoutLinkPage() in workout-links.js -->
+        </section>
+
+        <!-- Page: Workout Link tags (#workout-link-tags) -->
+        <section class="page hidden" id="page-workout-link-tags">
+            <!-- Populated by loadWorkoutLinkTagsPage() in workout-links.js -->
         </section>
 
         <!-- Page: Import exercises (#workout-import) -->
@@ -12171,7 +12232,7 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=494"></script>
+    <script src="js/settings.js?v=495"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12196,7 +12257,7 @@ export default {
     <script src="js/lifecalendar.js?v=487"></script>
     <script src="js/life-projects.js?v=487"></script>
     <script src="js/life-projects-day-ai.js?v=496"></script>
-    <script src="js/exercise.js?v=495"></script>
+    <script src="js/exercise.js?v=496"></script>
     <script src="js/workout-levels.js?v=4"></script>
     <script src="js/workout-amounts.js?v=8"></script>
     <script src="js/workout-sides.js?v=1"></script>
@@ -12210,6 +12271,7 @@ export default {
     <script src="js/workout-progress.js?v=6"></script>
     <script src="js/workout-balance.js?v=1"></script>
     <script src="js/workout-import.js?v=3"></script>
+    <script src="js/workout-links.js?v=1"></script>
     <script src="js/workout-ai.js?v=9"></script>
     <script src="js/workout-view.js?v=5"></script>
     <script src="js/workout-level-editor.js?v=3"></script>
@@ -12223,7 +12285,7 @@ export default {
     <script src="js/places.js?v=487"></script>
     <script src="js/bucketlist.js?v=487"></script>
     <script src="js/bucketlist-import.js?v=487"></script>
-    <script src="js/bucketlist-links.js?v=487"></script>
+    <script src="js/bucketlist-links.js?v=488"></script>
     <script src="js/askai.js?v=487"></script>
     <script src="js/thoughts.js?v=487"></script>
     <script src="js/top10lists.js?v=487"></script>
@@ -12253,7 +12315,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=496"></script>
+    <script src="js/app.js?v=497"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

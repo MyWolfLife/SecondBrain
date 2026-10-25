@@ -241,7 +241,7 @@ function loadExercisePage() {
             '<h2>Fitness</h2>' +
         '</div>' +
         // Two columns, placed explicitly so each column reads top-down:
-        //   left  = Daily Metrics, Activities, Summary, Goals
+        //   left  = Daily Metrics, Activities, Summary, Goals, Workout Links
         //   right = Workouts, Workout History, Muscle Balance, Exercises, Programs
         '<div class="landing-grid">' +
             '<a href="#exercise-metrics" class="landing-tile landing-tile--exercise-metrics" style="grid-column:1;grid-row:1">' +
@@ -275,6 +275,10 @@ function loadExercisePage() {
             '<a href="#workout-exercises" class="landing-tile landing-tile--workout-exercises" style="grid-column:2;grid-row:4">' +
                 '<span class="landing-tile-icon">🤸</span>' +
                 '<span class="landing-tile-label">Exercises</span>' +
+            '</a>' +
+            '<a href="#workout-links" class="landing-tile landing-tile--workout-links" style="grid-column:1;grid-row:5">' +
+                '<span class="landing-tile-icon">🔗</span>' +
+                '<span class="landing-tile-label">Workout Links</span>' +
             '</a>' +
             '<div class="landing-tile landing-tile--coming-soon" style="grid-column:2;grid-row:5">' +
                 '<span class="landing-tile-icon">📅</span>' +
