@@ -472,8 +472,11 @@ async function loadTimelineEventPage(id) {
                 '<div id="tlWhenFields" class="tl-when-fields"></div>' +
                 '<label class="wo-inline-check"><input type="checkbox" id="tlApprox"' + (ev.approx ? ' checked' : '') + '> ~ About (show it as approximate)</label>' +
             '</div>' +
+            '<div class="form-group" id="tlSpanRow">' +
+                '<label class="wo-inline-check"><input type="checkbox" id="tlSpan"' + (ev.endYear || ev.ongoing ? ' checked' : '') + '> Lasted a while (has an end — school, job, home)</label>' +
+            '</div>' +
             '<div class="form-group" id="tlEndGroup">' +
-                '<label>Ended <span class="wl-hint">(optional — for schools, jobs, homes)</span></label>' +
+                '<label>Ended</label>' +
                 '<div class="tl-when-fields">' +
                     '<select id="tlEndMonth"></select>' +
                     '<input type="number" id="tlEndYear" placeholder="Year" min="1800" max="2200" value="' + (ev.endYear || '') + '">' +
@@ -528,7 +531,9 @@ async function loadTimelineEventPage(id) {
         if (isNewCat) document.getElementById('tlCatNew').focus();
     });
     document.getElementById('tlOngoing').addEventListener('change', _tlSyncEnd);
+    document.getElementById('tlSpan').addEventListener('change', _tlSyncSpan);
     _tlSyncEnd();
+    _tlSyncSpan();
 
     var who = document.getElementById('tlWho');
     who.addEventListener('input', _tlOnWhoInput);
@@ -586,8 +591,14 @@ function _tlRenderWhenFields(precision, w) {
             break;
     }
     document.getElementById('tlWhenFields').innerHTML = html;
-    // The "Ended" box makes no sense for a range, which already has an end
-    document.getElementById('tlEndGroup').classList.toggle('hidden', precision === 'range');
+    _tlSyncSpan();
+}
+
+/** "Lasted a while" reveals the Ended boxes. A range already has an end, so it hides both. */
+function _tlSyncSpan() {
+    var isRange = document.getElementById('tlPrecision').value === 'range';
+    document.getElementById('tlSpanRow').classList.toggle('hidden', isRange);
+    document.getElementById('tlEndGroup').classList.toggle('hidden', isRange || !document.getElementById('tlSpan').checked);
 }
 
 /** "1/2/1968", "1-2-1968" or "1968-01-02" → {year, month, day}, or null when it isn't a real date. */
@@ -639,8 +650,9 @@ async function _tlSave() {
         alert('The "to" year needs to be the same as or after the "from" year.'); return;
     }
 
-    var ongoing = document.getElementById('tlOngoing').checked && precision !== 'range';
-    var endYear = ongoing || precision === 'range' ? 0 : (parseInt(document.getElementById('tlEndYear').value, 10) || 0);
+    var spans = document.getElementById('tlSpan').checked && precision !== 'range';
+    var ongoing = spans && document.getElementById('tlOngoing').checked;
+    var endYear = !spans || ongoing ? 0 : (parseInt(document.getElementById('tlEndYear').value, 10) || 0);
     var endMonth = endYear ? (parseInt(document.getElementById('tlEndMonth').value, 10) || 0) : 0;
 
     // Keep a linked contact only if its "@Name" is still in the Who text
