@@ -558,7 +558,9 @@ function _tlRenderWhenFields(precision, w) {
     var html = '';
     switch (precision) {
         case 'day':
-            html = monthSel + '<input type="number" id="tlDay" placeholder="Day" min="1" max="31" value="' + (w.day || '') + '">' + yearIn('Year');
+            // One box: type 1/2/1968 (month/day/year)
+            html = '<input type="text" id="tlDate" inputmode="numeric" placeholder="M/D/YYYY, e.g. 1/2/1968" autocomplete="off" value="' +
+                   (w.year && w.month && w.day ? w.month + '/' + w.day + '/' + w.year : '') + '">';
             break;
         case 'month':
             html = monthSel + yearIn('Year');
@@ -588,6 +590,17 @@ function _tlRenderWhenFields(precision, w) {
     document.getElementById('tlEndGroup').classList.toggle('hidden', precision === 'range');
 }
 
+/** "1/2/1968", "1-2-1968" or "1968-01-02" → {year, month, day}, or null when it isn't a real date. */
+function _tlParseDate(text) {
+    var t = String(text || '').trim(), m, y, mo, d;
+    if ((m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/))) { mo = +m[1]; d = +m[2]; y = +m[3]; }
+    else if ((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)))        { y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else return null;
+    var dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return { year: y, month: mo, day: d };
+}
+
 /** Read whichever date boxes are on screen into a `when` object. */
 function _tlReadWhen() {
     var val = function(id) { var e = document.getElementById(id); return e ? e.value : ''; };
@@ -595,7 +608,8 @@ function _tlReadWhen() {
     if (val('tlYear'))   w.year = parseInt(val('tlYear'), 10);
     if (val('tlToYear')) w.toYear = parseInt(val('tlToYear'), 10);
     if (parseInt(val('tlMonth'), 10) > 0) w.month = parseInt(val('tlMonth'), 10);
-    if (val('tlDay'))    w.day = parseInt(val('tlDay'), 10);
+    var d = _tlParseDate(val('tlDate'));
+    if (d) { w.year = d.year; w.month = d.month; w.day = d.day; }
     if (val('tlSeason')) w.season = val('tlSeason');
     if (val('tlDecade')) w.decade = Math.floor(parseInt(val('tlDecade'), 10) / 10) * 10;
     if (document.getElementById('tlPart')) w.part = val('tlPart');
@@ -615,7 +629,12 @@ async function _tlSave() {
     var precision = document.getElementById('tlPrecision').value;
     var when = _tlReadWhen();
     var sortDate = _tlSortDate(precision, when);
-    if (!sortDate) { alert('Please fill in the date boxes (or pick a less exact "When").'); return; }
+    if (!sortDate) {
+        alert(precision === 'day'
+            ? 'Please type a real date like 1/2/1968 (or pick a less exact "When").'
+            : 'Please fill in the date boxes (or pick a less exact "When").');
+        return;
+    }
     if (precision === 'range' && (!when.toYear || when.toYear < when.year)) {
         alert('The "to" year needs to be the same as or after the "from" year.'); return;
     }
