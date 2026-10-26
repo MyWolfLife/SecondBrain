@@ -40,7 +40,7 @@ The new parts (invites, groups, shares) have no screens yet, so the real test ha
 - **Create the share document first, in its own write,** before writing anything inside it. A rule that checks the guest list looks at the database *before* a batch lands, so a batch that creates the share and its contents together would be refused.
 - **Delete the contents before the share document.** Once the share document is gone, nobody (even the owner) is allowed into its contents.
 - **Every share must always carry both lists** (`viewerUids`, `editorUids`, even if empty) and every invite must carry `usedBy: null`. A missing field makes a rule fail, which looks like "permission denied".
-- **"Shared with me"** looks up shares where you are in `viewerUids` or `editorUids` (two small queries). If Firestore refuses these in testing, the fix is one extra field on the share (`memberUids`, everyone with any access) so there is one simple query.
+- **"Shared with me"** looks up shares where you are in `viewerUids` or `editorUids` (two small queries). *Tested in S4: Firestore accepts both queries under these rules, so no extra field is needed.*
 - Anything in `users/{uid}` can still only be read by that person. A shared item never points at private data in a way that would expose it (decision G9).
 
 ## Not covered by these rules (known limits)

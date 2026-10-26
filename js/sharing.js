@@ -88,7 +88,11 @@ async function loadSharingPage() {
     _shMsg('shEnterMsg', '', false);
     document.getElementById('shInviteResult').classList.add('hidden');
     document.getElementById('shCodeInput').value = '';
+    _shMsg('shDisplayMsg', '', false);
+    await shLoadPrefs();
+    document.getElementById('shShowWhoCheck').checked = shShowWhoEnabled();
     await shRenderPeople();
+    await shRenderSharedWithMe();
 }
 
 // ─── People list ─────────────────────────────────────────────────────────────
@@ -446,5 +450,142 @@ async function shRemoveMember(groupId, uid) {
     } catch (err) {
         console.error(err);
         alert('Could not remove: ' + err.message);
+    }
+}
+
+// ─── Shared data plumbing (S4) ───────────────────────────────────────────────
+// A share is a container: shares/{shareId} holds the guest list, and everything that
+// was shared lives inside it as subcollections with the SAME names as in a person's
+// private area (collections, collectionItems, photos, ...). Document IDs are kept
+// when something is moved in, so every link between documents survives.
+//
+//   shares/{shareId}: ownerUid, kind, title, shareGroups{groupId: 'view'|'edit'},
+//                     viewerUids[], editorUids[], names{uid: name}, createdAt
+
+/** A collection inside a share, with the Offline Trip Mode write lock applied. */
+function shareCol(shareId, name) {
+    return _guardFirestoreRef(db.collection('shares').doc(shareId).collection(name));
+}
+
+/**
+ * The one helper features call: the share's collection when the thing lives in a
+ * share, otherwise the person's own private collection.
+ *     dataCol('collectionItems', window.currentShareId)
+ */
+function dataCol(name, shareId) {
+    return shareId ? shareCol(shareId, name) : userCol(name);
+}
+
+/**
+ * Who-did-it stamps (decision G8). Add to every write that goes into a share:
+ *     shareCol(id, 'collectionItems').add(shStamp(data, true))      // new document
+ *     shareCol(id, 'collectionItems').doc(x).update(shStamp(data))  // change
+ * Returns a copy; private writes don't use this.
+ */
+function shStamp(data, isNew) {
+    var out = Object.assign({}, data);
+    var uid = _shMyUid();
+    var now = firebase.firestore.FieldValue.serverTimestamp();
+    if (isNew) { out.createdBy = uid; out.createdAt = now; }
+    out.updatedBy = uid;
+    out.updatedAt = now;
+    return out;
+}
+
+// ─── "Show who added/modified" (per person) ──────────────────────────────────
+
+var _shPrefs = { showWhoEdited: false };
+
+async function shLoadPrefs() {
+    try {
+        var snap = await userCol('settings').doc('sharing').get();
+        if (snap.exists) _shPrefs.showWhoEdited = !!snap.data().showWhoEdited;
+    } catch (err) { console.error('shLoadPrefs:', err); }
+}
+
+function shShowWhoEnabled() {
+    return !!_shPrefs.showWhoEdited;
+}
+
+async function shSaveShowWho(checked) {
+    _shPrefs.showWhoEdited = !!checked;
+    try {
+        await userCol('settings').doc('sharing').set({ showWhoEdited: !!checked }, { merge: true });
+        _shMsg('shDisplayMsg', '✓ Saved', false);
+    } catch (err) {
+        console.error(err);
+        _shMsg('shDisplayMsg', 'Could not save: ' + err.message, true);
+    }
+}
+
+/**
+ * The "Added by Sam · Oct 26, 2026 / Changed by Steve · Oct 27, 2026" text for a document
+ * in a share, or '' when the setting is off or the document has no stamps (older items).
+ * `share` is the share document's data, whose names{} maps uid → name.
+ */
+function shWhoLabel(docData, share) {
+    if (!shShowWhoEnabled() || !docData || !docData.createdBy) return '';
+    var names = (share && share.names) || {};
+    function who(uid) { return uid === _shMyUid() ? 'you' : (names[uid] || 'someone'); }
+    function when(ts) { return ts && ts.toDate ? ' · ' + ts.toDate().toLocaleDateString() : ''; }
+    var text = 'Added by ' + who(docData.createdBy) + when(docData.createdAt);
+    var changed = docData.updatedBy && docData.updatedAt && docData.createdAt &&
+                  docData.updatedAt.toMillis && docData.createdAt.toMillis &&
+                  docData.updatedAt.toMillis() - docData.createdAt.toMillis() > 60000;
+    if (changed) text += ' · Changed by ' + who(docData.updatedBy) + when(docData.updatedAt);
+    return text;
+}
+
+// ─── Finding shares ──────────────────────────────────────────────────────────
+
+/** Everything shared WITH me by other people: [{id, title, kind, ownerUid, ownerName, role, data}] */
+async function shLoadSharedWithMe() {
+    var me = _shMyUid();
+    var results = await Promise.all([
+        db.collection('shares').where('editorUids', 'array-contains', me).get(),
+        db.collection('shares').where('viewerUids', 'array-contains', me).get()
+    ]);
+    var byId = {};
+    results.forEach(function(snap, i) {
+        snap.docs.forEach(function(d) {
+            if (byId[d.id]) return;          // already found as an editor: edit wins
+            var x = d.data();
+            byId[d.id] = {
+                id: d.id, title: x.title || 'Untitled', kind: x.kind || '',
+                ownerUid: x.ownerUid, ownerName: (x.names || {})[x.ownerUid] || 'Someone',
+                role: i === 0 ? 'edit' : 'view', data: x
+            };
+        });
+    });
+    return Object.keys(byId).map(function(k) { return byId[k]; })
+        .sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+}
+
+/** Everything I have shared with others (I am the owner): [{id, title, kind, data}] */
+async function shLoadMyShares() {
+    var snap = await db.collection('shares').where('ownerUid', '==', _shMyUid()).get();
+    return snap.docs.map(function(d) { var x = d.data(); return { id: d.id, title: x.title || 'Untitled', kind: x.kind || '', data: x }; })
+        .sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); });
+}
+
+async function shRenderSharedWithMe() {
+    var el = document.getElementById('shSharedWithMeList');
+    if (!el) return;
+    try {
+        var list = await shLoadSharedWithMe();
+        if (!list.length) { el.innerHTML = '<p style="color:#888;font-size:0.9rem;">Nothing has been shared with you.</p>'; return; }
+        var html = '<div class="lookup-list">';
+        list.forEach(function(s) {
+            html += '<div class="lookup-list-item">' +
+                      '<span class="lookup-item-label">' +
+                        '<span style="background:#eef3ee; border-radius:10px; padding:1px 8px; font-size:0.8rem; margin-right:6px;">' + (s.role === 'edit' ? 'Can edit' : 'View only') + '</span>' +
+                        escapeHtml(s.title) + ' <small style="color:#888;">from ' + escapeHtml(s.ownerName) + '</small>' +
+                      '</span>' +
+                    '</div>';
+        });
+        el.innerHTML = html + '</div>';
+    } catch (err) {
+        console.error(err);
+        el.innerHTML = '<p style="color:#c0392b;font-size:0.9rem;">Could not load shared items (' + escapeHtml(err.message) + ').</p>';
     }
 }

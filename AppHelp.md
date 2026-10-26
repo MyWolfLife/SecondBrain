@@ -771,6 +771,14 @@ For trips where you'll have no signal at all for days or weeks (not just a brief
 4. **Person B:** sign in to their own account, open **Settings → Sharing**, type the code under **Enter an invite code**, and tap **Connect**.
 5. You now both appear under **People**.
 
+### Shared with me
+
+The **Shared with me** card lists things other people have shared with you. Each one shows **Can edit** or **View only**, its name, and who shared it. It stays empty until someone shares something with a group you are in.
+
+### Show who added/modified
+
+Under **Display**, turn on **Show who added/modified** to see "Added by …" and "Changed by …" with a date on shared items. The app always keeps track of who did what; this setting only decides whether you see it. It is just for you — it doesn't change what anyone else sees.
+
 ### Groups
 
 A group is a named list of the people you are connected to — for example **Family**, **Wife** or **Guest**. Later, when you share something, you will choose which groups can see it, and whether each group can only **view** or can also **edit**. Changing who is in a group changes access to everything shared with that group at once.

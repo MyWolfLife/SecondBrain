@@ -1340,6 +1340,8 @@ function initApp() {
     if (typeof privateCheckActivated === 'function') privateCheckActivated();
     // Pre-load GCal settings so gcalIsConnected() works on any page without visiting Settings first
     if (typeof gcalLoadSettings === 'function') gcalLoadSettings();
+    // Sharing preferences ("Show who added/modified") — see sharing.js
+    if (typeof shLoadPrefs === 'function') shLoadPrefs();
     // Load favorites (star button + home page widget)
     if (typeof favInit === 'function') favInit();
     // Watch for another device's active Offline Trip Mode session (read-only lock)

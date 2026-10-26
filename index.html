@@ -987,6 +987,22 @@
             </div>
 
             <div class="settings-card">
+                <h3 class="settings-section-title">Shared with me</h3>
+                <p class="settings-section-desc">Things other people have shared with you, and whether you can edit them.</p>
+                <div id="shSharedWithMeList"></div>
+            </div>
+
+            <div class="settings-card">
+                <h3 class="settings-section-title">Display</h3>
+                <label style="display:flex; gap:8px; align-items:center;">
+                    <input type="checkbox" id="shShowWhoCheck" onchange="shSaveShowWho(this.checked)">
+                    <span>Show who added/modified</span>
+                </label>
+                <p class="settings-section-desc" style="margin-top:4px;">Shows "Added by …" and "Changed by …" on shared items. The app always records who did what; this only decides whether you see it. Just for you.</p>
+                <p id="shDisplayMsg" style="margin:6px 0 0; font-size:0.9rem;"></p>
+            </div>
+
+            <div class="settings-card">
                 <h3 class="settings-section-title">People</h3>
                 <p class="settings-section-desc">Everyone you are connected to. Connected people can be added to your groups.</p>
                 <div id="shPeopleList"></div>
@@ -12353,7 +12369,7 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=499"></script>
-    <script src="js/sharing.js?v=2"></script>
+    <script src="js/sharing.js?v=3"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12441,7 +12457,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=503"></script>
+    <script src="js/app.js?v=504"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>
