@@ -1,0 +1,101 @@
+// ============================================================
+// DRAFT — NOT DEPLOYED. For the user to review (SharedSpacesBuildPlan.md S1).
+// Firestore rules live in the Firebase console (Build > Firestore Database > Rules).
+// Nothing here takes effect until the user pastes it there and publishes.
+//
+// Built from the rules the user pasted from the console on 2026-10-26: the users and
+// sharedDevNotes rules are kept as they were, the empty legacy flat-collection rules are
+// dropped, and the invites / groups / shares rules are added.
+// ============================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // ---- Private data: each person only their own area (unchanged from MU-4) ----
+    match /users/{userId}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // ---- Developer notes (copied from the rules published in the console, 2026-10-26) ----
+    match /sharedDevNotes/{d} { allow read, write: if signedIn(); }
+    match /sharedDevNotes/{noteId}/photos/{photoId} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    // ---- The old "legacy flat collections" rules are intentionally gone ----
+    // They let any signed-in person read/write plants, zones, photos, etc. The user
+    // checked on 2026-10-26: all 20 were empty and nothing in the app uses them
+    // (everything goes through userCol()). With no rule, they are locked.
+
+    // ---- Invites double as the connection record between two people ----
+    match /invites/{code} {
+      // Anyone signed in can look up a code they were given (codes are unguessable),
+      // but cannot list the collection except their own.
+      allow get: if signedIn();
+      allow list: if signedIn()
+                  && (resource.data.fromUid == request.auth.uid
+                      || resource.data.usedBy == request.auth.uid);
+      allow create: if signedIn()
+                    && request.resource.data.fromUid == request.auth.uid
+                    && request.resource.data.usedBy == null;
+      // Redeem: unused, unexpired, not your own, and you can only fill in the "used" fields.
+      allow update: if signedIn()
+                    && resource.data.usedBy == null
+                    && resource.data.fromUid != request.auth.uid
+                    && resource.data.expiresAt > request.time
+                    && request.resource.data.usedBy == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['usedBy', 'usedByName', 'usedAt']);
+      // Either person can disconnect.
+      allow delete: if signedIn()
+                    && (resource.data.fromUid == request.auth.uid
+                        || resource.data.usedBy == request.auth.uid);
+    }
+
+    // ---- Groups: only the owner sees and edits them ----
+    match /groups/{groupId} {
+      allow read, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if signedIn()
+                    && resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ---- Shares: a shared container with a guest list the owner maintains ----
+    function shareData(shareId) {
+      return get(/databases/$(database)/documents/shares/$(shareId)).data;
+    }
+    function canRead(s) {
+      return s.ownerUid == request.auth.uid
+          || request.auth.uid in s.viewerUids
+          || request.auth.uid in s.editorUids;
+    }
+    function canEdit(s) {
+      return s.ownerUid == request.auth.uid || request.auth.uid in s.editorUids;
+    }
+
+    match /shares/{shareId} {
+      // The share document itself (who it is shared with) — owner writes, members read.
+      allow read: if signedIn() && canRead(resource.data);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if signedIn()
+                    && resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.ownerUid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // Everything inside (collection record, items, photos, facts …)
+      match /{collectionName}/{docId} {
+        allow read: if signedIn() && canRead(shareData(shareId));
+        allow create, update: if signedIn() && canEdit(shareData(shareId));
+        // Editors may delete anything inside except the collection record itself.
+        allow delete: if signedIn()
+                      && (shareData(shareId).ownerUid == request.auth.uid
+                          || (collectionName != 'collections'
+                              && request.auth.uid in shareData(shareId).editorUids));
+      }
+    }
+  }
+}

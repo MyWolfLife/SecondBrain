@@ -1,6 +1,6 @@
 # SharedSpacesPlan.md — Sharing Data Between Accounts
 
-**Status**: 🗣️ In discussion (started 2026-10-21)
+**Status**: 🗣️ In discussion (started 2026-10-21). **Superseded in part 2026-10-26:** sharing now works through *groups* (Wife / Family / Guest) instead of per-person guest lists — see `SharedSpacesBuildPlan.md`. S7/S8 below are background; the section map and §3f–§3g ideas still inform it.
 **Area**: Whole app (data architecture)
 **Started**: 2026-10-21 (came up while planning Workouts — see `WorkoutsPlan.md` D11)
 
