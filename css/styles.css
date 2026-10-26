@@ -22149,3 +22149,6 @@ body.wo-playing .offline-banner { display: none !important; }
 .tl-address summary { cursor: pointer; color: #0369a1; font-size: 0.9rem; }
 .tl-address input[type="text"] { margin-top: 8px; }
 .tl-address .tl-when-fields input { flex: 1; min-width: 90px; }
+/* Checkboxes inside Timeline form groups must not stretch to full width over their label */
+.wl-form .wo-inline-check input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; }
+.wl-form .wo-inline-check { display: flex; margin-top: 8px; }

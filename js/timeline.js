@@ -422,7 +422,7 @@ async function loadTimelineEventPage(id) {
     var el = document.getElementById('page-timeline-event');
     el.innerHTML = '<div class="ex-status">Loading…</div>';
 
-    var ev = { title: '', category: '', notes: '', precision: 'year', when: {}, approx: false,
+    var ev = { title: '', category: '', notes: '', precision: 'day', when: {}, approx: false,
                endYear: 0, endMonth: 0, ongoing: false, placeName: '', address: {}, whoText: '', personIds: [] };
     try {
         await _tlLoad();
