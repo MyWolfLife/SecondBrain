@@ -11,6 +11,8 @@
 // ============================================================
 
 var INVITE_DAYS = 7;
+var _shPeople = [];     // connected people from the last load: [{uid, name, inviteIds[]}]
+var _shGroups = [];     // my groups from the last load: [{id, name, memberUids[], memberNames{}}]
 // No 0/O, 1/I/L — codes get read aloud and typed from a text message.
 var INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -136,6 +138,8 @@ async function shRenderPeople() {
     var data;
     try {
         data = await _shLoadConnections();
+        _shPeople = data.people;
+        await shRenderGroups();     // groups depend on who is connected
     } catch (err) {
         console.error(err);
         peopleEl.innerHTML = '<p style="color:#c0392b;font-size:0.9rem;">Could not load people (' + escapeHtml(err.message) +
@@ -262,13 +266,185 @@ async function shDisconnect(uid) {
         if (!confirm('Disconnect from ' + (person.name || 'this person') + '?\n\n' +
                      'They will no longer be able to be added to your groups, and you will not be able to add them to theirs. ' +
                      'To connect again you need a new invite code.')) return;
-        // TODO (S3/S5): also remove them from my groups and re-compute the guest list of anything I shared with them.
         for (var i = 0; i < person.inviteIds.length; i++) {
             await topCol('invites').doc(person.inviteIds[i]).delete();
         }
+        // Take them out of every group of mine too.
+        var groups = await _shLoadGroups();
+        for (var g = 0; g < groups.length; g++) {
+            if ((groups[g].memberUids || []).indexOf(uid) !== -1) await _shRemoveFromGroup(groups[g].id, uid);
+        }
+        // TODO (S5): re-compute the guest list of anything I shared with them.
         await shRenderPeople();
     } catch (err) {
         console.error(err);
         alert('Could not disconnect: ' + err.message);
+    }
+}
+
+// ─── Groups ──────────────────────────────────────────────────────────────────
+// groups/{groupId}: ownerUid, name, memberUids[], memberNames{uid: name}, createdAt
+// A group is just a named list of connected people. Only its owner can see or change it.
+// (Sharing things with a group comes in S5.)
+
+async function _shLoadGroups() {
+    var snap = await topCol('groups').where('ownerUid', '==', _shMyUid()).get();
+    return snap.docs.map(function(d) { var g = d.data(); g.id = d.id; return g; })
+        .sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+}
+
+/**
+ * Keeps groups honest against the current people list: someone who is no longer
+ * connected (the other person disconnected) is removed, and renamed people get their new name.
+ */
+async function _shReconcileGroups(groups) {
+    var byUid = {};
+    _shPeople.forEach(function(p) { byUid[p.uid] = p; });
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var uids = (g.memberUids || []).filter(function(u) { return byUid[u]; });
+        var names = {};
+        uids.forEach(function(u) { names[u] = byUid[u].name || 'Unnamed'; });
+        var changed = uids.length !== (g.memberUids || []).length ||
+                      uids.some(function(u) { return (g.memberNames || {})[u] !== names[u]; });
+        if (changed) {
+            await topCol('groups').doc(g.id).update({ memberUids: uids, memberNames: names });
+            g.memberUids = uids;
+            g.memberNames = names;
+        }
+    }
+}
+
+async function shRenderGroups() {
+    var el = document.getElementById('shGroupsList');
+    if (!el) return;
+    try {
+        _shGroups = await _shLoadGroups();
+        await _shReconcileGroups(_shGroups);
+    } catch (err) {
+        console.error(err);
+        el.innerHTML = '<p style="color:#c0392b;font-size:0.9rem;">Could not load groups (' + escapeHtml(err.message) + ').</p>';
+        return;
+    }
+    if (!_shGroups.length) {
+        el.innerHTML = '<p style="color:#888;font-size:0.9rem;">No groups yet. Try one like Family, Wife or Guest.</p>';
+        return;
+    }
+    var html = '';
+    _shGroups.forEach(function(g) {
+        var members = g.memberUids || [];
+        html += '<div class="sh-group" style="border:1px solid #ddd; border-radius:8px; padding:10px 12px; margin-bottom:10px;">' +
+                  '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+                    '<strong style="flex:1; min-width:120px;">' + escapeHtml(g.name) + '</strong>' +
+                    '<button class="btn btn-secondary btn-small" onclick="shRenameGroup(\'' + g.id + '\')">Rename</button>' +
+                    '<button class="btn btn-danger btn-small" onclick="shDeleteGroup(\'' + g.id + '\')">Delete</button>' +
+                  '</div>' +
+                  '<div style="margin:8px 0; display:flex; flex-wrap:wrap; gap:6px;">';
+        if (!members.length) html += '<span style="color:#888; font-size:0.9rem;">No one in this group yet.</span>';
+        members.forEach(function(u) {
+            html += '<span style="background:#eef3ee; border-radius:14px; padding:3px 6px 3px 10px; font-size:0.9rem;">' +
+                      escapeHtml((g.memberNames || {})[u] || 'Unnamed') +
+                      ' <button type="button" title="Remove from group" style="border:none; background:none; cursor:pointer; padding:0 4px;" onclick="shRemoveMember(\'' + g.id + '\',\'' + u + '\')">&#10005;</button>' +
+                    '</span>';
+        });
+        html += '</div>';
+        var addable = _shPeople.filter(function(p) { return members.indexOf(p.uid) === -1; });
+        if (addable.length) {
+            html += '<select onchange="shAddMember(\'' + g.id + '\', this)"><option value="">+ Add a person…</option>';
+            addable.forEach(function(p) { html += '<option value="' + p.uid + '">' + escapeHtml(p.name || 'Unnamed') + '</option>'; });
+            html += '</select>';
+        } else if (!_shPeople.length) {
+            html += '<span style="color:#888; font-size:0.85rem;">Connect to someone first (below) to add people.</span>';
+        }
+        html += '</div>';
+    });
+    el.innerHTML = html;
+}
+
+async function shCreateGroup() {
+    var input = document.getElementById('shGroupNameInput');
+    var name = (input.value || '').trim();
+    if (!name) { _shMsg('shGroupMsg', 'Give the group a name.', true); return; }
+    if (_shGroups.some(function(g) { return (g.name || '').toLowerCase() === name.toLowerCase(); })) {
+        _shMsg('shGroupMsg', 'You already have a group with that name.', true); return;
+    }
+    try {
+        await topCol('groups').add({
+            ownerUid:    _shMyUid(),
+            name:        name,
+            memberUids:  [],
+            memberNames: {},
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+        });
+        input.value = '';
+        _shMsg('shGroupMsg', '', false);
+        await shRenderGroups();
+    } catch (err) {
+        console.error(err);
+        _shMsg('shGroupMsg', 'Could not create the group: ' + err.message, true);
+    }
+}
+
+async function shRenameGroup(id) {
+    var g = _shGroups.filter(function(x) { return x.id === id; })[0];
+    if (!g) return;
+    var name = prompt('New name for this group:', g.name);
+    if (name === null) return;
+    name = name.trim();
+    if (!name) return;
+    try {
+        await topCol('groups').doc(id).update({ name: name });
+        await shRenderGroups();
+    } catch (err) {
+        console.error(err);
+        alert('Could not rename: ' + err.message);
+    }
+}
+
+async function shDeleteGroup(id) {
+    var g = _shGroups.filter(function(x) { return x.id === id; })[0];
+    if (!g) return;
+    if (!confirm('Delete the group "' + g.name + '"?\n\nThe people in it are not affected. Anything shared with this group will stop being shared with its members.')) return;
+    try {
+        // TODO (S5): re-compute the guest list of every share that used this group.
+        await topCol('groups').doc(id).delete();
+        await shRenderGroups();
+    } catch (err) {
+        console.error(err);
+        alert('Could not delete: ' + err.message);
+    }
+}
+
+async function shAddMember(groupId, selectEl) {
+    var uid = selectEl.value;
+    if (!uid) return;
+    var person = _shPeople.filter(function(p) { return p.uid === uid; })[0];
+    if (!person) return;
+    try {
+        var upd = { memberUids: firebase.firestore.FieldValue.arrayUnion(uid) };
+        upd['memberNames.' + uid] = person.name || 'Unnamed';
+        await topCol('groups').doc(groupId).update(upd);
+        // TODO (S5): re-compute the guest list of every share that uses this group.
+        await shRenderGroups();
+    } catch (err) {
+        console.error(err);
+        alert('Could not add: ' + err.message);
+    }
+}
+
+async function _shRemoveFromGroup(groupId, uid) {
+    var upd = { memberUids: firebase.firestore.FieldValue.arrayRemove(uid) };
+    upd['memberNames.' + uid] = firebase.firestore.FieldValue.delete();
+    await topCol('groups').doc(groupId).update(upd);
+}
+
+async function shRemoveMember(groupId, uid) {
+    try {
+        await _shRemoveFromGroup(groupId, uid);
+        // TODO (S5): re-compute the guest list of every share that uses this group.
+        await shRenderGroups();
+    } catch (err) {
+        console.error(err);
+        alert('Could not remove: ' + err.message);
     }
 }

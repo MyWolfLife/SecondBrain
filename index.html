@@ -994,6 +994,17 @@
             </div>
 
             <div class="settings-card">
+                <h3 class="settings-section-title">Groups</h3>
+                <p class="settings-section-desc">Make groups like Family, Wife or Guest and put connected people in them. Later you share things with a group instead of with each person.</p>
+                <div id="shGroupsList"></div>
+                <div style="display:flex; gap:6px; align-items:center; margin-top:8px;">
+                    <input type="text" id="shGroupNameInput" maxlength="40" style="flex:1;" placeholder="New group name">
+                    <button class="btn btn-primary btn-small" onclick="shCreateGroup()">+ Add group</button>
+                </div>
+                <p id="shGroupMsg" style="margin:6px 0 0; font-size:0.9rem;"></p>
+            </div>
+
+            <div class="settings-card">
                 <h3 class="settings-section-title">Invite someone</h3>
                 <p class="settings-section-desc">Make a one-time code and send it to them. They sign in to their own account and enter it below.</p>
                 <button class="btn btn-primary" id="shInviteBtn" onclick="shCreateInvite()">Make an invite code</button>
@@ -12342,7 +12353,7 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=499"></script>
-    <script src="js/sharing.js?v=1"></script>
+    <script src="js/sharing.js?v=2"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>

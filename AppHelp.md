@@ -771,6 +771,16 @@ For trips where you'll have no signal at all for days or weeks (not just a brief
 4. **Person B:** sign in to their own account, open **Settings → Sharing**, type the code under **Enter an invite code**, and tap **Connect**.
 5. You now both appear under **People**.
 
+### Groups
+
+A group is a named list of the people you are connected to — for example **Family**, **Wife** or **Guest**. Later, when you share something, you will choose which groups can see it, and whether each group can only **view** or can also **edit**. Changing who is in a group changes access to everything shared with that group at once.
+
+1. Under **Groups**, type a name and tap **+ Add group**.
+2. In the group, pick someone from **+ Add a person…**. Only people you are connected to are listed.
+3. Tap the **✕** next to a name to take them out of the group. **Rename** and **Delete** are on the group's row. Deleting a group does not affect the people in it.
+
+Only you can see and change your groups. Everyone can make their own. If someone disconnects from you, they drop out of your groups automatically. A group does not share anything by itself yet.
+
 ### Good to know
 
 - A code works **once** and **expires after 7 days**. You can't use your own code.
