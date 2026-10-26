@@ -286,6 +286,7 @@ function loadExercisePage() {
             '</a>' +
         '</div>';
     if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-exercise');   // 🌤️ open day workouts
+    if (typeof progShowRunCard === 'function') progShowRunCard('page-exercise');            // 📅 program next up
 }
 
 // ─── Activities list page ─────────────────────────────────────────────────────

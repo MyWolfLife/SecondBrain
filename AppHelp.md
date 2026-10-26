@@ -4883,7 +4883,10 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Each card shows how many weeks and days the program has
 - **Tags** work like on your Exercises and Workouts lists: tap a chip once to show only that tag, again to hide it
 - **Show archived** brings back programs you've hidden
-- Following a program day by day (the "what's next" view) is coming later
+- Tap **▶ Start** on a program (or **▶ Start program** inside it) to follow it. You follow one program at a time
+- The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it, then **✓ Mark done** when you finish (marking done by itself after a workout comes later)
+- **Skip** moves on without doing a day. **◀ Back** undoes the last day you marked. **⏸ Pause** holds your place until you tap **▶ Resume**. **End** closes the run
+- The same "next up" card shows on the Fitness page
 
 ---
 
