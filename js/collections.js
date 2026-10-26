@@ -413,6 +413,8 @@ function _collApplyShareUi(collData) {
         info.textContent = 'Shared by ' + (((window.currentShareData || {}).names || {})[(window.currentShareData || {}).ownerUid] || 'someone');
         btn.classList.add('hidden');
     }
+    var whoEl = document.getElementById('collWhoLabel');
+    if (whoEl) whoEl.textContent = shWhoLabelHere(collData);     // empty unless "Show who added/modified" is on
     if (addBtn) addBtn.classList.toggle('hidden', !shCanEdit());
     var photoBtn = document.getElementById('collectionFromPicBtn');
     if (photoBtn && !shCanEdit()) photoBtn.classList.add('hidden');
@@ -1026,6 +1028,8 @@ function _loadCollectionItemPageInner(id) {
             window.currentCollectionItem = { id: id, ...itemData };
 
             nameEl.textContent = itemData.name || 'Item';
+            var ciWho = document.getElementById('ciWhoLabel');
+            if (ciWho) ciWho.textContent = shWhoLabelHere(itemData);   // empty unless "Show who added/modified" is on
 
             // Load parent collection for labels and type
             return collCol('collections').doc(itemData.collectionId).get()

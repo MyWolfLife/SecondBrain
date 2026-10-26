@@ -267,7 +267,7 @@ function renderPhotoViewer(targetType, containerId) {
     actions.className = 'photo-actions';
 
     // "Use as Profile / Thumbnail" — only for entity types that support it
-    if (PROFILE_PHOTO_TYPES.indexOf(targetType) !== -1) {
+    if (PROFILE_PHOTO_TYPES.indexOf(targetType) !== -1 && _pCanEditPhoto(targetType)) {
         var profileBtnLabel = (targetType === 'collectionitem') ? '⭐ Use as Thumbnail' : '⭐ Use as Profile';
         var profileBtn = document.createElement('button');
         profileBtn.className = 'btn btn-small btn-secondary';
@@ -318,7 +318,7 @@ function renderPhotoViewer(targetType, containerId) {
     editCaptionBtn.addEventListener('click', function() {
         editPhotoCaption(photo.id, targetType, containerId);
     });
-    actions.appendChild(editCaptionBtn);
+    if (_pCanEditPhoto(targetType)) actions.appendChild(editCaptionBtn);
 
     var deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-small btn-danger';
@@ -326,7 +326,7 @@ function renderPhotoViewer(targetType, containerId) {
     deleteBtn.addEventListener('click', function() {
         handleDeletePhoto(photo.id, targetType);
     });
-    actions.appendChild(deleteBtn);
+    if (_pCanEditPhoto(targetType)) actions.appendChild(deleteBtn);
 
     viewer.appendChild(actions);
     container.appendChild(viewer);
@@ -883,7 +883,7 @@ function openPhotoLightbox(photo, targetType, containerId) {
             cropExistingPhoto(photo, targetType, containerId);
         }, 50);
     });
-    btnBar.appendChild(cropBtn);
+    if (_pCanEditPhoto(targetType)) btnBar.appendChild(cropBtn);
     overlay.appendChild(btnBar);
 
     // --- Touch state ---

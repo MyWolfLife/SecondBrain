@@ -10793,6 +10793,7 @@ service firebase.storage {
                 <span id="collShareInfo" style="color:#666; font-size:0.9rem;"></span>
                 <button class="btn btn-secondary btn-small hidden" id="collShareBtn" onclick="shOpenShareDialog()">Share…</button>
             </div>
+            <div id="collWhoLabel" style="color:#666; font-size:0.85rem; margin:-4px 0 8px;"></div>
             <div class="section-header">
                 <input type="text" id="collectionFilterInput" placeholder="Filter…" class="filter-input">
                 <button class="btn btn-primary btn-small" id="addCollectionItemBtn">+ Add Item</button>
@@ -10807,6 +10808,7 @@ service firebase.storage {
             <div class="page-header">
                 <h2 id="collectionItemDetailName"></h2>
             </div>
+            <div id="ciWhoLabel" style="color:#666; font-size:0.85rem; margin:-4px 0 8px;"></div>
 
             <!-- Info card -->
             <div class="detail-card" id="collectionItemInfoCard"></div>
@@ -10920,6 +10922,7 @@ service firebase.storage {
             <p id="shDlgNote" class="settings-section-desc"></p>
             <p id="shDlgProgress" class="hidden" style="font-weight:600;"></p>
             <div class="modal-buttons">
+                <button class="btn btn-danger hidden" id="shDlgStopBtn" onclick="shStopSharingFromDialog()">Stop sharing</button>
                 <button class="btn btn-secondary" id="shDlgCancelBtn" onclick="closeModal('shareDialogModal')">Cancel</button>
                 <button class="btn btn-primary" id="shDlgOkBtn" onclick="shSubmitShareDialog()">Share</button>
             </div>
@@ -12382,14 +12385,14 @@ export default {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <!-- SortableJS — drag-and-drop list reordering -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-    <script src="js/photos.js?v=489"></script>
+    <script src="js/photos.js?v=490"></script>
     <script src="js/weeds.js?v=487"></script>
     <script src="js/calendar.js?v=488"></script>
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=499"></script>
-    <script src="js/sharing.js?v=5"></script>
+    <script src="js/sharing.js?v=6"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12408,7 +12411,7 @@ export default {
     <script src="js/neighbors.js?v=487"></script>
     <script src="js/favorites.js?v=487"></script>
     <script src="js/beneficiaries.js?v=487"></script>
-    <script src="js/collections.js?v=489"></script>
+    <script src="js/collections.js?v=490"></script>
     <script src="js/health.js?v=487"></script>
     <script src="js/notes.js?v=487"></script>
     <script src="js/lifecalendar.js?v=487"></script>

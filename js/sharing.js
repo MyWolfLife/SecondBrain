@@ -904,6 +904,9 @@ async function shOpenShareDialog() {
     okBtn.disabled = false;
     okBtn.textContent = _shDlg.shareId ? 'Save' : 'Share';
     document.getElementById('shDlgCancelBtn').disabled = false;
+    var stopBtn = document.getElementById('shDlgStopBtn');
+    stopBtn.classList.toggle('hidden', !_shDlg.shareId);     // Stop sharing only exists for something already shared
+    stopBtn.disabled = false;
 
     if (!groups.length) {
         body.innerHTML = '<p>You have no groups yet. Make one under <a href="#sharing" onclick="closeModal(\'shareDialogModal\')">Settings → Sharing</a> (for example Family), add people to it, then come back.</p>';
@@ -972,4 +975,78 @@ function _pCol(name, targetType) {
 function _pStamp(data, targetType) {
     var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
     return inShare ? shStamp(data, true) : data;
+}
+
+// ─── Stop sharing / photo permissions / labels (S6) ──────────────────────────
+
+/** False for someone who may only view the shared collection the photo belongs to. */
+function _pCanEditPhoto(targetType) {
+    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
+    return !inShare || shCanEdit();
+}
+
+/**
+ * Stop sharing a collection (owner only): the reverse of shShareCollection. Everything,
+ * including what other people added, is copied back to the owner's private area with the
+ * same IDs, checked, and only then removed from the share. A backup file downloads first.
+ * If the copy fails, the private copies are removed again and the share stays as it was.
+ */
+async function shUnshareCollection(shareId, collId) {
+    _shProgress('Reading the shared collection…');
+    var bundle = await shReadCollectionBundle(collId, shareId);
+    var title = bundle.collection.data().name || 'Collection';
+
+    _shProgress('Saving a backup file…');
+    var stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+    backupDownload('Bishop_Collection_Backup_' + title.replace(/[^A-Za-z0-9]+/g, '_') + '_' + stamp + '.json', _shBundleToJson(bundle));
+
+    var ops = [];
+    function add(docs, name) {
+        docs.forEach(function(d) { ops.push({ ref: userCol(name).doc(d.id), data: Object.assign({}, d.data()) }); });
+    }
+    add([bundle.collection], 'collections');
+    add(bundle.items, 'collectionItems');
+    add(bundle.photos, 'photos');
+
+    try {
+        await shBatchSet(ops, function(n, total) { _shProgress('Moving back… ' + n + ' of ' + total); });
+        _shProgress('Checking the copy…');
+        var check = await shReadCollectionBundle(collId, null);
+        if (!check.collection.exists || check.items.length !== bundle.items.length || check.photos.length !== bundle.photos.length) {
+            throw new Error('The copy does not match (' + check.items.length + ' of ' + bundle.items.length + ' items, ' +
+                            check.photos.length + ' of ' + bundle.photos.length + ' photos).');
+        }
+    } catch (err) {
+        console.error('shUnshareCollection failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. The collection is still shared.', true);
+        try { await shBatchDelete(ops.map(function(o) { return o.ref; })); } catch (e2) { console.error('rollback failed:', e2); }
+        throw err;
+    }
+
+    _shProgress('Removing the shared copy…');
+    await shDeleteSharedCollection(shareId);
+}
+
+async function shStopSharingFromDialog() {
+    if (!_shDlg.shareId) return;
+    if (!confirm('Stop sharing this collection?\n\nEverything — including items and photos other people added — moves back to your private area. ' +
+                 'The people it was shared with lose access. A backup file downloads first.')) return;
+    var okBtn = document.getElementById('shDlgOkBtn');
+    var stopBtn = document.getElementById('shDlgStopBtn');
+    var cancelBtn = document.getElementById('shDlgCancelBtn');
+    okBtn.disabled = true; stopBtn.disabled = true; cancelBtn.disabled = true;
+    try {
+        await shUnshareCollection(_shDlg.shareId, _shDlg.collId);
+        closeModal('shareDialogModal');
+        loadCollectionPage(_shDlg.collId);       // resolves to the private copy now
+    } catch (err) {
+        console.error(err);
+        _shProgress('Could not finish: ' + err.message, true);
+        okBtn.disabled = false; stopBtn.disabled = false; cancelBtn.disabled = false;
+    }
+}
+
+/** The "Added by … / Changed by …" text for a document, only for things that live in a share. */
+function shWhoLabelHere(docData) {
+    return window.currentShareId ? shWhoLabel(docData, window.currentShareData) : '';
 }

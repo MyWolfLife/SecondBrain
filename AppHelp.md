@@ -4501,7 +4501,11 @@ What people can do: **View only** — look at everything. **Can edit** — add, 
 
 In the Collections list, collections shared with you show **Can edit** or **View only** and who they are from. A collection you shared shows **Shared**.
 
-*Not finished yet:* a **Stop sharing** button to move everything back, and searching/"Who Gets What" for shared collections. Until then, shared collections only show up in the Collections list, and a shared collection is not included in your normal backup.
+**Stop sharing (owner only):** open the collection, tap **Sharing…**, then **Stop sharing**. Everything — including items and photos other people added — moves back to your private area, and the people it was shared with lose access right away. A backup file downloads first. If anything fails, the collection stays shared.
+
+**Who added what:** in **Settings → Sharing → Display**, turn on **Show who added/modified**. The collection page and each item then show a small line such as "Added by Sam · 10/26/2026 · Changed by you".
+
+*Not finished yet:* searching and "Who Gets What" for shared collections. Until then, shared collections only show up in the Collections list, and a shared collection is not included in your normal backup.
 
 **Collection types and their type-specific fields:**
 
