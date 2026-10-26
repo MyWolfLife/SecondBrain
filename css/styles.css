@@ -22082,3 +22082,28 @@ body.wo-playing .offline-banner { display: none !important; }
 .pg-num { width: 64px; }
 .pg-label { width: 110px; }
 .pg-grow { flex: 1 1 160px; min-width: 0; }
+
+/* Workout Links / Web Links: picture thumbnail (cropped screenshot) or site icon */
+.wl-thumb {
+    flex: 0 0 80px;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    overflow: hidden;
+}
+.wl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wl-thumb--form { background: #f9fafb; border-color: #e5e7eb; font-size: 0.75rem; text-align: center; }
+.wl-pic-row { display: flex; gap: 12px; align-items: flex-start; }
+.wl-pic-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Program run card */
+.pg-run { border: 1px solid #c7d2fe; background: #eef2ff; border-radius: 10px; padding: 12px; margin: 10px 0; }
+.pg-run--paused { background: #f3f4f6; border-color: #d1d5db; }
+.pg-run-next { margin: 4px 0; font-size: 1.05rem; }
+.pg-run-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

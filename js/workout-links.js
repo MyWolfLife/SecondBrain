@@ -8,7 +8,7 @@
 //   #workout-link-tags    rename / delete tags across every link
 //
 // Firestore (per-user, userCol): workoutLinks
-//   { name, url, description, tags[] (lowercase strings), favorite (bool),
+//   { name, url, description, tags[] (lowercase strings), favorite (bool), thumb (small JPEG data URL or ''),
 //     doneLog[] ({ id, date 'YYYY-MM-DD', minutes|null, note, activityId|null }), createdAt }
 //
 // There is no separate tags collection: the tag list is every tag used on any link, so a new
@@ -234,7 +234,7 @@ function _wlRenderList() {
         var meta = [_wlHost(l.url)];
         meta.push(done ? 'Done ' + done + '× · last ' + _wlFmtDate(_wlLastDone(l)) : 'Not done yet');
         return '<div class="wo-card wl-card" data-id="' + l.id + '">' +
-                   '<div class="wo-thumb">' + _wlIcon(l.url) + '</div>' +
+                   wlThumbHtml(l) +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name">' +
                            '<button type="button" class="wl-star' + (l.favorite ? ' wl-star--on' : '') + '" data-star="' + l.id + '" title="Favorite (shows on top)">' + (l.favorite ? '★' : '☆') + '</button> ' +
@@ -301,7 +301,7 @@ async function loadWorkoutLinkPage(id) {
         link.description = _wlPendingShare.description || '';
         _wlPendingShare = null;
     }
-    _wlEdit = { id: isNew ? null : id, tags: (link.tags || []).slice(), doneLog: link.doneLog || [] };
+    _wlEdit = { id: isNew ? null : id, tags: (link.tags || []).slice(), doneLog: link.doneLog || [], thumb: link.thumb || '' };
 
     el.innerHTML =
         '<div class="page-header"><h2>' + (isNew ? 'Add Workout Link' : 'Edit Workout Link') + '</h2></div>' +
@@ -317,6 +317,7 @@ async function loadWorkoutLinkPage(id) {
                 '<label for="wlName">Name <span class="required">*</span></label>' +
                 '<input type="text" id="wlName" placeholder="e.g. 20-min band upper body" value="' + _woEsc(link.name) + '">' +
             '</div>' +
+            wlPicFieldHtml('wl') +
             '<div class="form-group">' +
                 '<label for="wlDesc">Description</label>' +
                 '<textarea id="wlDesc" rows="3" placeholder="What it is, why you liked it">' + _woEsc(link.description) + '</textarea>' +
@@ -344,6 +345,7 @@ async function loadWorkoutLinkPage(id) {
             '</div>');
 
     document.getElementById('wlPasteBtn').addEventListener('click', _wlPasteUrl);
+    wlPicFieldWire('wl', _wlEdit);
     document.getElementById('wlTagAddBtn').addEventListener('click', _wlAddTagFromInput);
     document.getElementById('wlTagInput').addEventListener('keydown', function(ev) {
         if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); _wlAddTagFromInput(); }
@@ -433,7 +435,8 @@ async function _wlSave() {
         name: name,
         description: document.getElementById('wlDesc').value.trim(),
         tags: _wlEdit.tags.slice().sort(),
-        favorite: document.getElementById('wlFav').checked
+        favorite: document.getElementById('wlFav').checked,
+        thumb: _wlEdit.thumb || ''
     };
     var btn = document.getElementById('wlSaveBtn');
     btn.disabled = true; btn.textContent = 'Saving…';
@@ -641,6 +644,104 @@ async function _wlDeleteTag(tag) {
         console.error('Workout Links: delete tag failed:', err);
         alert('Failed to delete. Please try again.');
     }
+}
+
+// ─── Picture (thumbnail) — shared by Workout Links and Web Links ─────────────
+//
+// One small cropped picture per link, stored as a base64 JPEG in the link's `thumb` field.
+// Only the thumbnail is kept (no full-size copy) — the link itself is the full thing.
+// Every picked / pasted picture goes through the shared crop tool (showCropPreview in photos.js).
+
+var WL_THUMB_MAX_DIM    = 240;      // px on the longest side (shown at ~80px, sharp on phone screens)
+var WL_THUMB_MAX_BASE64 = 40000;    // ~30KB — keeps the list quick to load
+
+/** The picture box for a link form. `prefix` keeps the ids apart ('wl' / 'web'). */
+function wlPicFieldHtml(prefix) {
+    return '<div class="form-group">' +
+               '<label>Picture <span class="wl-hint">(a reminder of what it is)</span></label>' +
+               '<div class="wl-pic-row">' +
+                   '<div class="wl-thumb wl-thumb--form" id="' + prefix + 'PicBox"></div>' +
+                   '<div class="wl-pic-btns">' +
+                       '<button type="button" class="btn btn-secondary btn-small" data-pic="gallery">🖼️ Gallery</button>' +
+                       '<button type="button" class="btn btn-secondary btn-small" data-pic="camera">📷 Camera</button>' +
+                       '<button type="button" class="btn btn-secondary btn-small" data-pic="paste">📋 Paste</button>' +
+                       '<button type="button" class="btn btn-secondary btn-small" data-pic="crop" id="' + prefix + 'PicCrop">✂ Crop</button>' +
+                       '<button type="button" class="btn btn-secondary btn-small" data-pic="remove" id="' + prefix + 'PicRemove">✕ Remove</button>' +
+                   '</div>' +
+               '</div>' +
+           '</div>';
+}
+
+/**
+ * Wires the picture box. `state.thumb` holds the current picture (data URL or '') and is what
+ * the form saves. Nothing is written to Firestore until the form's Save.
+ */
+function wlPicFieldWire(prefix, state) {
+    var box = document.getElementById(prefix + 'PicBox');
+    var render = function() {
+        box.innerHTML = state.thumb ? '<img src="' + state.thumb + '" alt="">' : '<span class="wl-hint">No picture</span>';
+        document.getElementById(prefix + 'PicCrop').style.display   = state.thumb ? '' : 'none';
+        document.getElementById(prefix + 'PicRemove').style.display = state.thumb ? '' : 'none';
+    };
+    // Picked / pasted picture → crop tool → small JPEG
+    var useFile = async function(file, startCropping) {
+        var picked;
+        try { picked = await showCropPreview(file, startCropping); }
+        catch (e) { return; }                                   // cancelled
+        try {
+            state.thumb = await compressImage(picked, { maxDimension: WL_THUMB_MAX_DIM, maxBase64: WL_THUMB_MAX_BASE64 });
+            render();
+        } catch (err) {
+            console.error('Links: picture failed:', err);
+            alert('Could not use that picture. Please try another.');
+        }
+    };
+    var pickFile = function(capture) {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        if (capture) input.setAttribute('capture', 'environment');
+        input.addEventListener('change', function() { if (input.files[0]) useFile(input.files[0], false); });
+        input.click();
+    };
+    var paste = async function() {
+        if (!navigator.clipboard || !navigator.clipboard.read) {
+            alert('Pasting a picture is not supported in this browser. Use Gallery instead.');
+            return;
+        }
+        try {
+            var items = await navigator.clipboard.read();
+            var blob = null;
+            for (var i = 0; i < items.length && !blob; i++) {
+                var type = items[i].types.find(function(t) { return t.indexOf('image/') === 0; });
+                if (type) blob = await items[i].getType(type);
+            }
+            if (!blob) { alert('There is no picture on the clipboard.\n\nCopy a picture (or take a screenshot and tap Copy) first.'); return; }
+            useFile(new File([blob], 'pasted.png', { type: blob.type }), false);
+        } catch (err) {
+            if (err.name === 'NotAllowedError') alert('Clipboard access was denied. Allow it when the browser asks, then try again.');
+            else { console.error('Links: paste picture failed:', err); alert('Could not read the clipboard. Use Gallery instead.'); }
+        }
+    };
+    box.parentNode.addEventListener('click', async function(ev) {
+        var b = ev.target.closest('[data-pic]');
+        if (!b) return;
+        var act = b.getAttribute('data-pic');
+        if (act === 'gallery') pickFile(false);
+        else if (act === 'camera') pickFile(true);
+        else if (act === 'paste') paste();
+        else if (act === 'remove') { state.thumb = ''; render(); }
+        else if (act === 'crop' && state.thumb) {
+            var blob = await (await fetch(state.thumb)).blob();
+            useFile(blob, true);                                // straight into the cropper
+        }
+    });
+    render();
+}
+
+/** The picture slot on a list card: the thumbnail if there is one, otherwise the site icon. */
+function wlThumbHtml(link) {
+    return '<div class="wl-thumb">' + (link.thumb ? '<img src="' + link.thumb + '" alt="" loading="lazy">' : _wlIcon(link.url)) + '</div>';
 }
 
 // ─── Phone share sheet ───────────────────────────────────────────────────────

@@ -1907,6 +1907,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - **Category** chips show one category at a time. Tap the picked one again (or **All**) to clear it. **No category** shows links you haven't put in one
 - **Tags** chips work together: pick two or more and choose **Any** (has at least one) or **All** (has every one). **No tags** shows untagged links
 - Tap the **☆** to make a link a favorite. Favorites always stay at the top. The sort menu (newest, oldest, name, category) orders the rest
+- The small picture beside each link is the one you added on the link (Edit → Picture). Links without one show a site icon
 - **🏷️ Categories & tags** lets you rename or delete a category or tag on every link at once
 
 ---
@@ -1917,6 +1918,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 ### Quick Help
 - Paste the link into **Link** (or tap **📋 Paste**) and give it a **Name**
+- **Picture**: add one to remind you what the link is. Take a screenshot first, then tap **🖼️ Gallery** and pick it (or **📋 Paste** a copied picture, or **📷 Camera**). Tap **✂ Crop** in the next window to keep just the part you want, or **Use Photo** to keep it all. It shows as the small picture beside the link in the list. Only the small picture is saved, so open the link to see the real thing. **✕ Remove** takes it off
 - **Category**: pick one you already have, or choose **+ New category…** and type it. A new link starts in the category the list was filtered to
 - **Tags**: type one and tap **Add** (or press Enter). Separate several with commas. Tap a **+ tag** suggestion to reuse one you already have
 - Check **★ Favorite** to keep it at the top of the list
@@ -4953,6 +4955,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Search** looks at the name, description, and link
 - Tap **tag chips** to filter. Pick two or more and choose **Any** (has at least one) or **All** (has every one). **No tags** shows links you haven't tagged
 - Tap the **☆** to make a link a favorite. Favorites always stay at the top. The sort menu orders the rest
+- The small picture beside each link is the one you added on the link (Edit → Picture). Links without one show a site icon
 - **Open ↗** just opens the link. It doesn't count as doing the workout
 - Tap **✓ Did it** after you do the workout. It records the date and adds a Workout activity to Fitness → Activities. The card then shows how many times you've done it and when you last did it
 - **🏷️ Manage tags** lets you rename or delete a tag on every link at once
@@ -4965,6 +4968,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Paste the link into **Link** (or tap **📋 Paste**). Give it a **Name**, and a **Description** if you like
+- **Picture**: add one to remind you what the link is. Take a screenshot first, then tap **🖼️ Gallery** and pick it (or **📋 Paste** a copied picture, or **📷 Camera**). Tap **✂ Crop** in the next window to keep just the part you want, or **Use Photo** to keep it all. It shows as the small picture beside the link in the list. Only the small picture is saved, so open the link to see the real thing. **✕ Remove** takes it off
 - **Tags**: type one and tap **Add** (or press Enter). Separate several with commas. Tap a **+ tag** suggestion to reuse one you already have. A new tag joins the tag list when you save
 - Check **★ Favorite** to keep it at the top of the list
 - **Times done** lists every time you tapped ✓ Did it. Deleting an entry also deletes its Fitness activity

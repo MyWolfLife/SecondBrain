@@ -9,7 +9,8 @@
 //   #web-link-manage   rename / delete categories and tags across every link
 //
 // Firestore (per-user, userCol): webLinks
-//   { name, url, description, category ('' = none), tags[] (lowercase), favorite (bool), createdAt }
+//   { name, url, description, category ('' = none), tags[] (lowercase), favorite (bool),
+//     thumb (small JPEG data URL or ''), createdAt }
 //
 // Like Workout Links there is no separate category or tag collection: the lists are whatever is in
 // use on some link, so a new one appears as soon as it is saved on a link.
@@ -235,7 +236,7 @@ function _webRenderList() {
     }
     list.innerHTML = rows.map(function(l) {
         return '<div class="wo-card wl-card">' +
-                   '<div class="wo-thumb">' + _wlIcon(l.url) + '</div>' +
+                   wlThumbHtml(l) +
                    '<div class="wo-card-main">' +
                        '<div class="wo-card-name">' +
                            '<button type="button" class="wl-star' + (l.favorite ? ' wl-star--on' : '') + '" data-star="' + l.id + '" title="Favorite (shows on top)">' + (l.favorite ? '★' : '☆') + '</button> ' +
@@ -302,7 +303,7 @@ async function loadWebLinkPage(id) {
     }
     // A new link starts in the category the list is filtered to (handy when adding several recipes)
     if (isNew && !link.category && _webFilter.category && _webFilter.category !== WEB_NO_CATEGORY) link.category = _webFilter.category;
-    _webEdit = { id: isNew ? null : id, tags: (link.tags || []).slice() };
+    _webEdit = { id: isNew ? null : id, tags: (link.tags || []).slice(), thumb: link.thumb || '' };
 
     var catOptions = '<option value="">(No category)</option>' +
         _webAllCategories(_webLinks).map(function(c) {
@@ -329,6 +330,7 @@ async function loadWebLinkPage(id) {
                 '<select id="webCat">' + catOptions + '</select>' +
                 '<input type="text" id="webCatNew" class="hidden" placeholder="New category, e.g. Woodworking" style="margin-top:8px;">' +
             '</div>' +
+            wlPicFieldHtml('web') +
             '<div class="form-group">' +
                 '<label for="webDesc">Description</label>' +
                 '<textarea id="webDesc" rows="3" placeholder="What it is, why you saved it">' + _woEsc(link.description) + '</textarea>' +
@@ -365,6 +367,7 @@ async function loadWebLinkPage(id) {
             alert('Could not read the clipboard. Long-press the Link box and choose Paste instead.');
         }
     });
+    wlPicFieldWire('web', _webEdit);
     document.getElementById('webTagAddBtn').addEventListener('click', _webAddTagFromInput);
     document.getElementById('webTagInput').addEventListener('keydown', function(ev) {
         if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); _webAddTagFromInput(); }
@@ -439,7 +442,8 @@ async function _webSave() {
         description: document.getElementById('webDesc').value.trim(),
         category: category,
         tags: _webEdit.tags.slice().sort(),
-        favorite: document.getElementById('webFav').checked
+        favorite: document.getElementById('webFav').checked,
+        thumb: _webEdit.thumb || ''
     };
     var btn = document.getElementById('webSaveBtn');
     btn.disabled = true; btn.textContent = 'Saving…';
