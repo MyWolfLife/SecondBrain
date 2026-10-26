@@ -40,6 +40,7 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `SharedSpacesHandoff.md` | Whole app (data) | The paste-in prompt for starting the Shared Spaces build in a new session (what to read, what to settle first, how the user works) |
 | `SharedSpacesPlan.md` | Whole app (data) | Original design for sharing data between accounts (per-person Share buttons, S1–S14). Background only — the group-based direction in `SharedSpacesBuildPlan.md` replaces S7/S8 |
 | `SharedSpacesBuildPlan.md` | Whole app (data) | Current plan: sharing through groups (Wife / Family / Guest), View or Edit per group, Collections as the first thing shared; chunks S1–S7, decisions G1–G11, open questions. Plan only, no code |
+| `FirestoreRules.md` | Whole app (data) | What the new `firestore.rules` do in plain words, step-by-step deploy in the Firebase console, rollback copy of the old rules, what each chunk must prove, things the rules force the app to do |
 | `InvestmentPlan.md` | Life → Financial | Investment tracker — retirement account tracking mirroring user's spreadsheet |
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |
 | `BudgetPlan.md` | Life → Financial | Budgets feature — new card under Financial tab, monthly/category budget tracking |
