@@ -180,3 +180,22 @@ Related to: Workout Links, Workouts builder.
 A "Move to…" button on a link's edit page to move it from Workout Links (Fitness) to Web Links (Life) or the other way, for links saved in the wrong place. Workout Links' done history would need a decision (keep, drop, or block the move).
 
 Related to: Web Links, Workout Links.
+
+---
+
+## Timeline: Graphical View
+
+Once there are plenty of events, a visual timeline: bars for spans (school, jobs, homes), dots for moments, parallel lanes by category, dashed edges for uncertain dates. Play with layouts once real data exists. v1 is a vertical list grouped by decade and year.
+
+Related to: Timeline.
+
+---
+
+## Timeline: Photos, Trips, and Ages
+
+- Photos on a Timeline event (reuse the photo module).
+- Pull existing Trips (and races/workouts) onto the timeline automatically instead of retyping them.
+- Show "age 12" beside each event (needs a birthdate setting).
+- Link a Timeline event to a Memory, and optionally link Where to a saved Place.
+
+Related to: Timeline, Memories, Places.

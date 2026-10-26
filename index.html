@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=532">
+    <link rel="stylesheet" href="css/styles.css?v=534">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7661,6 +7661,10 @@ service firebase.storage {
                     <span class="landing-tile-icon">🌐</span>
                     <span class="landing-tile-label">Web Links</span>
                 </a>
+                <a href="#timeline" class="landing-tile landing-tile--timeline" data-tile-id="timeline">
+                    <span class="landing-tile-icon">⏳</span>
+                    <span class="landing-tile-label">Timeline</span>
+                </a>
                 <a href="#checklists/life" class="landing-tile landing-tile--life-checklists" data-page="checklists" data-tile-id="checklists">
                     <span class="landing-tile-icon">✅</span>
                     <span class="landing-tile-label">Checklists</span>
@@ -7810,6 +7814,16 @@ service firebase.storage {
         <!-- Page: Web Link categories & tags (#web-link-manage) -->
         <section class="page hidden" id="page-web-link-manage">
             <!-- Populated by loadWebLinkManagePage() in web-links.js -->
+        </section>
+
+        <!-- Page: Timeline list (#timeline) -->
+        <section class="page hidden" id="page-timeline">
+            <!-- Populated by loadTimelinePage() in timeline.js -->
+        </section>
+
+        <!-- Page: Timeline event add / edit (#timeline-event/new, #timeline-event/:id) -->
+        <section class="page hidden" id="page-timeline-event">
+            <!-- Populated by loadTimelineEventPage() in timeline.js -->
         </section>
 
         <!-- Page: Workout Links list (#workout-links) -->
@@ -12267,7 +12281,7 @@ export default {
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
-    <script src="js/settings.js?v=498"></script>
+    <script src="js/settings.js?v=499"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12310,6 +12324,7 @@ export default {
     <script src="js/programs.js?v=4"></script>
     <script src="js/workout-links.js?v=3"></script>
     <script src="js/web-links.js?v=2"></script>
+    <script src="js/timeline.js?v=1"></script>
     <script src="js/workout-ai.js?v=9"></script>
     <script src="js/workout-view.js?v=5"></script>
     <script src="js/workout-level-editor.js?v=3"></script>
@@ -12330,7 +12345,7 @@ export default {
     <script src="js/memories.js?v=487"></script>
     <script src="js/firebasesetup.js?v=487"></script>
     <script src="js/views.js?v=487"></script>
-    <script src="js/help.js?v=487"></script>
+    <script src="js/help.js?v=488"></script>
     <script src="js/legacy-crypto.js?v=487"></script>
     <script src="js/legacy.js?v=487"></script>
     <script src="js/credentials.js?v=487"></script>
@@ -12353,7 +12368,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=500"></script>
+    <script src="js/app.js?v=501"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

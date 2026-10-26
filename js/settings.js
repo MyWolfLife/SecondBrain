@@ -719,7 +719,7 @@ var STORAGE_GROUPS = [
     { label: 'Journal / Notes / Places', cols: ['journalCategories','journalEntries','journalTrackingItems','notebooks','notes','places'] },
     { label: 'People / Contacts',  cols: ['people','peopleCategories','peopleImportantDates','peopleInteractions'] },
     { label: 'Health',             cols: ['allergies','appointments','bloodWorkRecords','checklistRuns','checklistTemplates','concernUpdates','concerns','conditions','distances','emergencyInfo','eyePrescriptions','healthAppointments','healthCareTeam','healthConditionLogs','healthVisits','insurancePolicies','medications','supplements','vaccinations','vitals'] },
-    { label: 'Life / Calendar',    cols: ['bucketList','lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups'] },
+    { label: 'Life / Calendar',    cols: ['bucketList','lifeCategories','lifeEventLogs','lifeEvents','lifeProjects','locations','lookups','timelineEvents'] },
     { label: 'Thoughts',           cols: ['top10categories','top10lists','memories','memoryLinks','memoryTags','views','viewCategories'] },
     { label: 'Misc / Settings',    cols: ['llmBalanceLog','llmUsage','sbIssues','settings'] }
 ];
@@ -912,6 +912,9 @@ var BACKUP_DATA_COLLECTIONS = [
 
     // Web Links (Life → Web Links)
     'webLinks',
+
+    // Timeline (Life → Timeline)
+    'timelineEvents',
 
     // Private Vault (exported as ciphertext — useful for Firestore disaster recovery)
     'privateVault', 'privateBookmarks', 'privateDocuments', 'privatePhotoAlbums', 'privatePhotos'

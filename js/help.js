@@ -281,6 +281,8 @@ var HELP_SCREEN_LABELS = {
     'people'          : 'Contacts',
     'place'           : 'Place Detail',
     'places'          : 'Places',
+    'timeline'        : 'Timeline',
+    'timeline-event'  : 'Timeline Event',
     'bucketlist'      : 'Bucket List',
     'bucketitem'      : 'Bucket List Item',
     'sb-issues'       : 'QuickLog Issues',

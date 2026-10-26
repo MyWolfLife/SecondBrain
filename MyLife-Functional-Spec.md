@@ -2671,6 +2671,42 @@ Sharing a link to Bishop shows the "Save this link to…" chooser with **🌐 We
 
 ---
 
+## Part 8i: Timeline
+
+A timeline of my life — schools, jobs, homes, trips, games, races — captured as **what / when / where / who**. Dates can be fuzzy, so a date is picked with a *precision* instead of being forced to a day. **Memories** (Thoughts → Memories) are merged into the list read-only. Code: `js/timeline.js`.
+
+### Life Page Tile
+**Timeline** (⏳, amber), after Web Links on the Life page (`data-tile-id="timeline"`, draggable like the other tiles).
+
+### Routes
+`#timeline` (list), `#timeline-event/new` and `#timeline-event/:id` (add / edit). Breadcrumb Life › Timeline (› Add Event / Edit Event). Life-context pages.
+
+### List (`#timeline`)
+- Header button **+ Add Event**.
+- **Search box** — title, place, address, people text, notes, a memory's date text.
+- **Order menu** — Oldest first (default) / Newest first. Filters are kept while moving around the app (not across reloads).
+- **Category chips** — **All**, the starter categories (always shown) and any in use, each with a count, plus **Memories (n)**. One at a time; tap the picked chip again to clear.
+- Rows are grouped under **decade** headers (1980s) then **year** headers, sorted by `sortDate` (the earliest possible date). Memories with no parsed date go in a **No date** group at the end.
+- **Event card** (whole card opens the edit page): category badge (left), the date text (`~` prefix when approximate), title, 📍 place · street · "City, ST", 👥 who (linked `@Name`s are teal underlined links to `#contact/:id`), notes.
+- **Memory card** (teal left edge, "📖 Memory" badge): memory date text, title, 📍 location. Tapping opens `#memory-edit/:id`. Memories are never edited from Timeline and are not duplicated into `timelineEvents`.
+
+### Add / Edit (`#timeline-event/new`, `#timeline-event/:id`)
+- **What** (required).
+- **Category** — starter list (School, Work, Home, Trip, Sports, Race, Other) + any in use + **+ New category…** (a typed name matching an existing one in any case reuses its spelling). A new event starts in the category the list is filtered to.
+- **When — how sure are you?** A precision menu decides which boxes show: **Exact day** (month, day, year), **Month** (month, year), **Season** (season, year), **Year**, **Decade** (Whole / Early / Mid / Late + decade such as 1980), **Range (not sure)** (from year, to year). **~ About** checkbox marks it approximate. The display text ("Fall 1988", "Early 1980s", "1981–1983") is generated, never typed, and nothing invents a day that was not entered.
+- **Ended** (optional; hidden for Range) — month (optional) + year, or **Still going** (shows "Present"). For schools, jobs, homes.
+- **Where** — free text; **Add an address** expander (street, city, state, zip — all optional, city + state alone is fine).
+- **Who** — free text. Plain names stay text. `@` lists contacts flagged "Include in quick mentions", `@@` searches all contacts (same behaviour as the Journal). Picking one inserts `@FirstName` (or nickname) and links the contact. A link is kept only while its `@Name` is still in the text.
+- **Notes**, Save / Cancel / Delete (edit only).
+
+### Sort date
+`sortDate` (YYYY-MM-DD) is the earliest possible date: exact day as entered; month → day 1; season → Spring 3/1, Summer 6/1, Fall 9/1, Winter 12/1; year → 1/1; decade → decade start, + 4 years for Mid, + 7 for Late; range → from-year 1/1.
+
+### Data Model
+`timelineEvents` (per-user `userCol`, in the backup list and storage breakdown): `title`, `category`, `notes`, `precision`, `when{year,month,day,season,decade,part,toYear}`, `approx`, `endYear`, `endMonth`, `ongoing`, `sortDate`, `placeName`, `address{street,city,state,zip}`, `whoText`, `personIds[]`, `createdAt`. Memories are read from the existing `memories` collection (`title`, `dateText`, `sortDate`, `location`).
+
+---
+
 ## Part 9: Places & Check-In
 
 **JS file**: `js/places.js`
@@ -3866,6 +3902,7 @@ Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{a
 |------------|------------|
 | `bucketList` | name, kind, why, notes, tags[], geo{country,countryCode,region,city,venue,address,lat,lng,precision,approxLat?,approxLng?,approxFailed?}, timing{type,months[],season,startDate,endDate,yearly,label}, website, links[], status (want/planned/visited/dismissed), priority (1-3), visitedDate, source, createdAt, updatedAt |
 | `webLinks` | name, url, description, category ('' = none), tags[] (lowercase), favorite, thumb, createdAt |
+| `timelineEvents` | title, category, notes, precision, when{}, approx, endYear, endMonth, ongoing, sortDate, placeName, address{}, whoText, personIds[], createdAt |
 | `workoutLinks` | name, url, description, tags[] (lowercase), favorite, thumb, doneLog[{id, date, minutes, note, activityId}], createdAt |
 | `programs` | name, description, source, tags[], archived, weeks[{from, to, block, note, days[{label, workoutId}]}], createdAt, updatedAt |
 

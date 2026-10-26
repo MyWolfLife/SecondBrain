@@ -1897,6 +1897,37 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 ---
 
+## screen:timeline
+
+**What this screen is for:** A timeline of your life: schools, jobs, homes, trips, games, races. Your Memories show here too.
+
+### Quick Help
+- Tap **+ Add Event** to record something. Tap any event to edit it
+- Events are grouped by decade, then year. Use the menu to show **Oldest first** or **Newest first**
+- **Search** looks at the title, place, people, and notes
+- **Category** chips show one category at a time. Tap the picked one again (or **All**) to clear it
+- A **~** in front of a date means you marked it approximate
+- Items marked **📖 Memory** come from Thoughts → Memories. Tap one to open that memory. Change them there, not here
+- Memories with no date they can be placed by appear under **No date**
+- A name in teal is a contact. Tap it to open their page
+
+---
+
+## screen:timeline-event
+
+**What this screen is for:** Adding or editing one event on your timeline.
+
+### Quick Help
+- **What** is the only required box
+- **When**: pick how sure you are first, then fill in the boxes that appear. Choose **Season** for "Fall 1988", **Decade** for "Early 1980s", or **Range (not sure)** for "1981 to 1983". Nothing makes up a day you didn't enter
+- Check **~ About** to show the date as approximate
+- **Ended**: for things that last a while, like a school or job. Pick a year (month is optional), or check **Still going**
+- **Where**: type a name like "Atlanta" or "Fulton County Stadium". Tap **Add an address** to add a street, city, state, or zip. City and state alone is fine
+- **Who**: type names as plain text. Type **@** to pick from your quick-mention contacts, or **@@** to search all contacts. A picked contact becomes a link. Names you just type (like "Roger") stay as text
+- **Delete** removes the event
+
+---
+
 ## screen:web-links
 
 **What this screen is for:** Links to anything you want to come back to: recipes, things to buy, woodworking or other project ideas.

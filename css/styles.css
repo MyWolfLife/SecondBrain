@@ -22121,3 +22121,31 @@ body.wo-playing .offline-banner { display: none !important; }
 .pg-chip--skipped { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
 .pg-chip--next { background: #e0e7ff; border-color: #4f46e5; color: #3730a3; font-weight: 700; }
 .pg-chip--restday { border-style: dashed; }
+
+/* ============================================================
+   Timeline (js/timeline.js)
+   ============================================================ */
+.landing-tile--timeline {
+    background: linear-gradient(135deg, #b45309, #f59e0b);
+    color: #fff;
+}
+.landing-tile--timeline:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(180, 83, 9, 0.35);
+}
+.tl-decade { margin: 24px 0 4px; font-size: 1.15rem; color: #92400e; border-bottom: 2px solid #fcd34d; padding-bottom: 2px; }
+.tl-year { margin: 12px 0 6px; font-size: 0.95rem; color: #6b7280; }
+.tl-card, .tl-card:hover, .tl-card .wo-card-name, .tl-card .tl-when { text-decoration: none; }
+.tl-card { display: block; color: inherit; margin-bottom: 8px; }
+.tl-card:hover { background: #fffbeb; }
+.tl-card--memory { border-left: 4px solid #0d9488; }
+.tl-when { font-size: 0.85rem; font-weight: 600; color: #92400e; }
+.tl-badge-memory { background: #ccfbf1; color: #0f766e; }
+.tl-person { color: #0d9488; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.tl-when-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.tl-when-fields input[type="number"] { width: 130px; }
+.tl-dash { color: #6b7280; }
+.tl-address { margin-top: 8px; }
+.tl-address summary { cursor: pointer; color: #0369a1; font-size: 0.9rem; }
+.tl-address input[type="text"] { margin-top: 8px; }
+.tl-address .tl-when-fields input { flex: 1; min-width: 90px; }
