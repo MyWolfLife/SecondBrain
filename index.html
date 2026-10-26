@@ -953,6 +953,10 @@
                     <span class="landing-tile-icon">👥</span>
                     <span class="landing-tile-label">Contact Types</span>
                 </a>
+                <a href="#sharing" class="landing-tile">
+                    <span class="landing-tile-icon">🤝</span>
+                    <span class="landing-tile-label">Sharing</span>
+                </a>
                 <a href="#firebase-setup" class="landing-tile">
                     <span class="landing-tile-icon">🔥</span>
                     <span class="landing-tile-label">Data Storage</span>
@@ -960,6 +964,57 @@
             </div>
         </section>
 
+
+        <!-- Page: Sharing (#sharing) — connect to other people (SharedSpacesBuildPlan.md S2) -->
+        <section class="page hidden" id="page-sharing">
+            <div class="page-header" style="justify-content:flex-start; gap:16px;">
+                <button class="btn btn-secondary btn-small back-btn" onclick="window.location.hash='#settings'">&#8592; Back</button>
+                <h2>Sharing</h2>
+            </div>
+
+            <div class="settings-card hidden" id="shCustomFirebaseNote">
+                <p class="settings-section-desc">Sharing only works between people on the same Bishop database. You are using your own Firebase project, so you can't share with accounts on the default one.</p>
+            </div>
+
+            <div class="settings-card">
+                <h3 class="settings-section-title">Your name</h3>
+                <p class="settings-section-desc">The name other people see when you connect.</p>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <input type="text" id="shNameInput" maxlength="40" style="flex:1;" placeholder="e.g. Steve">
+                    <button class="btn btn-primary btn-small" onclick="shSaveMyName()">Save</button>
+                </div>
+                <p id="shNameMsg" style="margin:6px 0 0; font-size:0.9rem;"></p>
+            </div>
+
+            <div class="settings-card">
+                <h3 class="settings-section-title">People</h3>
+                <p class="settings-section-desc">Everyone you are connected to. Connected people can be added to your groups.</p>
+                <div id="shPeopleList"></div>
+                <div id="shPendingList"></div>
+            </div>
+
+            <div class="settings-card">
+                <h3 class="settings-section-title">Invite someone</h3>
+                <p class="settings-section-desc">Make a one-time code and send it to them. They sign in to their own account and enter it below.</p>
+                <button class="btn btn-primary" id="shInviteBtn" onclick="shCreateInvite()">Make an invite code</button>
+                <div id="shInviteResult" class="hidden" style="margin-top:12px;">
+                    <div id="shInviteCode" style="font-size:1.8rem; font-weight:700; letter-spacing:3px;"></div>
+                    <p id="shInviteExpires" class="settings-section-desc" style="margin:4px 0 8px;"></p>
+                    <button class="btn btn-secondary btn-small" onclick="shCopyInvite()">Copy code</button>
+                </div>
+                <p id="shInviteMsg" style="margin:6px 0 0; font-size:0.9rem;"></p>
+            </div>
+
+            <div class="settings-card">
+                <h3 class="settings-section-title">Enter an invite code</h3>
+                <p class="settings-section-desc">Got a code from someone? Type it here to connect.</p>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <input type="text" id="shCodeInput" maxlength="12" style="flex:1; text-transform:uppercase;" placeholder="ABCD-1234" autocomplete="off">
+                    <button class="btn btn-primary btn-small" id="shConnectBtn" onclick="shRedeemInvite()">Connect</button>
+                </div>
+                <p id="shEnterMsg" style="margin:6px 0 0; font-size:0.9rem;"></p>
+            </div>
+        </section>
 
         <!-- Page: Contact Types Settings (#settings-contact-lists) -->
         <section class="page hidden" id="page-settings-contact-lists">
@@ -12287,6 +12342,7 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=499"></script>
+    <script src="js/sharing.js?v=1"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12374,7 +12430,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=502"></script>
+    <script src="js/app.js?v=503"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

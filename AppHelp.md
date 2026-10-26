@@ -759,6 +759,28 @@ For trips where you'll have no signal at all for days or weeks (not just a brief
 
 ---
 
+## screen:sharing
+
+**What this screen is for:** Connecting your account to other people (your wife, your son) so you can share things with them later. Nothing is shared yet from this screen — it only sets up who you are connected to.
+
+### Connecting to someone
+
+1. Each person needs their own login to the app.
+2. On **Settings → Sharing**, check **Your name**. This is the name the other person sees. Tap **Save** if you change it.
+3. **Person A:** tap **Make an invite code**. A code like `K7Q2-MX9R` appears. Tap **Copy code** and send it to the other person (text message works well).
+4. **Person B:** sign in to their own account, open **Settings → Sharing**, type the code under **Enter an invite code**, and tap **Connect**.
+5. You now both appear under **People**.
+
+### Good to know
+
+- A code works **once** and **expires after 7 days**. You can't use your own code.
+- **Invites waiting to be used** lists codes nobody has entered yet. Tap **Cancel** to throw one away.
+- **Disconnect** removes the connection for both of you. To connect again, make a new code.
+- If the message says a code "is not valid", it may be mistyped, already used, or cancelled. Ask for a new one.
+- Sharing only works between people on the same Bishop database. If you set up your own Firebase project, you can't share with accounts on the default one.
+
+---
+
 ## screen:firebase-setup
 
 **What this screen is for:** Setting up your own private Firebase project so your data is stored in your own database — not the shared default. Also used for first-time account creation and locking down your Firebase to prevent others from signing up.

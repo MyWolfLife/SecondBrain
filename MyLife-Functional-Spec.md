@@ -3926,6 +3926,18 @@ Static data file (not Firestore): `data/sp500.json` — S&P 500 constituents `{a
 | `settings/llm` | provider, apiKey, model? |
 | `settings/journal` | defaultDateRange |
 | `settings/investments` | enrolledPersonIds[] |
+| `settings/sharing` | displayName (the name other people see; defaults to the part of the email before the @) |
+
+### Sharing: people and invites (`sharing.js`, route `#sharing`)
+
+**Plan**: `SharedSpacesBuildPlan.md` (chunk S2), rules in `firestore.rules` / `FirestoreRules.md`. Only the connection part is built so far (groups and actual sharing come in S3+).
+
+- **Settings → Sharing** (tile in the Settings hub). Cards: **Your name**, **People**, **Invite someone**, **Enter an invite code**. If the user runs on their own Firebase project (`usingCustomFirebase`) a note explains sharing only works inside the default shared project.
+- **Invite someone**: makes an 8-character code (letters/numbers, no 0/O/1/I/L), shown as `ABCD-1234`, with a Copy button. Single use, expires in 7 days. Stored as a document in the top-level `invites` collection (document ID = code, no dash) with `fromUid`, `fromName`, `expiresAt` (Timestamp), `usedBy`, `usedByName`, `usedAt` (null until used).
+- **Enter an invite code**: case and dash don't matter. "No such code" and "already used" give the same message; your own invite and an expired one give their own messages. Redeeming fills in `usedBy`, `usedByName`, `usedAt`. That filled-in invite **is** the connection, so both people see each other under **People** with no writes into anyone's private area.
+- **People**: everyone connected (both directions, de-duplicated by account). **Disconnect** (after a confirm) deletes every invite document joining the two; a new invite is needed to reconnect. Unused invites show under "Invites waiting to be used" with a **Cancel** button (also shown as expired once past their date). *(Disconnecting will also remove the person from groups and recompute shares once those exist — S3/S5.)*
+- `topCol(name)` (in `sharing.js`) returns a top-level collection wrapped by `_guardFirestoreRef`, so Offline Trip Mode's read-only lock applies to invites too.
+- **Security** (`firestore.rules`): a code can be looked up by anyone signed in (it is unguessable), but a person can only list invites they made or used; a code can be used once, before it expires, never by its creator, and only the "used" fields can change; either person can delete (disconnect).
 
 ### Dev Notes (Shared)
 
