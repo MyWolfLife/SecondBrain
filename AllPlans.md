@@ -37,7 +37,8 @@ Plan docs below contain design rationale, phased implementation notes, and archi
 | `FormatsPlan.md` | Life → Exercise → Workouts | Build plan (chunks F1–F6) for the book's workout formats: Interval Sets, Tabata/Timed Sets, Supersets, Stappers, Ladders and the rest, and the two clock abilities they need. In progress (F1 first) |
 | `ImportPlan.md` | Life → Exercise → Workouts | Plan for importing the YAYOG book's exercises: a local-only data file, an in-app Import screen with review, muscle/equipment mapping, variations as levels. In progress |
 | `ProgramsPlan.md` | Life → Exercise → Programs | Plan for the Programs feature and the book's four 10-week programs: program templates pointing at workouts, a next-up run, session links, import of the 128 day workouts, next cycle. Plan only, open questions at the end |
-| `SharedSpacesPlan.md` | Whole app (data) | Sharing data between accounts (e.g. spouse): member-based shared "spaces" alongside each person's private area. Early idea, nothing decided |
+| `SharedSpacesHandoff.md` | Whole app (data) | The paste-in prompt for starting the Shared Spaces build in a new session (what to read, what to settle first, how the user works) |
+| `SharedSpacesPlan.md` | Whole app (data) | Sharing data between accounts (e.g. spouse): member-based shared "spaces" with Share buttons and View/Edit roles. Design decided (S1–S14), no code yet; §8 is the hand-off for a new session |
 | `InvestmentPlan.md` | Life → Financial | Investment tracker — retirement account tracking mirroring user's spreadsheet |
 | `AskLLMInvestmentsPlan.md` | Life → Financial | AI analysis button on investments pages — assembles financial snapshot, sends to LLM |
 | `BudgetPlan.md` | Life → Financial | Budgets feature — new card under Financial tab, monthly/category budget tracking |

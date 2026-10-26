@@ -272,3 +272,55 @@ shares/{shareId}/{collectionName}/…   ← the shared data itself, same collect
 - **S12 (2026-10-21)** — **Roles: View / Edit / Owner** (§3e). Only the owner changes the guest list, deletes the whole shared thing, or un-shares it. Editors fully maintain what's inside.
 - **S13 (2026-10-21)** — **Behind-the-scenes defaults approved** (§3f): first share copies → verifies → removes private original, with an automatic backup first; backup covers what you own (+ optional "shared with me"); Offline Trip Mode downloads shared things too, locks only your own devices, offline edits to shared things sync later (last write wins per field).
 - **S14 (2026-10-21)** — **Connecting people** (§3g): single-use invite code, 7-day expiry, entered in Settings → Sharing; connection is two-way; disconnect removes the person from all your guest lists; "Shared with me" page.
+
+---
+
+## 8. Context for a new session (written 2026-10-26)
+
+**Status:** plan and decisions only (S1–S14 above). **No code has been written** and no Firestore rules have been changed. The user wants to start on it in a fresh session. Everything above still stands; this section adds what has changed in the app since it was written and what a builder needs to know.
+
+### 8a. What changed since the plan was written (the Workouts / Programs work)
+The Workouts feature was built after this plan and is the planned **pilot (Phase 3)**. All its library reads/writes already go through one function, **`woLibCol(name)`** in `js/workouts.js` (today just `return userCol(name)`) — pointing that one function at a shared container is the designed hook. Collections involved, and where each should live:
+
+| Collection | Holds | Should be |
+|---|---|---|
+| `workoutMuscles`, `workoutExercises`, `workoutEquipment`, `workoutMeta` | the exercise library (112 book exercises + the user's own, with levels, tags/`source`) | **Shared** (library) |
+| `photos` (`targetType 'workoutExercise'`) | exercise pictures (Base64, per level) — read through `woLibCol('photos')` | **Shared** with the library |
+| `workouts` | workouts (incl. the 128 imported book workouts, `source 'YAYOG'`, `tags`) | **Shared** (library) — but see the open problem in §8b |
+| `programs` | program templates (weeks → days → workout ids, `nextProgramId/Name`) | **Shared** with the library (they point at shared workouts) |
+| `programRuns` | one person's progress through a program | **Personal** |
+| `workoutSessions`, `exerciseActivities` (workout-linked), `workoutMyLevels` | history, linked activities, "my level" per exercise | **Personal** (S2: "Exercise data … workout history" private) |
+| `settings/workouts` (progression, weaker side) | per-person preferences | **Personal** |
+| `workoutLinks` | saved workout web links | **not yet decided** (ask the user) |
+
+Other things worth knowing:
+- `userCol()` / `_rawUserCol()` / `_guardFirestoreRef()` are in `js/firebase-config.js`; the Offline Trip Mode read-only lock wraps them (and `db.batch().commit()`), so any new `dataCol()` must go through the same guard.
+- The **backup/restore lists** live in `js/settings.js` (`COLLECTIONS` / `PERSON_SCOPED_COLLECTIONS`); every new collection must be added there (project rule; `programs` and `programRuns` already are).
+- **Per-user isolation** is already in place (`/users/{uid}/…`). The test account (`reference_test_account` memory) is an empty sandbox. Real user data is not reachable from the preview, so shared-space testing needs two test accounts or mock data.
+- **Firestore security rules live in the Firebase console, not in this repo** (see `FirebaseSetup.md`). Phase 1 of the plan moves them into a versioned `firestore.rules` file. Any rules change is a manual deploy the user must do — plan for that.
+- Related docs: `MultipleUsers.md` (how per-user isolation was built), `FirebaseSetup.md` (rules, auth), `Backup.md`, the Offline Trip Mode notes in the spec, `WorkoutsPlan.md` D11 (why the library should be shared), and the spec's Part 8e.
+- There is an unrelated banner in the app, "You're using the shared database — set up your own private storage" (`index.html` line ~50, `#firebase-setup`). That is about using a *different Firebase project*, not about Shared Spaces. Don't confuse the two.
+
+### 8b. Open design problems to settle before building the Workouts pilot
+1. **Progression state lives inside the workout docs.** Each exercise step stores `sets` (Current), `baseSets`, `successStreak`, `lastDoneDate`, `previousBestSets`, `comeback` — one person's progression. If `workouts` become shared, two people would overwrite each other's numbers and streaks. Options: (a) move per-person progression into a personal overlay (e.g. `workoutProgress/{workoutId}` keyed by step), keeping the shared workout as the Base recipe; (b) accept shared progression for a couple who train together. Needs a decision with the user; (a) is cleaner but touches the player, start screen, `woApplyProgression` and "Save these changes back".
+2. **Pinned levels and "my level"** are per-person already (`workoutMyLevels`), and pinned levels are part of the shared workout — that works.
+3. **`workoutLinks`** — personal or shared?
+4. **Tag filter** is a per-device `localStorage` setting (`woTagFilter`) — fine for sharing, no change.
+5. **Who-did-it stamps (S11)** will need `createdBy/updatedBy` on writes through `woLibCol` (and the importers).
+6. **Importers** (`workout-import.js`, `program-import.js`) write through `woLibCol`, so they follow the library to the shared container automatically; the "Remove an import" lists then act on the shared library — owner-only.
+
+### 8c. Suggested first steps for the new session
+1. Re-read §3c–§3g and §5–§6 above (the settled design), then confirm with the user whether anything has changed.
+2. Decide §8b.1 with the user (progression overlay vs shared) — it shapes the pilot.
+3. Build **Phase 1** (foundation): `firestore.rules` in the repo (draft first, user deploys), `shares` / `invites` / `connections`, Settings → Sharing (invite code, enter code, people list, disconnect), the `dataCol()` helper, a "Shared with me" page. Ship each chunk with the usual checklist.
+4. Then Phase 2 (Share dialog + move engine) and Phase 3 (Workouts library pilot).
+Write a chunked build plan (like `ExerciseLevelsPlan.md` / `ProgramsPlan.md`: chunks, results per chunk, decisions list) before coding, and have the user approve it.
+
+### 8d. Standing project rules a builder must follow (from CLAUDE.md and memory)
+- Update `MyLife-Functional-Spec.md` and `AppHelp.md` in the same commit as any behavior change, and tell the user which sections changed.
+- Bump `CACHE_NAME` in `sw.js` and the `?v=` of every changed script/CSS in `index.html`, every commit.
+- New Firestore collections go in the `js/settings.js` backup lists.
+- Always commit and push; run `curl -d "Ready to push — please confirm the Windows prompt" ntfy.sh/WolfLifeBishop` immediately before `git push`; if the user says "notify me", send the done-notification at the end.
+- Verify in the preview server with the test account (credentials in the `reference_test_account` memory); never skip verification.
+- User prefers short replies, one plain question at a time, labels/badges left-aligned. Parked ideas go in `FutureEnhancements.md`.
+- Never commit book-derived data; `import-data/` is gitignored. Other sessions may be editing the same checkout: commit only your own files.
