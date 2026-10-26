@@ -95,6 +95,7 @@ function _woRenderDonePage() {
         '<div class="page-header"><h2>' + _woEsc(d.workoutName) + '</h2></div>' +
         '<div class="ex-form">' +
             '<div id="wodSaved" class="wo-banner hidden">✓ Saved</div>' +
+            (d.programWeek ? '<div class="wo-banner">📅 Counted toward <strong>' + _woEsc(d.programName || 'your program') + '</strong> — Week ' + d.programWeek + ' · ' + _woEsc(d.programDay || '') + '. <a href="#programs">See what\'s next</a></div>' : '') +
             woPRsHtml(d.prs) +
             woBlocksHtml(d.blocks) +
 
@@ -455,6 +456,7 @@ function _woRenderHistList() {
                             (open ? '<span class="wo-badge wo-badge--both">In progress</span>' : '') +
                             (open ? '' : w.calories != null ? '<span class="wo-badge wo-badge--push">' + w.calories + ' cal</span>'
                                                 : '<span class="wo-badge wo-badge--pull">No calories</span>') +
+                            (w.programWeek ? '<span class="wo-badge wo-badge--tag">📅 ' + _woEsc(w.programName || 'Program') + ' · Week ' + w.programWeek + ' · ' + _woEsc(w.programDay || '') + '</span>' : '') +
                             (w.rating ? '<span class="wo-badge wo-badge--neither">Effort ' + w.rating + '/5</span>' : '') +
                             ((w.prs && w.prs.length) ? '<span class="wo-badge wo-badge--both">🏆 ' + w.prs.length + ' PR' + (w.prs.length === 1 ? '' : 's') + '</span>' : '') +
                         '</div>' +

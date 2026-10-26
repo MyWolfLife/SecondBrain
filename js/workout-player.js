@@ -1357,7 +1357,9 @@ async function woSaveFinishedWorkout(fin) {
     var prs = [];
     try { prs = await woComputePRs(sets); } catch (err) { console.error('Workouts: could not check records:', err); }
 
-    var sessionRef = await userCol('workoutSessions').add({
+    var pm = null;                                                // is this the next day of the program being followed?
+    try { pm = await progMatchWorkout(sess.workoutId); } catch (err) { console.error('Programs: could not check the program:', err); }
+    var sessData = {
         workoutId:       sess.workoutId,
         workoutName:     sess.workoutName,
         date:            sess.date,
@@ -1374,7 +1376,10 @@ async function woSaveFinishedWorkout(fin) {
         prs:             prs,
         activityId:      null,
         createdAt:       firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    if (pm) Object.assign(sessData, progSessionFields(pm));
+    var sessionRef = await userCol('workoutSessions').add(sessData);
+    if (pm) { try { await progCompleteFromSession(pm, sessionRef.id, sess.date); } catch (err) { console.error('Programs: could not mark the day done:', err); } }
 
     await woApplyProgression(sess.workoutId, sets, sess.date);   // streaks / comeback ramp for each step
 

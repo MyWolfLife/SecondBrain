@@ -174,10 +174,13 @@ async function _woDayFinish() {
             activityId = await _woCreateLinkedActivity(id, d.workoutName, d.date, startMs, null);
         } catch (err) { console.error('Workouts: could not create the linked Activity:', err); }
         await woApplyProgression(d.workoutId, lines, d.date);   // streaks / comeback ramp
+        var pm = null;                                        // is this the next day of the program being followed?
+        try { pm = await progMatchWorkout(d.workoutId); } catch (err) { console.error('Programs: could not check the program:', err); }
         var stop = _woDay; _woDayStop();                      // stop listening before the status flips
-        await userCol('workoutSessions').doc(id).update({
-            status: 'done', sets: lines, prs: prs, finishedAt: _woISODate(Date.now()), activityId: activityId
-        });
+        var upd = { status: 'done', sets: lines, prs: prs, finishedAt: _woISODate(Date.now()), activityId: activityId };
+        if (pm) Object.assign(upd, progSessionFields(pm));
+        await userCol('workoutSessions').doc(id).update(upd);
+        if (pm) { try { await progCompleteFromSession(pm, id, d.date); } catch (err) { console.error('Programs: could not mark the day done:', err); } }
         location.hash = '#workout-done/' + id;
     } catch (err) {
         console.error('Workouts: finish day workout failed:', err);

@@ -14,7 +14,8 @@
 //                        startedAt, updatedAt, finishedAt?, position {week, day}, log: [ {week, day, label, workoutId, kind, date, at} ] }
 // `position` is the NEXT-UP day (week number + index of the day inside that week's block). `kind` in the log is
 // 'done' | 'skipped' | 'rest'. Only one run is active (or paused) at a time. Marking days done from a finished
-// workout comes in chunk P4; until then the run card has a manual "Mark done" button.
+// workout is automatic (chunk P4: progMatchWorkout / progCompleteFromSession, called when a workout is saved); the run
+// card also keeps a manual "Mark done" button.
 
 var _progs = [];            // list page: all programs
 var _progFilter = { text: '', archived: false };
@@ -516,4 +517,39 @@ async function progShowRunCard(containerId) {
     } catch (err) {
         console.error('Programs: could not show the program card:', err);
     }
+}
+
+
+// ── Finished workouts count toward the run (chunk P4) ─────────────────────────
+
+/**
+ * Is this workout the next-up day of the active (not paused) run? Returns {runId, run, slot, next, programName} or null.
+ * Called when a workout is saved; it must never throw into the save, so callers wrap it.
+ */
+async function progMatchWorkout(workoutId) {
+    var rsnap = await woLibCol('programRuns').get(), run = null;
+    rsnap.docs.forEach(function(d) { var r = d.data(); if (!run && r.status === 'active') { run = r; run.id = d.id; } });
+    if (!run) return null;
+    var pdoc = await woLibCol('programs').doc(run.programId).get();
+    if (!pdoc.exists) return null;
+    var slots = _progSlots(pdoc.data()), idx = _progIndexOf(slots, run.position || { week: 1, day: 0 });
+    if (idx >= slots.length || slots[idx].workoutId !== workoutId) return null;
+    return { runId: run.id, run: run, slot: slots[idx], next: slots[idx + 1] || null, programName: run.programName };
+}
+
+/** Fields stamped on the saved workout session so History can show where it fell in the program. */
+function progSessionFields(m) {
+    return { programRunId: m.runId, programName: m.programName, programWeek: m.slot.week, programDay: m.slot.label };
+}
+
+/** Logs the day as done (with the session id) and moves the run to the next day. */
+async function progCompleteFromSession(m, sessionId, dateISO) {
+    var log = (m.run.log || []).slice();
+    log.push({ week: m.slot.week, day: m.slot.day, label: m.slot.label, workoutId: m.slot.workoutId, kind: 'done',
+               date: dateISO || _progTodayISO(), at: Date.now(), sessionId: sessionId });
+    await woLibCol('programRuns').doc(m.runId).update({
+        log: log,
+        position: m.next ? { week: m.next.week, day: m.next.day } : { week: m.slot.week, day: m.slot.day + 1 },
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
 }

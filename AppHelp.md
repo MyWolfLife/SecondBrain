@@ -4847,6 +4847,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Every workout you've finished, newest first.
 
 ### Quick Help
+- A workout that counted toward a program shows a **📅 program · week · day** label on its card
 - Tap a workout to open it — add calories from your watch, change sets, or delete it
 - An orange **No calories** tag reminds you which workouts still need their watch calories
 - **🏆 PR** shows workouts where you set a personal record
@@ -4884,7 +4885,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Tags** work like on your Exercises and Workouts lists: tap a chip once to show only that tag, again to hide it
 - **Show archived** brings back programs you've hidden
 - Tap **▶ Start** on a program (or **▶ Start program** inside it) to follow it. You follow one program at a time
-- The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it, then **✓ Mark done** when you finish (marking done by itself after a workout comes later)
+- The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it. When you finish that workout, the day is marked done by itself and the card moves on. **✓ Mark done** is there for a day you did another way
 - **Skip** moves on without doing a day. **◀ Back** undoes the last day you marked. **⏸ Pause** holds your place until you tap **▶ Resume**. **End** closes the run
 - The same "next up" card shows on the Fitness page
 
@@ -5103,6 +5104,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** The record of a workout you just finished — add your calories and tidy up the sets.
 
 ### Quick Help
+- If the workout was your next day in a program you are following, a line at the top says it **counted toward the program**, with a link to see what's next
 - A ladder shows a line like “🪜 Ladder: reached 7 reps, 13 rungs in 7.5 min”, and each rung you did is listed as a set
 - A Stapper shows a line like “🔁 Stapper: 7 full cycles + 2 exercises in 20 min” at the top, and each exercise you did is listed as a set
 - Tabata and timed-sets rounds show as separate sets with the reps you counted in each round
