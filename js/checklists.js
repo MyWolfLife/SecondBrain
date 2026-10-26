@@ -214,7 +214,7 @@ async function clResolveContextFilter(ctx) {
 
     if (ctx.type === 'zone') {
         // Fetch all zones in one query — used for both the name lookup and descendant BFS
-        var snap = await userCol('zones').get();
+        var snap = await yardCol('zones').get();
         var allZones = {};
         snap.forEach(function(doc) { allZones[doc.id] = doc.data(); });
 
@@ -2308,7 +2308,7 @@ async function clPopulateTargetPicker(ctx, existing) {
         select.appendChild(yardOpt);
 
         // Fetch all zones and render hierarchically (Level 1 → Level 2 → Level 3)
-        var snap = await userCol('zones').get();
+        var snap = await yardCol('zones').get();
         var zones = {};
         snap.forEach(function(doc) {
             zones[doc.id] = Object.assign({ id: doc.id }, doc.data());

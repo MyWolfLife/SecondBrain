@@ -129,12 +129,12 @@ async function _sbBuildContext() {
             strSnap, strThingsSnap, strSubSnap,
             notebooksSnap, lifeCatSnap, exTypesSnap
         ] = await Promise.all([
-            userCol('zones').get(),
-            userCol('plants').get(),
+            yardCol('zones').get(),
+            yardCol('plants').get(),
             userCol('people').get(),
             userCol('vehicles').get(),
-            userCol('weeds').get(),
-            userCol('chemicals').get(),
+            yardCol('weeds').get(),
+            yardCol('chemicals').get(),
             userCol('journalCategories').get(),
             userCol('floors').get(),
             userCol('rooms').get(),
@@ -1940,12 +1940,12 @@ async function _sbWrite(action, payload) {
                 for (var i = 0; i < payload.unknownChemicals.length; i++) {
                     var uName = (payload.unknownChemicals[i] || '').trim();
                     if (uName) {
-                        var cRef = await userCol('chemicals').add({ name: uName, notes: '', createdAt: ts });
+                        var cRef = await yardCol('chemicals').add({ name: uName, notes: '', createdAt: ts });
                         chemIds.push(cRef.id);
                     }
                 }
             }
-            ref = await userCol('activities').add({
+            ref = await yTargetCol('activities', payload.targetType || '').add({
                 targetType:  payload.targetType  || '',
                 targetId:    payload.targetId    || '',
                 description: payload.description || '',
@@ -1962,7 +1962,7 @@ async function _sbWrite(action, payload) {
 
         // ---- Add Problem ------------------------------------
         case 'ADD_PROBLEM': {
-            ref = await userCol('problems').add({
+            ref = await yTargetCol('problems', payload.targetType || '').add({
                 targetType:  payload.targetType  || '',
                 targetId:    payload.targetId    || '',
                 description: payload.description || '',
@@ -2028,7 +2028,7 @@ async function _sbWrite(action, payload) {
 
         // ---- Add Fact ---------------------------------------
         case 'ADD_FACT': {
-            ref = await userCol('facts').add({
+            ref = await yTargetCol('facts', payload.targetType || '').add({
                 targetType: payload.targetType || '',
                 targetId:   payload.targetId   || '',
                 label:      payload.label      || '',
@@ -2044,7 +2044,7 @@ async function _sbWrite(action, payload) {
         // ---- Add Project / Add Task (same Firestore write) -----
         case 'ADD_PROJECT':
         case 'ADD_TASK': {
-            ref = await userCol('projects').add({
+            ref = await yTargetCol('projects', payload.targetType || '').add({
                 targetType:  payload.targetType || '',
                 targetId:    payload.targetId   || '',
                 title:       payload.title      || '',
@@ -2090,7 +2090,7 @@ async function _sbWrite(action, payload) {
 
         // ---- Add Plant --------------------------------------
         case 'ADD_PLANT': {
-            ref = await userCol('plants').add({
+            ref = await yardCol('plants').add({
                 name:      payload.name   || '',
                 alias:     payload.alias  || '',
                 zoneId:    payload.zoneId || '',
@@ -2105,7 +2105,7 @@ async function _sbWrite(action, payload) {
 
         // ---- Add Chemical -----------------------------------
         case 'ADD_CHEMICAL': {
-            ref = await userCol('chemicals').add({
+            ref = await yardCol('chemicals').add({
                 name:      payload.name  || '',
                 notes:     payload.notes || '',
                 createdAt: ts
@@ -2120,14 +2120,14 @@ async function _sbWrite(action, payload) {
             if (payload.alreadyExists && payload.existingWeedId) {
                 // Weed exists — merge any new zones into its zoneIds array
                 weedId = payload.existingWeedId;
-                var wSnap = await userCol('weeds').doc(weedId).get();
+                var wSnap = await yardCol('weeds').doc(weedId).get();
                 var existingZones = (wSnap.exists && Array.isArray(wSnap.data().zoneIds))
                     ? wSnap.data().zoneIds : [];
                 var merged = Array.from(new Set(existingZones.concat(payload.zoneIds || [])));
-                await userCol('weeds').doc(weedId).update({ zoneIds: merged });
+                await yardCol('weeds').doc(weedId).update({ zoneIds: merged });
             } else {
                 // New weed record
-                var wRef = await userCol('weeds').add({
+                var wRef = await yardCol('weeds').add({
                     name:              payload.name              || '',
                     treatmentMethod:   payload.treatmentMethod   || '',
                     applicationTiming: payload.applicationTiming || '',
@@ -2486,7 +2486,7 @@ async function _sbSavePhotos(targetType, targetId, caption) {
     if (!_sbPhotos.length || !targetType || !targetId) return;
     var ts = firebase.firestore.FieldValue.serverTimestamp();
     for (var i = 0; i < _sbPhotos.length; i++) {
-        await userCol('photos').add({
+        await yTargetCol('photos', targetType).add({
             targetType: targetType,
             targetId:   targetId,
             imageData:  _sbPhotos[i].dataUrl,

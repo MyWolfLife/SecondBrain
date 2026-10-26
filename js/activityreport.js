@@ -61,11 +61,11 @@ async function loadActivityReportPage() {
 async function arLoadData() {
     try {
         var [activitiesSnap, plantsSnap, zonesSnap, weedsSnap, chemsSnap] = await Promise.all([
-            userCol('activities').get(),
-            userCol('plants').get(),
-            userCol('zones').get(),
-            userCol('weeds').get(),
-            userCol('chemicals').get(),
+            yReadAll('activities'),
+            yReadAll('plants'),
+            yReadAll('zones'),
+            yReadAll('weeds'),
+            yReadAll('chemicals'),
         ]);
 
         // Build activities array and sort newest-first client-side
@@ -106,7 +106,7 @@ async function arPopulateChemicalFilter() {
     select.innerHTML = '<option value="">All products</option>';
 
     try {
-        var snap = await userCol('chemicals').orderBy('name').get();
+        var snap = await yardCol('chemicals').orderBy('name').get();
         snap.forEach(function(doc) {
             var opt = document.createElement('option');
             opt.value       = doc.id;

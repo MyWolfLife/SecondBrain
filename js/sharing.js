@@ -1316,16 +1316,9 @@ function yNameCol(name) {
 
 /**
  * For screens that need ALL rows of a mixed collection (e.g. every activity that used a chemical):
- * runs build(collection).get() on the yard's collection and, when the yard lives in a share, on the
- * person's own too, and returns one snapshot-like object (forEach, docs, size, empty).
+ * same as yReadAll (private area plus every yard the person can open).
  */
-async function yGetAll(name, build) {
-    var cols = window.yardShareId ? [yardCol(name), userCol(name)] : [userCol(name)];
-    var snaps = await Promise.all(cols.map(function(c) { return build(c).get(); }));
-    var docs = [];
-    snaps.forEach(function(s) { s.forEach(function(d) { docs.push(d); }); });
-    return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
-}
+async function yGetAll(name, build) { return yReadAll(name, build); }
 
 /**
  * Deep links (#plant/abc, #zone/abc ...) carry only an ID. If the thing is not in the active
@@ -1406,4 +1399,31 @@ function yShowWho(titleElId, data) {
     var text = window.yardShareId ? shWhoLabel(data, window.yardShareData) : '';
     el.textContent = text;
     el.style.display = text ? '' : 'none';
+}
+
+/**
+ * Every place yard rows can live for this person: their own private area plus every yard share
+ * they can open (their own, or shared with them). Used by screens that look across all yards.
+ */
+async function yPlaces() {
+    await yardReady();
+    var ids = [null];
+    _yardOptions.forEach(function(o) { if (o.id) ids.push(o.id); });
+    return ids;
+}
+
+/**
+ * Like userCol(name).get() but across ALL the person's yards (see yPlaces). `build` optionally
+ * turns each collection into a query: yReadAll('activities', function(c) { return c.where(...); }).
+ * Returns a snapshot-like object: forEach, docs, size, empty.
+ */
+async function yReadAll(name, build) {
+    var places = await yPlaces();
+    var snaps = await Promise.all(places.map(function(id) {
+        var col = dataCol(name, id);
+        return (build ? build(col) : col).get();
+    }));
+    var docs = [];
+    snaps.forEach(function(s) { s.forEach(function(d) { docs.push(d); }); });
+    return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
 }

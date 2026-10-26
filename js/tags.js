@@ -61,7 +61,7 @@ async function loadTagsList() {
 async function getTagUsageCounts() {
     var [eventsSnap, projectsSnap] = await Promise.all([
         userCol('calendarEvents').get(),
-        userCol('projects').get()
+        yReadAll('projects')
     ]);
 
     var counts = {};
@@ -341,7 +341,7 @@ async function _loadTagDetailProjects(tagId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('projects').where('tagIds', 'array-contains', tagId).get();
+        var snap = await yReadAll('projects', function(c) { return c.where('tagIds', 'array-contains', tagId); });
 
         if (snap.empty) {
             emptyState.textContent = 'No quick tasks tagged with this tag.';

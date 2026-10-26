@@ -64,6 +64,7 @@ function runSearch(query) {
     // Define every collection to search.
     // urlFn builds the hash URL to navigate to when the user clicks a result.
     // nameField: which doc field holds the display name ('name' or 'title').
+    var YARD_SEARCH_COLS = ['plants', 'zones', 'chemicals', 'weeds', 'activities'];   // searched in every yard I can open (own + shared with me)
     var colDefs = [
         // ── Yard ──
         { col: 'plants',             label: 'Plants',               icon: '🌱', nameField: 'name',  urlFn: function(id) { return '#plant/'           + id; } },
@@ -146,7 +147,7 @@ function runSearch(query) {
     // We load everything (not just matches) so we can build cross-reference
     // name maps — e.g. show which zone a plant lives in.
     var promises = colDefs.map(function (def) {
-        return userCol(def.col).get().then(function (snap) {
+        return (YARD_SEARCH_COLS.indexOf(def.col) !== -1 ? yReadAll(def.col) : userCol(def.col).get()).then(function (snap) {
             var all = [];
             snap.forEach(function (doc) {
                 all.push({ id: doc.id, data: doc.data() });

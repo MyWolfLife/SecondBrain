@@ -3229,9 +3229,9 @@ async function loadAllActivityFeed() {
         // Fire all entity-name map reads AND timeline collection reads in parallel
         var results = await Promise.all([
             // Entity name maps (index 0-8)
-            userCol('zones').get(),
-            userCol('plants').get(),
-            userCol('weeds').get(),
+            yReadAll('zones'),
+            yReadAll('plants'),
+            yReadAll('weeds'),
             userCol('vehicles').get(),
             userCol('rooms').get(),
             userCol('concerns').get(),
@@ -3239,7 +3239,7 @@ async function loadAllActivityFeed() {
             userCol('lifeEvents').get(),
             userCol('people').get(),
             // Timeline collections (index 9-20)
-            userCol('activities').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
+            yReadAll('activities', function(c) { return c.where('date', '>=', fromDate).where('date', '<=', toDate); }),
             userCol('calendarEvents').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('healthVisits').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('healthAppointments').where('date', '>=', fromDate).where('date', '<=', toDate).get(),

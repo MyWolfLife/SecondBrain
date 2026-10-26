@@ -75,7 +75,7 @@ async function bulkLoadPlants() {
         var zoneNames = {};
         if (includeSubZones && zoneIds.length > 1) {
             for (var z = 0; z < zoneIds.length; z++) {
-                var zDoc = await userCol('zones').doc(zoneIds[z]).get();
+                var zDoc = await yardCol('zones').doc(zoneIds[z]).get();
                 if (zDoc.exists) zoneNames[zoneIds[z]] = zDoc.data().name || '';
             }
         }
@@ -83,7 +83,7 @@ async function bulkLoadPlants() {
         // Load plants for every qualifying zone
         var allPlants = [];
         for (var i = 0; i < zoneIds.length; i++) {
-            var snap = await userCol('plants').where('zoneId', '==', zoneIds[i]).get();
+            var snap = await yardCol('plants').where('zoneId', '==', zoneIds[i]).get();
             snap.forEach(function(doc) {
                 allPlants.push({ id: doc.id, zoneId: zoneIds[i], ...doc.data() });
             });
@@ -144,7 +144,7 @@ async function handleBulkSavedActionSelect() {
     if (!actionId) return;
 
     try {
-        var doc = await userCol('savedActions').doc(actionId).get();
+        var doc = await yardCol('savedActions').doc(actionId).get();
         if (!doc.exists) return;
 
         var action = doc.data();
@@ -219,14 +219,14 @@ async function handleBulkSave() {
 
         // One activity per selected plant
         selectedPlantIds.forEach(function(plantId) {
-            writes.push(userCol('activities').add(
+            writes.push(yTargetCol('activities', 'plant').add(
                 Object.assign({}, baseData, { targetType: 'plant', targetId: plantId })
             ));
         });
 
         // Optional zone-level activity
         if (includeZone) {
-            writes.push(userCol('activities').add(
+            writes.push(yTargetCol('activities', 'zone').add(
                 Object.assign({}, baseData, { targetType: 'zone', targetId: bulkActivityZoneId })
             ));
         }

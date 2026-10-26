@@ -186,7 +186,7 @@ async function _gatherEntityRefs(entityType, entityId) {
     var refs = [{ type: entityType, id: entityId }];
     var childDef = PROBLEM_CHILD_MAP[entityType];
     if (childDef) {
-        var childSnap = await userCol(childDef.collection)
+        var childSnap = await yNameCol(childDef.collection)
             .where(childDef.parentField, '==', entityId)
             .get();
         var promises = [];
@@ -246,7 +246,7 @@ async function loadEventsForTarget(targetType, targetId, containerId, emptyState
             var allZoneChunks = chunkArray(allZoneIds, 30);
             var plantIds = [];
             for (var z = 0; z < allZoneChunks.length; z++) {
-                var plantSnap = await userCol('plants')
+                var plantSnap = await yardCol('plants')
                     .where('zoneId', 'in', allZoneChunks[z])
                     .get();
                 plantSnap.forEach(function(doc) { plantIds.push(doc.id); });
@@ -967,14 +967,14 @@ function createCalendarEventCard(occ, reloadFn) {
     (async function() {
         try {
             if (occ.targetType === 'plant' && occ.targetId) {
-                var plantDoc = await userCol('plants').doc(occ.targetId).get();
+                var plantDoc = await yardCol('plants').doc(occ.targetId).get();
                 if (plantDoc.exists) {
                     _calAppendTargetLink(targetEl, 'Plant: ' + plantDoc.data().name, '#plant/' + occ.targetId);
                 }
             } else if (occ.zoneIds && occ.zoneIds.length > 0) {
                 var zoneEntries = [];
                 for (var zi = 0; zi < occ.zoneIds.length; zi++) {
-                    var zDoc = await userCol('zones').doc(occ.zoneIds[zi]).get();
+                    var zDoc = await yardCol('zones').doc(occ.zoneIds[zi]).get();
                     if (zDoc.exists) zoneEntries.push({ id: occ.zoneIds[zi], name: zDoc.data().name });
                 }
                 if (zoneEntries.length > 0) {
@@ -1333,7 +1333,7 @@ async function handleCompleteEvent() {
         var chemicalIds = [];
         if (occ.savedActionId) {
             try {
-                var actionDoc = await userCol('savedActions').doc(occ.savedActionId).get();
+                var actionDoc = await yardCol('savedActions').doc(occ.savedActionId).get();
                 if (actionDoc.exists) {
                     chemicalIds = normalizeChemicalIds(actionDoc.data());
                 }
@@ -1345,7 +1345,7 @@ async function handleCompleteEvent() {
         // Zone-linked events: one activity per zone in zoneIds[].
         var zoneIds = occ.zoneIds || [];
         if (occ.targetType === 'plant' && occ.targetId) {
-            await userCol('activities').add({
+            await yTargetCol('activities', 'plant').add({
                 targetType: 'plant',
                 targetId: occ.targetId,
                 description: occ.title,
@@ -1357,7 +1357,7 @@ async function handleCompleteEvent() {
             });
         } else {
             for (var i = 0; i < zoneIds.length; i++) {
-                await userCol('activities').add({
+                await yTargetCol('activities', 'zone').add({
                     targetType: 'zone',
                     targetId: zoneIds[i],
                     description: occ.title,
@@ -2128,7 +2128,7 @@ async function handleCalEventSavedActionSelect() {
     if (!actionId) return;
 
     try {
-        var doc = await userCol('savedActions').doc(actionId).get();
+        var doc = await yardCol('savedActions').doc(actionId).get();
         if (!doc.exists) return;
         var action = doc.data();
         if (action.name) {
@@ -2170,7 +2170,7 @@ async function resolveTargetName(targetType, targetId) {
     try {
         var col = TYPE_COLLECTION[targetType];
         if (!col) return targetId;
-        var doc = await userCol(col).doc(targetId).get();
+        var doc = await yNameCol(col).doc(targetId).get();
         if (doc.exists) {
             var data = doc.data();
             // Vehicles have no single "name" field — build one from year/make/model,
@@ -2196,7 +2196,7 @@ async function loadCalEventZoneCheckboxes(selectedZoneIds) {
     container.innerHTML = '<p style="margin:0;font-size:0.85rem;color:#888">Loading zones...</p>';
 
     try {
-        var snapshot = await userCol('zones').get();
+        var snapshot = await yardCol('zones').get();
         var allZones = [];
         snapshot.forEach(function(doc) {
             allZones.push({ id: doc.id, ...doc.data() });

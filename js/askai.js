@@ -219,10 +219,10 @@ function _askAiOpenIn(key, text, statusEl, withPicture) {
 async function askAiFirstPicture(targetType, targetId, profilePhotoData) {
     if (profilePhotoData) return profilePhotoData;
     try {
-        var snap = await userCol('photos').where('targetType', '==', targetType).where('targetId', '==', targetId).get();
+        var snap = await yTargetCol('photos', targetType).where('targetType', '==', targetType).where('targetId', '==', targetId).get();
         var photos = snap.docs.map(function(d) { return d.data(); });
         if (!photos.length && targetType === 'bucketItem') {
-            var shared = await userCol('photos').where('alsoTargetIds', 'array-contains', targetId).get();
+            var shared = await yTargetCol('photos', targetType).where('alsoTargetIds', 'array-contains', targetId).get();
             photos = shared.docs.map(function(d) { return d.data(); });
         }
         photos.sort(function(a, b) { return (b.takenAt || '').localeCompare(a.takenAt || ''); });   // newest first, as the photo viewer shows them
@@ -283,7 +283,7 @@ async function askAiHome() {
 async function askAiChemicalNames() {
     var map = {};
     try {
-        var snap = await userCol('chemicals').get();
+        var snap = await yardCol('chemicals').get();
         snap.forEach(function(d) { map[d.id] = d.data().name || ''; });
     } catch (e) { /* product names are optional detail */ }
     return map;
@@ -297,7 +297,7 @@ async function askAiChemicalNames() {
 async function askAiRelatedRecords(targetType, targetId) {
     async function load(col) {
         try {
-            var snap = await userCol(col).where('targetType', '==', targetType).where('targetId', '==', targetId).get();
+            var snap = await yTargetCol(col, targetType).where('targetType', '==', targetType).where('targetId', '==', targetId).get();
             return snap.docs.map(function(d) { return d.data(); });
         } catch (e) {
             console.warn('Ask AI: could not load ' + col + ':', e);
@@ -408,7 +408,7 @@ function askAiForPlant(plantId) {
  * on the zones it sits in, and weeds recorded in those zones.
  */
 async function askAiPlantPrompt(plantId) {
-    var doc = await userCol('plants').doc(plantId).get();
+    var doc = await yardCol('plants').doc(plantId).get();
     if (!doc.exists) throw new Error('Plant not found');
     var plant = doc.data();
     var meta = plant.metadata || {};
@@ -417,7 +417,7 @@ async function askAiPlantPrompt(plantId) {
     var zones = [];
     var zid = plant.zoneId;
     while (zid) {
-        var z = await userCol('zones').doc(zid).get();
+        var z = await yardCol('zones').doc(zid).get();
         if (!z.exists) break;
         zones.unshift({ id: z.id, name: z.data().name || '' });
         zid = z.data().parentId;
@@ -476,7 +476,7 @@ async function _askAiZoneActivities(zones) {
     var all = [];
     for (var i = 0; i < zones.length; i++) {
         try {
-            var snap = await userCol('activities').where('targetType', '==', 'zone').where('targetId', '==', zones[i].id).get();
+            var snap = await yTargetCol('activities', 'zone').where('targetType', '==', 'zone').where('targetId', '==', zones[i].id).get();
             var acts = snap.docs.map(function(d) { return Object.assign({ _zone: zones[i].name }, d.data()); })
                 .sort(function(a, b) { return _askAiDateKey(b.date || b.createdAt).localeCompare(_askAiDateKey(a.date || a.createdAt)); })
                 .slice(0, 10);
@@ -491,7 +491,7 @@ async function _askAiZoneWeeds(zones) {
     if (!zones.length) return [];
     try {
         var ids = zones.map(function(z) { return z.id; }).slice(0, 10);   // array-contains-any allows up to 10 values
-        var snap = await userCol('weeds').where('zoneIds', 'array-contains-any', ids).get();
+        var snap = await yardCol('weeds').where('zoneIds', 'array-contains-any', ids).get();
         return snap.docs.map(function(d) { return d.data(); });
     } catch (e) { return []; }
 }
@@ -605,7 +605,7 @@ async function _askAiLocationPath(col, data, area) {
         var link = ASK_AI_PARENTS[curCol];
         var pid = cur[link.field];
         if (!pid) break;
-        var snap = await userCol(link.col).doc(pid).get();
+        var snap = await yNameCol(link.col).doc(pid).get();
         if (!snap.exists) break;
         cur = snap.data();
         parts.unshift(cur.name + (link.col === 'structures' && cur.type ? ' (' + cur.type + ')' : ''));
@@ -621,7 +621,7 @@ async function _askAiLocationPath(col, data, area) {
  */
 async function askAiThingPrompt(kind, id) {
     var k = ASK_AI_KINDS[kind];
-    var snap = await userCol(k.col).doc(id).get();
+    var snap = await yNameCol(k.col).doc(id).get();
     if (!snap.exists) throw new Error('Record not found');
     var data = snap.data();
 
@@ -630,7 +630,7 @@ async function askAiThingPrompt(kind, id) {
         _askAiLocationPath(k.col, data, k.area),
         askAiHome(),
         askAiRelatedRecords(k.targetType, id),
-        childDef ? userCol(childDef.col).where(childDef.field, '==', id).get().catch(function() { return null; }) : null,
+        childDef ? yNameCol(childDef.col).where(childDef.field, '==', id).get().catch(function() { return null; }) : null,
         data.beneficiaryContactId ? userCol('people').doc(data.beneficiaryContactId).get().catch(function() { return null; }) : null
     ]);
     var where = results[0], home = results[1], rel = results[2], children = results[3], beneficiary = results[4];
@@ -726,7 +726,7 @@ async function askAiVehiclePrompt(id) {
 async function _askAiZonePath(zoneId) {
     var parts = [], id = zoneId, guard = 0;
     while (id && guard++ < 5) {
-        var z = await userCol('zones').doc(id).get();
+        var z = await yardCol('zones').doc(id).get();
         if (!z.exists) break;
         parts.unshift(z.data().name || '');
         id = z.data().parentId;
@@ -739,7 +739,7 @@ async function _askAiZonePath(zoneId) {
  * notes saved with it, and every related record (treatments logged, facts, photos...).
  */
 async function askAiWeedPrompt(id) {
-    var snap = await userCol('weeds').doc(id).get();
+    var snap = await yardCol('weeds').doc(id).get();
     if (!snap.exists) throw new Error('Weed not found');
     var w = snap.data();
 
@@ -791,7 +791,7 @@ async function _askAiTargetName(targetType, targetId, cache) {
     var name = '';
     if (col && targetId) {
         try {
-            var d = await userCol(col).doc(targetId).get();
+            var d = await yNameCol(col).doc(targetId).get();
             if (d.exists) {
                 var data = d.data();
                 name = targetType === 'vehicle' ? _askAiVehicleName(data) : (data.alias || data.name || '');
@@ -807,15 +807,15 @@ async function _askAiTargetName(targetType, targetId, cache) {
  * and the saved actions that use it.
  */
 async function askAiChemicalPrompt(id) {
-    var snap = await userCol('chemicals').doc(id).get();
+    var snap = await yardCol('chemicals').doc(id).get();
     if (!snap.exists) throw new Error('Product not found');
     var c = snap.data();
 
     var results = await Promise.all([
         askAiHome(),
         askAiRelatedRecords('chemical', id),
-        userCol('activities').where('chemicalIds', 'array-contains', id).get().catch(function() { return null; }),
-        userCol('savedActions').where('chemicalIds', 'array-contains', id).get().catch(function() { return null; })
+        yReadAll('activities', function(c) { return c.where('chemicalIds', 'array-contains', id); }).catch(function() { return null; }),
+        yardCol('savedActions').where('chemicalIds', 'array-contains', id).get().catch(function() { return null; })
     ]);
     var home = results[0], rel = results[1], usesSnap = results[2], actionsSnap = results[3];
 
