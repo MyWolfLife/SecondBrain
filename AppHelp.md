@@ -3300,7 +3300,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - **Interactions:** A log of times you met, talked, or interacted with this person. Add entries with date and free-form text. Interactions also appear in the All Activity timeline.
 - **Shared Life Events:** Life Calendar events that tag this contact appear here, showing what events you have attended or planned together.
 - **Facts:** Key-value notes about this contact (e.g., "Kids = Sarah, Tom, Emma", "Favorite restaurant = Mario's", "Parking = Street parking on Oak Ave").
-- **Sub-contacts (Staff / Family Members):** Linked sub-contacts listed here with Add and Remove buttons.
+- **Sub-contacts (Staff / Family Members):** Linked sub-contacts listed here with an Add button. Family members can have their own family members (Bill > Matt > Matt's wife and kids) -- open Matt and use his Family Members section; the breadcrumb shows the whole chain. Deleting a contact also deletes everyone listed under them.
 
 **Quick mention flag:** The "Include in quick mentions" checkbox on the contact form controls whether this contact appears in the @ autocomplete in the journal and other text fields. Keep this list to people you mention frequently to keep the dropdown manageable.
 

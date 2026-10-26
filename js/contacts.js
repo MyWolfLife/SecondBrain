@@ -601,14 +601,19 @@ async function loadContactDetail(personId) {
         if (!doc.exists) { window.location.hash = '#contacts'; return; }
         currentPerson = window.currentPerson = Object.assign({ id: doc.id }, doc.data());
 
-        // Load parent for breadcrumb (sub-contacts only)
-        var parentPerson = null;
-        if (currentPerson.parentPersonId) {
-            var pDoc = await userCol('people').doc(currentPerson.parentPersonId).get();
-            if (pDoc.exists) parentPerson = Object.assign({ id: pDoc.id }, pDoc.data());
+        // Load the whole ancestor chain for the breadcrumb (family members can nest),
+        // nearest parent first. Capped so a bad parent loop can't hang the page.
+        var ancestors = [];
+        var nextId = currentPerson.parentPersonId;
+        while (nextId && ancestors.length < 10) {
+            var pDoc = await userCol('people').doc(nextId).get();
+            if (!pDoc.exists) break;
+            var pData = Object.assign({ id: pDoc.id }, pDoc.data());
+            ancestors.push(pData);
+            nextId = pData.parentPersonId;
         }
 
-        renderPersonDetail(currentPerson, parentPerson);
+        renderPersonDetail(currentPerson, ancestors[0] || null, ancestors);
 
     } catch (err) { console.error('loadContactDetail error:', err); }
 }
@@ -620,17 +625,23 @@ function loadPersonDetail(personId) { return loadContactDetail(personId); }
  * Render the contact detail page from loaded data.
  * @param {Object} person
  * @param {Object|null} parentPerson - Set when this is a sub-contact
+ * @param {Object[]} [ancestors] - Parent chain, nearest first (for the breadcrumb)
  */
-function renderPersonDetail(person, parentPerson) {
+function renderPersonDetail(person, parentPerson, ancestors) {
     window.scrollTo(0, 0);
 
     // Breadcrumb (written to the sticky header bar)
     var crumb = document.getElementById('breadcrumbBar');
     if (parentPerson) {
+        var chain = (ancestors && ancestors.length) ? ancestors : [parentPerson];
+        var ancestorCrumbs = '';
+        for (var ai = chain.length - 1; ai >= 0; ai--) {   // root ancestor first
+            ancestorCrumbs += '<a href="#contact/' + chain[ai].id + '">' + escapeHtml(chain[ai].name || 'Contact') + '</a><span class="separator">&rsaquo;</span>';
+        }
         crumb.innerHTML =
             '<a href="#life">Life</a><span class="separator">&rsaquo;</span>' +
             '<a href="#contacts">Contacts</a><span class="separator">&rsaquo;</span>' +
-            '<a href="#contact/' + parentPerson.id + '">' + escapeHtml(parentPerson.name || 'Contact') + '</a><span class="separator">&rsaquo;</span>' +
+            ancestorCrumbs +
             '<span>' + escapeHtml(person.name || '') + '</span>';
     } else {
         crumb.innerHTML =
@@ -690,9 +701,9 @@ function renderPersonDetail(person, parentPerson) {
         rows += _contactRow('Notes', escapeHtml(person.notes));
     document.getElementById('personContactInfo').innerHTML = rows || '<p class="empty-state" style="margin:0">No contact info yet.</p>';
 
-    // Family members section — only visible for main (non-sub) contacts
+    // Family members / staff section — shown for every contact (family can nest)
     var subSection = document.getElementById('personSubPeopleSection');
-    if (subSection) subSection.style.display = person.parentPersonId ? 'none' : '';
+    if (subSection) subSection.style.display = '';
 
     // Rename heading to "Staff" for Medical Facility contacts
     var isFacility = person.category === 'Medical Facility';
@@ -704,7 +715,7 @@ function renderPersonDetail(person, parentPerson) {
     document.getElementById('personEditBtn').onclick = function() { openEditContactModal(person); };
 
     // Load all sub-sections
-    if (!person.parentPersonId) loadSubPeople(person.id, subLabel);
+    loadSubPeople(person.id, subLabel);
     loadImportantDates(person.id);
     loadPhotos('person', person.id, 'personPhotoContainer', 'personPhotoEmptyState');
     loadFacts('person',  person.id, 'personFactsContainer',  'personFactsEmptyState');
@@ -1042,7 +1053,7 @@ async function handleDeleteContact(id) {
         return;
     }
 
-    if (!confirm('Delete this contact? Their interactions and important dates will also be deleted.')) return;
+    if (!confirm('Delete this contact? Their interactions and important dates, and any family members or staff listed under them, will also be deleted.')) return;
 
     var parentId = currentPerson ? currentPerson.parentPersonId : null;
     closeModal('personModal');
@@ -1058,15 +1069,21 @@ async function handleDeleteContact(id) {
         var dateSnap = await userCol('peopleImportantDates').where('personId', '==', id).get();
         dateSnap.forEach(function(d) { batch.delete(d.ref); });
 
-        // Delete sub-contacts if main contact (and their interactions/dates)
-        var subSnap = await userCol('people').where('parentPersonId', '==', id).get();
-        for (var i = 0; i < subSnap.docs.length; i++) {
-            var subId = subSnap.docs[i].id;
-            var sInt = await userCol('peopleInteractions').where('personId', '==', subId).get();
-            sInt.forEach(function(d) { batch.delete(d.ref); });
-            var sDates = await userCol('peopleImportantDates').where('personId', '==', subId).get();
-            sDates.forEach(function(d) { batch.delete(d.ref); });
-            batch.delete(subSnap.docs[i].ref);
+        // Delete all descendants (family can nest: Bill > Matt > Matt's kids),
+        // along with their interactions and important dates
+        var pending = [id];
+        while (pending.length) {
+            var parentOfBatch = pending.shift();
+            var subSnap = await userCol('people').where('parentPersonId', '==', parentOfBatch).get();
+            for (var i = 0; i < subSnap.docs.length; i++) {
+                var subId = subSnap.docs[i].id;
+                var sInt = await userCol('peopleInteractions').where('personId', '==', subId).get();
+                sInt.forEach(function(d) { batch.delete(d.ref); });
+                var sDates = await userCol('peopleImportantDates').where('personId', '==', subId).get();
+                sDates.forEach(function(d) { batch.delete(d.ref); });
+                batch.delete(subSnap.docs[i].ref);
+                pending.push(subId);
+            }
         }
 
         batch.delete(userCol('people').doc(id));
