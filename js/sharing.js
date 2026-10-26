@@ -967,22 +967,28 @@ async function shSubmitShareDialog() {
  * (window.currentShareId, set by collections.js); everything else is the person's own data.
  */
 function _pCol(name, targetType) {
-    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
-    return inShare ? shareCol(window.currentShareId, name) : userCol(name);
+    var shareId = _pShareId(targetType);
+    return shareId ? shareCol(shareId, name) : userCol(name);
+}
+
+/** The share a photo's target lives in right now (collections: the open collection; yard things: the active yard), or null. */
+function _pShareId(targetType) {
+    if (targetType === 'collectionitem' || targetType === 'collection') return window.currentShareId || null;
+    if (_yIsYardTarget(targetType)) return window.yardShareId || null;
+    return null;
 }
 
 /** Adds who-did-it stamps to a new photo when it goes into a share. */
 function _pStamp(data, targetType) {
-    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
-    return inShare ? shStamp(data, true) : data;
+    return _pShareId(targetType) ? shStamp(data, true) : data;
 }
 
 // ─── Stop sharing / photo permissions / labels (S6) ──────────────────────────
 
 /** False for someone who may only view the shared collection the photo belongs to. */
 function _pCanEditPhoto(targetType) {
-    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
-    return !inShare || shCanEdit();
+    if (!_pShareId(targetType)) return true;
+    return _yIsYardTarget(targetType) ? yCanEdit() : shCanEdit();
 }
 
 /**
@@ -1140,4 +1146,124 @@ async function shRestoreSharedPhotos(payload, log) {
         await shBatchSet(e.photos.map(function(r) { return { ref: userCol('photos').doc(r.id), data: r.data }; }));
         log('✓ ' + e.photos.length + ' photo(s) of a formerly shared collection restored.', '#2e7d32');
     }
+}
+
+// ─── The Yard in shares (Y1) ─────────────────────────────────────────────────
+// The whole Yard is one share (kind 'yard'): zones, plants, weeds, chemicals and saved
+// actions live in it, and so do the activities / photos / problems / facts / projects whose
+// targetType is zone, plant, weed or chemical (see SharedYardPlan.md). The person looks at
+// one yard at a time:
+//   window.yardShareId   null = the person's own private yard, otherwise a share ID
+//   window.yardRole      'owner' (also for private) | 'edit' | 'view'
+//   window.yardShareData the share document's data (names{} for the "Added by" labels)
+
+var YARD_TARGET_TYPES = ['zone', 'plant', 'weed', 'chemical'];
+var YARD_CHOICE_KEY   = 'bishopYardChoice';     // per-device convenience: which yard was last open
+
+window.yardShareId   = null;
+window.yardRole      = 'owner';
+window.yardShareData = null;
+var _yardOptions = [{ id: null, role: 'owner', data: null, label: 'My yard' }];
+
+/** True for the target types whose rows belong to the yard (the rest stay private). */
+function _yIsYardTarget(targetType) {
+    return YARD_TARGET_TYPES.indexOf(targetType) !== -1;
+}
+
+/** A yard collection (zones, plants, weeds, chemicals, savedActions ...) in the active yard. */
+function yardCol(name) {
+    return dataCol(name, window.yardShareId);
+}
+
+/**
+ * For the collections that also hold non-yard rows (activities, photos, problems, facts,
+ * projects): the yard's collection when the row's target is a yard thing, else the person's own.
+ */
+function yTargetCol(name, targetType) {
+    return _yIsYardTarget(targetType) ? yardCol(name) : userCol(name);
+}
+
+/** Stamp a yard write with who/when, only when the yard lives in a share. */
+function yStamp(data, isNew) {
+    return window.yardShareId ? shStamp(data, isNew) : data;
+}
+
+/** True when the person may add / change / delete inside the active yard. */
+function yCanEdit() {
+    return !window.yardShareId || window.yardRole === 'owner' || window.yardRole === 'edit';
+}
+
+/** True only for the owner of the active yard (always true for the private yard). */
+function yIsOwner() {
+    return !window.yardShareId || window.yardRole === 'owner';
+}
+
+function _ySetActive(opt) {
+    window.yardShareId   = opt.id || null;
+    window.yardRole      = opt.role || 'owner';
+    window.yardShareData = opt.data || null;
+}
+
+/**
+ * Works out which yards this person can open and which one is active: their own (private,
+ * or the share it moved into) plus any yard shared with them. The last choice on this device
+ * wins; otherwise their own yard. Never throws: on any failure the private yard stays active.
+ */
+async function shResolveYard() {
+    try {
+        var mine   = (await shLoadMyShares()).filter(function(s) { return s.kind === 'yard'; });
+        var withMe = (await shLoadSharedWithMe()).filter(function(s) { return s.kind === 'yard'; });
+        var options = [];
+        if (mine.length) options.push({ id: mine[0].id, role: 'owner', data: mine[0].data, label: 'My yard' });
+        else             options.push({ id: null, role: 'owner', data: null, label: 'My yard' });
+        withMe.forEach(function(s) {
+            options.push({ id: s.id, role: s.role, data: s.data, label: s.ownerName + '’s yard' });
+        });
+        var saved = null;
+        try { saved = localStorage.getItem(YARD_CHOICE_KEY); } catch (e) { /* storage blocked: fine */ }
+        var pick = options[0];
+        options.forEach(function(o) { if ((o.id || 'private') === saved) pick = o; });
+        _yardOptions = options;
+        _ySetActive(pick);
+    } catch (err) {
+        console.error('shResolveYard:', err);
+        _yardOptions = [{ id: null, role: 'owner', data: null, label: 'My yard' }];
+        _ySetActive(_yardOptions[0]);
+    }
+}
+
+/** Started at sign-in (app.js); screens that need the answer wait on it. */
+function yardReady() {
+    if (!window._yardReadyPromise) window._yardReadyPromise = shResolveYard();
+    return window._yardReadyPromise;
+}
+
+/** Fills the "Yard: …" picker on the Yard home. Hidden unless there is more than one yard to open. */
+async function shRenderYardSwitcher() {
+    var box = document.getElementById('yardSwitcher');
+    var title = document.getElementById('yardHomeTitle');
+    if (!box) return;
+    await yardReady();
+    var active = window.yardShareId || 'private';
+    var cur = _yardOptions.filter(function(o) { return (o.id || 'private') === active; })[0] || _yardOptions[0];
+    if (title) title.textContent = cur.label === 'My yard' ? 'My Yard' : cur.label.replace(/^./, function(c) { return c.toUpperCase(); });
+    if (_yardOptions.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    var html = '<label style="font-size:0.9rem; color:#666;">Yard: </label><select id="yardSwitcherSelect" onchange="shSwitchYard(this.value)" style="width:auto;">';
+    _yardOptions.forEach(function(o) {
+        var key = o.id || 'private';
+        var role = o.id && o.role === 'edit' ? ' (can edit)' : (o.id && o.role === 'view' ? ' (view only)' : '');
+        html += '<option value="' + key + '"' + (key === active ? ' selected' : '') + '>' + escapeHtml(o.label + role) + '</option>';
+    });
+    box.innerHTML = html + '</select>';
+    box.classList.remove('hidden');
+}
+
+/** Picker changed: remember the choice, make that yard active and redraw the Yard home. */
+function shSwitchYard(key) {
+    var opt = _yardOptions.filter(function(o) { return (o.id || 'private') === key; })[0];
+    if (!opt) return;
+    try { localStorage.setItem(YARD_CHOICE_KEY, key); } catch (e) { /* storage blocked: fine */ }
+    _ySetActive(opt);
+    loadZonesList();
+    shRenderYardSwitcher();
 }

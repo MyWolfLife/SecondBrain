@@ -1342,6 +1342,8 @@ function initApp() {
     if (typeof gcalLoadSettings === 'function') gcalLoadSettings();
     // Sharing preferences ("Show who added/modified") — see sharing.js
     if (typeof shLoadPrefs === 'function') shLoadPrefs();
+    // Which yard is open (own, or one shared with me) — see sharing.js
+    if (typeof yardReady === 'function') yardReady();
     // Load favorites (star button + home page widget)
     if (typeof favInit === 'function') favInit();
     // Watch for another device's active Offline Trip Mode session (read-only lock)

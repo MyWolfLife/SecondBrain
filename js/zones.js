@@ -14,6 +14,9 @@ async function loadZonesList() {
     const emptyState = document.getElementById('zoneEmptyState');
 
     try {
+        // Shared Spaces: show the "Yard: …" picker when more than one yard can be opened
+        if (typeof shRenderYardSwitcher === 'function') shRenderYardSwitcher();
+
         // Query Firestore for top-level zones (sort client-side to avoid composite index)
         const snapshot = await userCol('zones')
             .where('parentId', '==', null)

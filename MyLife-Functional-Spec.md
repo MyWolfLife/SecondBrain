@@ -760,6 +760,13 @@ Tracks physical collectible inventories. Each collection is a named list with a 
 - **Who added/modified labels** (S6): when **Show who added/modified** is on, a grey line under the title of the collection page and the item page reads "Added by Name · date" (+ "· Changed by Name · date" if changed more than a minute later); "you" for your own entries. Only for things in a share (`shWhoLabelHere`).
 - **Other screens (S7)**: **Search** (`search.js`) also searches collections and items from every collection share (mine and shared with me; `shSharedDocs`). **Who Gets What** (`beneficiaries.js`, 3 read sites) uses `shPrivateAndOwnedSnap`, so collections I shared still count as mine; collections shared with me never appear (their "Goes to" points at someone else's contacts). SecondBrain / Ask-AI do not read collections. **Backup** (`settings.js` `runBackup`): the Data file gets an extra top-level `sharedCollections` list (per share I own: share info, collection records, items) and the Photos file `sharedPhotos`; shares owned by others are not included. **Restore** (`runRestore`, after the normal collections): `shRestoreSharedCollections` writes those collections back as **private** collections unless a share of mine still holds that `collectionId` (then it is left alone); `shRestoreSharedPhotos` restores their photos only if the private collection exists and is not shared (so Data before Photos). Old restore code ignores the extra keys.
 
+### Sharing the Yard — plumbing (SharedYardPlan.md Y1; not user-visible yet)
+- The Yard will be one share (`kind: 'yard'`). Helpers in `sharing.js`: `yardCol(name)` (the active yard's collection), `yTargetCol(name, targetType)` (yard rows for targetType zone/plant/weed/chemical, otherwise the person's own), `yStamp`, `yCanEdit`, `yIsOwner`, `shResolveYard`/`yardReady` (run at sign-in), globals `window.yardShareId` / `yardRole` / `yardShareData`.
+- Active yard = the person's own (private, or the share it moved into) unless they picked a yard shared with them; the choice is kept in `localStorage` (`bishopYardChoice`).
+- Yard home has a hidden "Yard: …" picker (`#yardSwitcher`) that appears only when more than one yard can be opened; its title (`#yardHomeTitle`) names the yard.
+- `_pCol` / `_pStamp` / `_pCanEditPhoto` (photos) also route zone/plant/weed/chemical photos to the active yard's share.
+- No yard share exists yet, so nothing behaves differently; the Share button arrives in Y4.
+
 ### LLM Identification for Collections
 - User taps `+Photo` → opens photo staging modal
 - Photo sent to LLM with type-specific prompt (returns JSON matching the type's schema)

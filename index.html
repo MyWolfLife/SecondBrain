@@ -373,10 +373,12 @@
         <!-- Page: Home / Zones list -->
         <section class="page hidden" id="page-home">
             <div class="page-header">
-                <h2>My Yard</h2>
+                <h2 id="yardHomeTitle">My Yard</h2>
                 <button class="btn btn-primary btn-small" id="addZoneBtn">+ Add Zone</button>
                 <button class="btn btn-secondary btn-small" id="viewYardMapBtn">🗺 Yard Map</button>
             </div>
+            <!-- Y1: "Yard: My yard / Steve's yard" picker; only shown when more than one yard can be opened -->
+            <div id="yardSwitcher" class="hidden" style="padding: 0 16px 8px;"></div>
             <div class="card-list" id="zoneListContainer"></div>
             <p class="empty-state" id="zoneEmptyState">Loading...</p>
 
@@ -12373,7 +12375,7 @@ export default {
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="js/firebase-config.js?v=487"></script>
     <script src="js/auth.js?v=487"></script>
-    <script src="js/zones.js?v=487"></script>
+    <script src="js/zones.js?v=488"></script>
     <script src="js/plants.js?v=487"></script>
     <script src="js/problems.js?v=487"></script>
     <script src="js/facts.js?v=487"></script>
@@ -12392,7 +12394,7 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=500"></script>
-    <script src="js/sharing.js?v=7"></script>
+    <script src="js/sharing.js?v=8"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12480,7 +12482,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=504"></script>
+    <script src="js/app.js?v=505"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>
