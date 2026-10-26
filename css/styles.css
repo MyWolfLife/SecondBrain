@@ -22152,3 +22152,4 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Checkboxes inside Timeline form groups must not stretch to full width over their label */
 .wl-form .wo-inline-check input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; }
 .wl-form .wo-inline-check { display: flex; margin-top: 8px; }
+.pg-run--finished { background: #ecfdf5; border-color: #6ee7b7; }

@@ -39,6 +39,7 @@
 
 ## Phase 6 — PAUSED while the user tests Phases 1–5 (2026-10-22)
 
+> **2026-10-26 (programs P7):** P7 built — the finished card (restart / start next level / just finish), `nextProgramId`/`nextProgramName`, the editor's "After this program, suggest" dropdown and the import's Basic → 1st Class → Master → Chief chain. **The whole Programs plan (P1–P7) is done.** Remaining: the user runs 1st Class, Master and Chief through ChatGPT for a check, and tests everything on real devices.
 > **2026-10-26 (programs P1–P6):** Programs are built (tags on workouts, hub tile + list + editor, runs with next-up, sessions mark the day done, overview grid, and the program Import screen). `bishop-programs-v1` files are made by ChatGPT from the prompts in `import-data/PromptProgram-*.md` (+ `ProgramExerciseReference.md`); the Basic program is checked and imports with 135/135 matched. Next: the user runs 1st Class, Master and Chief and sends them for a check; then P7 (finished screen: restart / next level).
 > **2026-10-25 (programs plan):** all five chapters of the book's exercises are imported by the user (with pictures and the `yayog` tag; tag filter chips built). `ProgramsPlan.md` written (P1–P7, open questions at the end). Next: the user answers its §6 questions, then P1.
 > **2026-10-24 (import A):** the **Import screen is built and pushed** (`#workout-import`: file → review → import, remove an import). Next: part B, the local data file `import-data/yayog-exercises.json`.

@@ -63,7 +63,7 @@ Workouts also gain `tags[]` / `source` (same shape as exercises) so the existing
 | P4 ✅ | **Session link.** Sessions carry the program position; finishing marks the day done and advances; History shows the program/week/day | Following it is automatic |
 | P5 ✅ | **Program page.** The 10-week grid with progress | You can see where you are |
 | P6 ✅ | **Import for programs and workouts.** `bishop-programs-v1`: day workouts built with pinned levels and formats, resolved by exercise name + level label, unresolved names reported in the review screen; remove-an-import | The book's programs arrive |
-| P7 | **Next cycle.** After week 10: a finished screen with Restart this program / Start the next level program | Endless cycles |
+| P7 ✅ | **Next cycle.** After week 10: a finished screen with Restart this program / Start the next level program | Endless cycles |
 
 P1–P5 are useful on their own for programs you write yourself; P6 is the book's data.
 

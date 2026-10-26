@@ -4920,6 +4920,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Tap **▶ Start** on a program (or **▶ Start program** inside it) to follow it. You follow one program at a time
 - The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it. When you finish that workout, the day is marked done by itself and the card moves on. **✓ Mark done** is there for a day you did another way
 - **Skip** moves on without doing a day. **◀ Back** undoes the last day you marked. **⏸ Pause** holds your place until you tap **▶ Resume**. **End** closes the run
+- When you finish the last day you get a **🎉 finished card**. It suggests a week or two of rest, then offers **▶ Start** the next program (if one is set), **↻ Restart** this one, or **Just finish**
 - The same "next up" card shows on the Fitness page
 
 ---
@@ -4948,7 +4949,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Green ✓** = done, **grey crossed out** = skipped, **blue ▶** = what's next, **white** = still to come. A dashed button is a rest day
 - The bar shows how many days you have logged so far
 - **Tap any day** to see its workout — the exercises, circuits and about how long it takes — and start it from there
-- **▶ Start program** begins following it; once you are following it, **Open the run card** takes you to the "what's next" card on the Programs page
+- **▶ Start program** begins following it (after a finished run it also offers the next program); once you are following it, **Open the run card** takes you to the "what's next" card on the Programs page
 - **✏ Edit** changes the program's weeks and days
 
 ---
@@ -4963,6 +4964,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **+ Add weeks** adds another block after the last one. Use **↑ ↓** to reorder, **⧉** to copy a block into the next free weeks, **✕** to remove it
 - Blocks can't overlap — each week belongs to one block. The screen tells you if they do
 - **Tags** are optional words (like *strength*) to group programs in the list
+- **After this program, suggest** picks which of your programs to offer when you finish this one (the book's programs are already linked: Basic → 1st Class → Master → Chief)
 - **Archive** hides a program; **Delete** removes only the program, never your workouts
 
 ---

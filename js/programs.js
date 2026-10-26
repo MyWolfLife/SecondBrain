@@ -3,7 +3,7 @@
 // A program is a TEMPLATE made of workouts you already have: weeks → days → one workout (or a rest day).
 // Programs never hold exercise logic of their own, so everything a workout can do works inside a program.
 //
-//   programs/{id} = { name, description, source, tags[], archived, createdAt, updatedAt,
+//   programs/{id} = { name, description, source, tags[], archived, createdAt, updatedAt, nextProgramId?, nextProgramName?,
 //                     weeks: [ { from, to, block, note, days: [ { label, workoutId | null } ] } ] }
 //
 // `from..to` lets one definition cover several weeks (the book repeats weeks 1–2 and 3–4 and 5–6).
@@ -20,10 +20,20 @@
 var _progs = [];            // list page: all programs
 var _progFilter = { text: '', archived: false };
 var _prog = null;           // editor: working copy of the program being edited
+var _progAll = [];          // editor: every program (for the "after this one" choice)
 var _progWorkouts = [];     // the workouts that can be chosen for a day (and shown by name on run cards)
 var _progRuns = [];         // all runs, newest first
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/** The program to suggest after this one (chunk P7): by id if set in the editor, else by the name an import gave. */
+function _progNextFor(p, list) {
+    if (!p) return null;
+    var byId = p.nextProgramId && list.filter(function(x) { return x.id === p.nextProgramId && !x.archived; })[0];
+    if (byId) return byId;
+    var nm = String(p.nextProgramName || '').trim().toLowerCase();
+    return nm ? (list.filter(function(x) { return !x.archived && (x.name || '').trim().toLowerCase() === nm; })[0] || null) : null;
+}
 
 function _progTotalWeeks(p) {
     var max = 0;
@@ -131,6 +141,8 @@ async function loadProgramPage(id) {
         var snap = await woLibCol('workouts').get();
         _progWorkouts = snap.docs.map(function(d) { var w = d.data(); w.id = d.id; return w; })
             .sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+        var psnap = await woLibCol('programs').get();
+        _progAll = psnap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
         if (isNew) {
             _prog = { id: null, name: '', description: '', tags: [], weeks: [_progBlankWeek(1)], archived: false };
         } else {
@@ -161,6 +173,14 @@ function _progRenderEditor() {
             '<div class="ex-form-group"><label class="ex-label" for="pgTags">Tags (optional)</label>' +
                 '<input type="text" id="pgTags" maxlength="120" value="' + _woEsc((p.tags || []).join(', ')) + '" placeholder="e.g. strength, summer — separate with commas">' +
                 (p.source ? '<p class="wo-hint">This program also counts as “' + _woEsc(String(p.source).toLowerCase()) + '” (its source).</p>' : '') + '</div>' +
+            '<div class="ex-form-group"><label class="ex-label" for="pgNext">After this program, suggest (optional)</label>' +
+                '<select id="pgNext"><option value="">— nothing —</option>' + (function() {
+                    var cur = _progNextFor(p, _progAll);
+                    return _progAll.filter(function(x) { return x.id !== p.id && !x.archived; })
+                        .sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); })
+                        .map(function(x) { return '<option value="' + x.id + '"' + (cur && cur.id === x.id ? ' selected' : '') + '>' + _woEsc(x.name) + '</option>'; }).join('');
+                })() + '</select>' +
+                '<p class="wo-hint">When you finish this program, the finished card offers to start that one next (the book goes Basic → 1st Class → Master → Chief).</p></div>' +
             '<div class="ex-form-group"><label class="ex-label">Weeks and days</label>' +
                 '<p class="wo-hint">Each block of weeks lists its training days in order. A block can cover several weeks (the same days repeat). A day is one of your workouts, or a rest day.</p>' +
                 '<div id="pgWeeks"></div>' +
@@ -178,6 +198,11 @@ function _progRenderEditor() {
     document.getElementById('pgName').addEventListener('input', function() { _prog.name = this.value; });
     document.getElementById('pgDesc').addEventListener('input', function() { _prog.description = this.value; });
     document.getElementById('pgTags').addEventListener('input', function() { _prog.tags = woParseTags(this.value); });
+    document.getElementById('pgNext').addEventListener('change', function() {
+        var chosen = _progAll.filter(function(x) { return x.id === this.value; }.bind(this))[0];
+        _prog.nextProgramId = chosen ? chosen.id : null;
+        _prog.nextProgramName = chosen ? chosen.name : '';
+    });
     document.getElementById('pgAddWeek').addEventListener('click', function() {
         _prog.weeks.push(_progBlankWeek(_progTotalWeeks(_prog) + 1));
         _progRenderWeeks();
@@ -297,6 +322,7 @@ async function _progSave() {
                  days: w.days.map(function(d, j) { return { label: (d.label || '').trim() || 'Day ' + (j + 1), workoutId: d.workoutId || null }; }) };
     });
     var data = { name: _prog.name.trim(), description: (_prog.description || '').trim(), tags: woParseTags((_prog.tags || []).join(',')),
+                 nextProgramId: _prog.nextProgramId || null, nextProgramName: _prog.nextProgramName || '',
                  weeks: weeks, archived: !!_prog.archived, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     try {
         if (_prog.id) await woLibCol('programs').doc(_prog.id).update(data);
@@ -407,9 +433,18 @@ function _progRenderRunCard() {
     }
     var slots = _progSlots(p), idx = _progIndexOf(slots, run.position || { week: 1, day: 0 });
     if (idx >= slots.length) {
-        box.innerHTML = '<div class="pg-run"><strong>' + _woEsc(run.programName) + '</strong><div>No days left — you reached the end.</div>' +
-            '<div class="pg-run-btns"><button type="button" class="btn btn-primary btn-small" data-pract="finish">🎉 Finish program</button>' +
-            (run.log && run.log.length ? '<button type="button" class="btn btn-secondary btn-small" data-pract="back">◀ Back one day</button>' : '') + '</div></div>';
+        var log = run.log || [], nDone = log.filter(function(l) { return l.kind !== 'skipped'; }).length, nSkip = log.length - nDone;
+        var next = _progNextFor(p, _progs);
+        var startedMs = run.startedAt && run.startedAt.seconds ? run.startedAt.seconds * 1000 : 0;
+        var weeksTaken = startedMs ? Math.max(1, Math.round((Date.now() - startedMs) / (7 * 86400000))) : 0;
+        box.innerHTML = '<div class="pg-run pg-run--finished"><div class="pg-run-title"><strong>🎉 You finished ' + _woEsc(run.programName) + '!</strong></div>' +
+            '<div class="pg-run-next">' + nDone + ' day' + (nDone === 1 ? '' : 's') + ' done' + (nSkip ? ', ' + nSkip + ' skipped' : '') + (weeksTaken ? ' over about ' + weeksTaken + ' week' + (weeksTaken === 1 ? '' : 's') : '') + '.</div>' +
+            '<div class="wo-hint">The book suggests a week or two of rest, then starting again — with harder versions of the exercises.</div>' +
+            '<div class="pg-run-btns">' +
+                (next ? '<button type="button" class="btn btn-primary btn-small" data-pract="next">▶ Start ' + _woEsc(next.name) + '</button>' : '') +
+                '<button type="button" class="btn ' + (next ? 'btn-secondary' : 'btn-primary') + ' btn-small" data-pract="restart">↻ Restart ' + _woEsc(run.programName) + '</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" data-pract="finish">Just finish</button>' +
+                (log.length ? '<button type="button" class="btn btn-secondary btn-small" data-pract="back">◀ Back one day</button>' : '') + '</div></div>';
         return;
     }
     var slot = slots[idx], total = _progTotalWeeks(p), paused = run.status === 'paused';
@@ -452,7 +487,7 @@ async function _progRunAct(action) {
     var p = _progs.filter(function(x) { return x.id === run.programId; })[0];
     var ts = firebase.firestore.FieldValue.serverTimestamp();
     var upd = { updatedAt: ts };
-    var log = (run.log || []).slice();
+    var log = (run.log || []).slice(), follow = null;
     try {
         if (action === 'end') {
             if (!confirm('End "' + run.programName + '"? Your history stays, but this run is closed.')) return;
@@ -460,6 +495,12 @@ async function _progRunAct(action) {
         } else if (action === 'pause') { upd.status = 'paused'; }
         else if (action === 'resume') { upd.status = 'active'; }
         else if (action === 'finish') { upd.status = 'finished'; upd.finishedAt = ts; }
+        else if (action === 'restart' || action === 'next') {          // close this run, then start the same / the next-level program
+            var nx = action === 'next' ? _progNextFor(p, _progs) : p;
+            if (!nx) return;
+            follow = nx.id;
+            upd.status = 'finished'; upd.finishedAt = ts;
+        }
         else if (action === 'back') {
             var prev = log.pop();
             if (!prev) return;
@@ -478,6 +519,7 @@ async function _progRunAct(action) {
         }
         await woLibCol('programRuns').doc(run.id).update(upd);
         Object.assign(run, upd);
+        if (follow) { await _progStart(follow); return; }          // the finished run is closed, so no "end the current run?" question
         _progRenderRunCard();
     } catch (err) {
         console.error('Programs: run update failed:', err);
@@ -569,6 +611,7 @@ async function loadProgramViewPage(id) {
         if (!doc.exists) { el.innerHTML = '<div class="ex-status">Program not found.</div>'; return; }
         var p = doc.data(); p.id = doc.id;
         await _progLoadRunsAndWorkouts();
+        _progs = (await woLibCol('programs').get()).docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
         var mine = _progRuns.filter(function(r) { return r.programId === id; });      // newest first
         var run = mine.filter(function(r) { return r.status === 'active' || r.status === 'paused'; })[0] || mine[0] || null;
         _progV = { p: p, run: run };
@@ -611,7 +654,10 @@ function _progRenderView() {
     } else {
         status = '<div class="pg-run pg-run--paused">' +
             (run ? '<div>Last run ' + (run.status === 'finished' ? 'finished' : 'ended') + ' — ' + done + ' of ' + slots.length + ' days logged.</div>' : '<div>You have not started this program.</div>') +
-            (p.archived || !slots.length ? '' : '<div class="pg-run-btns"><button type="button" class="btn btn-primary btn-small" id="pvStart">▶ ' + (run ? 'Start again' : 'Start program') + '</button></div>') + '</div>';
+            ((run && run.status === 'finished' && _progNextFor(p, _progs)) ? '<div class="wo-hint">The book suggests a week or two of rest first.</div>' : '') +
+            (p.archived || !slots.length ? '' : '<div class="pg-run-btns">' +
+                ((run && run.status === 'finished' && _progNextFor(p, _progs)) ? '<button type="button" class="btn btn-primary btn-small" id="pvNext">▶ Start ' + _woEsc(_progNextFor(p, _progs).name) + '</button>' : '') +
+                '<button type="button" class="btn ' + ((run && run.status === 'finished' && _progNextFor(p, _progs)) ? 'btn-secondary' : 'btn-primary') + ' btn-small" id="pvStart">▶ ' + (run ? 'Start again' : 'Start program') + '</button></div>') + '</div>';
     }
 
     // one row per week, grouped under its block heading
@@ -644,6 +690,8 @@ function _progRenderView() {
 
     var st = document.getElementById('pvStart');
     if (st) st.addEventListener('click', function() { _progStart(p.id); });
+    var nx = document.getElementById('pvNext');
+    if (nx) nx.addEventListener('click', function() { var n = _progNextFor(p, _progs); if (n) _progStart(n.id); });
     el.querySelectorAll('[data-pvi]').forEach(function(b) {
         b.addEventListener('click', function() { _progPreviewDay(slots[parseInt(this.getAttribute('data-pvi'), 10)]); });
     });

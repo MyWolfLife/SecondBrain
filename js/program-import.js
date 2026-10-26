@@ -15,6 +15,9 @@
 
 var _pimp = null;     // {source, programs: [built], fileName}
 
+// The book's four programs follow each other; the finished card offers the next one (resolved by name when it is needed).
+var _PIMP_NEXT_LEVEL = { 'yayog basic': 'YAYOG 1st Class', 'yayog 1st class': 'YAYOG Master', 'yayog master': 'YAYOG Chief' };
+
 function _pimpFindExercise(name) {
     var n = String(name || '').trim().toLowerCase();
     if (!n) return null;
@@ -140,6 +143,7 @@ function _pimpBuild(raw, source) {
                 weeks: [], workouts: 0, items: 0, issues: [], include: true, dup: false };
     if (!out.name) { out.name = '(unnamed program)'; out.issues.push('no name'); }
     out.dup = (_pimp && _pimp.existingNames || {})[out.name.toLowerCase()] === true;
+    out.nextProgramName = (source === 'YAYOG' && _PIMP_NEXT_LEVEL[out.name.toLowerCase()]) || '';
     out.include = !out.dup;
     (raw.weeks || []).forEach(function(w) {
         var bw = { from: w.from, to: w.to, block: String(w.block || '').trim(), days: [] };
@@ -291,7 +295,7 @@ async function _pimpGo() {
                 ops.slice(i, i + 400).forEach(function(o) { batch.set(o.ref, o.data); });
                 await batch.commit();
             }
-            await woLibCol('programs').add({ name: p.name, description: p.description, source: p.source || '', tags: [], archived: false, weeks: weeks, createdAt: ts, updatedAt: ts });
+            await woLibCol('programs').add({ name: p.name, description: p.description, source: p.source || '', tags: [], archived: false, nextProgramName: p.nextProgramName || '', weeks: weeks, createdAt: ts, updatedAt: ts });
         }
         _pimp = null;
         await _pimpRender('✓ Imported ' + inc.length + ' program' + (inc.length === 1 ? '' : 's') + ' and ' + nWorkouts + ' workouts. <a href="#programs">See them in Programs</a>.');
