@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=531">
+    <link rel="stylesheet" href="css/styles.css?v=532">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7837,6 +7837,11 @@ service firebase.storage {
             <!-- Populated by loadProgramsPage() in programs.js -->
         </section>
 
+        <!-- Page: Program overview (#program-view/:id) -->
+        <section class="page hidden" id="page-program-view">
+            <!-- Populated by loadProgramViewPage() in programs.js -->
+        </section>
+
         <!-- Page: Program editor (#program/new, #program/:id) -->
         <section class="page hidden" id="page-program">
             <!-- Populated by loadProgramPage() in programs.js -->
@@ -12302,7 +12307,7 @@ export default {
     <script src="js/workout-progress.js?v=6"></script>
     <script src="js/workout-balance.js?v=1"></script>
     <script src="js/workout-import.js?v=3"></script>
-    <script src="js/programs.js?v=3"></script>
+    <script src="js/programs.js?v=4"></script>
     <script src="js/workout-links.js?v=3"></script>
     <script src="js/web-links.js?v=2"></script>
     <script src="js/workout-ai.js?v=9"></script>
@@ -12348,7 +12353,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=499"></script>
+    <script src="js/app.js?v=500"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

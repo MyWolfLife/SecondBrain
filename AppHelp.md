@@ -4879,7 +4879,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 **What this screen is for:** Your programs — multi-week plans made of your own workouts.
 
 ### Quick Help
-- Tap **+ New Program** to build one; tap a program to edit it
+- Tap **+ New Program** to build one; tap a program to open its overview (use **✏ Edit** there to change it)
 - A program is a list of **weeks**, and each week lists its **days**. A day is one of your workouts, or a rest day
 - Each card shows how many weeks and days the program has
 - **Tags** work like on your Exercises and Workouts lists: tap a chip once to show only that tag, again to hide it
@@ -4888,6 +4888,20 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it. When you finish that workout, the day is marked done by itself and the card moves on. **✓ Mark done** is there for a day you did another way
 - **Skip** moves on without doing a day. **◀ Back** undoes the last day you marked. **⏸ Pause** holds your place until you tap **▶ Resume**. **End** closes the run
 - The same "next up" card shows on the Fitness page
+
+---
+
+## screen:program-view
+
+**What this screen is for:** See a whole program at a glance and where you are in it.
+
+### Quick Help
+- The weeks are listed as rows, each day a small button grouped under its block (for example "Base" or "Strength")
+- **Green ✓** = done, **grey crossed out** = skipped, **blue ▶** = what's next, **white** = still to come. A dashed button is a rest day
+- The bar shows how many days you have logged so far
+- **Tap any day** to see its workout — the exercises, circuits and about how long it takes — and start it from there
+- **▶ Start program** begins following it; once you are following it, **Open the run card** takes you to the "what's next" card on the Programs page
+- **✏ Edit** changes the program's weeks and days
 
 ---
 
