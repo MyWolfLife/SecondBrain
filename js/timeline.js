@@ -647,6 +647,14 @@ function _tlRenderWhenFields(precision, w) {
             break;
     }
     document.getElementById('tlWhenFields').innerHTML = html;
+    var dateBox = document.getElementById('tlDate');
+    if (dateBox) {
+        // Leaving the box spells out what was understood (10/25/26 → 10/25/2026)
+        dateBox.addEventListener('blur', function() {
+            var d = _tlParseDate(this.value);
+            if (d) this.value = d.month + '/' + d.day + '/' + d.year;
+        });
+    }
     _tlSyncSpan();
 }
 
@@ -660,7 +668,11 @@ function _tlSyncSpan() {
 /** "1/2/1968", "1-2-1968" or "1968-01-02" → {year, month, day}, or null when it isn't a real date. */
 function _tlParseDate(text) {
     var t = String(text || '').trim(), m, y, mo, d;
-    if ((m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/))) { mo = +m[1]; d = +m[2]; y = +m[3]; }
+    if ((m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/))) {
+        mo = +m[1]; d = +m[2]; y = +m[3];
+        // Two-digit year: up to this year's last two digits means 20xx (26 → 2026), anything later 19xx (68 → 1968)
+        if (m[3].length === 2) y += (y <= new Date().getFullYear() % 100) ? 2000 : 1900;
+    }
     else if ((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)))        { y = +m[1]; mo = +m[2]; d = +m[3]; }
     else return null;
     var dt = new Date(y, mo - 1, d);

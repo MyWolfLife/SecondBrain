@@ -1920,7 +1920,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 ### Quick Help
 - **What** is the only required box
-- **When**: pick how sure you are first, then fill in the boxes that appear. Choose **Exact day** and type it in one box like 1/2/1968 (month/day/year). Choose **Season** for "Fall 1988", **Decade** for "Early 1980s", or **Range (not sure)** for "1981 to 1983". Nothing makes up a day you didn't enter
+- **When**: pick how sure you are first, then fill in the boxes that appear. Choose **Exact day** and type it in one box like 1/2/1968 or 1/2/68 (month/day/year). A two-digit year up to this year means 20xx (26 is 2026), later ones mean 19xx (68 is 1968). Choose **Season** for "Fall 1988", **Decade** for "Early 1980s", or **Range (not sure)** for "1981 to 1983". Nothing makes up a day you didn't enter
 - Check **~ About** to show the date as approximate
 - **Lasted a while**: check this for things with an end, like a school or job. Boxes for **Ended** appear: pick a year (month is optional), or check **Still going**. Leave it unchecked for a single date
 - **Where**: type a name like "Atlanta" or "Fulton County Stadium". Tap **Add an address** to add a street, city, state, or zip. City and state alone is fine
