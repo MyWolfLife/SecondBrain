@@ -15,7 +15,7 @@ async function loadWeedsList() {
     var emptyState = document.getElementById('weedsEmptyState');
 
     try {
-        var snapshot = await userCol('weeds').get();
+        var snapshot = await yardCol('weeds').get();
 
         container.innerHTML = '';
 
@@ -112,7 +112,8 @@ async function loadWeedDetail(weedId) {
     var titleEl = document.getElementById('weedTitle');
 
     try {
-        var doc = await userCol('weeds').doc(weedId).get();
+        await yardEnsureFor('weeds', weedId);
+        var doc = await yardCol('weeds').doc(weedId).get();
 
         if (!doc.exists) {
             titleEl.textContent = 'Weed not found';
@@ -124,6 +125,7 @@ async function loadWeedDetail(weedId) {
 
         // Store current weed info for use by buttons
         window.currentWeed = { id: doc.id, ...weed };
+        yShowWho('weedTitle', weed);
 
         // Build breadcrumbs: Home (Weeds) > Weed Name
         buildWeedBreadcrumbs(weed.name);
@@ -200,7 +202,7 @@ async function loadWeedZones(zoneIds) {
     // Load zone names and build links
     for (var i = 0; i < zoneIds.length; i++) {
         try {
-            var zoneDoc = await userCol('zones').doc(zoneIds[i]).get();
+            var zoneDoc = await yardCol('zones').doc(zoneIds[i]).get();
             if (zoneDoc.exists) {
                 var zonePath = await getZonePath(zoneIds[i]);
                 var link = document.createElement('a');
@@ -298,7 +300,7 @@ async function handleWeedModalSave() {
 
     try {
         if (mode === 'add') {
-            await userCol('weeds').add({
+            await yardCol('weeds').add({
                 name: name,
                 treatmentMethod: treatmentMethod,
                 applicationTiming: applicationTiming,
@@ -310,7 +312,7 @@ async function handleWeedModalSave() {
 
         } else if (mode === 'edit') {
             var weedId = modal.dataset.editId;
-            await userCol('weeds').doc(weedId).update({
+            await yardCol('weeds').doc(weedId).update({
                 name: name,
                 treatmentMethod: treatmentMethod,
                 applicationTiming: applicationTiming,
@@ -352,7 +354,7 @@ async function handleDeleteWeed() {
         var weedId = window.currentWeed.id;
 
         // Delete associated activities
-        var actSnapshot = await userCol('activities')
+        var actSnapshot = await yTargetCol('activities', 'weed')
             .where('targetType', '==', 'weed')
             .where('targetId', '==', weedId)
             .get();
@@ -362,7 +364,7 @@ async function handleDeleteWeed() {
         });
 
         // Delete associated photos
-        var photoSnapshot = await userCol('photos')
+        var photoSnapshot = await yTargetCol('photos', 'weed')
             .where('targetType', '==', 'weed')
             .where('targetId', '==', weedId)
             .get();
@@ -373,7 +375,7 @@ async function handleDeleteWeed() {
         await Promise.all(deletePromises);
 
         // Delete the weed itself
-        await userCol('weeds').doc(weedId).delete();
+        await yardCol('weeds').doc(weedId).delete();
         console.log('Weed deleted:', window.currentWeed.name);
 
         // Navigate back to weeds list
@@ -401,7 +403,7 @@ async function openWeedZoneModal() {
 
     try {
         // Load all zones
-        var snapshot = await userCol('zones').get();
+        var snapshot = await yardCol('zones').get();
         var allZones = [];
         snapshot.forEach(function(doc) {
             allZones.push({ id: doc.id, ...doc.data() });
@@ -459,7 +461,7 @@ async function handleWeedZoneSave() {
     });
 
     try {
-        await userCol('weeds').doc(window.currentWeed.id).update({
+        await yardCol('weeds').doc(window.currentWeed.id).update({
             zoneIds: selectedZoneIds
         });
 
@@ -774,7 +776,7 @@ async function weedSendToLlm(images) {
         prompt += '\nThis picture was taken ' + todayStr + '.';
 
         // Fetch existing weeds and append to the prompt so the LLM can detect duplicates
-        var existingWeedsSnap = await userCol('weeds').get();
+        var existingWeedsSnap = await yardCol('weeds').get();
         var existingWeedsMap  = {};  // id → name, used for the confirm message
         if (!existingWeedsSnap.empty) {
             var weedLines = existingWeedsSnap.docs.map(function(d) {
@@ -898,7 +900,7 @@ function weedShowReviewModal(prompt, rawResponse, parsed) {
 async function weedSaveFromLlm(parsed, images, nameOverride) {
     var weedName = (nameOverride || parsed.name || 'Unknown Weed').trim();
 
-    var newRef = await userCol('weeds').add({
+    var newRef = await yardCol('weeds').add({
         name              : weedName,
         treatmentMethod   : parsed.treatmentMethod   || '',
         applicationTiming : parsed.applicationTiming || '',
@@ -911,7 +913,7 @@ async function weedSaveFromLlm(parsed, images, nameOverride) {
 
     // Save a fact for the reference URL if the LLM returned one
     if (identified && parsed.urlMoreInfo && parsed.urlMoreInfo.trim()) {
-        await userCol('facts').add({
+        await yTargetCol('facts', 'weed').add({
             targetType : 'weed',
             targetId   : newRef.id,
             label      : 'More Info',
@@ -923,7 +925,7 @@ async function weedSaveFromLlm(parsed, images, nameOverride) {
     // Save photos only when identification succeeded
     if (identified) {
         for (var i = 0; i < images.length; i++) {
-            await userCol('photos').add({
+            await yTargetCol('photos', 'weed').add({
                 targetType : 'weed',
                 targetId   : newRef.id,
                 imageData  : images[i],

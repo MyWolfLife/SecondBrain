@@ -82,7 +82,7 @@ async function _gatherProblems(entityType, entityId, sourceLabel) {
     var items = [];
 
     // Load problems belonging directly to this entity
-    var snap = await userCol('problems')
+    var snap = await yTargetCol('problems', entityType)
         .where('targetType', '==', entityType)
         .where('targetId',   '==', entityId)
         .get();
@@ -98,7 +98,7 @@ async function _gatherProblems(entityType, entityId, sourceLabel) {
     // Recurse into children (if this type has children defined)
     var childDef = PROBLEM_CHILD_MAP[entityType];
     if (childDef) {
-        var childrenSnap = await userCol(childDef.collection)
+        var childrenSnap = await yNameCol(childDef.collection)
             .where(childDef.parentField, '==', entityId)
             .get();
 
@@ -216,7 +216,7 @@ async function loadProblems(targetType, targetId, containerId, emptyStateId) {
     const showResolved = checkbox ? checkbox.checked : false;
 
     try {
-        const snapshot = await userCol('problems')
+        const snapshot = await yTargetCol('problems', targetType)
             .where('targetType', '==', targetType)
             .where('targetId', '==', targetId)
             .get();
@@ -368,6 +368,7 @@ function openAddProblemModal(targetType, targetId) {
 
     modal.dataset.mode = 'add';
     modal.dataset.targetType = targetType;
+    window.yardProblemOpen = _yIsYardTarget(targetType);   // facts/photos on this problem follow it into the yard share
     modal.dataset.targetId = targetId;
 
     // Hide Delete button and Status field in add mode (new problems are always Open)
@@ -407,6 +408,7 @@ function openEditProblemModal(problem, targetType, targetId) {
     modal.dataset.mode = 'edit';
     modal.dataset.editId = problem.id;
     modal.dataset.targetType = targetType;
+    window.yardProblemOpen = _yIsYardTarget(targetType);   // facts/photos on this problem follow it into the yard share
     modal.dataset.targetId = targetId;
 
     // Show Delete button and Status field in edit mode
@@ -451,7 +453,7 @@ async function handleProblemModalSave() {
 
     try {
         if (mode === 'add') {
-            await userCol('problems').add({
+            await yTargetCol('problems', targetType).add({
                 targetType: targetType,
                 targetId: targetId,
                 description: description,
@@ -468,7 +470,7 @@ async function handleProblemModalSave() {
             const newStatus  = document.getElementById('problemStatusSelect').value;
 
             // Read the current status to detect a change
-            const existing   = await userCol('problems').doc(problemId).get();
+            const existing   = await yTargetCol('problems', targetType).doc(problemId).get();
             const oldStatus  = existing.exists ? (existing.data().status || 'open') : 'open';
 
             const updateData = { description, notes, status: newStatus };
@@ -481,14 +483,14 @@ async function handleProblemModalSave() {
                 updateData.resolvedAt = null;
             }
 
-            await userCol('problems').doc(problemId).update(updateData);
+            await yTargetCol('problems', targetType).doc(problemId).update(updateData);
             console.log('Problem updated:', description, '| status:', newStatus);
 
             // When resolving, auto-create an activity entry (same as the old Resolve button did)
             if (newStatus === 'resolved' && oldStatus !== 'resolved' &&
                 ACTIVITY_SUPPORTED_TARGETS.indexOf(targetType) >= 0) {
                 const today = new Date().toISOString().split('T')[0];
-                await userCol('activities').add({
+                await yTargetCol('activities', targetType).add({
                     targetType:  targetType,
                     targetId:    targetId,
                     description: 'Resolved: ' + description,
@@ -548,17 +550,17 @@ async function toggleProblemStatus(problemId, currentStatus, targetType, targetI
             updateData.resolvedAt = null;
         }
 
-        await userCol('problems').doc(problemId).update(updateData);
+        await yTargetCol('problems', targetType).doc(problemId).update(updateData);
         console.log('Problem status changed to:', newStatus);
 
         // When resolving, auto-create an activity so it appears in history.
         // Only applies to target types that have an activity history section.
         if (newStatus === 'resolved' && ACTIVITY_SUPPORTED_TARGETS.indexOf(targetType) >= 0) {
-            const problemDoc = await userCol('problems').doc(problemId).get();
+            const problemDoc = await yTargetCol('problems', targetType).doc(problemId).get();
             if (problemDoc.exists) {
                 const p = problemDoc.data();
                 const today = new Date().toISOString().split('T')[0];
-                await userCol('activities').add({
+                await yTargetCol('activities', targetType).add({
                     targetType:    targetType,
                     targetId:      targetId,
                     description:   'Resolved: ' + (p.description || 'Problem'),
@@ -595,7 +597,7 @@ async function handleDeleteProblem(problemId, targetType, targetId) {
     }
 
     try {
-        await userCol('problems').doc(problemId).delete();
+        await yTargetCol('problems', targetType).doc(problemId).delete();
         console.log('Problem deleted:', problemId);
         reloadProblemsForCurrentTarget(targetType, targetId);
 
@@ -667,7 +669,7 @@ async function ensureProblemSaved() {
     }
 
     try {
-        var docRef = await userCol('problems').add({
+        var docRef = await yTargetCol('problems', targetType).add({
             targetType: targetType,
             targetId: targetId,
             description: description,

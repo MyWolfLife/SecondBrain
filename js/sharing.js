@@ -1167,12 +1167,39 @@ var _yardOptions = [{ id: null, role: 'owner', data: null, label: 'My yard' }];
 
 /** True for the target types whose rows belong to the yard (the rest stay private). */
 function _yIsYardTarget(targetType) {
+    // Facts and photos on a problem follow the problem: yard while a yard problem's dialog is open.
+    if (targetType === 'problem') return !!window.yardProblemOpen;
     return YARD_TARGET_TYPES.indexOf(targetType) !== -1;
 }
 
 /** A yard collection (zones, plants, weeds, chemicals, savedActions ...) in the active yard. */
 function yardCol(name) {
-    return dataCol(name, window.yardShareId);
+    var col = dataCol(name, window.yardShareId);
+    // In a share every write also records who/when (Y6); private yards are left exactly as they were.
+    return window.yardShareId ? _yStampedRef(col) : col;
+}
+
+/**
+ * Wraps a collection/document reference so add() / set() / update() add the who-did-it stamps.
+ * Reads, deletes and batch use pass straight through (same pattern as _guardFirestoreRef).
+ */
+function _yStampedRef(ref) {
+    return new Proxy(ref, {
+        get: function(target, prop) {
+            var orig = target[prop];
+            if (typeof orig !== 'function') return orig;
+            if (prop === 'add') return function(data) { return orig.call(target, shStamp(data, true)); };
+            if (prop === 'update') return function(data) {
+                return typeof data === 'object' && data !== null && arguments.length === 1
+                    ? orig.call(target, shStamp(data)) : orig.apply(target, arguments);
+            };
+            if (prop === 'set') return function(data, opts) {
+                return orig.call(target, shStamp(data, !(opts && opts.merge)), opts);
+            };
+            if (prop === 'doc') return function() { return _yStampedRef(orig.apply(target, arguments)); };
+            return orig.bind(target);
+        }
+    });
 }
 
 /**
@@ -1225,6 +1252,7 @@ async function shResolveYard() {
         options.forEach(function(o) { if ((o.id || 'private') === saved) pick = o; });
         _yardOptions = options;
         _ySetActive(pick);
+        yApplyViewOnlyMode();
     } catch (err) {
         console.error('shResolveYard:', err);
         _yardOptions = [{ id: null, role: 'owner', data: null, label: 'My yard' }];
@@ -1247,6 +1275,14 @@ async function shRenderYardSwitcher() {
     var active = window.yardShareId || 'private';
     var cur = _yardOptions.filter(function(o) { return (o.id || 'private') === active; })[0] || _yardOptions[0];
     if (title) title.textContent = cur.label === 'My yard' ? 'My Yard' : cur.label.replace(/^./, function(c) { return c.toUpperCase(); });
+    var banner = document.getElementById('yardRoleBanner');
+    if (banner) {
+        var who = cur.id && cur.data && cur.data.names ? (cur.data.names[cur.data.ownerUid] || 'someone') : '';
+        banner.textContent = !cur.id ? '' :
+            cur.role === 'owner' ? 'Shared yard — you are the owner.' :
+            (cur.role === 'edit' ? 'Can edit' : 'View only') + ' · shared by ' + who;
+        banner.style.display = banner.textContent ? '' : 'none';
+    }
     if (_yardOptions.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return; }
     var html = '<label style="font-size:0.9rem; color:#666;">Yard: </label><select id="yardSwitcherSelect" onchange="shSwitchYard(this.value)" style="width:auto;">';
     _yardOptions.forEach(function(o) {
@@ -1264,6 +1300,110 @@ function shSwitchYard(key) {
     if (!opt) return;
     try { localStorage.setItem(YARD_CHOICE_KEY, key); } catch (e) { /* storage blocked: fine */ }
     _ySetActive(opt);
+    yApplyViewOnlyMode();
     loadZonesList();
     shRenderYardSwitcher();
+}
+
+/**
+ * A collection by name for screens that follow a link to "whatever this is" (zones, plants,
+ * weeds, chemicals, saved actions belong to the yard; every other name is the person's own).
+ */
+var YARD_WHOLE_COLLECTIONS = ['zones', 'plants', 'weeds', 'chemicals', 'savedActions', 'gpsShapes'];
+function yNameCol(name) {
+    return YARD_WHOLE_COLLECTIONS.indexOf(name) !== -1 ? yardCol(name) : userCol(name);
+}
+
+/**
+ * For screens that need ALL rows of a mixed collection (e.g. every activity that used a chemical):
+ * runs build(collection).get() on the yard's collection and, when the yard lives in a share, on the
+ * person's own too, and returns one snapshot-like object (forEach, docs, size, empty).
+ */
+async function yGetAll(name, build) {
+    var cols = window.yardShareId ? [yardCol(name), userCol(name)] : [userCol(name)];
+    var snaps = await Promise.all(cols.map(function(c) { return build(c).get(); }));
+    var docs = [];
+    snaps.forEach(function(s) { s.forEach(function(d) { docs.push(d); }); });
+    return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
+}
+
+/**
+ * Deep links (#plant/abc, #zone/abc ...) carry only an ID. If the thing is not in the active
+ * yard but is in another yard the person can open, switch to that yard first.
+ */
+async function yardEnsureFor(name, id) {
+    await yardReady();
+    if (_yardOptions.length < 2 || !id) return;
+    try { if ((await yardCol(name).doc(id).get()).exists) return; } catch (e) { /* fall through to the others */ }
+    for (var i = 0; i < _yardOptions.length; i++) {
+        var o = _yardOptions[i];
+        if ((o.id || null) === (window.yardShareId || null)) continue;
+        try {
+            if ((await dataCol(name, o.id).doc(id).get()).exists) {
+                try { localStorage.setItem(YARD_CHOICE_KEY, o.id || 'private'); } catch (e) { /* ok */ }
+                _ySetActive(o);
+                yApplyViewOnlyMode();
+                shRenderYardSwitcher();
+                return;
+            }
+        } catch (e) { /* not readable: skip */ }
+    }
+}
+
+// ─── View-only yards (Y2) ────────────────────────────────────────────────────
+// The security rules are what really stop a viewer from writing. This only tidies the screens:
+// in a view-only yard, buttons that add / change / delete are hidden on the yard pages, and
+// checklist boxes are disabled. Matching is by the button's words, so it covers buttons that
+// the screens draw later too.
+
+var YARD_PAGE_IDS = ['page-home', 'page-yard-projects', 'page-yard-problems', 'page-zone', 'page-plant', 'page-weeds',
+                     'page-weed', 'page-chemicals', 'page-chemical', 'page-actions', 'page-gpsmap', 'page-yardmap'];
+var _YARD_EDIT_WORDS = /^\s*(\+|add\b|edit\b|delete\b|remove\b|log\b|save\b|move\b|copy\b|clone\b|complete\b|reopen\b|resolve\b|new\b|set\b|crop\b|caption\b|rename\b|import\b|scan\b|draw\b|bulk\b|take\b|upload\b|choose\b|📷|📋|✏|🗑|➕)/i;
+var _yVoTimer = null, _yVoObserver = null;
+
+function _yVoSweep() {
+    var on = window.yardShareId && window.yardRole === 'view';
+    YARD_PAGE_IDS.forEach(function(pid) {
+        var page = document.getElementById(pid);
+        if (!page) return;
+        page.querySelectorAll('button').forEach(function(b) {
+            if (b.dataset.yardKeep) return;
+            if (on && _YARD_EDIT_WORDS.test(b.textContent || '')) b.classList.add('yard-vo-hide');
+            else b.classList.remove('yard-vo-hide');
+        });
+        page.querySelectorAll('[data-project-id] input[type=checkbox]').forEach(function(c) { c.disabled = !!on; });
+        page.querySelectorAll('.add-checklist-row').forEach(function(r) { r.classList.toggle('yard-vo-hide', !!on); });
+    });
+}
+
+/** Turns the view-only tidy-up on or off to match the active yard. */
+function yApplyViewOnlyMode() {
+    var on = !!(window.yardShareId && window.yardRole === 'view');
+    document.body.classList.toggle('yard-view-only', on);
+    if (on && !_yVoObserver && window.MutationObserver) {
+        _yVoObserver = new MutationObserver(function() {
+            clearTimeout(_yVoTimer);
+            _yVoTimer = setTimeout(_yVoSweep, 120);
+        });
+        _yVoObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    if (!on && _yVoObserver) { _yVoObserver.disconnect(); _yVoObserver = null; }
+    _yVoSweep();
+}
+
+/** Small "Added by … / Changed by …" line under a yard page's title (only when Show who added/modified is on). */
+function yShowWho(titleElId, data) {
+    var title = document.getElementById(titleElId);
+    if (!title) return;
+    var header = title.closest('.page-header') || title.parentElement;
+    var el = header.nextElementSibling;
+    if (!el || !el.classList.contains('yard-who-label')) {
+        el = document.createElement('p');
+        el.className = 'yard-who-label';
+        el.style.cssText = 'color:#888; font-size:0.85rem; margin:0 16px 8px;';
+        header.parentNode.insertBefore(el, header.nextSibling);
+    }
+    var text = window.yardShareId ? shWhoLabel(data, window.yardShareData) : '';
+    el.textContent = text;
+    el.style.display = text ? '' : 'none';
 }

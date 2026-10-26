@@ -22153,3 +22153,7 @@ body.wo-playing .offline-banner { display: none !important; }
 .wl-form .wo-inline-check input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; }
 .wl-form .wo-inline-check { display: flex; margin-top: 8px; }
 .pg-run--finished { background: #ecfdf5; border-color: #6ee7b7; }
+
+/* Shared Yard (Y2): in a view-only yard, buttons that change things are hidden */
+body.yard-view-only .yard-vo-hide { display: none !important; }
+.yard-role-banner { margin: 0 16px 8px; font-size: 0.85rem; color: #555; }

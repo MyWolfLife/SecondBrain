@@ -19,7 +19,7 @@ async function loadFacts(targetType, targetId, containerId, emptyStateId) {
     const emptyState = document.getElementById(emptyStateId);
 
     try {
-        const snapshot = await userCol('facts')
+        const snapshot = await yTargetCol('facts', targetType)
             .where('targetType', '==', targetType)
             .where('targetId', '==', targetId)
             .get();
@@ -198,7 +198,7 @@ async function handleFactModalSave() {
 
     try {
         if (mode === 'add') {
-            await userCol('facts').add({
+            await yTargetCol('facts', targetType).add({
                 targetType: targetType,
                 targetId: targetId,
                 label: label,
@@ -209,7 +209,7 @@ async function handleFactModalSave() {
 
         } else if (mode === 'edit') {
             const factId = modal.dataset.editId;
-            await userCol('facts').doc(factId).update({
+            await yTargetCol('facts', targetType).doc(factId).update({
                 label: label,
                 value: value
             });
@@ -239,7 +239,7 @@ async function handleDeleteFact(factId, targetType, targetId) {
     }
 
     try {
-        await userCol('facts').doc(factId).delete();
+        await yTargetCol('facts', targetType).doc(factId).delete();
         console.log('Fact deleted:', factId);
         reloadFactsForCurrentTarget(targetType, targetId);
 

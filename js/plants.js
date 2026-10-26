@@ -66,7 +66,7 @@ function updatePlantHealthBadge(status) {
 async function saveHealthStatus(status) {
     if (!window.currentPlant) return;
     try {
-        await userCol('plants').doc(window.currentPlant.id).update({
+        await yardCol('plants').doc(window.currentPlant.id).update({
             healthStatus: status || firebase.firestore.FieldValue.delete()
         });
         window.currentPlant.healthStatus = status || '';
@@ -106,7 +106,7 @@ async function loadPlantsInZone(zoneId) {
     }
 
     try {
-        const snapshot = await userCol('plants')
+        const snapshot = await yardCol('plants')
             .where('zoneId', '==', zoneId)
             .get();
 
@@ -216,7 +216,8 @@ async function loadPlantDetail(plantId) {
     const activityEmptyState = document.getElementById('plantActivityEmptyState');
 
     try {
-        const doc = await userCol('plants').doc(plantId).get();
+        await yardEnsureFor('plants', plantId);
+        const doc = await yardCol('plants').doc(plantId).get();
 
         if (!doc.exists) {
             titleEl.textContent = 'Plant not found';
@@ -235,6 +236,7 @@ async function loadPlantDetail(plantId) {
 
         // Store current plant info for buttons
         window.currentPlant = { id: doc.id, ...plant };
+        yShowWho('plantTitle', plant);
 
         // 🤖 Ask AI: a prompt with everything recorded about this plant (askai.js)
         document.getElementById('askAiPlantBtn').onclick = function() { askAiForPlant(doc.id); };
@@ -309,7 +311,7 @@ async function buildPlantBreadcrumbs(plantId, plant) {
     // Walk up the zone parent chain
     let currentZoneId = plant.zoneId;
     while (currentZoneId) {
-        const zoneDoc = await userCol('zones').doc(currentZoneId).get();
+        const zoneDoc = await yardCol('zones').doc(currentZoneId).get();
         if (!zoneDoc.exists) break;
         const zone = zoneDoc.data();
         crumbs.unshift({ id: zoneDoc.id, name: zone.name, type: 'zone' });
@@ -340,7 +342,7 @@ async function getZonePath(zoneId) {
     let currentId = zoneId;
 
     while (currentId) {
-        const doc = await userCol('zones').doc(currentId).get();
+        const doc = await yardCol('zones').doc(currentId).get();
         if (!doc.exists) break;
         const zone = doc.data();
         parts.unshift(escapeHtml(zone.name));
@@ -451,7 +453,7 @@ async function handlePlantModalSave() {
     try {
         if (mode === 'add') {
             const zoneId = modal.dataset.zoneId;
-            await userCol('plants').add({
+            await yardCol('plants').add({
                 name: name,
                 alias: alias,
                 zoneId: zoneId,
@@ -465,7 +467,7 @@ async function handlePlantModalSave() {
 
         } else if (mode === 'edit') {
             const plantId = modal.dataset.editId;
-            await userCol('plants').doc(plantId).update({ name: name, alias: alias });
+            await yardCol('plants').doc(plantId).update({ name: name, alias: alias });
             console.log('Plant renamed:', name);
 
             // Update header live without a full page reload
@@ -488,7 +490,7 @@ async function handlePlantModalSave() {
             // Copy metadata and health status from the source plant
             var cloneFromId = modal.dataset.cloneFromId;
             var zoneId      = modal.dataset.zoneId;
-            var sourceDoc   = await userCol('plants').doc(cloneFromId).get();
+            var sourceDoc   = await yardCol('plants').doc(cloneFromId).get();
             var sourceMeta  = sourceDoc.exists ? (sourceDoc.data().metadata || {}) : {};
             var sourceHealth = sourceDoc.exists ? (sourceDoc.data().healthStatus || '') : '';
 
@@ -500,7 +502,7 @@ async function handlePlantModalSave() {
             };
             if (sourceHealth) newData.healthStatus = sourceHealth;
 
-            var newRef = await userCol('plants').add(newData);
+            var newRef = await yardCol('plants').add(newData);
             console.log('Plant cloned:', name, '(from', cloneFromId + ')');
 
             // Navigate to the new plant's detail page so the user can review it
@@ -573,7 +575,7 @@ async function savePlantMetadata() {
     };
 
     try {
-        await userCol('plants').doc(window.currentPlant.id).update({
+        await yardCol('plants').doc(window.currentPlant.id).update({
             metadata: metadata
         });
 
@@ -619,7 +621,7 @@ async function openMovePlantModal() {
 
     try {
         // Load all zones
-        const snapshot = await userCol('zones').get();
+        const snapshot = await yardCol('zones').get();
         const zones = [];
         snapshot.forEach(function(doc) {
             zones.push({ id: doc.id, ...doc.data() });
@@ -685,7 +687,7 @@ async function handleMovePlantSave() {
     if (!window.currentPlant) return;
 
     try {
-        await userCol('plants').doc(window.currentPlant.id).update({
+        await yardCol('plants').doc(window.currentPlant.id).update({
             zoneId: newZoneId
         });
 
@@ -715,7 +717,7 @@ async function handleDeletePlant() {
 
     try {
         const zoneId = window.currentPlant.zoneId;
-        await userCol('plants').doc(window.currentPlant.id).delete();
+        await yardCol('plants').doc(window.currentPlant.id).delete();
         console.log('Plant deleted:', window.currentPlant.name);
 
         // Navigate back to the zone
@@ -756,7 +758,7 @@ async function loadAllPlantsInHierarchy() {
 
         for (var i = 0; i < chunks.length; i++) {
             var chunk = chunks[i];
-            var snapshot = await userCol('plants')
+            var snapshot = await yardCol('plants')
                 .where('zoneId', 'in', chunk)
                 .get();
 
@@ -808,7 +810,7 @@ async function loadAllPlantsInHierarchy() {
 async function getDescendantZoneIds(zoneId) {
     const ids = [zoneId];
 
-    const snapshot = await userCol('zones')
+    const snapshot = await yardCol('zones')
         .where('parentId', '==', zoneId)
         .get();
 
@@ -1173,7 +1175,7 @@ async function plantSaveFromLlm(parsed, images, zoneId, nameOverride, aliasOverr
         notes         : parsed.notes         || ''
     };
 
-    var newRef = await userCol('plants').add({
+    var newRef = await yardCol('plants').add({
         name      : plantName,
         alias     : plantAlias,
         zoneId    : zoneId,
@@ -1185,7 +1187,7 @@ async function plantSaveFromLlm(parsed, images, zoneId, nameOverride, aliasOverr
     var identified = !!(parsed.name || nameOverride);
     if (identified) {
         for (var i = 0; i < images.length; i++) {
-            await userCol('photos').add({
+            await yTargetCol('photos', 'plant').add({
                 targetType : 'plant',
                 targetId   : newRef.id,
                 imageData  : images[i],

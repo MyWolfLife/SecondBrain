@@ -49,7 +49,7 @@ async function loadChemicalsList() {
     const emptyState = document.getElementById('chemicalsEmptyState');
 
     try {
-        const snapshot = await userCol('chemicals').get();
+        const snapshot = await yardCol('chemicals').get();
 
         container.innerHTML = '';
 
@@ -215,7 +215,7 @@ async function handleChemicalModalSave() {
         var chemicalId;
 
         if (mode === 'add') {
-            var docRef = await userCol('chemicals').add({
+            var docRef = await yardCol('chemicals').add({
                 name: name,
                 notes: notes,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -225,7 +225,7 @@ async function handleChemicalModalSave() {
 
         } else if (mode === 'edit') {
             chemicalId = modal.dataset.editId;
-            await userCol('chemicals').doc(chemicalId).update({
+            await yardCol('chemicals').doc(chemicalId).update({
                 name: name,
                 notes: notes
             });
@@ -237,7 +237,7 @@ async function handleChemicalModalSave() {
             for (var i = 0; i < _chemPendingFacts.length; i++) {
                 var f = _chemPendingFacts[i];
                 if (f.label && f.value) {
-                    await userCol('facts').add({
+                    await yTargetCol('facts', 'chemical').add({
                         targetType: 'chemical',
                         targetId:   chemicalId,
                         label:      f.label,
@@ -250,7 +250,7 @@ async function handleChemicalModalSave() {
         // Save any photos captured during the bottle scan
         if (_chemPendingImages && _chemPendingImages.length && chemicalId) {
             for (var j = 0; j < _chemPendingImages.length; j++) {
-                await userCol('photos').add({
+                await yTargetCol('photos', 'chemical').add({
                     targetType: 'chemical',
                     targetId:   chemicalId,
                     imageData:  _chemPendingImages[j],
@@ -290,7 +290,7 @@ async function handleDeleteChemical(chemicalId) {
     }
 
     try {
-        await userCol('chemicals').doc(chemicalId).delete();
+        await yardCol('chemicals').doc(chemicalId).delete();
         console.log('Chemical deleted:', chemicalId);
         // If we were on the detail page, go back to the list
         window.location.hash = 'chemicals';
@@ -310,7 +310,8 @@ async function handleDeleteChemical(chemicalId) {
  */
 async function loadChemicalDetail(chemicalId) {
     try {
-        const doc = await userCol('chemicals').doc(chemicalId).get();
+        await yardEnsureFor('chemicals', chemicalId);
+        const doc = await yardCol('chemicals').doc(chemicalId).get();
 
         if (!doc.exists) {
             document.getElementById('chemicalDetailName').textContent = 'Product not found';
@@ -319,6 +320,7 @@ async function loadChemicalDetail(chemicalId) {
 
         const chemical = { id: doc.id, ...doc.data() };
         window.currentChemical = chemical;
+        yShowWho('chemicalDetailName', chemical);
 
         document.getElementById('chemicalDetailName').textContent = chemical.name;
 
@@ -376,11 +378,11 @@ async function loadChemicalUsageHistory(chemicalId) {
     try {
         // Query both storage formats in parallel
         var [newSnap, oldSnap, plantsSnap, zonesSnap, weedsSnap] = await Promise.all([
-            userCol('activities').where('chemicalIds', 'array-contains', chemicalId).get(),
-            userCol('activities').where('chemicalId', '==', chemicalId).get(),
-            userCol('plants').get(),
-            userCol('zones').get(),
-            userCol('weeds').get(),
+            yGetAll('activities', function(c) { return c.where('chemicalIds', 'array-contains', chemicalId); }),
+            yGetAll('activities', function(c) { return c.where('chemicalId', '==', chemicalId); }),
+            yardCol('plants').get(),
+            yardCol('zones').get(),
+            yardCol('weeds').get(),
         ]);
 
         // Merge and deduplicate by document ID
@@ -424,7 +426,7 @@ async function loadChemicalUsageHistory(chemicalId) {
             }
         });
         var extraFetches = Object.keys(extraTypes).map(function(t) {
-            return userCol(CHEM_USAGE_COLLECTIONS[t]).get().then(function(snap) {
+            return yNameCol(CHEM_USAGE_COLLECTIONS[t]).get().then(function(snap) {
                 nameMap[t] = {};
                 snap.forEach(function(doc) { nameMap[t][doc.id] = doc.data().name || ''; });
             });
@@ -529,7 +531,7 @@ function chemUsageBuildCard(a, nameMap) {
  * @returns {Promise<Array>} Array of {id, name, notes} objects sorted by name.
  */
 async function getAllChemicals() {
-    const snapshot = await userCol('chemicals').get();
+    const snapshot = await yardCol('chemicals').get();
     const chemicals = [];
     snapshot.forEach(function(doc) {
         chemicals.push({ id: doc.id, ...doc.data() });
@@ -938,7 +940,7 @@ function saveBarcodeFacts(targetType, targetId, barcode, resultElId) {
 
     var batch = db.batch();
     entries.forEach(function(f) {
-        batch.set(userCol('facts').doc(), {
+        batch.set(yTargetCol('facts', targetType).doc(), {
             targetType : targetType,
             targetId   : targetId,
             label      : f.label,

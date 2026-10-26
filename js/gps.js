@@ -63,7 +63,7 @@ async function loadGpsMapPage(zoneId) {
     // Load zone name if not already in window.currentZone
     if (!window.currentZone || window.currentZone.id !== zoneId) {
         try {
-            var zDoc = await userCol('zones').doc(zoneId).get();
+            var zDoc = await yardCol('zones').doc(zoneId).get();
             if (zDoc.exists) {
                 window.currentZone = { id: zDoc.id, ...zDoc.data() };
             }
@@ -551,7 +551,7 @@ function updateRecordStats(pointCount, distanceFt, accuracy) {
 async function addPropertyBoundaryOverlay(mapInstance) {
     if (!mapInstance) return null;
     try {
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', '==', '__property__')
             .limit(1)
             .get();
@@ -792,11 +792,11 @@ async function saveGpsShape() {
         };
 
         if (gpsCurrentShape) {
-            await userCol('gpsShapes').doc(gpsCurrentShape.id).update(shapeData);
+            await yardCol('gpsShapes').doc(gpsCurrentShape.id).update(shapeData);
             gpsCurrentShape = { id: gpsCurrentShape.id, ...shapeData };
         } else {
             shapeData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            var ref = await userCol('gpsShapes').add(shapeData);
+            var ref = await yardCol('gpsShapes').add(shapeData);
             gpsCurrentShape = { id: ref.id, ...shapeData };
         }
 
@@ -820,7 +820,7 @@ async function deleteGpsShape() {
     if (!confirm('Delete this shape? This cannot be undone.')) return;
 
     try {
-        await userCol('gpsShapes').doc(gpsCurrentShape.id).delete();
+        await yardCol('gpsShapes').doc(gpsCurrentShape.id).delete();
         gpsCurrentShape = null;
         destroyMap('view');
         showGpsViewMode();
@@ -838,14 +838,14 @@ async function deleteGpsShape() {
  */
 async function getDescendantZoneIds(zoneId) {
     var ids    = [];
-    var level1 = await userCol('zones').where('parentId', '==', zoneId).get();
+    var level1 = await yardCol('zones').where('parentId', '==', zoneId).get();
     var level1Ids = [];
     level1.forEach(function(doc) {
         level1Ids.push(doc.id);
         ids.push(doc.id);
     });
     for (var i = 0; i < level1Ids.length; i++) {
-        var level2 = await userCol('zones').where('parentId', '==', level1Ids[i]).get();
+        var level2 = await yardCol('zones').where('parentId', '==', level1Ids[i]).get();
         level2.forEach(function(doc) { ids.push(doc.id); });
     }
     return ids;
@@ -860,7 +860,7 @@ async function calculateNetSqft(zoneId, grossSqft) {
         var descendantIds = await getDescendantZoneIds(zoneId);
         if (descendantIds.length === 0) return grossSqft;
 
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', 'in', descendantIds)
             .where('excludeFromParent', '==', true)
             .get();
@@ -879,7 +879,7 @@ async function calculateNetSqft(zoneId, grossSqft) {
 
 async function loadShapeForZone(zoneId) {
     try {
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', '==', zoneId)
             .limit(1)
             .get();
@@ -970,7 +970,7 @@ async function loadYardMapPage() {
     updateImportBoundaryBtn();
 
     try {
-        var snap = await userCol('gpsShapes').get();
+        var snap = await yardCol('gpsShapes').get();
 
         // Separate property boundary from zone shapes
         var propertyBoundary = null;
@@ -1404,7 +1404,7 @@ async function fetchHouseFootprint() {
             refLng = pts.reduce(function(s, p) { return s + p.lng; }, 0) / pts.length;
         } else {
             // Use property boundary centroid
-            var snap = await userCol('gpsShapes').where('zoneId','==','__property__').limit(1).get();
+            var snap = await yardCol('gpsShapes').where('zoneId','==','__property__').limit(1).get();
             if (snap.empty) {
                 alert('No reference location found. Record a shape or import your property boundary first.');
                 return;
@@ -1602,7 +1602,7 @@ async function updateImportBoundaryBtn() {
     var btn = document.getElementById('importBoundaryBtn');
     if (!btn) return;
     try {
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', '==', '__property__')
             .limit(1)
             .get();
@@ -1624,7 +1624,7 @@ async function openImportBoundaryPanel() {
 
     // Try to load existing boundary first
     try {
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', '==', '__property__')
             .limit(1)
             .get();
@@ -1682,19 +1682,19 @@ async function saveImportedBoundary() {
         var areaSqft = calculateAreaSqft(points);
 
         // Check for existing boundary doc to update or create new
-        var snap = await userCol('gpsShapes')
+        var snap = await yardCol('gpsShapes')
             .where('zoneId', '==', '__property__')
             .limit(1)
             .get();
 
         if (!snap.empty) {
-            await userCol('gpsShapes').doc(snap.docs[0].id).update({
+            await yardCol('gpsShapes').doc(snap.docs[0].id).update({
                 points:    points,
                 areaSqft:  areaSqft,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         } else {
-            await userCol('gpsShapes').add({
+            await yardCol('gpsShapes').add({
                 zoneId:    '__property__',
                 name:      'Property Boundary',
                 points:    points,
@@ -1734,7 +1734,7 @@ document.getElementById('gpsmapExcludeToggle').addEventListener('change', async 
     var checkbox  = this;
 
     try {
-        await userCol('gpsShapes').doc(gpsCurrentShape.id).update({
+        await yardCol('gpsShapes').doc(gpsCurrentShape.id).update({
             excludeFromParent: exclude,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });

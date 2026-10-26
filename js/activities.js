@@ -179,7 +179,7 @@ async function loadActivities(targetType, targetId, containerId, emptyStateId) {
     const emptyState = document.getElementById(emptyStateId);
 
     try {
-        const snapshot = await userCol('activities')
+        const snapshot = await yTargetCol('activities', targetType)
             .where('targetType', '==', targetType)
             .where('targetId', '==', targetId)
             .get();
@@ -216,7 +216,7 @@ async function loadActivities(targetType, targetId, containerId, emptyStateId) {
         var chemicalNames = {};
         for (var i = 0; i < allChemIds.length; i++) {
             try {
-                var chemDoc = await userCol('chemicals').doc(allChemIds[i]).get();
+                var chemDoc = await yardCol('chemicals').doc(allChemIds[i]).get();
                 if (chemDoc.exists) {
                     chemicalNames[allChemIds[i]] = chemDoc.data().name;
                 }
@@ -514,7 +514,7 @@ async function handleSavedActionSelect() {
     if (!actionId) return;  // "Start from scratch" selected
 
     try {
-        const doc = await userCol('savedActions').doc(actionId).get();
+        const doc = await yardCol('savedActions').doc(actionId).get();
         if (!doc.exists) return;
 
         const action = doc.data();
@@ -597,7 +597,7 @@ async function handleActivityModalSave() {
     try {
         if (isEdit && editId) {
             // Update existing activity
-            await userCol('activities').doc(editId).update({
+            await yTargetCol('activities', targetType).doc(editId).update({
                 description: description,
                 date:        date,
                 notes:       notes,
@@ -607,7 +607,7 @@ async function handleActivityModalSave() {
                 updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
             });
         } else {
-        await userCol('activities').add({
+        await yTargetCol('activities', targetType).add({
             targetType:    targetType,
             targetId:      targetId,
             description:   description,
@@ -642,7 +642,7 @@ async function handleActivityModalSave() {
  */
 async function handleDeleteActivity(activityId, targetType, targetId) {
     try {
-        await userCol('activities').doc(activityId).delete();
+        await yTargetCol('activities', targetType).doc(activityId).delete();
         console.log('Activity deleted:', activityId);
         reloadActivitiesForCurrentTarget(targetType, targetId);
 
@@ -698,7 +698,7 @@ async function loadSavedActionsList() {
     const emptyState = document.getElementById('savedActionsEmptyState');
 
     try {
-        const snapshot = await userCol('savedActions').get();
+        const snapshot = await yardCol('savedActions').get();
 
         container.innerHTML = '';
 
@@ -731,7 +731,7 @@ async function loadSavedActionsList() {
         var chemicalNames = {};
         for (var i = 0; i < allChemIds.length; i++) {
             try {
-                var chemDoc = await userCol('chemicals').doc(allChemIds[i]).get();
+                var chemDoc = await yardCol('chemicals').doc(allChemIds[i]).get();
                 if (chemDoc.exists) {
                     chemicalNames[allChemIds[i]] = chemDoc.data().name;
                 }
@@ -1012,7 +1012,7 @@ async function handleSavedActionModalSave() {
         var newActionId = null;
 
         if (mode === 'add') {
-            var docRef = await userCol('savedActions').add({
+            var docRef = await yardCol('savedActions').add({
                 name: name,
                 description: description,
                 notes: notes,
@@ -1024,7 +1024,7 @@ async function handleSavedActionModalSave() {
 
         } else if (mode === 'edit') {
             const actionId = modal.dataset.editId;
-            await userCol('savedActions').doc(actionId).update({
+            await yardCol('savedActions').doc(actionId).update({
                 name: name,
                 description: description,
                 notes: notes,
@@ -1070,7 +1070,7 @@ async function handleDeleteSavedAction(actionId) {
     }
 
     try {
-        await userCol('savedActions').doc(actionId).delete();
+        await yardCol('savedActions').doc(actionId).delete();
         console.log('Saved action deleted:', actionId);
         loadSavedActionsList();
 
@@ -1087,7 +1087,7 @@ async function handleDeleteSavedAction(actionId) {
  * @returns {Promise<Array>} Array of saved action objects sorted by name.
  */
 async function getAllSavedActions() {
-    const snapshot = await userCol('savedActions').get();
+    const snapshot = await yardCol('savedActions').get();
     const actions = [];
     snapshot.forEach(function(doc) {
         actions.push({ id: doc.id, ...doc.data() });
