@@ -92,7 +92,7 @@ async function loadPhotos(targetType, targetId, containerId, emptyStateId) {
     var emptyState = document.getElementById(emptyStateId);
 
     try {
-        var snapshot = await userCol('photos')
+        var snapshot = await _pCol('photos', targetType)
             .where('targetType', '==', targetType)
             .where('targetId', '==', targetId)
             .get();
@@ -602,24 +602,24 @@ async function handlePhotoFile(file, targetType, targetId) {
         var caption = prompt('Add a caption (optional):') || '';
 
         // Save to Firestore
-        var newPhotoRef = await userCol('photos').add({
+        var newPhotoRef = await _pCol('photos', targetType).add(_pStamp({
             targetType: targetType,
             targetId: targetId,
             imageData: imageData,
             caption: caption.trim(),
             takenAt: new Date().toISOString(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, targetType));
 
         console.log('Photo saved for', targetType, targetId);
 
         // Auto-set thumbnail if this is the first photo for supported entity types
         var autoThumbCollection = PROFILE_COLLECTION_MAP[targetType];
         if (autoThumbCollection) {
-            var autoSnap = await userCol(autoThumbCollection).doc(targetId).get();
+            var autoSnap = await _pCol(autoThumbCollection, targetType).doc(targetId).get();
             if (autoSnap.exists && !autoSnap.data().profilePhotoData) {
                 var autoThumb = await _compressToThumb(imageData);
-                await userCol(autoThumbCollection).doc(targetId).update({ profilePhotoData: autoThumb, profilePhotoId: newPhotoRef.id });
+                await _pCol(autoThumbCollection, targetType).doc(targetId).update({ profilePhotoData: autoThumb, profilePhotoId: newPhotoRef.id });
                 // Update the in-memory state object for the current entity
                 var stateMap = {
                     thing:          'currentThing',
@@ -744,7 +744,7 @@ async function editPhotoCaption(photoId, targetType, containerId) {
     if (newCaption === null) return; // User cancelled
 
     try {
-        await userCol('photos').doc(photoId).update({
+        await _pCol('photos', targetType).doc(photoId).update({
             caption: newCaption.trim()
         });
 
@@ -803,7 +803,7 @@ async function setProfilePhoto(photo, targetType) {
     if (!collection) return null;
     try {
         var thumbData = await _compressToThumb(photo.imageData);
-        await userCol(collection).doc(photo.targetId).update({ profilePhotoData: thumbData, profilePhotoId: photo.id });
+        await _pCol(collection, targetType).doc(photo.targetId).update({ profilePhotoData: thumbData, profilePhotoId: photo.id });
         return thumbData;
     } catch (err) {
         console.error('setProfilePhoto error:', err);
@@ -1012,7 +1012,7 @@ async function cropExistingPhoto(photo, targetType, containerId) {
     try {
         // Compress the cropped result and write back to the same Firestore doc
         var newImageData = await compressImage(croppedBlob);
-        await userCol('photos').doc(photo.id).update({ imageData: newImageData });
+        await _pCol('photos', targetType).doc(photo.id).update({ imageData: newImageData });
 
         // Update the in-memory cache so the viewer re-renders immediately
         photo.imageData = newImageData;
@@ -1036,7 +1036,7 @@ async function handleDeletePhoto(photoId, targetType) {
     if (!confirm('Are you sure you want to delete this photo?')) return;
 
     try {
-        await userCol('photos').doc(photoId).delete();
+        await _pCol('photos', targetType).doc(photoId).delete();
         console.log('Photo deleted:', photoId);
 
         // Determine current target ID from global state and reload

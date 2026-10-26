@@ -10788,6 +10788,11 @@ service firebase.storage {
                 <div id="collectionDetailStats" class="collection-card-stats" style="margin-top:4px;"></div>
             </div>
             <div id="collGoesToRow" class="beneficiary-row hidden"></div>
+            <div id="collShareRow" style="display:none; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 10px;">
+                <span id="collShareBadge" style="background:#eef3ee; border-radius:10px; padding:2px 10px; font-size:0.85rem;"></span>
+                <span id="collShareInfo" style="color:#666; font-size:0.9rem;"></span>
+                <button class="btn btn-secondary btn-small hidden" id="collShareBtn" onclick="shOpenShareDialog()">Share…</button>
+            </div>
             <div class="section-header">
                 <input type="text" id="collectionFilterInput" placeholder="Filter…" class="filter-input">
                 <button class="btn btn-primary btn-small" id="addCollectionItemBtn">+ Add Item</button>
@@ -10902,6 +10907,21 @@ service firebase.storage {
                 <button class="btn btn-danger hidden" id="collectionDeleteBtn">Delete Collection</button>
                 <button class="btn btn-secondary" id="collectionModalCancelBtn">Cancel</button>
                 <button class="btn btn-primary"   id="collectionModalSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Collection dialog (SharedSpacesBuildPlan.md S5) -->
+    <div class="modal-overlay" id="shareDialogModal">
+        <div class="modal">
+            <h3 id="shDlgTitle">Share</h3>
+            <p class="settings-section-desc">Choose which groups can use it.</p>
+            <div id="shDlgGroups"></div>
+            <p id="shDlgNote" class="settings-section-desc"></p>
+            <p id="shDlgProgress" class="hidden" style="font-weight:600;"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="shDlgCancelBtn" onclick="closeModal('shareDialogModal')">Cancel</button>
+                <button class="btn btn-primary" id="shDlgOkBtn" onclick="shSubmitShareDialog()">Share</button>
             </div>
         </div>
     </div>
@@ -12362,14 +12382,14 @@ export default {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <!-- SortableJS — drag-and-drop list reordering -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-    <script src="js/photos.js?v=488"></script>
+    <script src="js/photos.js?v=489"></script>
     <script src="js/weeds.js?v=487"></script>
     <script src="js/calendar.js?v=488"></script>
     <script src="js/gps.js?v=487"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=499"></script>
-    <script src="js/sharing.js?v=3"></script>
+    <script src="js/sharing.js?v=5"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
     <script src="js/house.js?v=487"></script>
@@ -12388,7 +12408,7 @@ export default {
     <script src="js/neighbors.js?v=487"></script>
     <script src="js/favorites.js?v=487"></script>
     <script src="js/beneficiaries.js?v=487"></script>
-    <script src="js/collections.js?v=487"></script>
+    <script src="js/collections.js?v=489"></script>
     <script src="js/health.js?v=487"></script>
     <script src="js/notes.js?v=487"></script>
     <script src="js/lifecalendar.js?v=487"></script>

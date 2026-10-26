@@ -4490,6 +4490,19 @@ All fields are optional. Policy type is a combo box (pick or type your own). Pre
 - **Edit** button on each card to rename or change custom labels. Type cannot be changed after items are added.
 - Tap a card to open the collection detail page.
 
+**Sharing a collection (for example, so your son can log your albums):**
+1. First make a group and add the person to it: **Settings → Sharing** (see the Sharing help).
+2. Open the collection and tap **Share…** (the line under the title shows **Private**).
+3. For each group, choose **Not shared**, **View only** or **Can edit**, then tap **Share**.
+4. A backup file of the collection downloads first, then the collection, its items and photos move into a shared area. A progress message shows each step. If anything fails, nothing changes in your collection.
+5. The collection now shows **Shared**, and who it is shared with. Tap **Sharing…** any time to change the groups or roles. People you remove (or take out of the group) lose access right away. You stay the owner.
+
+What people can do: **View only** — look at everything. **Can edit** — add, change and delete items and photos. Only **you** (the owner) can change who it is shared with or delete the whole collection. The person's own "Goes to" and Location choices don't apply to someone else's collection, so only the owner can change those.
+
+In the Collections list, collections shared with you show **Can edit** or **View only** and who they are from. A collection you shared shows **Shared**.
+
+*Not finished yet:* a **Stop sharing** button to move everything back, and searching/"Who Gets What" for shared collections. Until then, shared collections only show up in the Collections list, and a shared collection is not included in your normal backup.
+
 **Collection types and their type-specific fields:**
 
 | Type | Type-Specific Fields | Sort Order | Search Field |

@@ -46,6 +46,10 @@ function loadCollectionsPage() {
     if (!container) return;
     container.innerHTML = '<p class="empty-state">Loading&hellip;</p>';
 
+    // The list shows both private and shared collections, so no single share applies here.
+    // Cards set the context for themselves when their Edit button is used.
+    _shSetCtx(null, 'owner', null);
+
     // Breadcrumb: House › Collections
     var bar = document.getElementById('breadcrumbBar');
     if (bar) bar.innerHTML = '<a href="#house">House</a><span class="separator">&rsaquo;</span><span>Collections</span>';
@@ -55,51 +59,53 @@ function loadCollectionsPage() {
     if (addBtn) {
         var newAddBtn = addBtn.cloneNode(true);
         addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-        newAddBtn.addEventListener('click', openAddCollectionModal);
+        newAddBtn.addEventListener('click', function() { _shSetCtx(null, 'owner', null); openAddCollectionModal(); });
     }
 
-    userCol('collections').orderBy('name').get()
-        .then(function(snapshot) {
-            container.innerHTML = '';
+    // Count + total worth from a list of item snapshots
+    function summarize(itemDocs) {
+        var totalWorth = 0;
+        itemDocs.forEach(function(d) { totalWorth += parseFloat(d.data().estimatedValue) || 0; });
+        return { count: itemDocs.length, totalWorth: totalWorth };
+    }
 
-            if (snapshot.empty) {
+    // 1. My own (private) collections
+    var privatePromise = userCol('collections').orderBy('name').get().then(function(snapshot) {
+        return Promise.all(snapshot.docs.map(function(doc) {
+            return userCol('collectionItems').where('collectionId', '==', doc.id).get().then(function(itemSnap) {
+                var s = summarize(itemSnap.docs);
+                return { id: doc.id, data: doc.data(), count: s.count, totalWorth: s.totalWorth, share: null };
+            });
+        }));
+    });
+
+    // 2. Collections I shared, and collections shared with me. If this can't load (offline,
+    //    rules not published) the private list still shows.
+    var sharedPromise = shLoadCollectionShares().then(function(shares) {
+        return Promise.all(shares.map(function(s) {
+            return Promise.all([
+                shareCol(s.id, 'collections').doc(s.data.collectionId).get(),
+                shareCol(s.id, 'collectionItems').get()
+            ]).then(function(r) {
+                if (!r[0].exists) return null;
+                var sum = summarize(r[1].docs);
+                return { id: r[0].id, data: r[0].data(), count: sum.count, totalWorth: sum.totalWorth,
+                         share: { id: s.id, role: s.role, data: s.data } };
+            });
+        }));
+    }).catch(function(err) { console.error('Could not load shared collections:', err); return []; });
+
+    Promise.all([privatePromise, sharedPromise])
+        .then(function(res) {
+            var all = res[0].concat(res[1].filter(function(x) { return x; }));
+            container.innerHTML = '';
+            if (!all.length) {
                 container.innerHTML = '<p class="empty-state">No collections yet. Click &ldquo;+ Add Collection&rdquo; to create one.</p>';
                 return;
             }
-
-            // For each collection, we need to query items to get count + total worth.
-            // Collect all promises and render when all resolve.
-            var promises = [];
-            snapshot.forEach(function(doc) {
-                promises.push(
-                    userCol('collectionItems')
-                        .where('collectionId', '==', doc.id)
-                        .get()
-                        .then(function(itemSnap) {
-                            var count      = itemSnap.size;
-                            var totalWorth = 0;
-                            itemSnap.forEach(function(itemDoc) {
-                                var val = parseFloat(itemDoc.data().estimatedValue) || 0;
-                                totalWorth += val;
-                            });
-                            return {
-                                id:         doc.id,
-                                data:       doc.data(),
-                                count:      count,
-                                totalWorth: totalWorth
-                            };
-                        })
-                );
-            });
-
-            return Promise.all(promises);
-        })
-        .then(function(collections) {
-            if (!collections) return;  // was empty, already handled
-
-            collections.forEach(function(col) {
-                var card = buildCollectionCard(col.id, col.data, col.count, col.totalWorth);
-                container.appendChild(card);
+            all.sort(function(a, b) { return (a.data.name || '').localeCompare(b.data.name || ''); });
+            all.forEach(function(col) {
+                container.appendChild(buildCollectionCard(col.id, col.data, col.count, col.totalWorth, col.share));
             });
         })
         .catch(function(err) {
@@ -110,8 +116,9 @@ function loadCollectionsPage() {
 
 /**
  * Build a collection card element for the list page.
+ * `share` is null for a private collection, otherwise { id, role, data } of the share it lives in.
  */
-function buildCollectionCard(id, data, count, totalWorth) {
+function buildCollectionCard(id, data, count, totalWorth, share) {
     var card = document.createElement('div');
     card.className = 'collection-card';
 
@@ -119,6 +126,19 @@ function buildCollectionCard(id, data, count, totalWorth) {
         ? '$' + totalWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : '$0.00';
 
+    // Small badge on the left, next to the type: who this belongs to / what I may do
+    var shareBadge = '';
+    if (share) {
+        var label = share.role === 'owner' ? 'Shared'
+                  : share.role === 'edit'  ? 'Can edit'
+                  : 'View only';
+        if (share.role !== 'owner') {
+            label += ' · from ' + ((share.data.names || {})[share.data.ownerUid] || 'someone');
+        }
+        shareBadge = '<span class="collection-type-badge" style="background:#eef3ee;">' + escapeHtml(label) + '</span>';
+    }
+
+    var canEdit = !share || share.role !== 'view';
     card.innerHTML =
         '<div class="collection-card-main">' +
             '<div class="collection-card-info">' +
@@ -126,21 +146,26 @@ function buildCollectionCard(id, data, count, totalWorth) {
                     escapeHtml(data.name || 'Unnamed Collection') +
                 '</a>' +
                 '<span class="collection-type-badge">' + escapeHtml(data.type || '') + '</span>' +
+                shareBadge +
             '</div>' +
             '<div class="collection-card-stats">' +
                 '<span>' + count + ' item' + (count !== 1 ? 's' : '') + '</span>' +
                 '<span class="collection-card-worth">' + worthStr + '</span>' +
             '</div>' +
         '</div>' +
-        '<div class="collection-card-actions">' +
+        (canEdit ? '<div class="collection-card-actions">' +
             '<button class="btn btn-secondary btn-small collection-edit-btn" data-id="' + id + '">Edit</button>' +
-        '</div>';
+        '</div>' : '');
 
-    // Wire up the edit button
-    card.querySelector('.collection-edit-btn').addEventListener('click', function(e) {
-        e.preventDefault();
-        openEditCollectionModal(id);
-    });
+    // Wire up the edit button (it must point the data helpers at the right place first)
+    var editBtn = card.querySelector('.collection-edit-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            _shSetCtx(share ? share.id : null, share ? share.role : 'owner', share ? share.data : null);
+            openEditCollectionModal(id);
+        });
+    }
 
     return card;
 }
@@ -180,7 +205,7 @@ function openAddCollectionModal() {
  * @param {string} id — collection document ID
  */
 function openEditCollectionModal(id) {
-    userCol('collections').doc(id).get()
+    collCol('collections').doc(id).get()
         .then(function(doc) {
             if (!doc.exists) { alert('Collection not found.'); return; }
 
@@ -196,8 +221,8 @@ function openEditCollectionModal(id) {
             document.getElementById('collectionLabel2Input').value       = data.label2 || '';
             document.getElementById('collectionLabel3Input').value       = data.label3 || '';
 
-            // Show delete button in edit mode
-            document.getElementById('collectionDeleteBtn').classList.remove('hidden');
+            // Show delete button in edit mode (only the owner can delete a whole collection)
+            document.getElementById('collectionDeleteBtn').classList.toggle('hidden', !shIsOwner());
 
             buildContactPicker('collBenePicker', {
                 placeholder: 'Search contacts\u2026',
@@ -226,7 +251,7 @@ function toggleGenericLabels() {
 
 /**
  * Save handler for the Add/Edit Collection modal.
- * Saves to userCol('collections').
+ * Saves to collCol('collections').
  */
 function handleCollectionModalSave() {
     var modal = document.getElementById('collectionModal');
@@ -261,8 +286,11 @@ function handleCollectionModalSave() {
     var mode   = modal.dataset.mode;
     var editId = modal.dataset.editId;
 
+    // "Goes to" points at the owner's private contacts, so only the owner may change it
+    if (!shIsOwner()) delete payload.beneficiaryContactId;
+
     if (mode === 'edit' && editId) {
-        userCol('collections').doc(editId).update(payload)
+        collCol('collections').doc(editId).update(shMaybeStamp(payload, false))
             .then(function() {
                 closeModal('collectionModal');
                 loadCollectionsPage();
@@ -270,7 +298,7 @@ function handleCollectionModalSave() {
             .catch(function(err) { console.error('Update collection error:', err); });
     } else {
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        userCol('collections').add(payload)
+        collCol('collections').add(payload)
             .then(function() {
                 closeModal('collectionModal');
                 loadCollectionsPage();
@@ -288,10 +316,28 @@ function handleCollectionDelete() {
     var editId = modal.dataset.editId;
     if (!editId) return;
 
+    if (window.currentShareId) {
+        // A shared collection: only the owner gets here (the button is hidden for editors).
+        // Contents go first, then the share itself.
+        if (!shIsOwner()) return;
+        if (!confirm('Delete this shared collection and ALL its items and photos? The people it is shared with lose it too. This cannot be undone.')) return;
+        shDeleteSharedCollection(window.currentShareId)
+            .then(function() {
+                _shSetCtx(null, 'owner', null);
+                closeModal('collectionModal');
+                window.location.hash = '#collections';
+            })
+            .catch(function(err) {
+                console.error('Delete shared collection error:', err);
+                alert('Error deleting collection. Please try again.');
+            });
+        return;
+    }
+
     if (!confirm('Delete this collection and ALL its items? This cannot be undone.')) return;
 
     // Delete all items first, then delete the collection doc
-    userCol('collectionItems').where('collectionId', '==', editId).get()
+    collCol('collectionItems').where('collectionId', '==', editId).get()
         .then(function(itemSnap) {
             var batch = db.batch();
             itemSnap.forEach(function(doc) {
@@ -300,7 +346,7 @@ function handleCollectionDelete() {
             return batch.commit();
         })
         .then(function() {
-            return userCol('collections').doc(editId).delete();
+            return collCol('collections').doc(editId).delete();
         })
         .then(function() {
             closeModal('collectionModal');
@@ -321,6 +367,58 @@ function handleCollectionDelete() {
  * @param {string} id — collection document ID
  */
 function loadCollectionPage(id) {
+    // First find out whether this collection is private or lives in a share, so every
+    // read and write below (collCol) goes to the right place.
+    // If the page is asked for twice at nearly the same time (e.g. after closing a dialog),
+    // only the latest request goes on to draw it.
+    var seq = ++_collPageSeq;
+    shResolveCollectionContext(id)
+        .catch(function(err) { console.error('shResolveCollectionContext:', err); })
+        .then(function() { if (seq === _collPageSeq) _loadCollectionPageInner(id); });
+}
+var _collPageSeq = 0;
+var _collItemPageSeq = 0;
+
+/**
+ * Shows the Private / Shared / Can edit / View only badge and the Share button on the
+ * collection detail page, and hides Add buttons when the person can only view.
+ */
+function _collApplyShareUi(collData) {
+    var row   = document.getElementById('collShareRow');
+    var badge = document.getElementById('collShareBadge');
+    var info  = document.getElementById('collShareInfo');
+    var btn   = document.getElementById('collShareBtn');
+    var addBtn = document.getElementById('addCollectionItemBtn');
+    if (!row) return;
+
+    var role = window.currentShareRole;
+    row.style.display = 'flex';
+    info.textContent = '';
+    if (!window.currentShareId) {
+        badge.textContent = 'Private';
+        btn.textContent = 'Share…';
+        btn.classList.remove('hidden');
+    } else if (role === 'owner') {
+        badge.textContent = 'Shared';
+        btn.textContent = 'Sharing…';
+        btn.classList.remove('hidden');
+        var groupIds = Object.keys((window.currentShareData && window.currentShareData.shareGroups) || {});
+        _shLoadGroups().then(function(groups) {
+            var roles = window.currentShareData.shareGroups;
+            info.textContent = 'With: ' + groups.filter(function(g) { return roles[g.id]; })
+                .map(function(g) { return g.name + ' (' + (roles[g.id] === 'edit' ? 'can edit' : 'view') + ')'; }).join(', ');
+        }).catch(function() {});
+    } else {
+        badge.textContent = role === 'edit' ? 'Can edit' : 'View only';
+        info.textContent = 'Shared by ' + (((window.currentShareData || {}).names || {})[(window.currentShareData || {}).ownerUid] || 'someone');
+        btn.classList.add('hidden');
+    }
+    if (addBtn) addBtn.classList.toggle('hidden', !shCanEdit());
+    var photoBtn = document.getElementById('collectionFromPicBtn');
+    if (photoBtn && !shCanEdit()) photoBtn.classList.add('hidden');
+}
+
+function _loadCollectionPageInner(id) {
     var nameEl    = document.getElementById('collectionDetailName');
     var statsEl   = document.getElementById('collectionDetailStats');
     var crumbEl   = document.getElementById('breadcrumbBar');
@@ -335,7 +433,7 @@ function loadCollectionPage(id) {
     listEl.innerHTML    = '<p class="empty-state">Loading&hellip;</p>';
     if (crumbEl) crumbEl.innerHTML = '<a href="#house">House</a><span class="separator">&rsaquo;</span><a href="#collections">Collections</a>';
 
-    userCol('collections').doc(id).get()
+    collCol('collections').doc(id).get()
         .then(function(doc) {
             if (!doc.exists) {
                 listEl.innerHTML = '<p class="empty-state">Collection not found.</p>';
@@ -344,6 +442,7 @@ function loadCollectionPage(id) {
 
             var data = doc.data();
             window.currentCollection = { id: id, ...data };
+            _collApplyShareUi(data);
 
             nameEl.textContent = data.name || 'Collection';
             _renderBeneficiaryRow('collGoesToRow', { id: id, ...data }, []);
@@ -397,7 +496,7 @@ function loadCollectionPage(id) {
             }
 
             // Load items
-            return userCol('collectionItems')
+            return collCol('collectionItems')
                 .where('collectionId', '==', id)
                 .get();
         })
@@ -726,7 +825,7 @@ function renderCollectionItemTypeFields(collType, typeData, colDoc) {
  * @param {string} collectionId — parent collection document ID
  */
 function openAddCollectionItemModal(collectionId) {
-    userCol('collections').doc(collectionId).get()
+    collCol('collections').doc(collectionId).get()
         .then(function(colDoc) {
             if (!colDoc.exists) { alert('Collection not found.'); return; }
 
@@ -759,12 +858,12 @@ function openAddCollectionItemModal(collectionId) {
  * @param {string} itemId — collection item document ID
  */
 function openEditCollectionItemModal(itemId) {
-    userCol('collectionItems').doc(itemId).get()
+    collCol('collectionItems').doc(itemId).get()
         .then(function(itemDoc) {
             if (!itemDoc.exists) { alert('Item not found.'); return; }
 
             var itemData = itemDoc.data();
-            return userCol('collections').doc(itemData.collectionId).get()
+            return collCol('collections').doc(itemData.collectionId).get()
                 .then(function(colDoc) {
                     var colData = colDoc.exists ? colDoc.data() : {};
                     var modal   = document.getElementById('collectionItemModal');
@@ -796,7 +895,7 @@ function openEditCollectionItemModal(itemId) {
 
 /**
  * Save handler for the Add/Edit Collection Item modal.
- * Reads all type-specific fields and saves to userCol('collectionItems').
+ * Reads all type-specific fields and saves to collCol('collectionItems').
  */
 function handleCollectionItemModalSave() {
     var modal        = document.getElementById('collectionItemModal');
@@ -859,8 +958,11 @@ function handleCollectionItemModalSave() {
         beneficiaryContactId: document.getElementById('ciBenePicker_id').value || null
     };
 
+    // "Goes to" points at the owner's private contacts, so only the owner may change it
+    if (!shIsOwner()) delete payload.beneficiaryContactId;
+
     if (mode === 'edit' && editId) {
-        userCol('collectionItems').doc(editId).update(payload)
+        collCol('collectionItems').doc(editId).update(shMaybeStamp(payload, false))
             .then(function() {
                 closeModal('collectionItemModal');
                 // Reload the appropriate page
@@ -874,7 +976,7 @@ function handleCollectionItemModalSave() {
     } else {
         payload.createdAt   = firebase.firestore.FieldValue.serverTimestamp();
         payload.locationRef = null;
-        userCol('collectionItems').add(payload)
+        collCol('collectionItems').add(shMaybeStamp(payload, true))
             .then(function() {
                 closeModal('collectionItemModal');
                 if (window.currentCollection) {
@@ -894,6 +996,14 @@ function handleCollectionItemModalSave() {
  * @param {string} id — collection item document ID
  */
 function loadCollectionItemPage(id) {
+    // Find out whether this item is private or lives in a share (the page only has the item's ID)
+    var seq = ++_collItemPageSeq;
+    shResolveItemContext(id)
+        .catch(function(err) { console.error('shResolveItemContext:', err); })
+        .then(function() { if (seq === _collItemPageSeq) _loadCollectionItemPageInner(id); });
+}
+
+function _loadCollectionItemPageInner(id) {
     var nameEl     = document.getElementById('collectionItemDetailName');
     var crumbEl    = document.getElementById('breadcrumbBar');
     var infoCard   = document.getElementById('collectionItemInfoCard');
@@ -905,7 +1015,7 @@ function loadCollectionItemPage(id) {
     infoCard.innerHTML = '<p class="empty-state">Loading&hellip;</p>';
     if (locationEl) locationEl.innerHTML = '';
 
-    userCol('collectionItems').doc(id).get()
+    collCol('collectionItems').doc(id).get()
         .then(function(itemDoc) {
             if (!itemDoc.exists) {
                 infoCard.innerHTML = '<p class="empty-state">Item not found.</p>';
@@ -918,7 +1028,7 @@ function loadCollectionItemPage(id) {
             nameEl.textContent = itemData.name || 'Item';
 
             // Load parent collection for labels and type
-            return userCol('collections').doc(itemData.collectionId).get()
+            return collCol('collections').doc(itemData.collectionId).get()
                 .then(function(colDoc) {
                     var colData = colDoc.exists ? colDoc.data() : {};
 
@@ -972,6 +1082,18 @@ function loadCollectionItemPage(id) {
                             openCollectionLocationModal(id);
                         });
                     }
+
+                    // Someone who can only view a shared collection gets no add/edit/delete buttons
+                    var canEdit = shCanEdit();
+                    ['editCollectionItemBtn', 'deleteCollectionItemBtn', 'collectionItemCameraBtn', 'collectionItemGalleryBtn'].forEach(function(bid) {
+                        var b = document.getElementById(bid);
+                        if (b) b.style.display = canEdit ? '' : 'none';
+                    });
+                    var pasteBtn = document.querySelector('#page-collectionitem .paste-photo-btn');
+                    if (pasteBtn) pasteBtn.style.display = canEdit ? '' : 'none';
+                    // Locations point at the owner's private rooms, so only the owner can set them
+                    var locBtn2 = document.getElementById('collectionItemLocationBtn');
+                    if (locBtn2) locBtn2.style.display = shIsOwner() ? '' : 'none';
 
                     // Load photos
                     loadPhotos('collectionitem', id, 'collectionItemPhotoContainer', 'collectionItemPhotoEmpty');
@@ -1054,7 +1176,7 @@ function renderCollectionItemInfoCard(infoCard, itemData, colData) {
 function handleCollectionItemDelete(itemId, collectionId) {
     if (!confirm('Delete this item? This cannot be undone.')) return;
 
-    userCol('collectionItems').doc(itemId).delete()
+    collCol('collectionItems').doc(itemId).delete()
         .then(function() {
             window.currentCollectionItem = null;
             window.location.hash = '#collection/' + collectionId;
@@ -1099,7 +1221,8 @@ function renderCollectionItemLocation(container, itemData, itemId) {
 
     userCol(colName).doc(locRef.locId).get()
         .then(function(doc) {
-            var locName = doc.exists ? (doc.data().name || 'Unknown') : 'Not found';
+            var locName = doc.exists ? (doc.data().name || 'Unknown')
+                        : (window.currentShareId && !shIsOwner() ? 'Private location' : 'Not found');
             var typeLabel = locRef.locType === 'houseroom' ? 'House Room'
                          : locRef.locType === 'housething' ? 'House Thing'
                          : 'Garage Room';
@@ -1126,7 +1249,7 @@ function renderCollectionItemLocation(container, itemData, itemId) {
  * Clear the location assignment from a collection item.
  */
 function clearCollectionLocation(itemId) {
-    userCol('collectionItems').doc(itemId).update({ locationRef: null })
+    collCol('collectionItems').doc(itemId).update({ locationRef: null })
         .then(function() {
             if (window.currentCollectionItem) {
                 window.currentCollectionItem.locationRef = null;
@@ -1187,7 +1310,7 @@ function openCollectionLocationModal(itemId) {
             var locType = selected.dataset.locType;
             var locId   = selected.dataset.locId;
 
-            userCol('collectionItems').doc(itemId).update({
+            collCol('collectionItems').doc(itemId).update({
                 locationRef: { locType: locType, locId: locId }
             })
             .then(function() {
@@ -1363,7 +1486,7 @@ async function collectionCheckLlmForPhotoBtn() {
         var doc = await userCol('settings').doc('llm').get();
         var ok  = doc.exists && doc.data().provider && doc.data().apiKey;
         var btn = document.getElementById('collectionFromPicBtn');
-        if (btn) btn.classList.toggle('hidden', !ok);
+        if (btn) btn.classList.toggle('hidden', !ok || !shCanEdit());
     } catch (e) { /* leave hidden */ }
 }
 
@@ -1644,7 +1767,7 @@ async function collectionAutoSaveFromLlm(parsed, images, collectionId, collType)
     }
     // Hat Pins and Generic: typeData stays {}
 
-    var docRef = await userCol('collectionItems').add({
+    var docRef = await collCol('collectionItems').add(shMaybeStamp({
         collectionId:   collectionId,
         name:           name || 'Unknown Item',
         typeData:       typeData,
@@ -1654,24 +1777,24 @@ async function collectionAutoSaveFromLlm(parsed, images, collectionId, collType)
         notes:          notes,
         locationRef:    null,
         createdAt:      firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, true));
 
     // Save the photos
     for (var i = 0; i < images.length; i++) {
-        await userCol('photos').add({
+        await collCol('photos').add(shMaybeStamp({
             targetType: 'collectionitem',
             targetId:   docRef.id,
             imageData:  images[i],
             caption:    '',
             createdAt:  firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, true));
     }
 
     // Auto-set thumbnail from the first photo
     if (images.length > 0 && typeof _compressToThumb === 'function') {
         try {
             var thumbData = await _compressToThumb(images[0]);
-            await userCol('collectionItems').doc(docRef.id).update({ profilePhotoData: thumbData });
+            await collCol('collectionItems').doc(docRef.id).update({ profilePhotoData: thumbData });
         } catch (thumbErr) {
             console.warn('Could not auto-set collection item thumbnail:', thumbErr);
         }

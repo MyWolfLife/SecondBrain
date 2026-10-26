@@ -278,7 +278,7 @@ async function shDisconnect(uid) {
         for (var g = 0; g < groups.length; g++) {
             if ((groups[g].memberUids || []).indexOf(uid) !== -1) await _shRemoveFromGroup(groups[g].id, uid);
         }
-        // TODO (S5): re-compute the guest list of anything I shared with them.
+        await shRecomputeShares();
         await shRenderPeople();
     } catch (err) {
         console.error(err);
@@ -304,6 +304,7 @@ async function _shLoadGroups() {
 async function _shReconcileGroups(groups) {
     var byUid = {};
     _shPeople.forEach(function(p) { byUid[p.uid] = p; });
+    var anyChanged = false;
     for (var i = 0; i < groups.length; i++) {
         var g = groups[i];
         var uids = (g.memberUids || []).filter(function(u) { return byUid[u]; });
@@ -315,8 +316,10 @@ async function _shReconcileGroups(groups) {
             await topCol('groups').doc(g.id).update({ memberUids: uids, memberNames: names });
             g.memberUids = uids;
             g.memberNames = names;
+            anyChanged = true;
         }
     }
+    if (anyChanged) await shRecomputeShares();     // access follows the groups
 }
 
 async function shRenderGroups() {
@@ -410,8 +413,8 @@ async function shDeleteGroup(id) {
     if (!g) return;
     if (!confirm('Delete the group "' + g.name + '"?\n\nThe people in it are not affected. Anything shared with this group will stop being shared with its members.')) return;
     try {
-        // TODO (S5): re-compute the guest list of every share that used this group.
         await topCol('groups').doc(id).delete();
+        await shRecomputeShares();
         await shRenderGroups();
     } catch (err) {
         console.error(err);
@@ -428,7 +431,7 @@ async function shAddMember(groupId, selectEl) {
         var upd = { memberUids: firebase.firestore.FieldValue.arrayUnion(uid) };
         upd['memberNames.' + uid] = person.name || 'Unnamed';
         await topCol('groups').doc(groupId).update(upd);
-        // TODO (S5): re-compute the guest list of every share that uses this group.
+        await shRecomputeShares();
         await shRenderGroups();
     } catch (err) {
         console.error(err);
@@ -445,7 +448,7 @@ async function _shRemoveFromGroup(groupId, uid) {
 async function shRemoveMember(groupId, uid) {
     try {
         await _shRemoveFromGroup(groupId, uid);
-        // TODO (S5): re-compute the guest list of every share that uses this group.
+        await shRecomputeShares();
         await shRenderGroups();
     } catch (err) {
         console.error(err);
@@ -588,4 +591,385 @@ async function shRenderSharedWithMe() {
         console.error(err);
         el.innerHTML = '<p style="color:#c0392b;font-size:0.9rem;">Could not load shared items (' + escapeHtml(err.message) + ').</p>';
     }
+}
+
+// ─── Guest lists (S5) ────────────────────────────────────────────────────────
+// A share keeps shareGroups{groupId: 'view'|'edit'} (what the owner chose) and the
+// flattened lists the security rules read: viewerUids[], editorUids[], names{}.
+
+/** Turn the owner's group choices into the flat guest lists. Edit beats view if someone is in both. */
+function shFlatten(shareGroups, groups, ownerUid, ownerName) {
+    var editors = {}, viewers = {}, names = {};
+    names[ownerUid] = ownerName || 'Owner';
+    groups.forEach(function(g) {
+        var role = (shareGroups || {})[g.id];
+        if (!role) return;
+        (g.memberUids || []).forEach(function(u) {
+            if (u === ownerUid) return;
+            names[u] = (g.memberNames || {})[u] || names[u] || 'Unnamed';
+            if (role === 'edit') editors[u] = true; else viewers[u] = true;
+        });
+    });
+    var editorUids = Object.keys(editors);
+    var viewerUids = Object.keys(viewers).filter(function(u) { return !editors[u]; });
+    return { viewerUids: viewerUids, editorUids: editorUids, names: names };
+}
+
+/**
+ * Re-computes the guest list of every share I own from my current groups.
+ * Called after any group change (add/remove person, delete group, disconnect) so access
+ * follows the groups at once. Groups that no longer exist are dropped from the share.
+ */
+async function shRecomputeShares() {
+    var me = _shMyUid();
+    var groups = await _shLoadGroups();
+    var shares = await shLoadMyShares();
+    var myName = await shGetMyName();
+    var live = {};
+    groups.forEach(function(g) { live[g.id] = true; });
+    for (var i = 0; i < shares.length; i++) {
+        var s = shares[i].data;
+        var sg = {};
+        Object.keys(s.shareGroups || {}).forEach(function(id) { if (live[id]) sg[id] = s.shareGroups[id]; });
+        var flat = shFlatten(sg, groups, me, myName);
+        var same = JSON.stringify([sg, flat.viewerUids.slice().sort(), flat.editorUids.slice().sort(), flat.names]) ===
+                   JSON.stringify([s.shareGroups || {}, (s.viewerUids || []).slice().sort(), (s.editorUids || []).slice().sort(), s.names || {}]);
+        if (!same) {
+            await topCol('shares').doc(shares[i].id).update({
+                shareGroups: sg, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names
+            });
+        }
+    }
+}
+
+// ─── Moving data (S5) ────────────────────────────────────────────────────────
+
+var SH_BATCH_MAX_OPS   = 400;
+var SH_BATCH_MAX_BYTES = 6 * 1024 * 1024;   // Firestore refuses a batch over ~10 MB; photos are big
+
+function _shDocBytes(data) {
+    var n = 200;
+    Object.keys(data || {}).forEach(function(k) {
+        var v = data[k];
+        n += k.length + (typeof v === 'string' ? v.length : 60);
+    });
+    return n;
+}
+
+/** ops: [{ref, data}] set in size-aware batches. */
+async function shBatchSet(ops, onProgress) {
+    var i = 0, done = 0;
+    while (i < ops.length) {
+        var batch = db.batch(), count = 0, bytes = 0;
+        while (i < ops.length && count < SH_BATCH_MAX_OPS && (count === 0 || bytes + _shDocBytes(ops[i].data) < SH_BATCH_MAX_BYTES)) {
+            batch.set(ops[i].ref, ops[i].data);
+            bytes += _shDocBytes(ops[i].data);
+            count++; i++;
+        }
+        await batch.commit();
+        done += count;
+        if (onProgress) onProgress(done, ops.length);
+    }
+}
+
+/** refs: DocumentReference[] deleted in batches. */
+async function shBatchDelete(refs, onProgress) {
+    for (var i = 0; i < refs.length; i += SH_BATCH_MAX_OPS) {
+        var batch = db.batch();
+        refs.slice(i, i + SH_BATCH_MAX_OPS).forEach(function(r) { batch.delete(r); });
+        await batch.commit();
+        if (onProgress) onProgress(Math.min(i + SH_BATCH_MAX_OPS, refs.length), refs.length);
+    }
+}
+
+/** Reads everything that belongs to a collection from a given place (private when shareId is null). */
+async function shReadCollectionBundle(collId, shareId) {
+    var colDoc = await dataCol('collections', shareId).doc(collId).get();
+    if (!colDoc.exists) throw new Error('That collection no longer exists.');
+    var itemSnap = await dataCol('collectionItems', shareId).where('collectionId', '==', collId).get();
+    var itemIds = {};
+    itemSnap.docs.forEach(function(d) { itemIds[d.id] = true; });
+    // Photos are one big collection; read the two kinds that belong to collections, keep ours.
+    var photoDocs = [];
+    var kinds = [['collection', null], ['collectionitem', itemIds]];
+    for (var k = 0; k < kinds.length; k++) {
+        var snap = await dataCol('photos', shareId).where('targetType', '==', kinds[k][0]).get();
+        snap.docs.forEach(function(d) {
+            var t = d.data().targetId;
+            if (kinds[k][1] ? kinds[k][1][t] : t === collId) photoDocs.push(d);
+        });
+    }
+    return { collection: colDoc, items: itemSnap.docs, photos: photoDocs };
+}
+
+function _shBundleToJson(bundle) {
+    function rows(docs) { return docs.map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); }
+    return { version: 1, type: 'collection-before-share', exportedAt: new Date().toISOString(),
+             collection: rows([bundle.collection]), collectionItems: rows(bundle.items), photos: rows(bundle.photos) };
+}
+
+/** Small progress panel inside the share dialog. */
+function _shProgress(text, isError) {
+    var el = document.getElementById('shDlgProgress');
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.style.color = isError ? '#c0392b' : '';
+    el.textContent = text;
+}
+
+/**
+ * Share a private collection (S5). Steps: read → download a backup file → create the share
+ * document → copy everything in (same IDs) → check the counts → delete the private originals.
+ * If anything fails before the originals are deleted, the copy is removed again and the
+ * original is untouched.
+ */
+async function shShareCollection(collId, shareGroups) {
+    var me = _shMyUid();
+    var groups = await _shLoadGroups();
+    var myName = await shGetMyName();
+    var flat = shFlatten(shareGroups, groups, me, myName);
+
+    _shProgress('Reading the collection…');
+    var bundle = await shReadCollectionBundle(collId, null);
+    var title = bundle.collection.data().name || 'Collection';
+
+    _shProgress('Saving a backup file…');
+    var stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+    backupDownload('Bishop_Collection_Backup_' + title.replace(/[^A-Za-z0-9]+/g, '_') + '_' + stamp + '.json', _shBundleToJson(bundle));
+
+    var shareRef = db.collection('shares').doc();
+    var shareId = shareRef.id;
+    var created = false;
+    try {
+        _shProgress('Creating the shared area…');
+        // Must be its own write, before anything goes inside: the rules read this document.
+        await topCol('shares').doc(shareId).set({
+            ownerUid: me, kind: 'collection', title: title, collectionId: collId,
+            shareGroups: shareGroups, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        created = true;
+
+        var ops = [];
+        function add(docs, name) {
+            docs.forEach(function(d) {
+                var data = Object.assign({}, d.data());
+                data.createdBy = data.createdBy || me;
+                data.updatedBy = data.updatedBy || me;
+                ops.push({ ref: shareCol(shareId, name).doc(d.id), data: data, name: name });
+            });
+        }
+        add([bundle.collection], 'collections');
+        add(bundle.items, 'collectionItems');
+        add(bundle.photos, 'photos');
+        await shBatchSet(ops, function(n, total) { _shProgress('Copying… ' + n + ' of ' + total); });
+
+        _shProgress('Checking the copy…');
+        var check = await shReadCollectionBundle(collId, shareId);
+        if (check.items.length !== bundle.items.length || check.photos.length !== bundle.photos.length || !check.collection.exists) {
+            throw new Error('The copy does not match the original (' + check.items.length + ' of ' + bundle.items.length + ' items, ' +
+                            check.photos.length + ' of ' + bundle.photos.length + ' photos).');
+        }
+    } catch (err) {
+        console.error('shShareCollection failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. Your collection has not been changed.', true);
+        if (created) { try { await shDeleteShareContents(shareId); await topCol('shares').doc(shareId).delete(); } catch (e2) { console.error('rollback failed:', e2); } }
+        throw err;
+    }
+
+    // The copy is verified: remove the private originals.
+    try {
+        _shProgress('Removing the private copy…');
+        var refs = bundle.photos.map(function(d) { return d.ref; })
+            .concat(bundle.items.map(function(d) { return d.ref; }), [bundle.collection.ref]);
+        await shBatchDelete(refs);
+    } catch (err) {
+        console.error('Could not remove the private originals:', err);
+        throw new Error('Shared, but the private copy could not be fully removed (' + err.message + '). Nothing is lost; open Collections and try Share again or tell the developer.');
+    }
+    return shareId;
+}
+
+/** Deletes everything inside a share (not the share document itself). */
+async function shDeleteShareContents(shareId) {
+    var names = ['photos', 'collectionItems', 'collections'];
+    for (var i = 0; i < names.length; i++) {
+        var snap = await shareCol(shareId, names[i]).get();
+        await shBatchDelete(snap.docs.map(function(d) { return d.ref; }));
+    }
+}
+
+/** Owner deletes a whole shared collection: contents first (the rules need the share document to exist), then the share. */
+async function shDeleteSharedCollection(shareId) {
+    await shDeleteShareContents(shareId);
+    await topCol('shares').doc(shareId).delete();
+}
+
+/** Owner changes who a share is shared with (groups and roles). Data does not move. */
+async function shUpdateShareGroups(shareId, shareGroups) {
+    var me = _shMyUid();
+    var groups = await _shLoadGroups();
+    var flat = shFlatten(shareGroups, groups, me, await shGetMyName());
+    await topCol('shares').doc(shareId).update({
+        shareGroups: shareGroups, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names
+    });
+}
+
+// ─── Which place does this collection / item live in? (S5) ───────────────────
+
+/** Sets the global context that dataCol() callers (collections.js, photos.js) read. */
+function _shSetCtx(shareId, role, shareData) {
+    window.currentShareId   = shareId || null;
+    window.currentShareRole = role || 'owner';   // 'owner' (also for private) | 'edit' | 'view'
+    window.currentShareData = shareData || null;
+}
+
+/** Shares of kind 'collection' that I own or that were shared with me: [{id, role, data}] */
+async function shLoadCollectionShares() {
+    var mine = await shLoadMyShares();
+    var withMe = await shLoadSharedWithMe();
+    return mine.filter(function(s) { return s.kind === 'collection'; })
+        .map(function(s) { return { id: s.id, role: 'owner', data: s.data }; })
+        .concat(withMe.filter(function(s) { return s.kind === 'collection'; })
+            .map(function(s) { return { id: s.id, role: s.role, data: s.data }; }));
+}
+
+/** Finds where collection `collId` lives (private or a share) and sets the global context. */
+async function shResolveCollectionContext(collId) {
+    var priv = await userCol('collections').doc(collId).get();
+    if (priv.exists) { _shSetCtx(null, 'owner', null); return; }
+    var shares = await shLoadCollectionShares();
+    for (var i = 0; i < shares.length; i++) {
+        if (shares[i].data.collectionId === collId) { _shSetCtx(shares[i].id, shares[i].role, shares[i].data); return; }
+    }
+    _shSetCtx(null, 'owner', null);     // not found anywhere: the page shows "not found"
+}
+
+/** Same for a collection item (the item page only has the item's ID). */
+async function shResolveItemContext(itemId) {
+    if (window.currentShareId) {      // fast path: we were just on that share's collection page
+        var cur = await shareCol(window.currentShareId, 'collectionItems').doc(itemId).get();
+        if (cur.exists) return;
+    }
+    var priv = await userCol('collectionItems').doc(itemId).get();
+    if (priv.exists) { _shSetCtx(null, 'owner', null); return; }
+    var shares = await shLoadCollectionShares();
+    for (var i = 0; i < shares.length; i++) {
+        var d = await shareCol(shares[i].id, 'collectionItems').doc(itemId).get();
+        if (d.exists) { _shSetCtx(shares[i].id, shares[i].role, shares[i].data); return; }
+    }
+    _shSetCtx(null, 'owner', null);
+}
+
+/** collections.js / photos.js helper: the collection in the current context (private or share). */
+function collCol(name) {
+    return dataCol(name, window.currentShareId);
+}
+
+/** Stamp writes only when the thing lives in a share (private writes stay as they were). */
+function shMaybeStamp(data, isNew) {
+    return window.currentShareId ? shStamp(data, isNew) : data;
+}
+
+/** True when the current collection context lets the person add/change/delete items. */
+function shCanEdit() {
+    return !window.currentShareId || window.currentShareRole === 'owner' || window.currentShareRole === 'edit';
+}
+
+/** True only for the person who owns the thing (always true for private data). */
+function shIsOwner() {
+    return !window.currentShareId || window.currentShareRole === 'owner';
+}
+
+// ─── Share dialog (S5) ───────────────────────────────────────────────────────
+
+var _shDlg = { collId: null, shareId: null, existingGroups: {} };
+
+/** Opens the Share dialog for the collection on screen (owner only). */
+async function shOpenShareDialog() {
+    var col = window.currentCollection;
+    if (!col || !shIsOwner()) return;
+    _shDlg.collId = col.id;
+    _shDlg.shareId = window.currentShareId || null;
+    _shDlg.existingGroups = (window.currentShareData && window.currentShareData.shareGroups) || {};
+
+    var groups = [];
+    try { groups = await _shLoadGroups(); } catch (err) { console.error(err); }
+
+    document.getElementById('shDlgTitle').textContent = (_shDlg.shareId ? 'Sharing “' : 'Share “') + (col.name || 'Collection') + '”';
+    document.getElementById('shDlgProgress').classList.add('hidden');
+    var body = document.getElementById('shDlgGroups');
+    var note = document.getElementById('shDlgNote');
+    var okBtn = document.getElementById('shDlgOkBtn');
+    okBtn.disabled = false;
+    okBtn.textContent = _shDlg.shareId ? 'Save' : 'Share';
+    document.getElementById('shDlgCancelBtn').disabled = false;
+
+    if (!groups.length) {
+        body.innerHTML = '<p>You have no groups yet. Make one under <a href="#sharing" onclick="closeModal(\'shareDialogModal\')">Settings → Sharing</a> (for example Family), add people to it, then come back.</p>';
+        okBtn.disabled = true;
+    } else {
+        var html = '';
+        groups.forEach(function(g) {
+            var cur = _shDlg.existingGroups[g.id] || '';
+            var n = (g.memberUids || []).length;
+            html += '<div class="form-group" style="display:flex; align-items:center; gap:8px;">' +
+                      '<label style="flex:1; margin:0; min-width:110px;">' + escapeHtml(g.name) + ' <small style="color:#888; white-space:nowrap;">(' + n + ' ' + (n === 1 ? 'person' : 'people') + ')</small></label>' +
+                      '<select data-group-id="' + g.id + '" style="width:auto; flex:0 0 auto;">' +
+                        '<option value=""' + (cur === '' ? ' selected' : '') + '>Not shared</option>' +
+                        '<option value="view"' + (cur === 'view' ? ' selected' : '') + '>View only</option>' +
+                        '<option value="edit"' + (cur === 'edit' ? ' selected' : '') + '>Can edit</option>' +
+                      '</select>' +
+                    '</div>';
+        });
+        body.innerHTML = html;
+    }
+    note.textContent = _shDlg.shareId
+        ? 'Changing who it is shared with does not move anything. People you remove lose access right away.'
+        : 'Sharing moves this collection, its items and photos into a shared area. A backup file downloads first, and you stay the owner. Editors can add, change and delete items; only you can stop sharing or delete the whole collection.';
+    openModal('shareDialogModal');
+}
+
+async function shSubmitShareDialog() {
+    var choice = {};
+    document.querySelectorAll('#shDlgGroups select').forEach(function(sel) { if (sel.value) choice[sel.dataset.groupId] = sel.value; });
+    var okBtn = document.getElementById('shDlgOkBtn');
+    var cancelBtn = document.getElementById('shDlgCancelBtn');
+    if (!_shDlg.shareId && !Object.keys(choice).length) { _shProgress('Pick at least one group first.', true); return; }
+    okBtn.disabled = true; cancelBtn.disabled = true;
+    try {
+        if (_shDlg.shareId) {
+            await shUpdateShareGroups(_shDlg.shareId, choice);
+            closeModal('shareDialogModal');
+            loadCollectionPage(_shDlg.collId);
+        } else {
+            _shProgress('Starting…');
+            var shareId = await shShareCollection(_shDlg.collId, choice);
+            closeModal('shareDialogModal');
+            loadCollectionPage(_shDlg.collId);     // stay on the collection; it now shows as Shared
+        }
+    } catch (err) {
+        console.error(err);
+        _shProgress('Could not finish: ' + err.message, true);
+        okBtn.disabled = false; cancelBtn.disabled = false;
+    }
+}
+
+// ─── Photos inside shares (S5) ───────────────────────────────────────────────
+// photos.js calls these for every photo read/write.
+
+/**
+ * Which Firestore collection holds photos / thumbnails for this target type.
+ * Collection photos live in the shared area while a collection is being used through a share
+ * (window.currentShareId, set by collections.js); everything else is the person's own data.
+ */
+function _pCol(name, targetType) {
+    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
+    return inShare ? shareCol(window.currentShareId, name) : userCol(name);
+}
+
+/** Adds who-did-it stamps to a new photo when it goes into a share. */
+function _pStamp(data, targetType) {
+    var inShare = (targetType === 'collectionitem' || targetType === 'collection') && window.currentShareId;
+    return inShare ? shStamp(data, true) : data;
 }
