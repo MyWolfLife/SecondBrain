@@ -99,8 +99,8 @@ function loadBeneficiariesPage() {
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),
         userCol('structureSubThings').get(),
-        userCol('collections').get(),
-        userCol('collectionItems').get()
+        shPrivateAndOwnedSnap('collections'),
+        shPrivateAndOwnedSnap('collectionItems')
     ]).then(function(snaps) {
         var contactIds = {};
         snaps.forEach(function(snap) {
@@ -219,8 +219,8 @@ function _loadBeneficiaryResults(contactId, contactName) {
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),
         userCol('structureSubThings').get(),
-        userCol('collections').get(),
-        userCol('collectionItems').get()
+        shPrivateAndOwnedSnap('collections'),
+        shPrivateAndOwnedSnap('collectionItems')
     ]).then(function(snaps) {
         var things             = _beneDocsToMap(snaps[0]);
         var subThings          = _beneDocsToMap(snaps[1]);
@@ -261,8 +261,8 @@ function _loadAllBeneficiaryResults() {
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),
         userCol('structureSubThings').get(),
-        userCol('collections').get(),
-        userCol('collectionItems').get()
+        shPrivateAndOwnedSnap('collections'),
+        shPrivateAndOwnedSnap('collectionItems')
     ]).then(function(snaps) {
         var things             = _beneDocsToMap(snaps[0]);
         var subThings          = _beneDocsToMap(snaps[1]);

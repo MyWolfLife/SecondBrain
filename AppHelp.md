@@ -3749,7 +3749,7 @@ One post can name several places, so you may get several cards. The AI is told n
 
 ### Details
 
-**What it searches:** plants, zones, weeds, chemicals, rooms, things and sub-things, structures, garage areas, vehicles, collections and their items, contacts, notebooks, places, life projects, memories, views, Top 10 lists, activities, and checklist templates and runs. Matching is on the name or title of each record.
+**What it searches:** plants, zones, weeds, chemicals, rooms, things and sub-things, structures, garage areas, vehicles, collections and their items (including collections other people shared with you, and ones you shared), contacts, notebooks, places, life projects, memories, views, Top 10 lists, activities, and checklist templates and runs. Matching is on the name or title of each record.
 
 **Checklists** match more broadly than the rest — a checklist template also matches on its tags and on the text of its individual items, not just its name.
 
@@ -4580,7 +4580,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 
 ### Details
 
-**What "Who Gets What" is:** A summary page that answers the question "what does [Person] receive?" It reads beneficiary assignments from Things, Sub-Things, Items, Garage Things/Sub-Things, Structure Things/Sub-Things, Collections, and Collection Items, then groups and displays everything assigned to the selected contact.
+**What "Who Gets What" is:** A summary page that answers the question "what does [Person] receive?" It reads beneficiary assignments from Things, Sub-Things, Items, Garage Things/Sub-Things, Structure Things/Sub-Things, Collections, and Collection Items, then groups and displays everything assigned to the selected contact. Collections **you** have shared with someone else are still yours, so they are included. Collections other people shared with you are not (they are not yours to give away).
 
 **How to use it:**
 1. Open the House section and tap **More → Who Gets What**.
@@ -4800,6 +4800,8 @@ Each thought is a living document -- you can update it over time with history pr
 
 **Download Backup:**
 Downloads a JSON file of all your Firestore data (activities, plants, zones, health records, journal entries, etc.). Private vault data is included as ciphertext — it is useless without your passphrase but preserves the Firestore structure for disaster recovery. Check "Create photos file also" to include a separate JSON file with your regular (non-private) photos.
+
+**Shared collections:** collections you have shared with other people are included in the backup too (the Data file has their items, the Photos file their photos). Collections other people shared with you belong to them and are not in your backup. When you restore, a collection that was shared comes back as a **private** collection (share it again if you want) — unless it is still shared right now, in which case it is left alone. Restore the Data file before the Photos file so the photos have a collection to go back to.
 
 **Backup Private Data (vault only):**
 - Only visible when the Private Vault is activated in Settings → General Settings

@@ -2,6 +2,20 @@
 
 Items that are out of scope for current work but should be revisited later.
 
+---
+
+## Shared Spaces: what is left after Collections (2026-10-26)
+
+*Groups, invites, sharing, Stop sharing and the Collections pilot are built (`SharedSpacesBuildPlan.md`, chunks S1–S7). This is what is left. The user picks the order.*
+
+- **More things to share**, one at a time, the same way as Collections: Yard, House, Garage, Contacts, Vehicles, Structures, Neighborhoods, Life Projects, Budgets, Investments, Insurance, Checklists, Calendar, Credentials (per item), Notes (per note), Health for others, API keys. Each needs its own screens switched to `dataCol()` and its own move code (the engine in `sharing.js` is written for collections).
+- **Workouts library** (`SharedSpacesPlan.md` §8b): needs the decision about per-person progression stored inside workouts (a personal overlay vs shared).
+- **Offline Trip Mode** should download things shared with me (the write lock already covers shares); shared edits made offline sync later.
+- **Backup**: a checkbox "Also include things shared with me"; today only what I own is backed up.
+- **Restore of a shared collection** comes back private; could re-create the share if the groups still exist.
+- **Not exercised**: the failure rollback of Share and Stop sharing (it exists but was never triggered), a real photo-file upload into a shared item, phone-width layout of the Sharing page and dialogs.
+- Only people on the same Firebase project can share; a person with their own project cannot.
+
 ## Life Projects: Itinerary Travel-Time Research and Map Feature
 
 - Revisit automatic travel-duration research for Import / Edit Day. The current feature researches locations only; travel durations come from user instructions or derivable stated times.
@@ -216,7 +230,7 @@ Related to: Timeline, Memories, Places.
 
 **Parked ideas:**
 - **F6, the smaller workout formats** (`FormatsPlan.md`): Easy Gleason, circuit work/rest, timed workout, 52 Pick-Up, active recovery.
-- **Shared Spaces** (`SharedSpacesPlan.md`): sharing data with a spouse. Early plan only.
+- **Shared Spaces**: Collections sharing is built; the rest is listed under "Shared Spaces: what is left after Collections" above.
 - **SecondBrain action for workouts** (needs the help-screen entry per CLAUDE.md).
 - Programs: a "swap this slot" helper for the book's slots; calendar auto-scheduling of the next days; rest-week timer; per-category levels (strong pulls / weak pushes).
 

@@ -1050,3 +1050,94 @@ async function shStopSharingFromDialog() {
 function shWhoLabelHere(docData) {
     return window.currentShareId ? shWhoLabel(docData, window.currentShareData) : '';
 }
+
+// ─── Other parts of the app that read collections (S7) ──────────────────────
+
+/** Documents of `name` ('collections' | 'collectionItems') from collection shares: [{id, data()}...] — owned shares only when ownedOnly. */
+async function shSharedDocs(name, ownedOnly) {
+    var shares = await shLoadCollectionShares();
+    var docs = [];
+    for (var i = 0; i < shares.length; i++) {
+        if (ownedOnly && shares[i].role !== 'owner') continue;
+        var snap = await shareCol(shares[i].id, name).get();
+        snap.docs.forEach(function(d) { docs.push(d); });
+    }
+    return docs;
+}
+
+/**
+ * Like userCol(name).get(), but the result also includes that collection's documents from the
+ * shares I OWN (they are still mine — e.g. for "Who Gets What"). Result supports forEach() only.
+ */
+async function shPrivateAndOwnedSnap(name) {
+    var snap = await userCol(name).get();
+    var extra = [];
+    try { extra = await shSharedDocs(name, true); } catch (err) { console.error('Could not read my shared ' + name + ':', err); }
+    return { forEach: function(fn) { snap.forEach(fn); extra.forEach(fn); } };
+}
+
+// ─── Backup and restore of shared collections I own (S7) ─────────────────────
+// Added to the normal Data / Photos backup files as extra top-level keys
+// (sharedCollections / sharedPhotos), so older restore code simply ignores them.
+
+function _shRows(docs) { return docs.map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); }
+
+/** Collection records + items of every collection I have shared. */
+async function shBackupSharedCollections() {
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'collection'; });
+    var out = [];
+    for (var i = 0; i < mine.length; i++) {
+        var id = mine[i].id;
+        var cols  = await shareCol(id, 'collections').get();
+        var items = await shareCol(id, 'collectionItems').get();
+        out.push({ shareId: id, collectionId: mine[i].data.collectionId, title: mine[i].title,
+                   share: backupSerialize(mine[i].data), collections: _shRows(cols.docs), collectionItems: _shRows(items.docs) });
+    }
+    return out;
+}
+
+/** Photos of every collection I have shared. */
+async function shBackupSharedPhotos() {
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'collection'; });
+    var out = [];
+    for (var i = 0; i < mine.length; i++) {
+        var snap = await shareCol(mine[i].id, 'photos').get();
+        out.push({ shareId: mine[i].id, collectionId: mine[i].data.collectionId, photos: _shRows(snap.docs) });
+    }
+    return out;
+}
+
+/** True when `collId` is a collection that is currently shared by me (so a restore must not duplicate it). */
+async function _shIsStillShared(collId) {
+    return (await shLoadMyShares()).some(function(s) { return s.kind === 'collection' && s.data.collectionId === collId; });
+}
+
+/**
+ * Data restore: a collection that was shared when the backup was taken comes back as a PRIVATE
+ * collection (not re-shared) — unless it is still shared right now, in which case it is left alone.
+ */
+async function shRestoreSharedCollections(payload, log) {
+    var list = payload.sharedCollections || [];
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (await _shIsStillShared(e.collectionId)) { log('• Shared collection “' + e.title + '” is still shared — left as it is.'); continue; }
+        var ops = [];
+        e.collections.forEach(function(r) { ops.push({ ref: userCol('collections').doc(r.id), data: r.data }); });
+        e.collectionItems.forEach(function(r) { ops.push({ ref: userCol('collectionItems').doc(r.id), data: r.data }); });
+        await shBatchSet(ops);
+        log('✓ Shared collection “' + e.title + '” restored as a private collection (' + e.collectionItems.length + ' items). Share it again if you want.', '#2e7d32');
+    }
+}
+
+/** Photos restore: photos of those collections go back only where the private collection exists and it is not shared. */
+async function shRestoreSharedPhotos(payload, log) {
+    var list = payload.sharedPhotos || [];
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (await _shIsStillShared(e.collectionId)) continue;
+        var exists = (await userCol('collections').doc(e.collectionId).get()).exists;
+        if (!exists) { log('• Photos of a shared collection were skipped (restore the Data file first).'); continue; }
+        await shBatchSet(e.photos.map(function(r) { return { ref: userCol('photos').doc(r.id), data: r.data }; }));
+        log('✓ ' + e.photos.length + ' photo(s) of a formerly shared collection restored.', '#2e7d32');
+    }
+}

@@ -1127,6 +1127,10 @@ async function runBackup() {
             appName    : window.appName || 'Bishop',
             collections: dataCollections
         };
+        // Collections I have shared live in the shared area, so they are added here
+        // (restored as private collections; see sharing.js shRestoreSharedCollections)
+        try { dataPayload.sharedCollections = await shBackupSharedCollections(); }
+        catch (shErr) { console.error('Backup: shared collections not included:', shErr); }
         backupDownload(appName + '_Data_' + ts + '.json', dataPayload);
 
         // ---- Photos file (optional) ----
@@ -1140,6 +1144,8 @@ async function runBackup() {
                 appName    : window.appName || 'Bishop',
                 collections: photoCollections
             };
+            try { photoPayload.sharedPhotos = await shBackupSharedPhotos(); }
+            catch (shErr) { console.error('Backup: shared photos not included:', shErr); }
             backupDownload(appName + '_Photos_' + ts + '.json', photoPayload);
         }
 
@@ -1540,6 +1546,10 @@ async function runRestore(payload) {
         restoreLog('\u2713 ' + name + ' done (' + docs.length + ')', '#2e7d32');
         restoreSetProgress(Math.round(((i + 1) / total) * 100));
     }
+
+    // Collections that were shared when the backup was made (see sharing.js)
+    if (payload.type === 'data'   && payload.sharedCollections) await shRestoreSharedCollections(payload, restoreLog);
+    if (payload.type === 'photos' && payload.sharedPhotos)      await shRestoreSharedPhotos(payload, restoreLog);
 
     restoreLog('\n\u2705 Restore complete!', '#2e7d32');
     restoreSetProgress(100);

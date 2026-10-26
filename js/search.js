@@ -151,6 +151,15 @@ function runSearch(query) {
             snap.forEach(function (doc) {
                 all.push({ id: doc.id, data: doc.data() });
             });
+            // Collections shared with me (or by me) live in the shared area: search them too.
+            if (def.col === 'collections' || def.col === 'collectionItems') {
+                return shSharedDocs(def.col, false)
+                    .then(function (docs) {
+                        docs.forEach(function (doc) { all.push({ id: doc.id, data: doc.data() }); });
+                        return { def: def, all: all };
+                    })
+                    .catch(function (err) { console.error('Search: shared ' + def.col + ' unavailable:', err); return { def: def, all: all }; });
+            }
             return { def: def, all: all };
         });
     });
