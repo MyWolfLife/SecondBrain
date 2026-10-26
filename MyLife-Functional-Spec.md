@@ -2687,7 +2687,7 @@ A timeline of my life — schools, jobs, homes, trips, games, races — captured
 - **Order menu** — Oldest first (default) / Newest first. Filters are kept while moving around the app (not across reloads).
 - **Category chips** — **All**, the starter categories (always shown) and any in use, each with a count, plus **Memories (n)**. One at a time; tap the picked chip again to clear.
 - Rows are grouped under **decade** headers (1980s) then **year** headers, sorted by `sortDate` (the earliest possible date). Memories with no parsed date go in a **No date** group at the end.
-- **Event card** (whole card opens the edit page): category badge (left), the date text (`~` prefix when approximate), title, 📍 place · street · "City, ST", 👥 who (linked `@Name`s are teal underlined links to `#contact/:id`), notes.
+- **Event card** (whole card opens the edit page): category badge (left), the date text (`~` prefix when approximate; abbreviated months, e.g. "Oct 31, 1998") followed by **my age** in parentheses — "(30 years old)"; a fuzzy date that could be two ages shows "(29–30 years old)"; nothing shows before I was born, and Memory rows show no age — title, 📍 place · street · "City, ST", 👥 who (linked `@Name`s are teal underlined links to `#contact/:id`), notes.
 - **Memory card** (teal left edge, "📖 Memory" badge): memory date text, title, 📍 location. Tapping opens `#memory-edit/:id`. Memories are never edited from Timeline and are not duplicated into `timelineEvents`.
 
 ### Add / Edit (`#timeline-event/new`, `#timeline-event/:id`)
@@ -2698,6 +2698,9 @@ A timeline of my life — schools, jobs, homes, trips, games, races — captured
 - **Where** — free text; **Add an address** expander (street, city, state, zip — all optional, city + state alone is fine).
 - **Who** — free text. Plain names stay text. `@` lists contacts flagged "Include in quick mentions", `@@` searches all contacts (same behaviour as the Journal). Picking one inserts `@FirstName` (or nickname) and links the contact. A link is kept only while its `@Name` is still in the text.
 - **Notes**, Save / Cancel / Delete (edit only).
+
+### My age
+Age comes from the **Me** contact's Birthday important date (`peopleImportantDates` on the `isMe` person, label matching birthday / bday / birthdate, with a year). It is the age at the earliest possible date through the latest possible date of the event's When (a year is Jan 1–Dec 31, "Early 1980s" is 1980–1983, a range is from-year to to-year); when both ends give the same age it shows one number. Without a birthday on the Me contact, no age is shown. For events with an end, the age is at the start.
 
 ### Sort date
 `sortDate` (YYYY-MM-DD) is the earliest possible date: exact day as entered; month → day 1; season → Spring 3/1, Summer 6/1, Fall 9/1, Winter 12/1; year → 1/1; decade → decade start, + 4 years for Mid, + 7 for Late; range → from-year 1/1.

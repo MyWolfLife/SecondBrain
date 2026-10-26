@@ -1907,6 +1907,7 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 - **Search** looks at the title, place, people, and notes
 - **Category** chips show one category at a time. Tap the picked one again (or **All**) to clear it
 - A **~** in front of a date means you marked it approximate
+- Your age appears after each event date, like "(30 years old)". If the date is fuzzy it may show a range, like "29–30 years old". It comes from the Birthday on your **Me** contact; with no birthday there, no age shows
 - Items marked **📖 Memory** come from Thoughts → Memories. Tap one to open that memory. Change them there, not here
 - Memories with no date they can be placed by appear under **No date**
 - A name in teal is a contact. Tap it to open their page

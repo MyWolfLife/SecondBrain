@@ -39,6 +39,7 @@ var _tlFilter = {               // kept while you move around the app (not acros
 };
 var _tlEdit = null;             // the event being edited { id|null, personIds:Set }
 var _tlPeopleCache = null;      // contacts for @ / @@ mentions
+var _tlBirth = null;            // my birthday {year, month, day} from the Me contact (for ages), or null
 
 // ─── Small helpers ───────────────────────────────────────────────────────────
 
@@ -111,8 +112,8 @@ function _tlSortDate(precision, w) {
 function _tlWhenText(e) {
     var w = e.when || {}, t = '';
     switch (e.precision) {
-        case 'day':    t = TL_MONTHS[(w.month || 1) - 1] + ' ' + w.day + ', ' + w.year; break;
-        case 'month':  t = TL_MONTHS[(w.month || 1) - 1] + ' ' + w.year; break;
+        case 'day':    t = TL_MONTHS[(w.month || 1) - 1].substr(0, 3) + ' ' + w.day + ', ' + w.year; break;
+        case 'month':  t = TL_MONTHS[(w.month || 1) - 1].substr(0, 3) + ' ' + w.year; break;
         case 'season': t = (w.season ? w.season.charAt(0).toUpperCase() + w.season.slice(1) : '') + ' ' + w.year; break;
         case 'year':   t = String(w.year); break;
         case 'decade': t = (w.part ? w.part.charAt(0).toUpperCase() + w.part.slice(1) + ' ' : '') + w.decade + 's'; break;
@@ -120,13 +121,67 @@ function _tlWhenText(e) {
     }
     var end = _tlEndText(e);
     if (end && e.precision !== 'range') t += ' – ' + end;
-    return (e.approx ? '~ ' : '') + t;
+    var age = _tlAgeText(e);
+    return (e.approx ? '~ ' : '') + t + (age ? ' (' + age + ')' : '');
+}
+
+/** My age at a date (whole years), or null when my birthday isn't known. */
+function _tlAgeAt(date) {
+    if (!_tlBirth) return null;
+    var age = date.getFullYear() - _tlBirth.year;
+    var m = date.getMonth() + 1;
+    if (m < _tlBirth.month || (m === _tlBirth.month && date.getDate() < _tlBirth.day)) age--;
+    return age;
+}
+
+/** Last day the event's date could be (end of the picked month / season / year / part of a decade / range). */
+function _tlLatestDate(e) {
+    var w = e.when || {}, y = parseInt(w.year, 10);
+    switch (e.precision) {
+        case 'day':    return new Date(y, w.month - 1, w.day);
+        case 'month':  return new Date(y, w.month, 0);
+        case 'season': var m = TL_SEASON_MONTH[w.season]; return m === 12 ? new Date(y + 1, 2, 0) : new Date(y, m + 2, 0);
+        case 'year':   return new Date(y, 11, 31);
+        case 'decade': return new Date(parseInt(w.decade, 10) + ({ early: 3, mid: 6, late: 9 }[w.part] || 9), 11, 31);
+        case 'range':  return new Date(parseInt(w.toYear, 10), 11, 31);
+    }
+    return null;
+}
+
+/** "30 years old". When the date is fuzzy and the age could be either of two (or more), "29–30 years old". */
+function _tlAgeText(e) {
+    if (!_tlBirth || !e.sortDate) return '';
+    var p = e.sortDate.split('-');
+    var hi = _tlLatestDate(e);
+    if (!hi) return '';
+    var lo = _tlAgeAt(new Date(+p[0], +p[1] - 1, +p[2]));
+    hi = _tlAgeAt(hi);
+    if (hi < 0) return '';                  // before I was born
+    lo = Math.max(lo, 0);
+    if (lo === hi) return lo + (lo === 1 ? ' year old' : ' years old');
+    return lo + '–' + hi + ' years old';
+}
+
+/** My birthday from the "Me" contact's Birthday important date, or null. Found once per page load. */
+async function _tlLoadBirthday() {
+    _tlBirth = null;
+    try {
+        var me = await userCol('people').where('isMe', '==', true).limit(1).get();
+        if (me.empty) return;
+        var dates = await userCol('peopleImportantDates').where('personId', '==', me.docs[0].id).get();
+        dates.forEach(function(d) {
+            var x = d.data();
+            if (!_tlBirth && /birthday|bday|birthdate/i.test(x.label || '') && x.year && x.month && x.day) {
+                _tlBirth = { year: +x.year, month: +x.month, day: +x.day };
+            }
+        });
+    } catch (err) { console.error('Timeline: birthday load failed:', err); }
 }
 
 function _tlEndText(e) {
     if (e.ongoing) return 'Present';
     if (!e.endYear) return '';
-    return (e.endMonth ? TL_MONTHS[e.endMonth - 1] + ' ' : '') + e.endYear;
+    return (e.endMonth ? TL_MONTHS[e.endMonth - 1].substr(0, 3) + ' ' : '') + e.endYear;
 }
 
 // ─── Loading ─────────────────────────────────────────────────────────────────
@@ -134,7 +189,8 @@ function _tlEndText(e) {
 async function _tlLoad() {
     var results = await Promise.all([
         userCol('timelineEvents').get(),
-        userCol('memories').get()
+        userCol('memories').get(),
+        _tlLoadBirthday()
     ]);
     _tlEvents = results[0].docs.map(function(d) { var e = d.data(); e.id = d.id; return e; });
     _tlMemories = results[1].docs.map(function(d) {
