@@ -3275,7 +3275,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 
 **What contacts are:** A unified address book for every person, provider, and organization you interact with. Contacts power @mentions in the journal, provider pickers in health appointments and visits, facility pickers, and the Coming Up section on the Life home page.
 
-**Everything lands here.** A person added anywhere in the app is a contact and shows in this list — a neighbor created with **+ New Person** on a house page, or someone QuickLog invents when you say something like "had lunch with Jake". There is no separate neighbor list; neighbors are Personal contacts with a personal type of Neighbor. The only people hidden from this list are sub-contacts (family members, facility staff), which appear under their parent contact instead.
+**Everything lands here.** A person added anywhere in the app is a contact and shows in this list — a neighbor created with **+ New Person** on a house page, or someone QuickLog invents when you say something like "had lunch with Jake". There is no separate neighbor list; neighbors are Personal contacts with a personal type of Neighbor. Family members you add under a contact (like Bill's wife and daughter) also show in this list, labeled "Family of Bill", so you can find and call them directly; they still appear under their parent too. The only people hidden from this list are facility staff, who appear under their facility instead.
 
 **Contact categories:**
 - **Personal** -- friends, family, neighbors, coworkers, acquaintances. Shows a personal type (Friend / Family / Neighbor / etc.). Personal types are user-customizable in Settings > Contact Types.

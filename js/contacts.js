@@ -405,7 +405,8 @@ async function backfillPeopleParentId() {
 
 /**
  * Load and render the full contacts list.
- * Shows only top-level contacts (parentPersonId == null).
+ * Shows top-level contacts plus family members (sub-contacts whose parent is
+ * not a Medical Facility). Facility staff stay under their facility.
  */
 async function loadContactsPage() {
     // Ensure the "Me" contact exists (silent, non-blocking)
@@ -423,13 +424,24 @@ async function loadContactsPage() {
     await _populateContactsFilterSelect();
 
     try {
-        var snap = await userCol('people')
-            .where('parentPersonId', '==', null)
-            .get();
+        var snap = await userCol('people').get();
 
-        var docs = [];
+        var all = [];
+        var byId = {};
         snap.forEach(function(doc) {
-            docs.push(Object.assign({ id: doc.id }, doc.data()));
+            var p = Object.assign({ id: doc.id }, doc.data());
+            all.push(p);
+            byId[p.id] = p;
+        });
+
+        // Top-level contacts, plus family members (not facility staff)
+        var docs = all.filter(function(p) {
+            if (!p.parentPersonId) return true;
+            var parent = byId[p.parentPersonId];
+            if (!parent) return false;
+            if (parent.category === 'Medical Facility') return false;
+            p.familyOf = parent.name || '';
+            return true;
         });
 
         // Sort A-Z by name
@@ -537,6 +549,8 @@ function buildPersonCard(person, lastInteraction) {
         sublineHtml = '<span class="person-last-interaction">' + escapeHtml(person.specialty) + '</span>';
     } else if (contactType === 'Medical Facility' && person.address) {
         sublineHtml = '<span class="person-last-interaction">' + escapeHtml(person.address) + '</span>';
+    } else if (person.familyOf) {
+        sublineHtml = '<span class="person-last-interaction">Family of ' + escapeHtml(person.familyOf) + '</span>';
     } else {
         sublineHtml = lastInteraction
             ? '<span class="person-last-interaction">Last: ' + escapeHtml(lastInteraction) + '</span>'
