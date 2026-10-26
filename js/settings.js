@@ -908,7 +908,7 @@ var BACKUP_DATA_COLLECTIONS = [
     'exerciseActivities', 'exerciseTypes', 'exerciseDailyMetrics', 'exerciseMetricDefs', 'exerciseGoals',
 
     // Workouts (Fitness → Workouts / Exercises)
-    'workoutMuscles', 'workoutExercises', 'workoutEquipment', 'workoutMyLevels', 'workouts', 'workoutSessions', 'workoutMeta', 'workoutLinks',
+    'workoutMuscles', 'workoutExercises', 'workoutEquipment', 'workoutMyLevels', 'workouts', 'workoutSessions', 'workoutMeta', 'workoutLinks', 'programs',
 
     // Web Links (Life → Web Links)
     'webLinks',

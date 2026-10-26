@@ -4799,7 +4799,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Tap **Workout History** to see every workout you've finished
 - Tap **Muscle Balance** to see which muscles you've been working lately
 - Tap **Exercises** for your library of exercises (names, form cues, pictures)
-- **Programs** is coming soon — multi-week plans built from your workouts
+- **Programs** — multi-week plans built from your workouts (weeks, each with its days)
 
 ---
 
@@ -4868,6 +4868,34 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - **Show archived** brings back exercises you've hidden
 - A starter set of 20 exercises is added the first time you open this screen; edit, archive or delete any of them
 
+
+---
+
+## screen:programs
+
+**What this screen is for:** Your programs — multi-week plans made of your own workouts.
+
+### Quick Help
+- Tap **+ New Program** to build one; tap a program to edit it
+- A program is a list of **weeks**, and each week lists its **days**. A day is one of your workouts, or a rest day
+- Each card shows how many weeks and days the program has
+- **Tags** work like on your Exercises and Workouts lists: tap a chip once to show only that tag, again to hide it
+- **Show archived** brings back programs you've hidden
+- Following a program day by day (the "what's next" view) is coming later
+
+---
+
+## screen:program
+
+**What this screen is for:** Build or edit one program.
+
+### Quick Help
+- Give it a name, then build the plan in **blocks of weeks**. A block can cover several weeks — "Weeks 1–2" means the same days repeat in week 1 and week 2
+- Inside a block, add its **days** in order. For each day type a label (like "Push") and pick one of your workouts, or choose **Rest day**
+- **+ Add weeks** adds another block after the last one. Use **↑ ↓** to reorder, **⧉** to copy a block into the next free weeks, **✕** to remove it
+- Blocks can't overlap — each week belongs to one block. The screen tells you if they do
+- **Tags** are optional words (like *strength*) to group programs in the list
+- **Archive** hides a program; **Delete** removes only the program, never your workouts
 
 ---
 

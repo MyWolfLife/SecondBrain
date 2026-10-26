@@ -22072,3 +22072,13 @@ body.wo-playing .offline-banner { display: none !important; }
     color: #0e7490;
 }
 .web-manage-head { margin: 18px 0 4px; }
+
+/* Programs editor */
+.pg-week { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fff; }
+.pg-week-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pg-week-btns { display: flex; gap: 4px; }
+.pg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.pg-row label { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.pg-num { width: 64px; }
+.pg-label { width: 110px; }
+.pg-grow { flex: 1 1 160px; min-width: 0; }

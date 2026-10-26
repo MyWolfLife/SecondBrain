@@ -280,11 +280,10 @@ function loadExercisePage() {
                 '<span class="landing-tile-icon">🔗</span>' +
                 '<span class="landing-tile-label">Workout Links</span>' +
             '</a>' +
-            '<div class="landing-tile landing-tile--coming-soon" style="grid-column:2;grid-row:5">' +
+            '<a href="#programs" class="landing-tile landing-tile--programs" style="grid-column:2;grid-row:5">' +
                 '<span class="landing-tile-icon">📅</span>' +
                 '<span class="landing-tile-label">Programs</span>' +
-                '<span class="coming-soon-badge">Coming soon</span>' +
-            '</div>' +
+            '</a>' +
         '</div>';
     if (typeof woShowInProgressCard === 'function') woShowInProgressCard('page-exercise');   // 🌤️ open day workouts
 }
