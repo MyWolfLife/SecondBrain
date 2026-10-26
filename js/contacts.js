@@ -440,6 +440,7 @@ async function loadContactsPage() {
             var parent = byId[p.parentPersonId];
             if (!parent) return false;
             if (parent.category === 'Medical Facility') return false;
+            if (!(p.phone || '').trim()) return false;
             p.familyOf = parent.name || '';
             return true;
         });

@@ -831,7 +831,7 @@ Renamed from "People". Tracks personal contacts and medical/service professional
 
 **Neighbors entry point**: A **🏘 Neighbors** link appears below the "Contacts" heading on the contacts list page. Tapping it navigates to the Neighborhoods list (`#neighbors`). See the Neighbors section below for full detail.
 
-**Hierarchy**: Sub-contacts (`parentPersonId`) allow grouping (e.g., family members under a parent record). **The Contacts list also shows family members** (sub-contacts whose parent is not a Medical Facility), with a "Family of {parent}" subline; facility staff are not listed (they appear only under their facility). Family members remain listed under their parent's detail page. The sub-contacts section heading dynamically adapts: **"Family Members"** for Personal/other categories, **"Staff"** for Medical Facility contacts. The empty-state text also adapts accordingly.
+**Hierarchy**: Sub-contacts (`parentPersonId`) allow grouping (e.g., family members under a parent record). **The Contacts list also shows family members that have a phone number** (sub-contacts whose parent is not a Medical Facility; no phone = not listed), with a "Family of {parent}" subline; facility staff are not listed (they appear only under their facility). Family members remain listed under their parent's detail page. The sub-contacts section heading dynamically adapts: **"Family Members"** for Personal/other categories, **"Staff"** for Medical Facility contacts. The empty-state text also adapts accordingly.
 
 **Contact detail sections**:
 - Contact info: specialty (Medical Professional only), phone (tel: link), email (mailto: link), address (Google Maps link), website (external link), Facebook, how known, notes
