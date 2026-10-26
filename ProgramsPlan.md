@@ -57,12 +57,12 @@ Workouts also gain `tags[]` / `source` (same shape as exercises) so the existing
 
 | # | Chunk | Result |
 |---|---|---|
-| P1 | **Data + tags for workouts.** `tags`/`source` on workouts, tag chips and labels on the Workouts list and the picker; backup list | Book workouts can be hidden |
-| P2 | **Programs hub + program editor.** `#programs` list; build your own program: weeks (ranges), days → pick a workout or rest | You can make a program by hand |
-| P3 | **Runs.** Start a run, next-up logic, skip / back / pause / end, Today card on the hub | A program can be followed |
-| P4 | **Session link.** Sessions carry the program position; finishing marks the day done and advances; History shows the program/week/day | Following it is automatic |
-| P5 | **Program page.** The 10-week grid with progress | You can see where you are |
-| P6 | **Import for programs and workouts.** `bishop-programs-v1`: day workouts built with pinned levels and formats, resolved by exercise name + level label, unresolved names reported in the review screen; remove-an-import | The book's programs arrive |
+| P1 ✅ | **Data + tags for workouts.** `tags`/`source` on workouts, tag chips and labels on the Workouts list and the picker; backup list | Book workouts can be hidden |
+| P2 ✅ | **Programs hub + program editor.** `#programs` list; build your own program: weeks (ranges), days → pick a workout or rest | You can make a program by hand |
+| P3 ✅ | **Runs.** Start a run, next-up logic, skip / back / pause / end, Today card on the hub | A program can be followed |
+| P4 ✅ | **Session link.** Sessions carry the program position; finishing marks the day done and advances; History shows the program/week/day | Following it is automatic |
+| P5 ✅ | **Program page.** The 10-week grid with progress | You can see where you are |
+| P6 ✅ | **Import for programs and workouts.** `bishop-programs-v1`: day workouts built with pinned levels and formats, resolved by exercise name + level label, unresolved names reported in the review screen; remove-an-import | The book's programs arrive |
 | P7 | **Next cycle.** After week 10: a finished screen with Restart this program / Start the next level program | Endless cycles |
 
 P1–P5 are useful on their own for programs you write yourself; P6 is the book's data.

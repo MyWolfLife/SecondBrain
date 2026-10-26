@@ -4912,6 +4912,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ### Quick Help
 - Tap **+ New Program** to build one; tap a program to open its overview (use **✏ Edit** there to change it)
+- **⬆ Import** adds the book's programs from a file (import the exercises first)
 - A program is a list of **weeks**, and each week lists its **days**. A day is one of your workouts, or a rest day
 - Each card shows how many weeks and days the program has
 - **Tags** work like on your Exercises and Workouts lists: tap a chip once to show only that tag, again to hide it
@@ -4920,6 +4921,21 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - The card at the top shows **what's next** — the day, its workout, and where you are in the program. Tap **▶ Start workout** to do it. When you finish that workout, the day is marked done by itself and the card moves on. **✓ Mark done** is there for a day you did another way
 - **Skip** moves on without doing a day. **◀ Back** undoes the last day you marked. **⏸ Pause** holds your place until you tap **▶ Resume**. **End** closes the run
 - The same "next up" card shows on the Fitness page
+
+---
+
+## screen:program-import
+
+**What this screen is for:** Add ready-made programs from a file on your computer.
+
+### Quick Help
+- Import the exercises first. A program is built from exercises that are already in your library
+- Tap **Choose a program file** and pick a .json file. The file stays on your computer
+- You get a **review** first: for each program, how many workouts it makes and how many exercises matched your library. **Preview** shows every week and day, with ⚠ lines for anything that did not match (it is left out of that workout)
+- A program whose name you already have is unticked
+- **Import** creates one workout for each program day, then the program that lists them. They are tagged with the file's source, so you can hide them with the tag chips
+- Exercises shown in [brackets] in the preview use a fixed version named by the book; the others use **your own level**
+- **Remove an import** (at the bottom) deletes the programs and workouts that came from one source — and any run of those programs. Your own programs and workouts stay
 
 ---
 

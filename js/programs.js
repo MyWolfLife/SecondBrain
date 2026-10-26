@@ -60,7 +60,7 @@ async function loadProgramsPage() {
     }
     el.innerHTML =
         '<div class="page-header"><h2>Programs</h2>' +
-            '<div class="page-header-actions"><a href="#program/new" class="btn btn-primary">+ New Program</a></div></div>' +
+            '<div class="page-header-actions"><a href="#program-import" class="btn btn-secondary" title="Add programs from a file">⬆ Import</a> <a href="#program/new" class="btn btn-primary">+ New Program</a></div></div>' +
         '<div id="progRun"></div>' +
         '<div class="ex-toolbar"><div class="ex-toolbar-row">' +
             '<input type="search" id="progText" class="filter-input" placeholder="Search programs…" value="' + _woEsc(_progFilter.text) + '">' +
