@@ -38,7 +38,7 @@ Those five "only the yard's rows" collections also hold House/Garage/Vehicle dat
 | **Y1 ✅** | **Plumbing (invisible).** `yardCol`, `yTargetCol`, active-yard resolve at startup, switcher on the Yard home (hidden unless there is more than one yard), `_pCol/_pStamp` extended to yard targets. Nothing changes for anyone yet. | Helpers exist; private yard works exactly as before |
 | **Y2 ✅** | **Core yard pages** switched to the helpers: zones, plants, weeds, chemicals, saved actions, facts, problems, quick tasks, activities, photos, GPS. Roles (view only), stamps, who-labels, "Shared / Can edit / View only" badge. Tested with a share seeded by script. | The yard works in a share, as owner, editor and viewer |
 | **Y3 ✅** | **Everything else that reads the yard:** bulk activity, activity report, calendar (complete-event writes the activity into the yard, labels), search, tags, Ask AI, SecondBrain. | Nothing in the app breaks or misses yard data |
-| **Y4** | **Share and Stop sharing.** Share… on the Yard home (dialog like Collections: groups + View/Edit), move engine, Stop sharing (reverse, backup first), "Shared with me" shows the yard. | The son logs plants in the real yard |
+| **Y4 ✅** | **Share and Stop sharing.** Share… on the Yard home (dialog like Collections: groups + View/Edit), move engine, Stop sharing (reverse, backup first), "Shared with me" shows the yard. | The son logs plants in the real yard |
 | **Y5** | **Backup/restore** include the shared yard; spec, AppHelp, FutureEnhancements; phone-width check of the new screens. | Docs and backup complete |
 
 Every chunk: test in the preview with the two test accounts, update spec and AppHelp where behavior changed, bump `sw.js` and the `?v=` tags, commit, notify, push.

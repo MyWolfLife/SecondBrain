@@ -90,6 +90,7 @@ It is used by the in-app AI assistant to answer your questions.
 - The Yard home page — shows all your top-level yard zones (Front Yard, Back Yard, etc.)
 - Tap any zone card to drill in and see its plants and sub-zones (up to 3 levels deep)
 - Add zones with **+ Add Zone**; edit or delete with the pencil icon on a card
+- **Share…** lets you share the whole yard with a group (View only or Can edit); see Details below
 - **Shortcut:** Use **⚡ QuickLog** on the main screen to log activities without navigating here — just say "I sprayed the front yard"
 
 ### Details
@@ -108,6 +109,14 @@ It is used by the in-app AI assistant to answer your questions.
 **Tips:**
 - You cannot delete a zone that has sub-zones or plants still inside it. Move or remove those first.
 - Plants can be assigned to any zone level — you don't need to go three levels deep if two is enough.
+
+**Sharing your Yard:**
+- Tap **Share…** under the title to let other people use your whole yard (zones, plants, weeds, chemicals, saved actions, map shapes, and their photos, facts, problems, quick tasks and activities). Calendar events stay private.
+- Pick a group and **View only** or **Can edit**. Groups are made under **Settings → Sharing** first.
+- Sharing moves the yard into a shared area. A backup file downloads first, and you stay the owner. Editors can add, change and delete anything in the yard; only you can change who it is shared with or stop sharing.
+- The button then says **Sharing…**. Open it to change groups, or tap **Stop sharing** to bring everything — including what other people added — back to you.
+- If someone shared a yard with you, a **Yard:** picker appears at the top so you can switch between **My yard** and theirs. A grey line under the title says whether you can edit or only view. Turn on **Show who added/modified** (Settings → Sharing) to see who added each zone, plant and so on.
+- In a **View only** yard the add, edit and delete buttons are hidden.
 
 ### See Also
 - [Zone Detail](#help/zone)

@@ -8,7 +8,7 @@ Items that are out of scope for current work but should be revisited later.
 
 *Groups, invites, sharing, Stop sharing and the Collections pilot are built (`SharedSpacesBuildPlan.md`, chunks S1–S7). This is what is left. The user picks the order.*
 
-- **More things to share**, one at a time, the same way as Collections: Yard, House, Garage, Contacts, Vehicles, Structures, Neighborhoods, Life Projects, Budgets, Investments, Insurance, Checklists, Calendar, Credentials (per item), Notes (per note), Health for others, API keys. Each needs its own screens switched to `dataCol()` and its own move code (the engine in `sharing.js` is written for collections).
+- **More things to share**, one at a time, the same way as Collections and the Yard (both built): House, Garage, Contacts, Vehicles, Structures, Neighborhoods, Life Projects, Budgets, Investments, Insurance, Checklists, Calendar, Credentials (per item), Notes (per note), Health for others, API keys. Each needs its own screens switched to `dataCol()` and its own move code (the engine in `sharing.js` is written for collections).
 - **Workouts library** (`SharedSpacesPlan.md` §8b): needs the decision about per-person progression stored inside workouts (a personal overlay vs shared).
 - **Offline Trip Mode** should download things shared with me (the write lock already covers shares); shared edits made offline sync later.
 - **Backup**: a checkbox "Also include things shared with me"; today only what I own is backed up.
