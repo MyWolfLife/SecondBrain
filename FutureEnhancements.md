@@ -199,3 +199,25 @@ Related to: Timeline.
 - Link a Timeline event to a Memory, and optionally link Where to a saved Place.
 
 Related to: Timeline, Memories, Places.
+
+---
+
+## Fitness: open items after the YAYOG build (2026-10-26)
+
+*Exercises, Workouts, formats, levels, the book import and Programs (P1–P7) are all built. This is what is left.*
+
+**Known gaps (small, fix when they bite):**
+- Leaving the guided / self-paced player mid-workout discards the run — no resume. *(Most likely to frustrate; do first.)*
+- Editing set numbers on the Finished screen does not re-run progression or personal records.
+- Finishing a scheduled workout's calendar event does not create a workout record.
+- Deleting a workout from History does not undo its program day (use ◀ Back on the run card).
+- Voice, speech, sound and screen wake-lock are untested on real devices; the Programs pages are not checked at phone width.
+- The "workout in progress" card shows on the Fitness hub and Workouts list, not on the app's home screen.
+
+**Parked ideas:**
+- **F6, the smaller workout formats** (`FormatsPlan.md`): Easy Gleason, circuit work/rest, timed workout, 52 Pick-Up, active recovery.
+- **Shared Spaces** (`SharedSpacesPlan.md`): sharing data with a spouse. Early plan only.
+- **SecondBrain action for workouts** (needs the help-screen entry per CLAUDE.md).
+- Programs: a "swap this slot" helper for the book's slots; calendar auto-scheduling of the next days; rest-week timer; per-category levels (strong pulls / weak pushes).
+
+Related to: Fitness, Workouts, Programs.
