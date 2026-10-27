@@ -27,7 +27,7 @@ Two separate things, built in this order:
 - **Your own ("Me") is never shared by accident.** The kids see only the people shared with them. A person's share contains nothing of yours.
 - **Joint accounts** (stored under "Me") and **budgets** are household things. They get their own shares: a **Household** share (joint accounts) and **per-budget** sharing, so the kids never get your budget. (Questions below.)
 - **Dropdown:** a person shared with you appears in your Financial drop-down, marked "shared by …". Role View only hides buy/sell, edit and delete; Can edit allows them (the kids editing their own).
-- **Update All Prices** stays owner-only (it uses the owner's private API key).
+- **Update All Prices:** anyone who can edit may run it, using **their own** price-service key from their own Settings (the owner's key is never shared). With no key set, the button asks them to add one first. Updated prices are the one shared data, so everyone sees them.
 - Rules: holdings sit one level deeper than the current share rules cover, so **one small rules change** is needed (documented in `FirestoreRules.md`, deployed by you in the console, once).
 
 ## 3. Sensitive info (account number, username, password)
@@ -91,7 +91,7 @@ Every chunk: test in the preview with the test accounts, update spec and AppHelp
 1. Does the wife see **balance history / performance** for shared people? Recommend yes (view).
 2. **Budgets:** share one budget at a time (so kids never get yours). Recommend yes.
 3. Recipients **reuse their existing passphrase** if they have one. Recommend yes.
-4. **Update All Prices** only for the owner. Recommend yes.
+4. **Update All Prices** for anyone who can edit, each using their own key (decided; replaces owner-only).
 
 ## 8. Not in this plan
 
