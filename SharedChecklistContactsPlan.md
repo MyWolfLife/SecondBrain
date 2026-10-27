@@ -2,7 +2,7 @@
 
 Sharing under Life → **Checklists** and Life → **Contacts** (with Neighborhood), using the same Shared Spaces engine as Collections, Yard, House, Credentials, Financial and Budgets (groups Wife / Family / Guest, View only or Can edit; owner keeps everything; only the owner shares, stops sharing or deletes).
 
-Status: K1 BUILT (share one checklist, tested with two accounts). K2, K3, P1–P3 still to build.
+Status: K1 and K2 BUILT (share one checklist; safe per-item edits and live updates; tested with two accounts). K3, P1–P3 still to build.
 
 ## Decisions (settled with the user)
 
@@ -29,7 +29,7 @@ Where it lives: `shares/{shareId}/checklistRuns/{runId}` (same id), share kind `
 
 ### Chunks
 - **K1 ✅ — Share / stop sharing one list.** Share button on a run, move engine (backup JSON download, create share, copy with same id, verify, delete original, roll back on failure; stop sharing is the reverse), "Shared with me" section for recipients, role label and owner-only controls. Items get ids when shared.
-- **K2 — Safe edits and live view.** Transactions per item, `onSnapshot` on shared runs (listener closed when leaving the page), view-only guard, owner-only Share / Delete.
+- **K2 ✅ — Safe edits and live view.** Transactions per item, `onSnapshot` on shared runs (listener closed when leaving the page), view-only guard, owner-only Share / Delete.
 - **K3 — Backup and restore.** Shared lists included in the Data backup (`sharedChecklists`), restored as private, skipped if still shared.
 
 ## Contacts

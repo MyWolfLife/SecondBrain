@@ -360,6 +360,7 @@ async function clLoadActiveRuns() {
         container.classList.remove('cl-board-cols', 'cl-board-single');
 
         var sharedCount = await clRenderSharedWithMe();
+        setTimeout(clStartLive, 50);        // watch the shared lists now on screen (live updates)
 
         if (runs.length === 0) {
             if (!sharedCount) emptyEl.classList.remove('hidden');
@@ -944,6 +945,8 @@ function clBuildItemsWrapper(runId, items, card) {
     var wrapper = document.createElement('div');
     wrapper.className = 'cl-items-wrapper';
 
+    clRememberItems(runId, items);      // so a change can find the item's ID from its position
+
     var indexed = items.map(function(item, i) { return { item: item, idx: i }; });
     var undone  = indexed.filter(function(x) { return !x.item.done; });
     var done    = indexed.filter(function(x) { return  x.item.done; })
@@ -1028,11 +1031,25 @@ async function clSaveRunItemOrder(runId, wrapper, originalItems, card) {
     });
 
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-        var runData = doc.data();
-        await clRunRef(runId).update({ items: newItems });
-        clRerenderRunItems(runId, newItems, runData.templateId || null, card);
+        // With item IDs the new order is applied to what is stored NOW, so an item someone else added
+        // in the meantime is kept (appended) instead of lost.
+        var ids = newItems.map(function(it) { return it.id; });
+        var res;
+        if (ids.every(function(id) { return !!id; })) {
+            res = await clChangeItems(runId, null, function(items) {
+                var byId = {};
+                items.forEach(function(it) { byId[it.id] = it; });
+                var ordered = ids.filter(function(id) { return byId[id]; }).map(function(id) { return byId[id]; });
+                items.forEach(function(it) { if (ids.indexOf(it.id) === -1) ordered.push(it); });
+                return ordered;
+            });
+        } else {
+            await clRunRef(runId).update({ items: newItems });        // old lists without item IDs yet
+            var doc = await clRunRef(runId).get();
+            res = { items: newItems, data: doc.data() };
+        }
+        if (!res) return;
+        clRerenderRunItems(runId, res.items, res.data.templateId || null, card);
     } catch (err) {
         console.error('Error saving run item order:', err);
     }
@@ -1332,11 +1349,11 @@ async function clAddItemToRun(runId, templateId, label, card, inputEl) {
     if (!label) return;
 
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-
-        var items = (doc.data().items || []).concat([{ label: label, done: false, note: null }]);
-        await clRunRef(runId).update({ items: items });
+        var res = await clChangeItems(runId, null, function(items) {
+            items.push({ id: clNewItemId(), label: label, done: false, note: null });
+        });
+        if (!res) return;
+        var items = res.items;
 
         // Offer to add to the template as well (template-derived runs only)
         if (templateId && clIsOwner(runId)) {
@@ -1374,14 +1391,10 @@ async function clAddItemToRun(runId, templateId, label, card, inputEl) {
  */
 async function clRemoveItemFromRun(runId, idx, card) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
+        var res = await clChangeItems(runId, idx, function(items, at) { items.splice(at, 1); });
+        if (!res) { clRefreshRunNow(runId); return; }
 
-        var runData  = doc.data();
-        var items    = runData.items.filter(function(_, i) { return i !== idx; });
-        await clRunRef(runId).update({ items: items });
-
-        clRerenderRunItems(runId, items, runData.templateId || null, card);
+        clRerenderRunItems(runId, res.items, res.data.templateId || null, card);
 
     } catch (err) {
         console.error('Error removing item from run:', err);
@@ -1396,12 +1409,9 @@ async function clRemoveItemFromRun(runId, idx, card) {
  */
 async function clSaveItemNote(runId, idx, noteText) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-
-        var items = doc.data().items;
-        items[idx] = Object.assign({}, items[idx], { note: noteText || null });
-        await clRunRef(runId).update({ items: items });
+        await clChangeItems(runId, idx, function(items, at) {
+            items[at] = Object.assign({}, items[at], { note: noteText || null });
+        });
 
     } catch (err) {
         console.error('Error saving item note:', err);
@@ -1413,11 +1423,9 @@ async function clSaveItemNote(runId, idx, noteText) {
  */
 async function clSaveItemIndent(runId, idx, newIndent) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-        var items = doc.data().items;
-        items[idx] = Object.assign({}, items[idx], { indent: newIndent });
-        await clRunRef(runId).update({ items: items });
+        await clChangeItems(runId, idx, function(items, at) {
+            items[at] = Object.assign({}, items[at], { indent: newIndent });
+        });
     } catch (err) {
         console.error('Error saving item indent:', err);
     }
@@ -1431,11 +1439,9 @@ async function clSaveItemIndent(runId, idx, newIndent) {
  */
 async function clSaveItemLabel(runId, idx, newLabel) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-        var items = doc.data().items;
-        items[idx] = Object.assign({}, items[idx], { label: newLabel });
-        await clRunRef(runId).update({ items: items });
+        await clChangeItems(runId, idx, function(items, at) {
+            items[at] = Object.assign({}, items[at], { label: newLabel });
+        });
     } catch (err) {
         console.error('Error saving item label:', err);
     }
@@ -1453,23 +1459,15 @@ async function clSaveItemLabel(runId, idx, newLabel) {
  */
 async function clCommitLabelAndAddNext(runId, idx, label, indent, card) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-
-        var runData = doc.data();
-        var items   = runData.items || [];
-
-        if (idx < items.length) {
-            items[idx] = Object.assign({}, items[idx], { label: label });
-        }
-        var newIdx = idx + 1;
-        items.splice(newIdx, 0, { label: '', done: false, note: null, indent: indent });
-
-        await clRunRef(runId).update({ items: items });
+        var res = await clChangeItems(runId, idx, function(items, at) {
+            items[at] = Object.assign({}, items[at], { label: label });
+            items.splice(at + 1, 0, { id: clNewItemId(), label: '', done: false, note: null, indent: indent });
+        });
+        if (!res) return;
 
         // Ask the next render to open the freshly-inserted item for editing.
-        _clAutoEditItem = { runId: runId, idx: newIdx };
-        clRerenderRunItems(runId, items, runData.templateId || null, card);
+        _clAutoEditItem = { runId: runId, idx: res.at + 1 };
+        clRerenderRunItems(runId, res.items, res.data.templateId || null, card);
 
     } catch (err) {
         console.error('Error adding item below:', err);
@@ -1517,23 +1515,18 @@ async function clNewBlankList() {
  */
 async function clToggleItem(runId, checked, idx, card) {
     try {
-        var doc = await clRunRef(runId).get();
-        if (!doc.exists) return;
-
-        var runData = doc.data();
-        var items   = runData.items;
-
-        // Record or clear the completion timestamp alongside the done flag
-        items[idx] = Object.assign({}, items[idx], {
-            done:   checked,
-            doneAt: checked ? new Date().toISOString() : null
+        // Record or clear the completion timestamp alongside the done flag (only this item changes)
+        var res = await clChangeItems(runId, idx, function(items, at) {
+            items[at] = Object.assign({}, items[at], {
+                done:   checked,
+                doneAt: checked ? new Date().toISOString() : null
+            });
         });
-
-        await clRunRef(runId).update({ items: items });
+        if (!res) { clRefreshRunNow(runId); return; }
 
         // Full re-render so the item moves to the bottom (done) or back up (undone)
         // and the completion date appears/disappears next to the label.
-        clRerenderRunItems(runId, items, runData.templateId || null, card);
+        clRerenderRunItems(runId, res.items, res.data.templateId || null, card);
 
     } catch (err) {
         console.error('Error toggling checklist item:', err);

@@ -116,7 +116,9 @@ async function clShareRun(runId, shareGroups) {
         });
         created = true;
         _shProgress('Copying…');
-        await shareCol(shareId, 'checklistRuns').doc(runId).set(src.data());
+        var copy = Object.assign({}, src.data());
+        copy.items = (copy.items || []).map(function(it) { return it.id ? it : Object.assign({ id: clNewItemId() }, it); });   // every item gets an ID (K2)
+        await shareCol(shareId, 'checklistRuns').doc(runId).set(copy);
 
         _shProgress('Checking the copy…');
         var check = await shareCol(shareId, 'checklistRuns').doc(runId).get();
@@ -182,4 +184,129 @@ async function clDeleteSharedRun(runId) {
     await clDeleteShareContents(sid, runId);
     await topCol('shares').doc(sid).delete();
     await clShLoad(true);
+}
+
+// ---------- Safe item changes (K2) ----------
+// A list's items are one array inside one document. Two people changing it at the same moment must not
+// overwrite each other, so every change runs in a Firestore transaction: read the current items,
+// change only what this person did, write back. The item they acted on is found by its ID (not its
+// position, which may have moved) — every item gets an ID the first time it is saved.
+
+var _clRendered = {};     // {runId: items array as last drawn} — to find the ID of the item at a position
+
+function clNewItemId() { return 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+function clRememberItems(runId, items) { _clRendered[runId] = items; }
+
+/**
+ * Changes a list's items in one transaction.
+ *   idx — position of the item the user acted on in what is drawn (null when the change is not about one item)
+ *   fn(items, at) — edits/returns the items array; `at` is that item's current position (-1 if someone removed it)
+ * Returns {items, data, at}, or null if the list no longer exists or fn returned false (nothing to change).
+ */
+async function clChangeItems(runId, idx, fn) {
+    var ref = clRunRef(runId);
+    var shown = idx == null ? null : (_clRendered[runId] || [])[idx];
+    var wantId = shown && shown.id;
+    var out = null;
+    await db.runTransaction(async function(tx) {
+        out = null;
+        var snap = await tx.get(ref);
+        if (!snap.exists) return;
+        var data = snap.data();
+        var items = (data.items || []).map(function(it) { return it.id ? it : Object.assign({ id: clNewItemId() }, it); });
+        var at = idx == null ? -1 : (wantId ? items.findIndex(function(x) { return x.id === wantId; }) : idx);
+        if (idx != null && (at === -1 || at >= items.length)) return;   // the item was removed by someone else: nothing to do
+        var next = fn(items, at);
+        if (next === false) return;
+        tx.update(ref, { items: next || items });
+        out = { items: next || items, data: data, at: at };
+    });
+    return out;
+}
+
+// ---------- Live updates (K2) ----------
+// Every shared list that is on screen (mine or shared with me) is watched with a Firestore listener, so a
+// tick or a new item shows up on the other person's screen as it happens. Only the list's items are
+// redrawn, and not while the person is typing in that card (it is applied when they click away).
+
+var _clLive = {};             // {runId: {unsub, pending}}
+var _clLiveLastRefresh = 0;
+
+function clStopLive() {
+    Object.keys(_clLive).forEach(function(id) { try { _clLive[id].unsub(); } catch (e) {} });
+    _clLive = {};
+}
+
+/** The card of a list on the page, or null. */
+function _clCardFor(runId) {
+    return document.querySelector('#clSharedWithMeContainer .cl-run-card[data-id="' + runId + '"], #clActiveRunsContainer .cl-run-card[data-id="' + runId + '"]');
+}
+
+/** Reloads the page's lists (a list was completed, archived, removed or is no longer shared). Not more than once every few seconds. */
+function _clLiveReloadAll() {
+    var now = Date.now();
+    if (now - _clLiveLastRefresh < 4000) return;
+    _clLiveLastRefresh = now;
+    clStopLive();
+    clShLoad(true).then(function() { return clLoadActiveRuns(); }).catch(function(e) { console.error(e); });
+}
+
+/** Redraws the items (and the count) of a card from new list data. */
+function _clLiveApply(runId, data) {
+    var card = _clCardFor(runId);
+    if (!card) return;
+    var items = data.items || [];
+    clRerenderRunItems(runId, items, data.templateId || null, card);
+    var count = card.querySelector('.cl-run-count');
+    if (count) count.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+}
+
+function _clLiveOnData(runId, data) {
+    var card = _clCardFor(runId);
+    if (!card) { if (_clLive[runId]) { try { _clLive[runId].unsub(); } catch (e) {} delete _clLive[runId]; } return; }
+    if (data.completedAt || data.archived) { _clLiveReloadAll(); return; }
+    if (JSON.stringify(data.items || []) === JSON.stringify(_clRendered[runId] || [])) return;   // nothing new (e.g. my own change coming back)
+    var a = document.activeElement;
+    if (a && card.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) {       // typing here: wait until they click away
+        _clLive[runId].pending = data;
+        return;
+    }
+    _clLiveApply(runId, data);
+}
+
+/** Starts watching every shared list that is on the page. Call after the lists are drawn. */
+function clStartLive() {
+    clStopLive();
+    document.querySelectorAll('#clSharedWithMeContainer .cl-run-card[data-id], #clActiveRunsContainer .cl-run-card[data-id]').forEach(function(card) {
+        var runId = card.dataset.id;
+        if (!clIsShared(runId) || _clLive[runId]) return;
+        var entry = { pending: null, unsub: null };
+        _clLive[runId] = entry;
+        entry.unsub = clRunRef(runId).onSnapshot(function(snap) {
+            if (!snap.exists) { _clLiveReloadAll(); return; }
+            _clLiveOnData(runId, snap.data());
+        }, function(err) {
+            console.warn('Live checklist listener stopped:', err.message);       // e.g. sharing was stopped
+            _clLiveReloadAll();
+        });
+        card.addEventListener('focusout', function() {
+            setTimeout(function() {
+                var p = _clLive[runId] && _clLive[runId].pending;
+                var a = document.activeElement;
+                if (p && !(a && card.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'))) {
+                    _clLive[runId].pending = null;
+                    _clLiveApply(runId, p);
+                }
+            }, 200);
+        });
+    });
+}
+
+/** Re-reads one list and redraws its items (the item someone acted on was removed by another person). */
+async function clRefreshRunNow(runId) {
+    try {
+        var d = await clRunRef(runId).get();
+        if (d.exists) _clLiveApply(runId, d.data()); else _clLiveReloadAll();
+    } catch (e) { console.error(e); }
 }
