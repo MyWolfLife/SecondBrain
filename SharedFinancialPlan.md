@@ -1,6 +1,6 @@
 # Sharing Credentials and Financial — build plan
 
-*C1 (credentials) is built; the Financial chunks are not. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
+*C1 (credentials) and F1 (keys) are built; the other Financial chunks are not. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
 
 Two separate things, built in this order:
 
@@ -69,7 +69,7 @@ Recipients **use the same passphrase they already use** for their own Legacy/Pri
 | # | Chunk | Result |
 |---|---|---|
 | **C1 ✅** | **Credentials sharing (built 2026-10-27):** Share control per credential, audience shares, Shared with me list, badge, view-only guard, backup. Two-account test. | Netflix login shared with the family |
-| **F1** | **Key plumbing (invisible):** lock-and-key pairs protected by passphrase, data keys, envelopes, "waiting for" state. | Nothing changes for anyone |
+| **F1 ✅** | **Key plumbing (built 2026-10-27; needs the rules publish, see FirestoreRules.md):** lock-and-key pairs protected by passphrase, data keys, envelopes, "waiting for" state. | Nothing changes for anyone |
 | **F2** | **Financial plumbing:** `finCol` helpers, rules change for holdings, active-person resolve, dropdown lists shared people. | Nothing changes for anyone |
 | **F3** | **Financial screens** switched to the helpers: accounts, holdings, Social Security, summary, snapshots, groups; view-only guard. Tested with a seeded share. | Works as owner, editor, viewer |
 | **F4** | **Sensitive info** via data key + envelopes; reset; rotate on remove. | Each person unlocks with their passphrase |

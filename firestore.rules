@@ -89,13 +89,38 @@ service cloud.firestore {
       // Everything inside (collection record, items, photos, facts …)
       match /{collectionName}/{docId} {
         allow read: if signedIn() && canRead(shareData(shareId));
-        allow create, update: if signedIn() && canEdit(shareData(shareId));
+        // keyEnvelopes (locked data keys, Shared Financial F1) are owner-only to write: see below.
+        allow create, update: if signedIn() && canEdit(shareData(shareId))
+                              && collectionName != 'keyEnvelopes';
         // Editors may delete anything inside except the collection record itself.
         allow delete: if signedIn()
                       && (shareData(shareId).ownerUid == request.auth.uid
-                          || (collectionName != 'collections'
+                          || (collectionName != 'collections' && collectionName != 'keyEnvelopes'
                               && request.auth.uid in shareData(shareId).editorUids));
       }
+
+      // One level deeper (investment holdings under an account, Shared Financial F2): same rules.
+      match /{collectionName}/{docId}/{subName}/{subId} {
+        allow read: if signedIn() && canRead(shareData(shareId));
+        allow create, update: if signedIn() && canEdit(shareData(shareId));
+        allow delete: if signedIn()
+                      && (shareData(shareId).ownerUid == request.auth.uid
+                          || request.auth.uid in shareData(shareId).editorUids);
+      }
+
+      // Envelopes: the share's data key locked for each person with access. Everyone in the share can
+      // read them (each one only opens for its own person); only the owner makes or removes them.
+      match /keyEnvelopes/{uid} {
+        allow read: if signedIn() && canRead(shareData(shareId));
+        allow create, update, delete: if signedIn() && shareData(shareId).ownerUid == request.auth.uid;
+      }
+    }
+
+    // ---- Public keys (Shared Financial F1): the "lock" others use to make an envelope for me ----
+    // A public key is public by design. Anyone signed in may read; only its owner writes it.
+    match /publicKeys/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
     }
   }
 }

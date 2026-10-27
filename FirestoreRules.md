@@ -2,6 +2,18 @@
 
 *What this is:* the rules in the Firebase console decide who can read and write what. `firestore.rules` in this repo is the **new version**. It is a draft: **nothing changes until you paste it into the console and press Publish.** Part of the plan in `SharedSpacesBuildPlan.md`.
 
+## Update for Shared Financial (chunk F1) — publish `firestore.rules` once more
+
+The rules deployed in October 2026 do not cover three things the Financial sharing needs. `firestore.rules` now has them; **paste it into the console and Publish again** (same steps as below; only these parts are new):
+
+| New | What it allows |
+|---|---|
+| `publicKeys/{uid}` | Anyone signed in can read a person's public key (it is public by design, like a padlock); only that person writes theirs. Lets the owner make a locked envelope for someone without knowing their passphrase. |
+| `shares/{id}/keyEnvelopes/{uid}` | Everyone in a share can read the envelopes (each one only opens for its own person); **only the owner** can create, change or delete them. Editors can't touch them. |
+| One level deeper inside a share (`shares/{id}/{collection}/{doc}/{sub}/{subDoc}`) | Same read / edit / delete rules as the level above. Needed for investment holdings, which sit under their account. |
+
+Everything that already worked is unchanged. Until you publish, sharing a person's accounts can't work and the sharing key can't be made public (the app just logs it and carries on).
+
 ## What the new rules do, in plain words
 
 | Area | Who can do what |
