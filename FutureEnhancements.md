@@ -12,7 +12,7 @@ Items that are out of scope for current work but should be revisited later.
 - **Workouts library** (`SharedSpacesPlan.md` §8b): needs the decision about per-person progression stored inside workouts (a personal overlay vs shared).
 - **Offline Trip Mode** should download things shared with me (the write lock already covers shares); shared edits made offline sync later.
 - **Backup**: a checkbox "Also include things shared with me"; today only what I own is backed up.
-- **Restore of a shared collection** comes back private; could re-create the share if the groups still exist.
+- **Restore of a shared collection or yard** comes back private; could re-create the share if the groups still exist.
 - **Not exercised**: the failure rollback of Share and Stop sharing (it exists but was never triggered), a real photo-file upload into a shared item, phone-width layout of the Sharing page and dialogs.
 - Only people on the same Firebase project can share; a person with their own project cannot.
 

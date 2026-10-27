@@ -1627,3 +1627,59 @@ async function _shRefreshYardAfterChange() {
     if (typeof loadZonesList === 'function') loadZonesList();
     shRenderYardSwitcher();
 }
+
+// ─── Backup and restore of my shared Yard (Y5) ───────────────────────────────
+// Added to the normal Data / Photos backup files as extra top-level keys (sharedYard /
+// sharedYardPhotos), so older restore code simply ignores them. The yard lives in the share
+// while it is shared, so the normal backup of private collections would otherwise miss it.
+
+/** The yard share I own, or null. */
+async function _shMyYardShare() {
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'yard'; });
+    return mine.length ? mine[0] : null;
+}
+
+/** Data file: every yard collection except photos, from my shared yard (null when my yard is not shared). */
+async function shBackupSharedYard() {
+    var s = await _shMyYardShare();
+    if (!s) return null;
+    var rows = {};
+    for (var i = 0; i < YARD_SHARE_ALL.length; i++) {
+        var name = YARD_SHARE_ALL[i];
+        if (name === 'photos') continue;
+        rows[name] = _shRows((await shareCol(s.id, name).get()).docs);
+    }
+    return { shareId: s.id, share: backupSerialize(s.data), collections: rows };
+}
+
+/** Photos file: the photos of my shared yard (null when my yard is not shared). */
+async function shBackupSharedYardPhotos() {
+    var s = await _shMyYardShare();
+    if (!s) return null;
+    return { shareId: s.id, photos: _shRows((await shareCol(s.id, 'photos').get()).docs) };
+}
+
+/**
+ * Data restore: a yard that was shared when the backup was taken comes back as my PRIVATE yard
+ * (not re-shared), unless my yard is shared right now, in which case it is left alone.
+ */
+async function shRestoreSharedYard(payload, log) {
+    var e = payload.sharedYard;
+    if (!e) return;
+    if (await _shMyYardShare()) { log('• Your yard is still shared — the shared yard in this backup was left as it is.'); return; }
+    var ops = [], total = 0;
+    Object.keys(e.collections || {}).forEach(function(name) {
+        e.collections[name].forEach(function(r) { ops.push({ ref: userCol(name).doc(r.id), data: r.data }); total++; });
+    });
+    await shBatchSet(ops);
+    log('✓ Shared yard restored as your private yard (' + total + ' records). Share it again if you want.', '#2e7d32');
+}
+
+/** Photos restore: the shared yard's photos go back to my private area, only if the yard is not shared now. */
+async function shRestoreSharedYardPhotos(payload, log) {
+    var e = payload.sharedYardPhotos;
+    if (!e) return;
+    if (await _shMyYardShare()) return;
+    await shBatchSet((e.photos || []).map(function(r) { return { ref: userCol('photos').doc(r.id), data: r.data }; }));
+    log('✓ ' + (e.photos || []).length + ' photo(s) of the formerly shared yard restored.', '#2e7d32');
+}

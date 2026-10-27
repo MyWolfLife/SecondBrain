@@ -1131,6 +1131,9 @@ async function runBackup() {
         // (restored as private collections; see sharing.js shRestoreSharedCollections)
         try { dataPayload.sharedCollections = await shBackupSharedCollections(); }
         catch (shErr) { console.error('Backup: shared collections not included:', shErr); }
+        // Same for my Yard when it is shared (sharing.js shRestoreSharedYard)
+        try { var sharedYard = await shBackupSharedYard(); if (sharedYard) dataPayload.sharedYard = sharedYard; }
+        catch (shErr) { console.error('Backup: shared yard not included:', shErr); }
         backupDownload(appName + '_Data_' + ts + '.json', dataPayload);
 
         // ---- Photos file (optional) ----
@@ -1146,6 +1149,8 @@ async function runBackup() {
             };
             try { photoPayload.sharedPhotos = await shBackupSharedPhotos(); }
             catch (shErr) { console.error('Backup: shared photos not included:', shErr); }
+            try { var sharedYardPhotos = await shBackupSharedYardPhotos(); if (sharedYardPhotos) photoPayload.sharedYardPhotos = sharedYardPhotos; }
+            catch (shErr) { console.error('Backup: shared yard photos not included:', shErr); }
             backupDownload(appName + '_Photos_' + ts + '.json', photoPayload);
         }
 
@@ -1550,6 +1555,8 @@ async function runRestore(payload) {
     // Collections that were shared when the backup was made (see sharing.js)
     if (payload.type === 'data'   && payload.sharedCollections) await shRestoreSharedCollections(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedPhotos)      await shRestoreSharedPhotos(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedYard)        await shRestoreSharedYard(payload, restoreLog);
+    if (payload.type === 'photos' && payload.sharedYardPhotos)  await shRestoreSharedYardPhotos(payload, restoreLog);
 
     restoreLog('\n\u2705 Restore complete!', '#2e7d32');
     restoreSetProgress(100);
