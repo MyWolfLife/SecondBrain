@@ -934,7 +934,7 @@ async function _gcalResolveCategoryName(categoryId) {
 async function _gcalResolveLifeLocation(event) {
     if (event.locationContactId) {
         try {
-            var snap = await userCol('people').doc(event.locationContactId).get();
+            var snap = await pplCol('people').doc(event.locationContactId).get();
             return snap.exists ? (snap.data().name || event.location || '') : (event.location || '');
         } catch (e) { return event.location || ''; }
     }

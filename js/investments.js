@@ -512,7 +512,7 @@ async function _investLoadAll() {
     if (settingsDoc.exists) {
         var enrolledIds = (settingsDoc.data().enrolledPersonIds || []).filter(Boolean);
         var fetches = enrolledIds.map(function(pid) {
-            return userCol('people').doc(pid).get().then(function(d) {
+            return pplCol('people').doc(pid).get().then(function(d) {
                 return d.exists ? { id: pid, name: d.data().name || pid } : null;
             });
         });
@@ -3698,13 +3698,13 @@ async function _investLoadGroupSS(group) {
 // Returns { noContact } if no contact has isMe === true.
 async function _investGetMeAge() {
     try {
-        var snap = await userCol('people').where('isMe', '==', true).limit(1).get();
+        var snap = await pplCol('people').where('isMe', '==', true).limit(1).get();
         if (snap.empty) return { noContact: true };
         var meDoc  = snap.docs[0];
         var meId   = meDoc.id;
         var meName = meDoc.data().name || 'Me';
 
-        var datesSnap = await userCol('peopleImportantDates').where('personId', '==', meId).get();
+        var datesSnap = await pplCol('peopleImportantDates').where('personId', '==', meId).get();
         var entry = null;
         datesSnap.forEach(function(d) {
             var lbl = (d.data().label || '').toLowerCase().replace(/\s+/g, '');
@@ -3728,19 +3728,19 @@ async function _investGetMeAge() {
 // Clears isMe from any existing contacts first. Returns the new contact ID, or null on error.
 async function _investCreateMeContactWithBirthday(month, day, year) {
     try {
-        var existing = await userCol('people').where('isMe', '==', true).get();
+        var existing = await pplCol('people').where('isMe', '==', true).get();
         if (!existing.empty) {
             var clrBatch = db.batch();
             existing.forEach(function(doc) { clrBatch.update(doc.ref, { isMe: false }); });
             await clrBatch.commit();
         }
-        var meRef = await userCol('people').add({
+        var meRef = await pplCol('people').add({
             name: 'Me', isMe: true, quickMention: false, category: 'Personal',
             // Explicit null so the record shows up in the Contacts list
             parentPersonId: null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        await userCol('peopleImportantDates').add({
+        await pplCol('peopleImportantDates').add({
             personId: meRef.id, label: 'Birthday',
             month: month, day: day, year: year,
             recurrence: 'annual',
@@ -5050,7 +5050,7 @@ async function _ssBenefitsLoadPeople() {
     if (settingsDoc.exists) {
         var enrolledIds = (settingsDoc.data().enrolledPersonIds || []).filter(Boolean);
         var fetches = enrolledIds.map(function(pid) {
-            return userCol('people').doc(pid).get().then(function(d) {
+            return pplCol('people').doc(pid).get().then(function(d) {
                 return d.exists ? { id: pid, name: d.data().name || pid } : null;
             });
         });

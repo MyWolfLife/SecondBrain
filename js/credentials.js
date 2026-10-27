@@ -140,7 +140,7 @@ async function _credLoadAll() {
     if (settingsDoc.exists) {
         var enrolledIds = (settingsDoc.data().enrolledPersonIds || []).filter(Boolean);
         var fetches = enrolledIds.map(function(pid) {
-            return userCol('people').doc(pid).get().then(function(d) {
+            return pplCol('people').doc(pid).get().then(function(d) {
                 return d.exists ? { id: pid, name: d.data().name || pid } : null;
             });
         });

@@ -166,9 +166,9 @@ function _tlAgeText(e) {
 async function _tlLoadBirthday() {
     _tlBirth = null;
     try {
-        var me = await userCol('people').where('isMe', '==', true).limit(1).get();
+        var me = await pplCol('people').where('isMe', '==', true).limit(1).get();
         if (me.empty) return;
-        var dates = await userCol('peopleImportantDates').where('personId', '==', me.docs[0].id).get();
+        var dates = await pplCol('peopleImportantDates').where('personId', '==', me.docs[0].id).get();
         dates.forEach(function(d) {
             var x = d.data();
             if (!_tlBirth && /birthday|bday|birthdate/i.test(x.label || '') && x.year && x.month && x.day) {
@@ -386,7 +386,7 @@ function _tlMentionName(p) { return p.nickname || p.name.split(' ')[0]; }
 async function _tlLoadPeople() {
     if (_tlPeopleCache) return _tlPeopleCache;
     try {
-        var snap = await userCol('people').get();
+        var snap = await pplCol('people').get();
         _tlPeopleCache = snap.docs.map(function(doc) {
             var d = doc.data();
             return { id: doc.id, name: d.name || '', nickname: d.nickname || '', howKnown: d.howKnown || '', quickMention: !!d.quickMention };

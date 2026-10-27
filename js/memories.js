@@ -684,7 +684,7 @@ function _memAddNewTag(name) {
 async function _memLoadPeopleCache() {
     if (_memPeopleCache) return _memPeopleCache;
     try {
-        var snap = await userCol('people').get();
+        var snap = await pplCol('people').get();
         _memPeopleCache = [];
         snap.forEach(function(doc) {
             var d = doc.data();

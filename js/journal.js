@@ -2275,7 +2275,7 @@ async function deleteJournalCategory(id) {
 async function _journalLoadPeopleCache() {
     if (_journalPeopleCache) return _journalPeopleCache;
     try {
-        var snap = await userCol('people').get();
+        var snap = await pplCol('people').get();
         _journalPeopleCache = [];
         snap.forEach(function(doc) {
             var d = doc.data();
@@ -2386,7 +2386,7 @@ async function _syncJournalMentionInteractions(entryId, date, text, personIds) {
     if (!entryId) return;
     if (!personIds || !personIds.length) {
         try {
-            var old = await userCol('peopleInteractions').where('journalEntryId','==',entryId).get();
+            var old = await pplCol('peopleInteractions').where('journalEntryId','==',entryId).get();
             if (!old.empty) { var b = db.batch(); old.forEach(function(d){ b.delete(d.ref); }); await b.commit(); }
         } catch(err) { console.error('mention cleanup:', err); }
         return;
@@ -2397,11 +2397,11 @@ async function _syncJournalMentionInteractions(entryId, date, text, personIds) {
     var toWrite = new Set(personIds);
     personIds.forEach(function(id){ if (parentMap[id]) toWrite.add(parentMap[id]); });
     try {
-        var old = await userCol('peopleInteractions').where('journalEntryId','==',entryId).get();
+        var old = await pplCol('peopleInteractions').where('journalEntryId','==',entryId).get();
         var batch = db.batch();
         old.forEach(function(d){ batch.delete(d.ref); });
         toWrite.forEach(function(personId){
-            var ref = userCol('peopleInteractions').doc();
+            var ref = cxNewRef('peopleInteractions', personId);
             batch.set(ref, { personId: personId, date: date, text: text, sourceType: 'journal', journalEntryId: entryId, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         });
         await batch.commit();
@@ -3237,7 +3237,7 @@ async function loadAllActivityFeed() {
             userCol('concerns').get(),
             userCol('conditions').get(),
             userCol('lifeEvents').get(),
-            userCol('people').get(),
+            pplCol('people').get(),
             // Timeline collections (index 9-20)
             yReadAll('activities', function(c) { return c.where('date', '>=', fromDate).where('date', '<=', toDate); }),
             userCol('calendarEvents').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
@@ -3247,7 +3247,7 @@ async function loadAllActivityFeed() {
             userCol('healthConditionLogs').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('bloodWorkRecords').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('vitals').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
-            userCol('peopleInteractions').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
+            pplCol('peopleInteractions').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('journalEntries').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('journalTrackingItems').where('date', '>=', fromDate).where('date', '<=', toDate).get(),
             userCol('lifeEventLogs').where('logDate', '>=', fromDate).where('logDate', '<=', toDate).get()

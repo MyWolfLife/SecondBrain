@@ -101,6 +101,7 @@ async function _loadServiceTrades(selectedValue) {
             }
         }
     } catch (err) { console.warn('_loadServiceTrades error:', err); }
+    if (selectedValue && trades.indexOf(selectedValue) === -1) trades.push(selectedValue);   // a shared contact may use a value that is not in my own list
     sel.innerHTML = '<option value="">— Select trade —</option>';
     trades.forEach(function(t) {
         var opt = document.createElement('option');
@@ -148,6 +149,7 @@ async function _loadPersonalTypes(selectedValue) {
             }
         }
     } catch (err) { console.warn('_loadPersonalTypes error:', err); }
+    if (selectedValue && types.indexOf(selectedValue) === -1) types.push(selectedValue);   // a shared contact may use a value that is not in my own list
     sel.innerHTML = '<option value="">— Select type —</option>';
     types.forEach(function(t) {
         var opt = document.createElement('option');
@@ -193,6 +195,7 @@ async function _loadBusinessTypes(selectedValue) {
             }
         }
     } catch (err) { console.warn('_loadBusinessTypes error:', err); }
+    if (selectedValue && types.indexOf(selectedValue) === -1) types.push(selectedValue);   // a shared contact may use a value that is not in my own list
     sel.innerHTML = '<option value="">— Select type —</option>';
     types.forEach(function(t) {
         var opt = document.createElement('option');
@@ -327,10 +330,10 @@ function _configureSpecialtyField(category) { _configureTypeFields(category); }
  */
 async function ensureMeContact() {
     try {
-        var snap = await userCol('people').where('isMe', '==', true).limit(1).get();
+        var snap = await pplCol('people').where('isMe', '==', true).limit(1).get();
         if (!snap.empty) return snap.docs[0].id;
         // No Me contact yet — create one
-        var ref = await userCol('people').add({
+        var ref = await pplCol('people').add({
             name:             'Me',
             isMe:             true,
             category:         'Personal',
@@ -369,7 +372,7 @@ async function backfillPeopleParentId() {
         // The broken docs cannot be found with a query - a filter on the field
         // is exactly what they fall out of - so read the collection and check
         // each doc client-side. Contact lists are small, so this is cheap.
-        var snap = await userCol('people').get();
+        var snap = await pplCol('people').get();
 
         var broken = snap.docs.filter(function(doc) {
             return doc.data().parentPersonId === undefined;
@@ -424,7 +427,7 @@ async function loadContactsPage() {
     await _populateContactsFilterSelect();
 
     try {
-        var snap = await userCol('people').get();
+        var snap = await pplCol('people').get();
 
         var all = [];
         var byId = {};
@@ -464,6 +467,30 @@ async function loadContactsPage() {
             });
         }
 
+        // Contacts other people shared with me (sharecontact.js), filtered like the rest, shown first
+        var sharedWithMe = (await cxSharedWithMeRoots()).map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+            .filter(function(p) { return !filterVal || p.category === filterVal; })
+            .filter(function(p) {
+                return !searchVal || (p.name || '').toLowerCase().includes(searchVal) ||
+                       (p.nickname || '').toLowerCase().includes(searchVal) || (p.specialty || '').toLowerCase().includes(searchVal);
+            })
+            .sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+        if (sharedWithMe.length) {
+            var shHead = document.createElement('h3');
+            shHead.className = 'section-heading';
+            shHead.textContent = 'Shared with me';
+            container.appendChild(shHead);
+            sharedWithMe.forEach(function(p) { container.appendChild(buildPersonCard(p, null)); });
+            if (docs.length) {
+                var ownHead = document.createElement('h3');
+                ownHead.className = 'section-heading';
+                ownHead.textContent = 'My contacts';
+                container.appendChild(ownHead);
+            }
+        }
+
+        if (docs.length === 0 && sharedWithMe.length) return;
+
         if (docs.length === 0) {
             emptyState.textContent = snap.empty
                 ? 'No contacts yet. Press + Add Contact to get started.'
@@ -473,7 +500,7 @@ async function loadContactsPage() {
         }
 
         // Fetch last interaction date for each contact in one pass
-        var intSnap = await userCol('peopleInteractions').get();
+        var intSnap = await pplCol('peopleInteractions').get();
         var lastIntMap = {};
         intSnap.forEach(function(doc) {
             var d = doc.data();
@@ -539,6 +566,8 @@ function buildPersonCard(person, lastInteraction) {
         ? '<span class="person-category-badge contact-type-' + contactType.toLowerCase().replace(/\s+/g, '-') + '">'
             + escapeHtml(contactType) + '</span>' + subTypeLabel
         : '';
+    var cxCard = cxInfo(person.id);        // shared contact: say so (sharecontact.js)
+    if (cxCard) categoryBadge += ' <span class="person-subtype-label">' + (cxCard.role === 'owner' ? '👥 Shared' : '👥 from ' + escapeHtml(cxCard.ownerName)) + '</span>';
 
     var nickHtml = person.nickname
         ? '<span class="person-nickname">"' + escapeHtml(person.nickname) + '"</span>'
@@ -597,7 +626,7 @@ async function loadContactDetail(personId) {
     currentPerson = null;
 
     try {
-        var doc = await userCol('people').doc(personId).get();
+        var doc = await pplCol('people').doc(personId).get();
         if (!doc.exists) { window.location.hash = '#contacts'; return; }
         currentPerson = window.currentPerson = Object.assign({ id: doc.id }, doc.data());
 
@@ -606,7 +635,7 @@ async function loadContactDetail(personId) {
         var ancestors = [];
         var nextId = currentPerson.parentPersonId;
         while (nextId && ancestors.length < 10) {
-            var pDoc = await userCol('people').doc(nextId).get();
+            var pDoc = await pplCol('people').doc(nextId).get();
             if (!pDoc.exists) break;
             var pData = Object.assign({ id: pDoc.id }, pDoc.data());
             ancestors.push(pData);
@@ -714,6 +743,9 @@ function renderPersonDetail(person, parentPerson, ancestors) {
     // Wire edit button
     document.getElementById('personEditBtn').onclick = function() { openEditContactModal(person); };
 
+    // Sharing (sharecontact.js): Share button for the owner, badge for shared contacts, no controls for View only
+    _renderContactShareControls(person);
+
     // Load all sub-sections
     loadSubPeople(person.id, subLabel);
     loadImportantDates(person.id);
@@ -721,6 +753,58 @@ function renderPersonDetail(person, parentPerson, ancestors) {
     loadFacts('person',  person.id, 'personFactsContainer',  'personFactsEmptyState');
     loadSharedEvents(person.id);
     loadInteractions(person.id);
+}
+
+/**
+ * Share button (owner, top-level shared/private contact, not "Me"), the "Shared …" badge, and the View-only
+ * look of the contact page (every button is hidden by CSS .cx-viewonly).
+ */
+function _renderContactShareControls(person) {
+    var page = document.getElementById('page-contact');
+    var info = cxInfo(person.id);
+    var role = cxRoleFor(person.id);
+    var isRoot = !info || info.rootId === person.id;
+    if (page) page.classList.toggle('cx-viewonly', role === 'view');
+
+    var editBtn = document.getElementById('personEditBtn');
+    var shareBtn = document.getElementById('personShareBtn');
+    if (!shareBtn && editBtn) {
+        shareBtn = document.createElement('button');
+        shareBtn.className = 'btn btn-secondary btn-small';
+        shareBtn.id = 'personShareBtn';
+        editBtn.parentNode.appendChild(shareBtn);
+    }
+    if (shareBtn) {
+        var canShare = role === 'owner' && isRoot && !person.isMe;
+        shareBtn.style.display = canShare ? '' : 'none';
+        shareBtn.textContent = info ? 'Sharing…' : 'Share…';
+        shareBtn.onclick = function() { shOpenContactShareDialog(person.id, person.name); };
+    }
+
+    var badge = document.getElementById('personShareBadge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'personShareBadge';
+        badge.className = 'person-category-badge';
+        var cat = document.getElementById('personDetailCategory');
+        if (cat && cat.parentNode) cat.parentNode.appendChild(badge);
+    }
+    if (info) {
+        badge.textContent = info.role === 'owner' ? '👥 Shared'
+            : '👥 Shared by ' + info.ownerName + ' · ' + (info.role === 'edit' ? 'Can edit' : 'View only');
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+/** After sharing / stopping / changing who: show the same page again. */
+async function _cxAfterShareChange() {
+    if (currentPerson && document.getElementById('page-contact') && !document.getElementById('page-contact').classList.contains('hidden')) {
+        await loadContactDetail(currentPerson.id);
+    } else {
+        await loadContactsPage();
+    }
 }
 
 function _contactRow(label, valueHtml) {
@@ -824,7 +908,7 @@ async function _handleProfilePhotoUpload(file) {
     if (!currentPerson) return;
     try {
         var compressed = await compressImage(file, 400, 400, 0.75);
-        await userCol('people').doc(currentPerson.id).update({ profilePhotoData: compressed });
+        await pplCol('people').doc(currentPerson.id).update({ profilePhotoData: compressed });
         currentPerson.profilePhotoData = compressed;
         document.getElementById('personDetailAvatar').innerHTML =
             _buildAvatarHtml(currentPerson, 'person-detail-avatar');
@@ -899,11 +983,12 @@ async function openEditContactModal(person) {
 
     // Me contact: hide delete button, lock name, hide the isMe toggle (can't change it)
     var isMe = !!person.isMe;
-    document.getElementById('personModalDeleteBtn').style.display = isMe ? 'none' : '';
+    var notOwner = !cxIsOwner(person.id);          // an editor of a shared contact cannot delete it or mark it "me"
+    document.getElementById('personModalDeleteBtn').style.display = (isMe || notOwner) ? 'none' : '';
     document.getElementById('personNameInput').readOnly           = isMe;
     document.getElementById('personNameInput').style.background   = isMe ? 'var(--bg-secondary, #f3f4f6)' : '';
     var isMeGroup = document.getElementById('personIsMeGroup');
-    if (isMeGroup) isMeGroup.style.display = isMe ? 'none' : '';
+    if (isMeGroup) isMeGroup.style.display = (isMe || notOwner) ? 'none' : '';
 
     // Reset inline-add rows
     document.getElementById('personTradeAddRow').style.display        = 'none';
@@ -1009,10 +1094,13 @@ async function handleContactModalSave() {
         _saveCustomSpecialty(specialtyVal);
     }
 
+    // "This is me" and "quick mention" belong to the owner's own use of a contact: an editor leaves them as they are
+    if (mode === 'edit' && !cxIsOwner(editId)) { delete data.isMe; delete data.quickMention; }
+
     try {
         // If isMe is being set, clear the flag from all other contacts first
         if (data.isMe) {
-            var allPeople = await userCol('people').where('isMe', '==', true).get();
+            var allPeople = await pplCol('people').where('isMe', '==', true).get();
             var batch = db.batch();
             allPeople.forEach(function(doc) {
                 if (doc.id !== editId) batch.update(doc.ref, { isMe: false });
@@ -1024,7 +1112,7 @@ async function handleContactModalSave() {
             data.parentPersonId   = parentPersonId;
             data.profilePhotoData = null;
             data.createdAt        = firebase.firestore.FieldValue.serverTimestamp();
-            await userCol('people').add(data);
+            await pplCol('people').add(data);
             closeModal('personModal');
             if (parentPersonId) {
                 loadSubPeople(parentPersonId);
@@ -1032,7 +1120,7 @@ async function handleContactModalSave() {
                 loadContactsPage();
             }
         } else {
-            await userCol('people').doc(editId).update(data);
+            await pplCol('people').doc(editId).update(data);
             closeModal('personModal');
             Object.assign(currentPerson, data);
             loadContactDetail(editId);
@@ -1053,6 +1141,8 @@ async function handleDeleteContact(id) {
         return;
     }
 
+    if (!cxIsOwner(id)) { alert('Only the person who shared this contact can delete it.'); return; }
+
     if (!confirm('Delete this contact? Their interactions and important dates, and any family members or staff listed under them, will also be deleted.')) return;
 
     var parentId = currentPerson ? currentPerson.parentPersonId : null;
@@ -1062,11 +1152,11 @@ async function handleDeleteContact(id) {
         var batch = db.batch();
 
         // Delete interactions
-        var intSnap = await userCol('peopleInteractions').where('personId', '==', id).get();
+        var intSnap = await pplCol('peopleInteractions').where('personId', '==', id).get();
         intSnap.forEach(function(d) { batch.delete(d.ref); });
 
         // Delete important dates
-        var dateSnap = await userCol('peopleImportantDates').where('personId', '==', id).get();
+        var dateSnap = await pplCol('peopleImportantDates').where('personId', '==', id).get();
         dateSnap.forEach(function(d) { batch.delete(d.ref); });
 
         // Delete all descendants (family can nest: Bill > Matt > Matt's kids),
@@ -1074,20 +1164,21 @@ async function handleDeleteContact(id) {
         var pending = [id];
         while (pending.length) {
             var parentOfBatch = pending.shift();
-            var subSnap = await userCol('people').where('parentPersonId', '==', parentOfBatch).get();
+            var subSnap = await pplCol('people').where('parentPersonId', '==', parentOfBatch).get();
             for (var i = 0; i < subSnap.docs.length; i++) {
                 var subId = subSnap.docs[i].id;
-                var sInt = await userCol('peopleInteractions').where('personId', '==', subId).get();
+                var sInt = await pplCol('peopleInteractions').where('personId', '==', subId).get();
                 sInt.forEach(function(d) { batch.delete(d.ref); });
-                var sDates = await userCol('peopleImportantDates').where('personId', '==', subId).get();
+                var sDates = await pplCol('peopleImportantDates').where('personId', '==', subId).get();
                 sDates.forEach(function(d) { batch.delete(d.ref); });
                 batch.delete(subSnap.docs[i].ref);
                 pending.push(subId);
             }
         }
 
-        batch.delete(userCol('people').doc(id));
+        batch.delete(cxRef('people', id));
         await batch.commit();
+        await cxFinishDelete(id);      // a shared contact: also clear what is left in its share (photos, facts) and the share itself
 
         // Navigate back
         if (parentId) {
@@ -1116,7 +1207,7 @@ async function loadSubPeople(parentId, label) {
     var memberLabel = label || 'Family Members';
 
     try {
-        var snap = await userCol('people').where('parentPersonId', '==', parentId).get();
+        var snap = await pplCol('people').where('parentPersonId', '==', parentId).get();
 
         if (snap.empty) {
             emptyState.textContent = 'No ' + memberLabel.toLowerCase() + ' added yet.';
@@ -1169,7 +1260,7 @@ async function loadImportantDates(personId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('peopleImportantDates').where('personId', '==', personId).get();
+        var snap = await pplCol('peopleImportantDates').where('personId', '==', personId).get();
         if (snap.empty) {
             emptyState.textContent  = 'No important dates yet.';
             emptyState.style.display = 'block';
@@ -1199,7 +1290,7 @@ function buildImportantDateItem(d, personId) {
         '</div>' +
         '<span class="problem-arrow">›</span>';
 
-    item.addEventListener('click', function() { openEditImportantDateModal(d, personId); });
+    item.addEventListener('click', function() { if (cxCanEdit(personId)) openEditImportantDateModal(d, personId); });
     return item;
 }
 
@@ -1252,9 +1343,9 @@ async function handleImportantDateSave() {
     try {
         if (modal.dataset.mode === 'add') {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await userCol('peopleImportantDates').add(data);
+            await pplCol('peopleImportantDates').add(data);
         } else {
-            await userCol('peopleImportantDates').doc(modal.dataset.editId).update({
+            await pplCol('peopleImportantDates').doc(modal.dataset.editId).update({
                 label: label, month: month, day: day, year: year, recurrence: recurrence
             });
         }
@@ -1273,7 +1364,7 @@ async function handleDeleteImportantDate() {
     if (!confirm('Delete this important date?')) return;
     closeModal('importantDateModal');
     try {
-        await userCol('peopleImportantDates').doc(id).delete();
+        await pplCol('peopleImportantDates').doc(id).delete();
         loadImportantDates(personId);
     } catch (err) { console.error('handleDeleteImportantDate error:', err); }
 }
@@ -1288,7 +1379,7 @@ async function loadInteractions(personId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('peopleInteractions').where('personId', '==', personId).get();
+        var snap = await pplCol('peopleInteractions').where('personId', '==', personId).get();
         if (snap.empty) {
             emptyState.textContent  = 'No interactions logged yet.';
             emptyState.style.display = 'block';
@@ -1321,7 +1412,7 @@ function buildInteractionItem(item, personId) {
         '</div>' +
         '<span class="problem-arrow">›</span>';
 
-    el.addEventListener('click', function() { openEditInteractionModal(item, personId); });
+    el.addEventListener('click', function() { if (cxCanEdit(personId)) openEditInteractionModal(item, personId); });
     return el;
 }
 
@@ -1362,7 +1453,7 @@ async function handleInteractionSave() {
     try {
         if (modal.dataset.mode === 'add') {
             var interactionDate = date || new Date().toISOString().split('T')[0];
-            await userCol('peopleInteractions').add({
+            await pplCol('peopleInteractions').add({
                 personId:   personId,
                 date:       interactionDate,
                 text:       text,
@@ -1374,7 +1465,7 @@ async function handleInteractionSave() {
                 _nbUpdateHouseLastInteraction(personId, interactionDate);
             }
         } else {
-            await userCol('peopleInteractions').doc(modal.dataset.editId).update({ date: date, text: text });
+            await pplCol('peopleInteractions').doc(modal.dataset.editId).update({ date: date, text: text });
         }
         closeModal('interactionModal');
         _pplStopVoice();
@@ -1392,7 +1483,7 @@ async function handleDeleteInteraction() {
     if (!confirm('Delete this interaction?')) return;
     closeModal('interactionModal');
     try {
-        await userCol('peopleInteractions').doc(id).delete();
+        await pplCol('peopleInteractions').doc(id).delete();
         loadInteractions(personId);
     } catch (err) { console.error('handleDeleteInteraction error:', err); }
 }
@@ -1618,7 +1709,7 @@ async function loadLifePage() {
     try {
         // Load annual contact dates and upcoming life events in parallel
         var results = await Promise.all([
-            userCol('peopleImportantDates').where('recurrence', '==', 'annual').get(),
+            pplCol('peopleImportantDates').where('recurrence', '==', 'annual').get(),
             userCol('lifeEvents').where('startDate', '>=', todayStr).where('startDate', '<=', endDateStr).get()
         ]);
         var datesSnap  = results[0];
@@ -1627,7 +1718,7 @@ async function loadLifePage() {
         // Build person name map only if annual dates exist
         var personMap = {};
         if (!datesSnap.empty) {
-            var peopleSnap = await userCol('people').get();
+            var peopleSnap = await pplCol('people').get();
             peopleSnap.forEach(function(doc) { personMap[doc.id] = doc.data().name || 'Unknown'; });
         }
 
@@ -1677,7 +1768,7 @@ async function loadLifePage() {
         if (contactIdsToFetch.length) {
             await Promise.all(contactIdsToFetch.map(async function(cid) {
                 try {
-                    var cSnap = await userCol('people').doc(cid).get();
+                    var cSnap = await pplCol('people').doc(cid).get();
                     if (cSnap.exists) locationContactMap[cid] = cSnap.data();
                 } catch(e) { /* ignore */ }
             }));
@@ -1933,7 +2024,7 @@ function buildContactPicker(containerId, options) {
             searchInput.value = options.initialName;
         } else {
             // Name not cached on the doc — fetch it from the people collection
-            userCol('people').doc(options.initialId).get().then(function(doc) {
+            pplCol('people').doc(options.initialId).get().then(function(doc) {
                 if (doc.exists && !searchInput.value) {
                     searchInput.value = doc.data().name || '';
                 }
@@ -1951,8 +2042,8 @@ function buildContactPicker(containerId, options) {
             // staff members under a Medical Facility) so they appear in the picker.
             // Without a category filter, show only top-level contacts to avoid clutter.
             var query = filterCat
-                ? userCol('people').where('category', '==', filterCat)
-                : userCol('people').where('parentPersonId', '==', null);
+                ? pplCol('people').where('category', '==', filterCat)
+                : pplCol('people').where('parentPersonId', '==', null);
             var snap = await query.get();
             _allContacts = [];
             snap.forEach(function(doc) {
@@ -2062,7 +2153,7 @@ function buildContactPicker(containerId, options) {
     // Load staff sub-contacts of the currently-selected facility
     async function _loadFacilityStaff(facilityId) {
         try {
-            var q    = userCol('people').where('parentPersonId', '==', facilityId);
+            var q    = pplCol('people').where('parentPersonId', '==', facilityId);
             var snap = await q.get();
             var staff = [];
             snap.forEach(function(doc) {
@@ -2181,7 +2272,7 @@ function buildContactPicker(containerId, options) {
                 createdAt:        firebase.firestore.FieldValue.serverTimestamp()
             };
             try {
-                var ref = await userCol('people').add(data);
+                var ref = await pplCol('people').add(data);
                 closeModal('personModal');
                 cb(ref.id, name);
             } catch (err) {

@@ -3394,6 +3394,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - [My Care Team](#help/health-care-team)
 - [Neighbors](#help/neighbors)
 
+
+**Sharing a contact (Share…)**: on a contact's page, tap **Share…** (next to Edit) to share that contact — with the family members or staff under them, and their interactions, important dates, photos and facts — with one of your groups as **View only** or **Can edit**. A backup file downloads first and you stay the owner; the rest of the app keeps finding the contact. People you share with see it under **Shared with me** on their Contacts page. Editors can change the contact and add interactions, dates, photos, facts and family members; only you can delete, share or stop sharing it. Not yet: shared contacts are not in search or the Data backup.
 ---
 
 ## screen:neighbors

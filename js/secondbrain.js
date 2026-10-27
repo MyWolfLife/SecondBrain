@@ -131,7 +131,7 @@ async function _sbBuildContext() {
         ] = await Promise.all([
             yardCol('zones').get(),
             yardCol('plants').get(),
-            userCol('people').get(),
+            pplCol('people').get(),
             userCol('vehicles').get(),
             yardCol('weeds').get(),
             yardCol('chemicals').get(),
@@ -1994,10 +1994,10 @@ async function _sbWrite(action, payload) {
                 if (payload.newPersonNotes)    newPersonDoc.notes    = payload.newPersonNotes;
                 // First attached photo becomes the profile photo
                 if (_sbPhotos.length > 0)      newPersonDoc.profilePhotoData = _sbPhotos[0].dataUrl;
-                var pRef = await userCol('people').add(newPersonDoc);
+                var pRef = await pplCol('people').add(newPersonDoc);
                 personId = pRef.id;
             }
-            await userCol('peopleImportantDates').add({
+            await pplCol('peopleImportantDates').add({
                 personId:  personId,
                 label:     payload.label || '',
                 month:     parseInt(payload.month, 10) || 1,
@@ -2073,10 +2073,10 @@ async function _sbWrite(action, payload) {
                 if (payload.newPersonNotes)    newPersonDoc.notes    = payload.newPersonNotes;
                 // First attached photo becomes the profile photo
                 if (_sbPhotos.length > 0)      newPersonDoc.profilePhotoData = _sbPhotos[0].dataUrl;
-                var pRef = await userCol('people').add(newPersonDoc);
+                var pRef = await pplCol('people').add(newPersonDoc);
                 personId = pRef.id;
             }
-            await userCol('peopleInteractions').add({
+            await pplCol('peopleInteractions').add({
                 personId:  personId,
                 date:      payload.date  || _sbToday(),
                 text:      payload.notes || '',

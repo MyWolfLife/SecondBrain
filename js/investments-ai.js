@@ -506,7 +506,7 @@ async function _investAiBuildPayload(groupId, includedGroupKeys) {
             var pid = personIds[pi];
             if (pid === 'self' || personAges[pid] !== undefined) continue;
             try {
-                var dSnap = await userCol('peopleImportantDates').where('personId', '==', pid).get();
+                var dSnap = await pplCol('peopleImportantDates').where('personId', '==', pid).get();
                 dSnap.forEach(function(d) {
                     var lbl = (d.data().label || '').toLowerCase().replace(/\s+/g, '');
                     if ((lbl === 'birthday' || lbl === 'bday' || lbl === 'birthdate') && d.data().year) {

@@ -1410,7 +1410,7 @@ let _lpAllPeople = null;
 
 async function _lpEnsurePeopleCache() {
     if (_lpAllPeople) return _lpAllPeople;
-    const snap = await userCol('people').orderBy('name').get();
+    const snap = await pplCol('people').orderBy('name').get();
     _lpAllPeople = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name || '' }));
     return _lpAllPeople;
 }

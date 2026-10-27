@@ -654,12 +654,12 @@ async function _nbLoadResidents(houseId) {
 async function _nbLoadResidentData(resident) {
     try {
         var [personSnap, factsSnap, intSnap] = await Promise.all([
-            userCol('people').doc(resident.personId).get(),
+            pplCol('people').doc(resident.personId).get(),
             userCol('facts')
                 .where('targetType', '==', 'person')
                 .where('targetId', '==', resident.personId)
                 .get(),
-            userCol('peopleInteractions')
+            pplCol('peopleInteractions')
                 .where('personId', '==', resident.personId)
                 .get()
         ]);
@@ -787,7 +787,7 @@ async function _nbSearchContactsForResident() {
     if (!query) { results.innerHTML = ''; return; }
 
     try {
-        var snap = await userCol('people').orderBy('name').get();
+        var snap = await pplCol('people').orderBy('name').get();
         var matches = [];
         snap.forEach(function(d) {
             var p = Object.assign({ id: d.id }, d.data());
@@ -898,7 +898,7 @@ async function _nbSaveNewNeighbor() {
     var btn = document.getElementById('nbNewNeighborSaveBtn');
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
-        var personRef = await userCol('people').add({
+        var personRef = await pplCol('people').add({
             name:          name,
             category:      'Personal',
             personalType:  'Neighbor',
@@ -1292,7 +1292,7 @@ async function loadNeighborArchivePage(archivedGroupId) {
         var residents = residentsSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
 
         var personSnaps = await Promise.all(residents.map(function(r) {
-            return userCol('people').doc(r.personId).get();
+            return pplCol('people').doc(r.personId).get();
         }));
 
         container.innerHTML = residents.map(function(resident, i) {

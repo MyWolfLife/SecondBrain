@@ -1370,7 +1370,7 @@ async function _legacyNotifyRenderList() {
         // Fetch people data for contact-linked entries in parallel
         var personFetches = docs.map(function(entry) {
             if (entry.data.contactId) {
-                return userCol('people').doc(entry.data.contactId).get()
+                return pplCol('people').doc(entry.data.contactId).get()
                     .then(function(pDoc) { return pDoc.exists ? pDoc.data() : null; })
                     .catch(function() { return null; });
             }
@@ -1829,7 +1829,7 @@ async function _legacyFinLoadAll() {
     if (settingsDoc.exists) {
         var enrolledIds = (settingsDoc.data().enrolledPersonIds || []).filter(Boolean);
         var fetches = enrolledIds.map(function(pid) {
-            return userCol('people').doc(pid).get().then(function(d) {
+            return pplCol('people').doc(pid).get().then(function(d) {
                 return d.exists ? { id: pid, name: d.data().name || pid } : null;
             });
         });
@@ -2116,7 +2116,7 @@ async function _loanLoadPeople() {
     if (settingsDoc.exists) {
         var enrolledIds = (settingsDoc.data().enrolledPersonIds || []).filter(Boolean);
         var fetches = enrolledIds.map(function(pid) {
-            return userCol('people').doc(pid).get().then(function(d) {
+            return pplCol('people').doc(pid).get().then(function(d) {
                 return d.exists ? { id: pid, name: d.data().name || pid } : null;
             });
         });

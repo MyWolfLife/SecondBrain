@@ -22157,3 +22157,9 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Shared Yard (Y2): in a view-only yard, buttons that change things are hidden */
 body.yard-view-only .yard-vo-hide { display: none !important; }
 .yard-role-banner { margin: 0 16px 8px; font-size: 0.85rem; color: #555; }
+
+/* Shared contacts (sharecontact.js): a contact shared as View only has no add/edit/delete controls */
+#page-contact.cx-viewonly button { display: none !important; }
+#page-contact.cx-viewonly .interaction-item,
+#page-contact.cx-viewonly .important-date-item { cursor: default; }
+#page-contact.cx-viewonly .problem-arrow { display: none; }

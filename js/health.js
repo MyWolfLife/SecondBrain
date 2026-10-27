@@ -53,7 +53,7 @@ async function _healthLoadAndRenderContacts(meId) {
         // Fetch contact docs
         var contacts = [];
         for (var i = 0; i < ids.length; i++) {
-            var pSnap = await userCol('people').doc(ids[i]).get();
+            var pSnap = await pplCol('people').doc(ids[i]).get();
             if (pSnap.exists) contacts.push(Object.assign({ id: pSnap.id }, pSnap.data()));
         }
         _healthContactsCache = contacts;
@@ -880,7 +880,7 @@ async function loadHealthVisitsPage() {
             var contactMap = {};
             if (providerIds.length > 0) {
                 var contactSnaps = await Promise.all(
-                    providerIds.map(function(id) { return userCol('people').doc(id).get(); })
+                    providerIds.map(function(id) { return pplCol('people').doc(id).get(); })
                 );
                 contactSnaps.forEach(function(s) {
                     if (s.exists) contactMap[s.id] = s.data().name || '';
@@ -997,7 +997,7 @@ async function renderVisitDetail(visit) {
     if (visit.facilityContactId) {
         facilityRow.style.display = '';
         facilityEl.innerHTML = 'Loading\u2026';
-        userCol('people').doc(visit.facilityContactId).get().then(function(snap) {
+        pplCol('people').doc(visit.facilityContactId).get().then(function(snap) {
             var name = snap.exists ? (snap.data().name || visit.facilityContactId) : visit.facilityContactId;
             facilityEl.innerHTML = '<a href="#contact/' + visit.facilityContactId + '" class="appt-contact-link">' + escapeHtml(name) + '</a>';
         }).catch(function() { facilityEl.textContent = visit.facilityContactId; });
@@ -1016,7 +1016,7 @@ async function renderVisitDetail(visit) {
 
     if (visit.providerContactId) {
         providerEl.innerHTML = 'Loading\u2026';
-        userCol('people').doc(visit.providerContactId).get().then(function(snap) {
+        pplCol('people').doc(visit.providerContactId).get().then(function(snap) {
             var name = snap.exists ? (snap.data().name || visit.providerContactId) : visit.providerContactId;
             providerEl.innerHTML = '<a href="#contact/' + visit.providerContactId + '" class="appt-contact-link">' + escapeHtml(name) + '</a>';
             // Pull provider type from contact specialty if available
@@ -1151,7 +1151,7 @@ async function createVisitJournalEntry() {
         // --- Resolve facility name ---
         var facilityName = '';
         if (visit.facilityContactId) {
-            var fSnap = await userCol('people').doc(visit.facilityContactId).get();
+            var fSnap = await pplCol('people').doc(visit.facilityContactId).get();
             facilityName = fSnap.exists ? (fSnap.data().name || '') : '';
         } else if (visit.facilityText) {
             facilityName = visit.facilityText;
@@ -1160,7 +1160,7 @@ async function createVisitJournalEntry() {
         // --- Resolve provider name ---
         var providerName = visit.providerText || visit.provider || '';
         if (visit.providerContactId) {
-            var pSnap = await userCol('people').doc(visit.providerContactId).get();
+            var pSnap = await pplCol('people').doc(visit.providerContactId).get();
             if (pSnap.exists) providerName = pSnap.data().name || providerName;
         }
 
@@ -4387,7 +4387,7 @@ async function loadAppointmentsPage() {
         // Parallel fetch: appointments + lookup maps for contacts, concerns, conditions
         var results = await Promise.all([
             userCol('healthAppointments').where('contactId', '==', contactId).get(),
-            userCol('people').get(),
+            pplCol('people').get(),
             userCol('concerns').get(),
             userCol('conditions').get()
         ]);
@@ -4601,8 +4601,8 @@ async function openApptModal(id) {
 
                 // Fetch contact names needed to pre-populate the pickers
                 var namePromises = [];
-                if (facInitId)  namePromises.push(userCol('people').doc(facInitId).get());
-                if (provInitId) namePromises.push(userCol('people').doc(provInitId).get());
+                if (facInitId)  namePromises.push(pplCol('people').doc(facInitId).get());
+                if (provInitId) namePromises.push(pplCol('people').doc(provInitId).get());
                 if (namePromises.length > 0) {
                     var nameSnaps = await Promise.all(namePromises);
                     var ni = 0;
@@ -4801,7 +4801,7 @@ async function openConvertToVisitModal(apptId) {
     if (appt.facilityContactId) {
         facilityRow.style.display = '';
         facilityDisplay.textContent = 'Loading\u2026';
-        userCol('people').doc(appt.facilityContactId).get().then(function(snap) {
+        pplCol('people').doc(appt.facilityContactId).get().then(function(snap) {
             var name = snap.exists ? (snap.data().name || 'Unknown') : 'Unknown';
             facilityDisplay.innerHTML = '<a href="#contact/' + appt.facilityContactId + '">' + escapeHtml(name) + '</a>';
         }).catch(function() { facilityDisplay.textContent = appt.facilityText || ''; });
@@ -4814,7 +4814,7 @@ async function openConvertToVisitModal(apptId) {
 
     // Provider — pre-fill "Who did you see?" from providerText or contact name
     if (appt.providerContactId) {
-        userCol('people').doc(appt.providerContactId).get().then(function(snap) {
+        pplCol('people').doc(appt.providerContactId).get().then(function(snap) {
             document.getElementById('acvProviderWho').value =
                 snap.exists ? (snap.data().name || '') : (appt.providerText || '');
         }).catch(function() {
@@ -5338,7 +5338,7 @@ async function loadCareTeam() {
 
         var contactMap = {};
         if (contactIds.size > 0) {
-            var snap = await userCol('people').get();
+            var snap = await pplCol('people').get();
             snap.forEach(function(d) {
                 if (contactIds.has(d.id)) contactMap[d.id] = d.data().name || 'Unknown';
             });

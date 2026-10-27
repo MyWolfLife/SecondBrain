@@ -326,7 +326,7 @@ async function lcLoadLogs(eventId) {
  * @returns {Array} Array of { id, name }
  */
 async function lcLoadPeople() {
-    var snap = await userCol('people').orderBy('name').get();
+    var snap = await pplCol('people').orderBy('name').get();
     return snap.docs.map(function(doc) {
         var d = doc.data();
         return { id: doc.id, name: d.name || '', howKnown: d.howKnown || '', quickMention: !!d.quickMention };
@@ -1217,7 +1217,7 @@ async function loadLifeCalendarPage() {
         if (allContactIdsToFetch.length > 0) {
             await Promise.all(allContactIdsToFetch.map(async function(cid) {
                 try {
-                    var snap = await userCol('people').doc(cid).get();
+                    var snap = await pplCol('people').doc(cid).get();
                     if (snap.exists) _lcFacilityContactMap[cid] = snap.data();
                 } catch(e) { /* ignore */ }
             }));
@@ -1798,7 +1798,7 @@ function _lcRenderEventForm(event, categories, prefillDate) {
             });
         }
 
-        userCol('people').where('parentPersonId', '==', null).get()
+        pplCol('people').where('parentPersonId', '==', null).get()
             .then(function(snap) {
                 snap.forEach(function(d) {
                     _allLocContacts.push({

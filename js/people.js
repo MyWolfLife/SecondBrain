@@ -38,7 +38,7 @@ async function loadPeoplePage() {
     await _populatePeopleFilterSelect();
 
     try {
-        var snap = await userCol('people')
+        var snap = await pplCol('people')
             .where('parentPersonId', '==', null)
             .get();
 
@@ -74,7 +74,7 @@ async function loadPeoplePage() {
         }
 
         // Fetch last interaction date for each person in one pass
-        var intSnap = await userCol('peopleInteractions').get();
+        var intSnap = await pplCol('peopleInteractions').get();
         var lastIntMap = {};
         intSnap.forEach(function(doc) {
             var d = doc.data();
@@ -170,14 +170,14 @@ async function loadPersonDetail(personId) {
     currentPerson = null;
 
     try {
-        var doc = await userCol('people').doc(personId).get();
+        var doc = await pplCol('people').doc(personId).get();
         if (!doc.exists) { window.location.hash = '#people'; return; }
         currentPerson = window.currentPerson = Object.assign({ id: doc.id }, doc.data());
 
         // Load parent for breadcrumb (sub-people only)
         var parentPerson = null;
         if (currentPerson.parentPersonId) {
-            var pDoc = await userCol('people').doc(currentPerson.parentPersonId).get();
+            var pDoc = await pplCol('people').doc(currentPerson.parentPersonId).get();
             if (pDoc.exists) parentPerson = Object.assign({ id: pDoc.id }, pDoc.data());
         }
 
@@ -348,7 +348,7 @@ async function _handleProfilePhotoUpload(file) {
     if (!currentPerson) return;
     try {
         var compressed = await compressImage(file, 400, 400, 0.75);
-        await userCol('people').doc(currentPerson.id).update({ profilePhotoData: compressed });
+        await pplCol('people').doc(currentPerson.id).update({ profilePhotoData: compressed });
         currentPerson.profilePhotoData = compressed;
         document.getElementById('personDetailAvatar').innerHTML =
             _buildAvatarHtml(currentPerson, 'person-detail-avatar');
@@ -490,7 +490,7 @@ async function handlePersonModalSave() {
             data.parentPersonId = parentPersonId;
             data.profilePhotoData = null;
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await userCol('people').add(data);
+            await pplCol('people').add(data);
             closeModal('personModal');
             if (parentPersonId) {
                 loadSubPeople(parentPersonId);
@@ -498,7 +498,7 @@ async function handlePersonModalSave() {
                 loadPeoplePage();
             }
         } else {
-            await userCol('people').doc(editId).update(data);
+            await pplCol('people').doc(editId).update(data);
             closeModal('personModal');
             Object.assign(currentPerson, data);
             // Reload parent to rebuild breadcrumb correctly if sub-person
@@ -520,25 +520,25 @@ async function handleDeletePerson(id) {
         var batch = db.batch();
 
         // Delete interactions
-        var intSnap = await userCol('peopleInteractions').where('personId', '==', id).get();
+        var intSnap = await pplCol('peopleInteractions').where('personId', '==', id).get();
         intSnap.forEach(function(d) { batch.delete(d.ref); });
 
         // Delete important dates
-        var dateSnap = await userCol('peopleImportantDates').where('personId', '==', id).get();
+        var dateSnap = await pplCol('peopleImportantDates').where('personId', '==', id).get();
         dateSnap.forEach(function(d) { batch.delete(d.ref); });
 
         // Delete sub-people if main person (and their interactions/dates)
-        var subSnap = await userCol('people').where('parentPersonId', '==', id).get();
+        var subSnap = await pplCol('people').where('parentPersonId', '==', id).get();
         for (var i = 0; i < subSnap.docs.length; i++) {
             var subId = subSnap.docs[i].id;
-            var sInt = await userCol('peopleInteractions').where('personId', '==', subId).get();
+            var sInt = await pplCol('peopleInteractions').where('personId', '==', subId).get();
             sInt.forEach(function(d) { batch.delete(d.ref); });
-            var sDates = await userCol('peopleImportantDates').where('personId', '==', subId).get();
+            var sDates = await pplCol('peopleImportantDates').where('personId', '==', subId).get();
             sDates.forEach(function(d) { batch.delete(d.ref); });
             batch.delete(subSnap.docs[i].ref);
         }
 
-        batch.delete(userCol('people').doc(id));
+        batch.delete(cxRef('people', id));
         await batch.commit();
 
         // Navigate back
@@ -564,7 +564,7 @@ async function loadSubPeople(parentId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('people').where('parentPersonId', '==', parentId).get();
+        var snap = await pplCol('people').where('parentPersonId', '==', parentId).get();
 
         if (snap.empty) {
             emptyState.textContent = 'No family members added yet.';
@@ -615,7 +615,7 @@ async function loadImportantDates(personId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('peopleImportantDates').where('personId', '==', personId).get();
+        var snap = await pplCol('peopleImportantDates').where('personId', '==', personId).get();
         if (snap.empty) {
             emptyState.textContent  = 'No important dates yet.';
             emptyState.style.display = 'block';
@@ -698,9 +698,9 @@ async function handleImportantDateSave() {
     try {
         if (modal.dataset.mode === 'add') {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await userCol('peopleImportantDates').add(data);
+            await pplCol('peopleImportantDates').add(data);
         } else {
-            await userCol('peopleImportantDates').doc(modal.dataset.editId).update({
+            await pplCol('peopleImportantDates').doc(modal.dataset.editId).update({
                 label: label, month: month, day: day, year: year, recurrence: recurrence
             });
         }
@@ -719,7 +719,7 @@ async function handleDeleteImportantDate() {
     if (!confirm('Delete this important date?')) return;
     closeModal('importantDateModal');
     try {
-        await userCol('peopleImportantDates').doc(id).delete();
+        await pplCol('peopleImportantDates').doc(id).delete();
         loadImportantDates(personId);
     } catch (err) { console.error('handleDeleteImportantDate error:', err); }
 }
@@ -734,7 +734,7 @@ async function loadInteractions(personId) {
     container.innerHTML = '';
 
     try {
-        var snap = await userCol('peopleInteractions').where('personId', '==', personId).get();
+        var snap = await pplCol('peopleInteractions').where('personId', '==', personId).get();
         if (snap.empty) {
             emptyState.textContent  = 'No interactions logged yet.';
             emptyState.style.display = 'block';
@@ -808,7 +808,7 @@ async function handleInteractionSave() {
 
     try {
         if (modal.dataset.mode === 'add') {
-            await userCol('peopleInteractions').add({
+            await pplCol('peopleInteractions').add({
                 personId:   personId,
                 date:       date || new Date().toISOString().split('T')[0],
                 text:       text,
@@ -816,7 +816,7 @@ async function handleInteractionSave() {
                 createdAt:  firebase.firestore.FieldValue.serverTimestamp()
             });
         } else {
-            await userCol('peopleInteractions').doc(modal.dataset.editId).update({ date: date, text: text });
+            await pplCol('peopleInteractions').doc(modal.dataset.editId).update({ date: date, text: text });
         }
         closeModal('interactionModal');
         _pplStopVoice();
@@ -834,7 +834,7 @@ async function handleDeleteInteraction() {
     if (!confirm('Delete this interaction?')) return;
     closeModal('interactionModal');
     try {
-        await userCol('peopleInteractions').doc(id).delete();
+        await pplCol('peopleInteractions').doc(id).delete();
         loadInteractions(personId);
     } catch (err) { console.error('handleDeleteInteraction error:', err); }
 }
@@ -1068,13 +1068,13 @@ async function loadLifePage() {
     endDate.setDate(endDate.getDate() + 30);
 
     try {
-        var snap = await userCol('peopleImportantDates')
+        var snap = await pplCol('peopleImportantDates')
             .where('recurrence', '==', 'annual')
             .get();
 
         if (snap.empty) { section.style.display = 'none'; return; }
 
-        var peopleSnap = await userCol('people').get();
+        var peopleSnap = await pplCol('people').get();
         var personMap  = {};
         peopleSnap.forEach(function(doc) { personMap[doc.id] = doc.data().name || 'Unknown'; });
 

@@ -997,6 +997,12 @@ async function shSubmitShareDialog() {
             await bgLoad(true);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'contact') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await cxSharePerson(_shDlg.personId, choice); }
+            await cxLoad(true);
+            closeModal('shareDialogModal');
+            await _cxAfterShareChange();
         } else if (_shDlg.kind === 'checklist') {
             if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
             else { _shProgress('Starting…'); await clShareRun(_shDlg.runId, choice); }
@@ -1054,6 +1060,7 @@ function _pCol(name, targetType) {
 
 /** The share a photo's target lives in right now (collections: the open collection; yard things: the active yard), or null. */
 function _pShareId(targetType) {
+    if (targetType === 'person') return cxCurrentPersonShareId();          // photos on the open contact follow the contact (sharecontact.js)
     if (targetType === 'collectionitem' || targetType === 'collection') return window.currentShareId || null;
     if (_yIsYardTarget(targetType)) return window.yardShareId || null;
     if (_hIsHouseTarget(targetType)) return window.houseShareId || null;
@@ -1070,6 +1077,7 @@ function _pStamp(data, targetType) {
 /** False for someone who may only view the shared collection the photo belongs to. */
 function _pCanEditPhoto(targetType) {
     if (!_pShareId(targetType)) return true;
+    if (targetType === 'person') return cxCanEditCurrentPerson();
     if (_yIsYardTarget(targetType)) return yCanEdit();
     if (_hIsHouseTarget(targetType)) return hCanEdit();
     return shCanEdit();
@@ -1125,7 +1133,7 @@ async function shStopSharingFromDialog() {
         _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
         return;
     }
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : _shDlg.kind === 'contact' ? 'this contact' : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1148,6 +1156,10 @@ async function shStopSharingFromDialog() {
             await bgUnshareBudget(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'contact') {
+            await cxUnsharePerson(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _cxAfterShareChange();
         } else if (_shDlg.kind === 'checklist') {
             await clUnshareRun(_shDlg.shareId);
             closeModal('shareDialogModal');
@@ -1327,6 +1339,10 @@ function _yStampedRef(ref) {
  * projects): the yard's collection when the row's target is a yard thing, else the person's own.
  */
 function yTargetCol(name, targetType) {
+    if (targetType === 'person') {                                  // facts on the open contact follow the contact (sharecontact.js)
+        var cxSid = cxCurrentPersonShareId();
+        return cxSid ? shareCol(cxSid, name) : userCol(name);
+    }
     if (_yIsYardTarget(targetType)) return yardCol(name);
     if (_hIsHouseTarget(targetType)) return houseCol(name);     // House rows follow the same rule (SharedHousePlan.md)
     return userCol(name);
@@ -2240,6 +2256,28 @@ async function shOpenFinanceShareDialog(personId, personName) {
     await _shShowShareDialog(
         (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
         'Sharing moves ' + _shDlg.personName + '\'s accounts and holdings, Social Security, and their own Financial group (with its snapshots and all-time highs) into a shared area. Joint accounts and groups with other people stay private. Their account numbers, usernames and passwords are locked again so each person opens them with their own passphrase. A backup file downloads first, and you stay the owner. Editors can change accounts, holdings and snapshots; only you can stop sharing.');
+}
+
+// ─── Sharing one contact (P1) ────────────────────────────────────────────────
+
+/** Opens the Share dialog for one contact (owner only). */
+async function shOpenContactShareDialog(personId, name) {
+    await cxLoad(true);
+    var sid = cxShareOf(personId);
+    if (sid && cxShareIdOfRoot(personId) !== sid) {
+        alert('This contact is shared as part of ' + ((_cxOwn[sid] && _cxOwn[sid].data.title) || 'another contact') + '. Share or stop sharing from that contact.');
+        return;
+    }
+    if (!cxIsOwner(personId)) return;
+    _shDlg.kind = 'contact';
+    _shDlg.collId = null;
+    _shDlg.personId = personId;
+    _shDlg.personName = name || 'this contact';
+    _shDlg.shareId = sid;
+    _shDlg.existingGroups = (sid && _cxOwn[sid].data.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
+        'Sharing moves this contact — with the family members or staff listed under them, their interactions, important dates, photos and facts — into a shared area. The rest of the app (journal, health, neighbors, calendar…) keeps finding them as before. Other contacts stay private. A backup file downloads first, and you stay the owner. Editors can change the contact and add or change what is on it; only you can share, delete or stop sharing it.');
 }
 
 // ─── Sharing one checklist (K1) ──────────────────────────────────────────────

@@ -48,7 +48,7 @@ function _renderBeneficiaryRow(rowId, entity, parents) {
     row.classList.remove('hidden');
     row.innerHTML = '<span class="bene-label">Goes to:</span> <span class="bene-loading">\u2026</span>';
 
-    userCol('people').doc(effective.id).get()
+    pplCol('people').doc(effective.id).get()
         .then(function(doc) {
             var name = doc.exists ? (doc.data().name || '?') : '?';
             row.innerHTML =
@@ -117,7 +117,7 @@ function loadBeneficiariesPage() {
         }
 
         return Promise.all(ids.map(function(id) {
-            return userCol('people').doc(id).get().then(function(doc) {
+            return pplCol('people').doc(id).get().then(function(doc) {
                 return { id: id, name: doc.exists ? (doc.data().name || '?') : '?' };
             });
         })).then(function(people) {
@@ -356,7 +356,7 @@ function _loadAllBeneficiaryResults() {
         }
 
         return Promise.all(contactIds.map(function(id) {
-            return userCol('people').doc(id).get().then(function(doc) {
+            return pplCol('people').doc(id).get().then(function(doc) {
                 return { id: id, name: doc.exists ? (doc.data().name || '?') : '?' };
             });
         })).then(function(people) {

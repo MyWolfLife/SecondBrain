@@ -2693,14 +2693,14 @@ async function loadPeopleAnnualDates(rangeStart, rangeEnd) {
 
     try {
         // Fetch all annual important dates
-        var snap = await userCol('peopleImportantDates')
+        var snap = await pplCol('peopleImportantDates')
             .where('recurrence', '==', 'annual')
             .get();
 
         if (snap.empty) return;
 
         // Build a map of personId → person name (fetch all people once)
-        var peopleSnap = await userCol('people').get();
+        var peopleSnap = await pplCol('people').get();
         var personMap  = {};
         peopleSnap.forEach(function(doc) {
             personMap[doc.id] = doc.data().name || 'Unknown';
