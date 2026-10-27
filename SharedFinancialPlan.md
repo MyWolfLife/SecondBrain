@@ -59,7 +59,7 @@ Recipients **use the same passphrase they already use** for their own Legacy/Pri
 | F2 | Credentials: **per-credential** sharing through audience shares, no rules change. |
 | F3 | Sensitive info: **one stored copy, per-person envelopes** (section 3). Owner can reset others. |
 | F4 | Per-person **View / Edit by group** as everywhere else; owner-only: share, stop, delete the person. |
-| F5 | Shared snapshots/history are included (the wife sees performance). |
+| F5 | Summary, snapshots and all-time highs belong to a **Financial group**, not a person. A person's share includes the group that holds only that person (kids are tracked as their own group); groups of several people (me + wife) belong to the Household share; my own group stays private. The highs (`allTimeHigh*_<groupId>`) live in the single `investmentConfig` doc beside the private price key, so they are split out into the right share. |
 | F6 | "Show who added/modified" setting applies. |
 | F7 | Move engine reused, extended to handle the nested holdings. |
 | F8 | Backup/restore include shared financial people and credential audiences, and the envelopes/lock pairs (locked data only). |
