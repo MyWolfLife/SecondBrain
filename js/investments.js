@@ -686,7 +686,6 @@ function _investCardHtml(acct) {
         var cache      = _investDecryptCache[acct.id] || {};
         var hasEnc     = acct.accountNumberEnc || acct.usernameEnc || acct.passwordEnc;
         var cardNs     = acct._ns || _investPersonFilter;
-        var inShare    = !!finShareIdFor(cardNs);          // lives in a share: sensitive info is handled later (F4)
         var canEditAcct = finCanEdit(cardNs);              // false for "View only" people
 
         body = '<div class="invest-card-body">';
@@ -750,9 +749,7 @@ function _investCardHtml(acct) {
                 '</div>';
         }
 
-        if (hasEnc && inShare) {
-            body += '<div class="invest-sensitive-box"><span class="muted-text">Account number, username and password are not available for shared people yet.</span></div>';
-        } else if (hasEnc) {
+        if (hasEnc) {
             body += '<div class="invest-sensitive-box">';
             if (!legacyIsUnlocked()) {
                 body +=
@@ -854,11 +851,16 @@ async function _investRevealAccount(id) {
     var acct = _investAccounts.find(function(a) { return a.id === id; });
     if (!acct) return;
 
+    // The lock depends on where the account lives: my passphrase key, or the share's data key (F4)
+    var cipher = await finCipher(acct._ns || _investPersonFilter);
+    if (cipher.state === 'locked') { _legacyRequireUnlock(function() { _investRevealAccount(id); }); return; }
+    if (cipher.state !== 'ok') { alert(finCipherMessage(cipher.state)); return; }
+
     var cache = {};
     try {
-        if (acct.accountNumberEnc) cache.accountNumber = await legacyDecrypt(acct.accountNumberEnc) || '';
-        if (acct.usernameEnc)      cache.username      = await legacyDecrypt(acct.usernameEnc)      || '';
-        if (acct.passwordEnc)      cache.password      = await legacyDecrypt(acct.passwordEnc)      || '';
+        if (acct.accountNumberEnc) cache.accountNumber = await cipher.decrypt(acct.accountNumberEnc) || '';
+        if (acct.usernameEnc)      cache.username      = await cipher.decrypt(acct.usernameEnc)      || '';
+        if (acct.passwordEnc)      cache.password      = await cipher.decrypt(acct.passwordEnc)      || '';
     } catch (e) {
         console.error('Investments decrypt error', e);
     }
@@ -1144,9 +1146,10 @@ async function _investRenderSensitiveFields(acct) {
     var container = document.getElementById('investFormSensitiveContent');
     if (!container) return;
 
-    // Accounts that live in a share: the sensitive boxes for shared people come later (F4)
-    if (finShareIdFor(_investFormOriginalNs)) {
-        container.innerHTML = '<span class="muted-text">Account number, username and password are not available for shared people yet.</span>';
+    // Which lock opens these fields: my passphrase key, or the share's data key (F4)
+    var formCipher = await finCipher(_investFormOriginalNs);
+    if (formCipher.state === 'waiting' || formCipher.state === 'stale') {
+        container.innerHTML = '<span class="muted-text">' + escapeHtml(finCipherMessage(formCipher.state)) + '</span>';
         return;
     }
 
@@ -1162,9 +1165,9 @@ async function _investRenderSensitiveFields(acct) {
     var acctNum = '', uname = '', pwd = '';
     if (acct) {
         try {
-            if (acct.accountNumberEnc) acctNum = await legacyDecrypt(acct.accountNumberEnc) || '';
-            if (acct.usernameEnc)      uname   = await legacyDecrypt(acct.usernameEnc)      || '';
-            if (acct.passwordEnc)      pwd     = await legacyDecrypt(acct.passwordEnc)      || '';
+            if (acct.accountNumberEnc) acctNum = await formCipher.decrypt(acct.accountNumberEnc) || '';
+            if (acct.usernameEnc)      uname   = await formCipher.decrypt(acct.usernameEnc)      || '';
+            if (acct.passwordEnc)      pwd     = await formCipher.decrypt(acct.passwordEnc)      || '';
         } catch (e) { console.error('Investments form decrypt error', e); }
     }
 
@@ -1231,7 +1234,6 @@ async function _investSaveForm() {
     // An existing account in a share stays with that person (the holder list is disabled)
     if (!isNew && finShareIdFor(_investFormOriginalNs)) selectedNs = _investFormOriginalNs;
     if (!finCanEdit(selectedNs)) { alert('You can only view this person.'); return; }
-    var sharedTarget = !!finShareIdFor(selectedNs) || !!finShareIdFor(_investFormOriginalNs);
 
     var data = {
         accountType:      accountType,
@@ -1252,26 +1254,37 @@ async function _investSaveForm() {
         data.cashBalance = firebase.firestore.FieldValue.delete();
     }
 
-    // Encrypt sensitive fields only if passphrase is unlocked and fields are rendered
-    // (not for accounts in a share: their sensitive info is handled later, F4)
-    if (!sharedTarget && legacyIsUnlocked() && document.getElementById('investFormAcctNum')) {
-        var existing    = id ? _investAccounts.find(function(a) { return a.id === id; }) : null;
+    // Lock the sensitive fields with the lock of where the account will live (my passphrase key, or the
+    // share's data key for a shared person: sharefin.js finCipher), only if the boxes were shown (unlocked)
+    var saveCipher = await finCipher(selectedNs);
+    var boxesShown = !!document.getElementById('investFormAcctNum');
+    var existing   = id ? _investAccounts.find(function(a) { return a.id === id; }) : null;
+    var crossesShare = (finShareIdFor(selectedNs) || null) !== (finShareIdFor(_investFormOriginalNs) || null);   // different lock
+    if (crossesShare && existing && finHasSensitive(existing) && !boxesShown) {
+        alert('Unlock the sensitive fields first (they have to be locked again for the new holder), then save.');
+        return;
+    }
+    if (boxesShown && saveCipher.state !== 'ok') {
+        alert(finCipherMessage(saveCipher.state));
+        return;
+    }
+    if (boxesShown) {
         var acctNumVal  = ((document.getElementById('investFormAcctNum')  || {}).value || '').trim();
         var usernameVal = ((document.getElementById('investFormUsername') || {}).value || '').trim();
         var passwordVal = ((document.getElementById('investFormPassword') || {}).value || '').trim();
 
         if (acctNumVal) {
-            data.accountNumberEnc = await legacyEncrypt(acctNumVal);
+            data.accountNumberEnc = await saveCipher.encrypt(acctNumVal);
         } else if (existing && existing.accountNumberEnc) {
             data.accountNumberEnc = firebase.firestore.FieldValue.delete();
         }
         if (usernameVal) {
-            data.usernameEnc = await legacyEncrypt(usernameVal);
+            data.usernameEnc = await saveCipher.encrypt(usernameVal);
         } else if (existing && existing.usernameEnc) {
             data.usernameEnc = firebase.firestore.FieldValue.delete();
         }
         if (passwordVal) {
-            data.passwordEnc = await legacyEncrypt(passwordVal);
+            data.passwordEnc = await saveCipher.encrypt(passwordVal);
         } else if (existing && existing.passwordEnc) {
             data.passwordEnc = firebase.firestore.FieldValue.delete();
         }

@@ -231,3 +231,34 @@ async function skSelfTest() {
     out.push(['wrong data key gives nothing', (await skDecrypt(await skNewDataKey(), locked)) === null]);
     return out;
 }
+
+/**
+ * Like skOpenShareKey, but for the owner during a key replacement: {key, prev}. `prev` is the key
+ * before the replacement (kept in the owner's envelope until every account is re-locked), else null.
+ */
+async function skOpenShareKeys(shareId) {
+    var pair = await skLoadMyKeyPair();
+    var snap = await shareCol(shareId, 'keyEnvelopes').doc(pair.uid).get();
+    if (!snap.exists) return null;
+    var key = await skUnwrapDataKey(snap.data().wrappedKey, pair.privateKey);
+    var prev = snap.data().prevWrappedKey ? await skUnwrapDataKey(snap.data().prevWrappedKey, pair.privateKey) : null;
+    _skShareKeys[shareId] = key;
+    return { key: key, prev: prev };
+}
+
+/**
+ * A new key pair for me (needs the passphrase unlocked): used after a passphrase reset, when the old
+ * private key can no longer be opened. Owners then re-send access (finRegrant) so the new key opens
+ * their envelopes. Envelopes made for the old key stop working.
+ */
+async function skRegenerateKeyPair() {
+    if (!legacyIsUnlocked()) {
+        var e = new Error('Unlock your passphrase first.');
+        e.name = 'SkLocked';
+        throw e;
+    }
+    _skPair = null;
+    _skShareKeys = {};
+    _skPair = await _skCreateKeyPair(userCol('legacyMeta').doc('keys'), _shMyUid());
+    return _skPair;
+}

@@ -175,3 +175,149 @@ function finPersonIdOf(ns) {
     var p = _finWithMe.filter(function(x) { return x.ns === ns; })[0];
     return p ? p.data.personId : ns;
 }
+
+// ---------- Sensitive info of a shared person (F4) ----------
+// An account's account number / username / password are locked, not with a passphrase key, but with
+// the share's DATA KEY when the account lives in a share (sharekeys.js): every person with access
+// opens their own envelope with their own passphrase, and the envelope opens the one stored copy.
+// Accounts that are not in a share stay locked with the owner's passphrase key, as before.
+
+var FIN_SENSITIVE_FIELDS = ['accountNumberEnc', 'usernameEnc', 'passwordEnc'];
+
+/**
+ * The lock for a person's accounts: {state: 'ok', encrypt(text), decrypt(b64)} or a state explaining why not:
+ *   'locked'  — the passphrase is not unlocked yet (ask for it, then try again)
+ *   'waiting' — I am in the share but have no envelope yet (the owner has not finished giving me access)
+ *   'stale'   — my envelope does not open with my key (my key changed; ask the owner to re-send access)
+ * `decrypt` also tries the owner's previous key while a key replacement is unfinished.
+ */
+async function finCipher(ns) {
+    if (!legacyIsUnlocked()) return { state: 'locked' };
+    var sid = finShareIdFor(ns);
+    if (!sid) return { state: 'ok', encrypt: legacyEncrypt, decrypt: legacyDecrypt };
+    var keys;
+    try {
+        keys = (finRoleFor(ns) === 'owner') ? await skOpenShareKeys(sid)
+             : { key: await skOpenShareKey(sid), prev: null };
+    } catch (err) {
+        if (err && err.name === 'SkLocked') return { state: 'locked' };
+        console.error('Could not open the shared key:', err);
+        return { state: 'stale' };
+    }
+    if (!keys || !keys.key) return { state: 'waiting' };
+    return {
+        state: 'ok',
+        encrypt: function(text) { return skEncrypt(keys.key, text); },
+        decrypt: async function(b64) {
+            var plain = await skDecrypt(keys.key, b64);
+            if (plain === null && keys.prev) plain = await skDecrypt(keys.prev, b64);
+            return plain;
+        }
+    };
+}
+
+/** Plain-language text for a non-ok finCipher state. */
+function finCipherMessage(state) {
+    if (state === 'waiting') return 'You do not have access to the sensitive info yet. The owner needs to open Financial once to give it to you.';
+    if (state === 'stale') return 'Your sharing key has changed, so the sensitive info cannot be opened. Ask the owner to re-send your access.';
+    return 'Unlock your passphrase first.';
+}
+
+/**
+ * Returns a copy of an account document with its sensitive fields converted: each is opened with
+ * `decryptFn` and locked again with `encryptFn` (sharing a person, stopping, or replacing the key).
+ * A field that cannot be opened throws, so nothing is half converted.
+ */
+async function finConvertFields(data, decryptFn, encryptFn) {
+    var out = Object.assign({}, data);
+    for (var i = 0; i < FIN_SENSITIVE_FIELDS.length; i++) {
+        var f = FIN_SENSITIVE_FIELDS[i];
+        if (!out[f]) continue;
+        var plain = await decryptFn(out[f]);
+        if (plain === null || plain === undefined) throw new Error('Could not open ' + f + ' on "' + (out.nickname || 'an account') + '".');
+        out[f] = await encryptFn(plain);
+    }
+    return out;
+}
+
+/** True when the document has any sensitive field. */
+function finHasSensitive(data) {
+    return FIN_SENSITIVE_FIELDS.some(function(f) { return !!data[f]; });
+}
+
+/**
+ * Owner: makes the envelopes match who is in the share (owner + viewers + editors). Needs my
+ * passphrase unlocked. Missing envelopes are made (a person with no published key is "waiting").
+ * If someone has lost access, the data key is REPLACED: every account is re-locked with a new key
+ * (the owner's envelope keeps the old key until that is finished, so a failure cannot lose anything),
+ * and only the people who remain get envelopes for the new key.
+ * Returns {granted: [uid], waiting: [uid], removed: [uid], rotated: bool}.
+ */
+async function finSyncAccess(shareId) {
+    var me = _shMyUid();
+    var shareSnap = await topCol('shares').doc(shareId).get();
+    if (!shareSnap.exists) throw new Error('That share no longer exists.');
+    var share = shareSnap.data();
+    if (share.ownerUid !== me) throw new Error('Only the owner can change who has access.');
+
+    var want = {};
+    want[me] = true;
+    (share.viewerUids || []).forEach(function(u) { want[u] = true; });
+    (share.editorUids || []).forEach(function(u) { want[u] = true; });
+
+    var holders = await skEnvelopeHolders(shareId);
+    var removed = Object.keys(holders).filter(function(u) { return !want[u]; });
+    var keys = await skOpenShareKeys(shareId);
+    var result = { granted: [], waiting: [], removed: removed, rotated: false };
+
+    if (!keys) {                       // first time for this share: make the key and my own envelope
+        keys = { key: await skCreateShareKey(shareId), prev: null };
+    }
+    var dk = keys.key;
+
+    if (removed.length) {
+        // Someone lost access: replace the key. The old key stays in my envelope until every account is re-locked.
+        var pair = await skLoadMyKeyPair();
+        var newKey = await skNewDataKey();
+        await shareCol(shareId, 'keyEnvelopes').doc(me).set({
+            forUid: me, wrappedKey: await skWrapDataKey(newKey, pair.publicKey),
+            prevWrappedKey: await skWrapDataKey(dk, pair.publicKey),
+            createdBy: me, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        var accts = await shareCol(shareId, 'accounts').get();
+        var ops = [];
+        for (var i = 0; i < accts.docs.length; i++) {
+            var d = accts.docs[i].data();
+            if (!finHasSensitive(d)) continue;
+            var converted = await finConvertFields(d, function(b64) { return skDecrypt(dk, b64); }, function(t) { return skEncrypt(newKey, t); });
+            ops.push({ ref: accts.docs[i].ref, data: converted });
+        }
+        await shBatchSet(ops);
+        // Everyone who remains gets an envelope for the new key; mine drops the old key; removed people lose theirs
+        var others = Object.keys(want).filter(function(u) { return u !== me; });
+        var granted = await skGrantAccess(shareId, newKey, others);
+        result.granted = granted.ok;
+        result.waiting = granted.waiting;
+        await shareCol(shareId, 'keyEnvelopes').doc(me).set({
+            forUid: me, wrappedKey: await skWrapDataKey(newKey, pair.publicKey),
+            createdBy: me, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        for (var r = 0; r < removed.length; r++) await skRevokeAccess(shareId, removed[r]);
+        _skShareKeys[shareId] = newKey;
+        result.rotated = true;
+        return result;
+    }
+
+    var missing = Object.keys(want).filter(function(u) { return u !== me && !holders[u]; });
+    var g = await skGrantAccess(shareId, dk, missing);
+    result.granted = g.ok;
+    result.waiting = g.waiting;
+    return result;
+}
+
+/** Owner: makes a new envelope for one person (for example after they reset their passphrase and made a new key). */
+async function finRegrant(shareId, uid) {
+    var keys = await skOpenShareKeys(shareId);
+    if (!keys) throw new Error('This share has no key yet.');
+    return skGrantAccess(shareId, keys.key, [uid]);
+}

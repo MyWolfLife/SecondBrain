@@ -1,6 +1,6 @@
 # Sharing Credentials and Financial — build plan
 
-*C1 (credentials) and F1 (keys) and F2 (helpers) and F3 (screens) are built; the other Financial chunks are not. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
+*C1 (credentials) and F1 (keys) and F2 (helpers) and F3 (screens) and F4 (sensitive info) are built; the other Financial chunks are not. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
 
 Two separate things, built in this order:
 
@@ -72,7 +72,7 @@ Recipients **use the same passphrase they already use** for their own Legacy/Pri
 | **F1 ✅** | **Key plumbing (built and verified 2026-10-27; rules published):** lock-and-key pairs protected by passphrase, data keys, envelopes, "waiting for" state. | Nothing changes for anyone |
 | **F2 ✅** | **Financial plumbing (built and verified 2026-10-27 in js/sharefin.js; Accounts page drop-down only):** `finCol` helpers, rules change for holdings, active-person resolve, dropdown lists shared people. | Nothing changes for anyone |
 | **F3 ✅** | **Financial screens (built and verified 2026-10-27; not yet: Stock Rollup of others' people, Import page, Ask AI)** switched to the helpers: accounts, holdings, Social Security, summary, snapshots, groups; view-only guard. Tested with a seeded share. | Works as owner, editor, viewer |
-| **F4** | **Sensitive info** via data key + envelopes; reset; rotate on remove. | Each person unlocks with their passphrase |
+| **F4 ✅** | **Sensitive info (built and verified 2026-10-27)** via data key + envelopes; reset; rotate on remove. | Each person unlocks with their passphrase |
 | **F5** | **Share / Stop sharing a person** (dialog, move engine with holdings, "Shared with me"). Two-account test with a real kid-style account. | Wife and kids can see their people |
 | **F6** | **Household:** joint accounts share; **per-budget** sharing. | Budget with the wife, not the kids |
 | **F7** | **Backup/restore**, spec, AppHelp, phone-width check. | Docs and backup complete |
