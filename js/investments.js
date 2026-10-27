@@ -221,7 +221,7 @@ function _investHubDashboardHtml(totals, baselines, groupId, retireData) {
 
     var updateBarHtml =
         '<div class="invest-hub-update-bar">' +
-            '<button class="btn btn-secondary btn-small" id="investHubUpdateBtn" onclick="_investUpdateHubAllPrices()">📡 Update All Prices</button>' +
+            (finGroupCanEdit(retireData.group) ? '<button class="btn btn-secondary btn-small" id="investHubUpdateBtn" onclick="_investUpdateHubAllPrices()">📡 Update All Prices</button>' : '') +
             '<span class="invest-update-time-note" id="investHubUpdateNote">' +
                 (_investConfig.lastUpdateAllTimestamp ? escapeHtml(_investFmtUpdateTime(_investConfig.lastUpdateAllTimestamp)) : '') +
             '</span>' +
@@ -247,7 +247,7 @@ function _investHubDashboardHtml(totals, baselines, groupId, retireData) {
     // ---- Retire Estimate accordion ----
     var retireHtml = '';
     var group      = retireData.group;
-    if (group) {
+    if (group && finGroupRole(group) === 'owner') {     // the retire estimate uses my own settings: not for someone else's person
         var ror          = _investConfig.projectedRoR || 0.06;
         var atp          = _investConfig.afterTaxPct  || 0.82;
         var ssData       = retireData.ssData    || { totalSSMonthly: 0, breakdown: [] };
@@ -535,8 +535,8 @@ async function _investLoadAccounts() {
 
     // When viewing a contact, also pull joint accounts stored under 'self' that list them as co-owner.
     // These are loaded client-side to avoid needing a composite Firestore index.
-    if (_investPersonFilter !== 'self') {
-        var selfSnap = await userCol('investments').doc('self').collection('accounts').get();
+    if (_investPersonFilter !== 'self' && !finIsShareNs(_investPersonFilter)) {
+        var selfSnap = await finAcctCol('self').get();
         selfSnap.forEach(function(doc) {
             var data = doc.data();
             if (data.ownerType === 'joint' && data.primaryContactId === _investPersonFilter) {
@@ -581,7 +581,7 @@ function _investRenderPage() {
             '<select id="investPersonSel" onchange="_investOnPersonChange()">' + personOpts + '</select>' +
         '</div>' +
         '<div class="invest-toolbar">' +
-            '<button class="btn btn-primary" onclick="window.location.hash=\'#investments/accounts/add\'">+ Add Account</button>' +
+            '<button class="btn btn-primary" id="investAddAccountBtn" onclick="window.location.hash=\'#investments/accounts/add\'">+ Add Account</button>' +
             '<button class="btn btn-secondary" id="investShowArchivedBtn" onclick="_investToggleArchived()">' +
                 (_investShowArchived ? 'Hide Archived' : 'Show Archived') +
             '</button>' +
@@ -594,6 +594,10 @@ function _investRenderPage() {
 function _investRenderList() {
     var container = document.getElementById('investAccountList');
     if (!container) return;
+
+    // A person someone shared with me as "View only": no adding accounts
+    var addBtn = document.getElementById('investAddAccountBtn');
+    if (addBtn) addBtn.style.display = finCanEdit(_investPersonFilter) ? '' : 'none';
 
     var list = _investAccounts.filter(function(a) {
         return _investShowArchived || !a.archived;
@@ -681,6 +685,9 @@ function _investCardHtml(acct) {
         var isRevealed = !!_investRevealedIds[acct.id];
         var cache      = _investDecryptCache[acct.id] || {};
         var hasEnc     = acct.accountNumberEnc || acct.usernameEnc || acct.passwordEnc;
+        var cardNs     = acct._ns || _investPersonFilter;
+        var inShare    = !!finShareIdFor(cardNs);          // lives in a share: sensitive info is handled later (F4)
+        var canEditAcct = finCanEdit(cardNs);              // false for "View only" people
 
         body = '<div class="invest-card-body">';
 
@@ -743,7 +750,9 @@ function _investCardHtml(acct) {
                 '</div>';
         }
 
-        if (hasEnc) {
+        if (hasEnc && inShare) {
+            body += '<div class="invest-sensitive-box"><span class="muted-text">Account number, username and password are not available for shared people yet.</span></div>';
+        } else if (hasEnc) {
             body += '<div class="invest-sensitive-box">';
             if (!legacyIsUnlocked()) {
                 body +=
@@ -792,13 +801,14 @@ function _investCardHtml(acct) {
                 '<a class="btn btn-primary btn-small"' +
                     ' href="#investments/account/' + acctNs + '/' + acct.id + '"' +
                     ' onclick="event.stopPropagation()">Positions</a>' +
+                (!canEditAcct ? '' :
                 '<button class="btn btn-secondary btn-small"' +
                     ' onclick="event.stopPropagation();_investEditAccount(\'' + acct.id + '\',\'' + acctNs + '\')">Edit</button>' +
                 (acct.archived
                     ? '<button class="btn btn-secondary btn-small"' +
                         ' onclick="event.stopPropagation();_investRestore(\'' + acct.id + '\')">Restore</button>'
                     : '<button class="btn btn-secondary btn-small"' +
-                        ' onclick="event.stopPropagation();_investArchive(\'' + acct.id + '\')">Archive</button>') +
+                        ' onclick="event.stopPropagation();_investArchive(\'' + acct.id + '\')">Archive</button>')) +
             '</div>' +
         '</div>';
     }
@@ -976,6 +986,16 @@ async function loadInvestmentsFormPage(id) {
     // Record original namespace so save can detect an owner change
     _investFormOriginalNs = _investPersonFilter || 'self';
 
+    // A person shared with me as "View only" cannot add or change accounts
+    if (!finCanEdit(_investFormOriginalNs)) {
+        var roPage = document.getElementById('page-investments-form');
+        if (roPage) roPage.innerHTML = '<div class="page-header"><h2>View only</h2></div>' +
+            '<p>This person was shared with you as view only.</p>' +
+            '<a class="btn btn-secondary" href="#investments/accounts">Back</a>';
+        return;
+    }
+    var formInShare = !!finShareIdFor(_investFormOriginalNs);    // account lives in a share: it stays with that person
+
     var returnHref  = _investFormReturnTo === 'summary' ? '#investments/summary' : '#investments/accounts';
     var returnLabel = _investFormReturnTo === 'summary' ? 'Summary'              : 'Accounts';
     document.getElementById('breadcrumbBar').innerHTML =
@@ -1004,7 +1024,10 @@ async function loadInvestmentsFormPage(id) {
     _investPeople.forEach(function(p) {
         personOpts += '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name) + '</option>';
     });
-    var personDisabled = _investPeople.length === 0 ? ' disabled' : '';
+    finSharedPeople().forEach(function(p) {
+        personOpts += '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name) + '</option>';
+    });
+    var personDisabled = (_investPeople.length === 0 || (formInShare && id)) ? ' disabled' : '';
 
     page.innerHTML =
         '<div class="page-header">' +
@@ -1121,6 +1144,12 @@ async function _investRenderSensitiveFields(acct) {
     var container = document.getElementById('investFormSensitiveContent');
     if (!container) return;
 
+    // Accounts that live in a share: the sensitive boxes for shared people come later (F4)
+    if (finShareIdFor(_investFormOriginalNs)) {
+        container.innerHTML = '<span class="muted-text">Account number, username and password are not available for shared people yet.</span>';
+        return;
+    }
+
     if (!legacyIsUnlocked()) {
         container.innerHTML =
             '<div class="invest-modal-lock">' +
@@ -1199,6 +1228,10 @@ async function _investSaveForm() {
     var selectedNs = (document.getElementById('investFormPersonNs') || {}).value || _investFormOriginalNs;
     var id    = _investFormEditId;
     var isNew = !id;
+    // An existing account in a share stays with that person (the holder list is disabled)
+    if (!isNew && finShareIdFor(_investFormOriginalNs)) selectedNs = _investFormOriginalNs;
+    if (!finCanEdit(selectedNs)) { alert('You can only view this person.'); return; }
+    var sharedTarget = !!finShareIdFor(selectedNs) || !!finShareIdFor(_investFormOriginalNs);
 
     var data = {
         accountType:      accountType,
@@ -1220,7 +1253,8 @@ async function _investSaveForm() {
     }
 
     // Encrypt sensitive fields only if passphrase is unlocked and fields are rendered
-    if (legacyIsUnlocked() && document.getElementById('investFormAcctNum')) {
+    // (not for accounts in a share: their sensitive info is handled later, F4)
+    if (!sharedTarget && legacyIsUnlocked() && document.getElementById('investFormAcctNum')) {
         var existing    = id ? _investAccounts.find(function(a) { return a.id === id; }) : null;
         var acctNumVal  = ((document.getElementById('investFormAcctNum')  || {}).value || '').trim();
         var usernameVal = ((document.getElementById('investFormUsername') || {}).value || '').trim();
@@ -1243,7 +1277,7 @@ async function _investSaveForm() {
         }
     }
 
-    var targetCol = userCol('investments').doc(selectedNs).collection('accounts');
+    var targetCol = finAcctCol(selectedNs);
 
     if (isNew) {
         data.sortOrder = _investAccounts.filter(function(a) { return !a.archived; }).length;
@@ -1252,7 +1286,7 @@ async function _investSaveForm() {
     } else if (selectedNs !== _investFormOriginalNs) {
         // Owner changed — migrate account + all holdings to new namespace
         var newRef    = targetCol.doc();
-        var oldAcctRef = userCol('investments').doc(_investFormOriginalNs).collection('accounts').doc(id);
+        var oldAcctRef = finAcctCol(_investFormOriginalNs).doc(id);
         data.sortOrder = 0;
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await newRef.set(data);
@@ -1270,7 +1304,7 @@ async function _investSaveForm() {
         await oldAcctRef.delete();
         _investPersonFilter = selectedNs; // show the new owner on return
     } else {
-        await userCol('investments').doc(selectedNs).collection('accounts').doc(id).update(data);
+        await finAcctCol(selectedNs).doc(id).update(data);
     }
 
     var dest = _investFormReturnTo === 'summary' ? '#investments/summary' : '#investments/accounts';
@@ -1400,6 +1434,7 @@ async function _investLoadConfig() {
             // Auto-create with defaults
             await _investConfigCol().doc('main').set({ projectedRoR: 0.06, afterTaxPct: 0.82, retirementAges: {}, selectedBudgetId: null });
         }
+        finMergeShareConfigs(_investConfig);          // all-time highs of groups that live in shares
     } catch (e) { console.error('Error loading investmentConfig', e); }
 }
 
@@ -1458,6 +1493,11 @@ async function _investLoadGroups() {
     snap.forEach(function(doc) {
         _investGroups.push(Object.assign({ id: doc.id }, doc.data()));
     });
+    // Groups of people in shares (mine or shared with me) follow the private ones (sharefin.js)
+    try {
+        (await finLoadSharedGroups()).forEach(function(g) { _investGroups.push(g); });
+        finMergeShareConfigs(_investConfig);          // their all-time highs live in the share
+    } catch (err) { console.error('Could not load shared financial groups:', err); }
 }
 
 // Auto-create the "Me" group on first visit if no groups exist yet.
@@ -1513,9 +1553,12 @@ function _investRenderGroupsPage() {
 function _investGroupCardHtml(g) {
     var peopleLabels = (g.personIds || []).map(function(pid) {
         if (pid === 'self') return 'Me';
+        var sharedName = finGroupPersonName(g, pid);        // a person shared with me: the owner's contact ID means nothing here
+        if (sharedName) return escapeHtml(sharedName);
         var p = _investPeople.find(function(p) { return p.id === pid; });
         return p ? escapeHtml(p.name) : pid;
     });
+    var groupOwnedByMe = finGroupRole(g) === 'owner';        // groups of people shared with me can only be changed by their owner
 
     var freqLabels = {
         daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly'
@@ -1528,6 +1571,7 @@ function _investGroupCardHtml(g) {
         '<div class="invest-group-card-header">' +
             '<span class="invest-group-name">' + escapeHtml(g.name) + '</span>' +
             (g.isDefault ? '<span class="invest-group-default-badge">Default</span>' : '') +
+            (g._shareId ? '<span class="invest-group-default-badge">' + (groupOwnedByMe ? 'Shared' : 'Shared with me') + '</span>' : '') +
         '</div>' +
         '<div class="invest-group-detail">' +
             '<span class="invest-group-detail-label">People:</span> ' +
@@ -1537,12 +1581,13 @@ function _investGroupCardHtml(g) {
             '<span class="invest-group-detail-label">Snapshots:</span> ' +
             (freqs || '<em style="color:#aaa">none selected</em>') +
         '</div>' +
+        (groupOwnedByMe ?
         '<div class="invest-group-card-actions">' +
             '<a class="btn btn-secondary btn-small" href="#investments/group/edit/' + g.id + '">Edit</a>' +
             (!g.isDefault
                 ? '<button class="btn btn-danger btn-small" onclick="_investDeleteGroup(\'' + g.id + '\')">Delete</button>'
                 : '') +
-        '</div>' +
+        '</div>' : '') +
     '</div>';
 }
 
@@ -1654,7 +1699,8 @@ async function _investSaveGroup() {
         // Preserve isDefault on the Me group
         var existing = _investGroups.find(function(g) { return g.id === _investGroupEditId; });
         if (existing && existing.isDefault) data.isDefault = true;
-        await _investGroupCol().doc(_investGroupEditId).update(data);
+        if (existing && !finGroupCanEdit(existing)) { alert('You cannot change this group.'); return; }
+        await finGroupCol(existing, 'investmentGroups').doc(_investGroupEditId).update(data);
     }
 
     await _investLoadGroups();
@@ -1664,8 +1710,9 @@ async function _investSaveGroup() {
 async function _investDeleteGroup(groupId) {
     var g = _investGroups.find(function(x) { return x.id === groupId; });
     if (!g || g.isDefault) return;
+    if (finGroupRole(g) !== 'owner') return;
     if (!confirm('Delete group "' + (g.name || 'this group') + '"? This cannot be undone.')) return;
-    await _investGroupCol().doc(groupId).delete();
+    await finGroupCol(g, 'investmentGroups').doc(groupId).delete();
     await _investLoadGroups();
     _investRenderGroupsPage();
 }
@@ -1975,7 +2022,7 @@ async function _investUpdateAccountPrices() {
     holdSnap.forEach(function(doc) {
         _investCurrentHoldings.push(Object.assign({ id: doc.id }, doc.data()));
     });
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     _investRenderAccountDetail(Object.assign({ id: aid, _ns: ns }, acctDoc.data()));
 
     // Update button and status after re-render (elements were replaced)
@@ -2018,6 +2065,7 @@ function _investHoldingCol(ns, accountId) {
 // ---------- Account Detail Page Loader ----------
 
 async function loadInvestmentsAccountPage(ns, accountId) {
+    try { ns = decodeURIComponent(ns); } catch (e) { /* keep as is */ }     // 'share%3A<id>' from the summary page links
     _investCurrentAccountNs = ns || 'self';
     _investCurrentAccountId = accountId;
 
@@ -2031,7 +2079,7 @@ async function loadInvestmentsAccountPage(ns, accountId) {
         await _investLoadAll();
     }
 
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(accountId).get();
+    var acctDoc = await finAcctCol(ns).doc(accountId).get();
     if (!acctDoc.exists) {
         document.getElementById('page-investments-account').innerHTML =
             '<div class="page-header"><h2>Account Not Found</h2></div>' +
@@ -2099,7 +2147,7 @@ function _investRenderAccountDetail(acct) {
             '<h2>' + escapeHtml(acct.nickname || 'Account') + '</h2>' +
             '<div class="page-header-actions">' +
                 (acct.url ? '<a class="btn btn-secondary btn-small invest-holdings-url-btn" href="' + escapeHtml(acct.url) + '" target="_blank" rel="noopener" title="Visit site">↗ Visit Site</a>' : '') +
-                '<a class="btn btn-secondary" href="#investments/accounts/edit/' + acct.id + '">Edit Account</a>' +
+                (_investCanEditCurrent() ? '<a class="btn btn-secondary" href="#investments/accounts/edit/' + acct.id + '">Edit Account</a>' : '') +
             '</div>' +
         '</div>' +
         '<div class="invest-acct-meta">' +
@@ -2150,14 +2198,14 @@ function _investRenderAccountDetail(acct) {
             '<div class="invest-cash-section">' +
                 '<div class="invest-section-header">Account Balance ($)</div>' +
                 '<div class="invest-cash-row">' +
-                    '<input type="text" inputmode="decimal" id="investDetailCash" class="invest-cash-input"' +
+                    '<input type="text" inputmode="decimal" id="investDetailCash" class="invest-cash-input"' + (_investCanEditCurrent() ? '' : ' readonly') +
                         ' placeholder="$0.00"' +
                         ' value="' + escapeHtml(cashFmtVal) + '"' +
                         ' onfocus="_investUnfmtCashField(this)"' +
                         ' onblur="_investFmtCashField(this)"' +
                         ' oninput="_investCashDirty()">' +
-                    '<button class="btn btn-primary btn-small" id="investCashSaveBtn"' +
-                        ' onclick="_investSaveCashBalance()" disabled>Save</button>' +
+                    (_investCanEditCurrent() ? '<button class="btn btn-primary btn-small" id="investCashSaveBtn"' +
+                        ' onclick="_investSaveCashBalance()" disabled>Save</button>' : '') +
                 '</div>' +
             '</div>';
     }
@@ -2176,7 +2224,7 @@ function _investRenderAccountDetail(acct) {
     if (!isCash) {
         html +=
             '<div class="invest-update-prices-bar">' +
-                '<button class="btn btn-secondary" id="investUpdatePricesBtn" onclick="_investUpdateAccountPrices()">\ud83d\udce1 Update Prices</button>' +
+                (_investCanEditCurrent() ? '<button class="btn btn-secondary" id="investUpdatePricesBtn" onclick="_investUpdateAccountPrices()">\ud83d\udce1 Update Prices</button>' : '') +
                 '<span class="invest-prices-note" id="investPricesStatus"></span>' +
             '</div>';
     }
@@ -2184,7 +2232,10 @@ function _investRenderAccountDetail(acct) {
     page.innerHTML = html;
 }
 
+function _investCanEditCurrent() { return finCanEdit(_investCurrentAccountNs); }   // false for "View only" shared people
+
 function _investHoldingsHeaderBtns() {
+    if (!_investCanEditCurrent()) return '';
     if (_investQtyEditMode) {
         return '<div class="iht-header-btns">' +
             '<button class="btn btn-primary btn-small" onclick="_investSaveQtyEdits()">Save Qty</button>' +
@@ -2231,7 +2282,7 @@ async function _investSaveQtyEdits() {
         var cost   = costEl ? parseFloat(costEl.value) : NaN;
         var update = { shares: qty };
         if (!isNaN(cost) && cost >= 0) update.costBasis = cost;
-        writes.push(userCol('investments').doc(ns).collection('accounts').doc(aid)
+        writes.push(finAcctCol(ns).doc(aid)
             .collection('holdings').doc(id).update(update));
         // patch local cache so re-render is correct
         var h = _investCurrentHoldings.find(function(x) { return x.id === id; });
@@ -2303,8 +2354,8 @@ function _investHoldingsHtml() {
                 '<td id="iht-val-' + h.id + '">' + (value != null ? _investFmtCurrency(value) : '—') + '</td>' +
                 '<td>' + (pctAcct != null ? pctAcct.toFixed(1) + '%' : '—') + '</td>' +
                 '<td class="iht-actions-cell">' +
-                    (!_investQtyEditMode ? '<button class="iht-btn" title="Edit" onclick="_investOpenHoldingModal(\'' + h.id + '\')">✏</button>' : '') +
-                    (!_investQtyEditMode ? '<button class="iht-btn iht-btn-del" title="Delete" onclick="_investDeleteHolding(\'' + h.id + '\')">🗑</button>' : '') +
+                    (!_investQtyEditMode && _investCanEditCurrent() ? '<button class="iht-btn" title="Edit" onclick="_investOpenHoldingModal(\'' + h.id + '\')">✏</button>' : '') +
+                    (!_investQtyEditMode && _investCanEditCurrent() ? '<button class="iht-btn iht-btn-del" title="Delete" onclick="_investDeleteHolding(\'' + h.id + '\')">🗑</button>' : '') +
                 '</td>' +
             '</tr>';
     });
@@ -2329,7 +2380,7 @@ function _investHoldingsHtml() {
             '<td id="investCashValueCell">' + cashFmt + '</td>' +
             '<td>' + cashPct + '</td>' +
             '<td class="iht-actions-cell">' +
-                '<button class="iht-btn" id="investCashEditBtn" title="Edit cash balance" onclick="_investEditCashInline()">✏</button>' +
+                (_investCanEditCurrent() ? '<button class="iht-btn" id="investCashEditBtn" title="Edit cash balance" onclick="_investEditCashInline()">✏</button>' : '') +
             '</td>' +
         '</tr>';
 
@@ -2354,7 +2405,7 @@ function _investHoldingsHtml() {
             '<td id="investPendingValueCell" class="' + pendingCls + '">' + pendingFmt + '</td>' +
             '<td>' + pendingPct + '</td>' +
             '<td class="iht-actions-cell">' +
-                '<button class="iht-btn" id="investPendingEditBtn" title="Edit pending activity" onclick="_investEditPendingInline()">✏</button>' +
+                (_investCanEditCurrent() ? '<button class="iht-btn" id="investPendingEditBtn" title="Edit pending activity" onclick="_investEditPendingInline()">✏</button>' : '') +
             '</td>' +
         '</tr>';
 
@@ -2461,7 +2512,7 @@ async function _investSaveHolding() {
     });
 
     // Refresh the holdings list and totals in-place
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     var acct    = Object.assign({ id: aid, _ns: ns }, acctDoc.data());
     _investRenderAccountDetail(acct);
 
@@ -2487,7 +2538,7 @@ async function _investDeleteHolding(holdingId) {
     if (holdingsList) holdingsList.innerHTML = _investHoldingsHtml();
 
     // Re-render to update totals
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     var acct    = Object.assign({ id: aid, _ns: ns }, acctDoc.data());
     _investRenderAccountDetail(acct);
 }
@@ -2506,10 +2557,10 @@ async function _investSaveCashBalance() {
     var btn = document.getElementById('investCashSaveBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saved'; }
     var update = (val !== null) ? { cashBalance: val } : { cashBalance: firebase.firestore.FieldValue.delete() };
-    await userCol('investments').doc(ns).collection('accounts').doc(aid).update(update);
+    await finAcctCol(ns).doc(aid).update(update);
 
     // Re-render with updated account
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     var acct    = Object.assign({ id: aid, _ns: ns }, acctDoc.data());
     _investRenderAccountDetail(acct);
 }
@@ -2593,13 +2644,13 @@ async function _investCommitCashInline() {
     var update = val > 0
         ? { cashBalance: val }
         : { cashBalance: firebase.firestore.FieldValue.delete() };
-    await userCol('investments').doc(ns).collection('accounts').doc(aid).update(update);
+    await finAcctCol(ns).doc(aid).update(update);
 
     // Preserve any unsaved qty edits before re-rendering
     _investCaptureQtyEdits();
 
     // Re-render to update totals card and % acct column
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     _investRenderAccountDetail(Object.assign({ id: aid, _ns: ns }, acctDoc.data()));
 }
 
@@ -2650,12 +2701,12 @@ async function _investCommitPendingInline() {
     var update = val !== 0
         ? { pendingActivity: val }
         : { pendingActivity: firebase.firestore.FieldValue.delete() };
-    await userCol('investments').doc(ns).collection('accounts').doc(aid).update(update);
+    await finAcctCol(ns).doc(aid).update(update);
 
     // Preserve any unsaved qty edits before re-rendering
     _investCaptureQtyEdits();
 
-    var acctDoc = await userCol('investments').doc(ns).collection('accounts').doc(aid).get();
+    var acctDoc = await finAcctCol(ns).doc(aid).get();
     _investRenderAccountDetail(Object.assign({ id: aid, _ns: ns }, acctDoc.data()));
 }
 
@@ -2811,8 +2862,12 @@ async function _investAutoFillCompanyName() {
 
 var _investSnapshotsGroupId = null;
 
-function _investSnapshotCol() {
-    return userCol('investmentSnapshots');
+// Snapshots live with their group: in the group's share when it is a shared person's group, otherwise private.
+function _investGroupById(groupId) {
+    return _investGroups.find(function(g) { return g.id === groupId; }) || null;
+}
+function _investSnapshotCol(groupId) {
+    return finGroupCol(_investGroupById(groupId), 'investmentSnapshots');
 }
 
 async function loadInvestmentsSnapshotsPage() {
@@ -2936,7 +2991,7 @@ function _investRenderSnapshotTypePage(type) {
 
 async function _investLoadSnapshots(groupId) {
     // Single-field orderBy (auto-indexed); filter by groupId client-side to avoid composite index
-    var snap = await _investSnapshotCol().orderBy('date', 'desc').get();
+    var snap = await _investSnapshotCol(groupId).orderBy('date', 'desc').get();
     var list = [];
     snap.forEach(function(doc) {
         var data = doc.data();
@@ -2972,7 +3027,7 @@ async function _investRecomputeGroupATH(snapshots, groupId) {
         }
     });
     if (changed) {
-        await _investConfigCol().doc('main').set(patch, { merge: true });
+        await _investAthWrite(groupId, patch);
     }
 }
 
@@ -3106,8 +3161,10 @@ async function _investRenderSnapshotsPage() {
         '<div class="page-header">' +
             '<h2>📷 Snapshots</h2>' +
             '<div class="page-header-actions">' +
-                '<a class="btn btn-secondary" href="#investments/import">↑ Import</a>' +
-                '<button class="btn btn-primary" onclick="_investOpenSnapModal()">+ Capture</button>' +
+                (finGroupCanEdit(group)
+                    ? '<a class="btn btn-secondary" href="#investments/import">↑ Import</a>' +
+                      '<button class="btn btn-primary" onclick="_investOpenSnapModal()">+ Capture</button>'
+                    : '') +
             '</div>' +
         '</div>' +
         (switcherHtml ? '<div class="invest-summary-switcher-row">' + switcherHtml + '</div>' : '') +
@@ -3123,7 +3180,8 @@ async function _investRenderSnapshotsPage() {
 // noDelete — hides the Delete button (used in the More modal)
 function _investSnapshotRowHtml(s, opts) {
     var suffix   = (opts && opts.suffix)   || '';
-    var noDelete = !!(opts && opts.noDelete);
+    // view-only people (a shared person's group) cannot delete snapshots
+    var noDelete = !!(opts && opts.noDelete) || !finGroupCanEdit(_investGroupById(_investSnapshotsGroupId));
 
     var rowId    = 'snapRow-'    + s.id + suffix;
     var detailId = 'snapDetail-' + s.id + suffix;
@@ -3237,7 +3295,7 @@ function _investToggleSnapSection(type) {
 async function _investDeleteSnapshot(snapId, type, date) {
     var label = (type && date) ? (type.charAt(0).toUpperCase() + type.slice(1) + ' snapshot ' + date) : 'this snapshot';
     if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
-    await _investSnapshotCol().doc(snapId).delete();
+    await _investSnapshotCol(_investSnapshotsGroupId).doc(snapId).delete();
     closeModal('investSnapMoreModal');
 
     // Refresh whichever page is currently visible
@@ -3309,7 +3367,7 @@ function _investRenderMoreModalList(type) {
 function _investOpenSnapModal() {
     var group = _investGroups.find(function(g) { return g.id === _investSnapshotsGroupId; })
              || (_investGroups[0] || null);
-    if (!group) return;
+    if (!group || !finGroupCanEdit(group)) return;
 
     var freqs = group.snapshotFrequencies || ['daily', 'weekly', 'monthly', 'yearly'];
     document.getElementById('investSnapType').innerHTML = freqs.map(function(f) {
@@ -3333,7 +3391,7 @@ async function _investCaptureSnapshot() {
     if (!type) { alert('Please select a snapshot type.'); return; }
 
     var group = _investGroups.find(function(g) { return g.id === _investSnapshotsGroupId; });
-    if (!group) return;
+    if (!group || !finGroupCanEdit(group)) return;
 
     // Warn if prices haven't been updated today
     var snapToday = new Date().toISOString().split('T')[0];
@@ -3375,7 +3433,7 @@ async function _investCaptureSnapshot() {
 
     var date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    await _investSnapshotCol().add({
+    await _investSnapshotCol(group.id).add({
         groupId:     group.id,
         type:        type,
         date:        date,
@@ -3406,6 +3464,14 @@ function _investAthKey(type, groupId) {
     return 'allTimeHigh' + type.charAt(0).toUpperCase() + type.slice(1) + '_' + groupId;
 }
 
+// Writes ATH values into the group's own settings document: in its share for a shared person's
+// group (skipped for view-only people: they just see the value computed in memory), otherwise private.
+async function _investAthWrite(groupId, patch) {
+    var group = _investGroupById(groupId);
+    if (group && group._shareId && !finGroupCanEdit(group)) return;
+    await finGroupCol(group, 'investmentConfig').doc('main').set(patch, { merge: true });
+}
+
 async function _investCheckAndUpdateATH(type, netWorth, date, groupId) {
     var key     = _investAthKey(type, groupId);
     var current = _investConfig[key];
@@ -3413,7 +3479,7 @@ async function _investCheckAndUpdateATH(type, netWorth, date, groupId) {
         _investConfig[key] = { value: netWorth, date: date };
         var patch = {};
         patch[key] = { value: netWorth, date: date };
-        await _investConfigCol().doc('main').set(patch, { merge: true });
+        await _investAthWrite(groupId, patch);
     }
 }
 
@@ -3478,13 +3544,20 @@ async function _investLoadGroupSS(group) {
     var personIds      = group.personIds || ['self'];
     var retirementAges = _investConfig.retirementAges || {};
     var result         = { totalSSMonthly: 0, breakdown: [] };
+    if (finGroupRole(group) !== 'owner') return result;      // the retire estimate uses my own settings: not shown for others' people
     try {
-        var allSnap = await userCol('ssBenefits').get();
+        // Social Security rows live with the person: in their share when shared, otherwise my private list
+        var allSnaps = [await userCol('ssBenefits').get()];
+        for (var si = 0; si < personIds.length; si++) {
+            if (finShareIdFor(personIds[si])) allSnaps.push(await finCol(personIds[si], 'ssBenefits').get());
+        }
         var byPerson = {};
-        allSnap.forEach(function(d) {
-            var data = d.data();
-            if (!byPerson[data.personId]) byPerson[data.personId] = [];
-            byPerson[data.personId].push(data);
+        allSnaps.forEach(function(snapOf) {
+            snapOf.forEach(function(d) {
+                var data = d.data();
+                if (!byPerson[data.personId]) byPerson[data.personId] = [];
+                byPerson[data.personId].push(data);
+            });
         });
         Object.keys(byPerson).forEach(function(pid) {
             byPerson[pid].sort(function(a, b) { return (b.asOfDate || '').localeCompare(a.asOfDate || ''); });
@@ -3975,10 +4048,11 @@ async function _investRenderSummaryPage() {
     var personIds    = group.personIds || ['self'];
     var breakdownHtml = '';
     personIds.forEach(function(pid) {
-        var personAccts = accounts.filter(function(a) { return a._ns === pid && !a._joint; });
+        var pns = finGroupNs(group, pid) || pid;          // 'share:<id>' for a person shared with me
+        var personAccts = accounts.filter(function(a) { return a._ns === pns && !a._joint; });
         if (personAccts.length === 0) return;
         var pName = pid === 'self' ? 'Me'
-                  : ((_investPeople.find(function(p) { return p.id === pid; }) || {}).name || pid);
+                  : (finGroupPersonName(group, pid) || (_investPeople.find(function(p) { return p.id === pid; }) || {}).name || pid);
         breakdownHtml +=
             '<div class="invest-summary-person-section">' +
                 '<div class="invest-summary-person-name">' + escapeHtml(pName) + '</div>';
@@ -4001,7 +4075,7 @@ async function _investRenderSummaryPage() {
         '<div class="page-header">' +
             '<h2>📊 Portfolio Summary</h2>' +
             '<div class="page-header-actions">' +
-                '<button class="btn btn-secondary" id="investUpdateAllBtn" onclick="_investUpdateAllPrices()">📡 Update All Prices</button>' +
+                (finGroupCanEdit(group) ? '<button class="btn btn-secondary" id="investUpdateAllBtn" onclick="_investUpdateAllPrices()">📡 Update All Prices</button>' : '') +
             '</div>' +
         '</div>' +
         (switcherHtml ? '<div class="invest-summary-switcher-row">' + switcherHtml + '</div>' : '') +
@@ -4025,7 +4099,8 @@ async function _investRenderSummaryPage() {
             '</div>' +
         '</div>' +
 
-        // Retirement widget — sticky collapsible accordion
+        // Retirement widget — sticky collapsible accordion (not for someone else's person: it uses my own settings)
+        (finGroupRole(group) !== 'owner' ? '' :
         _investBuildAccordion({
             id: 'investSumRetire', title: 'Retire Estimate',
             bodyHtml: _investBuildRetireWidget({
@@ -4040,7 +4115,7 @@ async function _investRenderSummaryPage() {
         '<div class="invest-ai-entry-wrap">' +
             '<a class="btn btn-secondary btn-small invest-ai-entry-btn" href="#investments/ai-setup" ' +
                 'onclick="_investAiBackRoute=\'investments/summary\'">🤖 Ask AI</a>' +
-        '</div>' +
+        '</div>') +
 
         // All-Time Highs — sticky collapsible accordion
         (athBodyHtml ? _investBuildAccordion({
@@ -4113,7 +4188,7 @@ function _investPerfRow(label) {
 // trades/deposits) keeps the day's delta visible instead of resetting it to ~$0. If there is no snapshot
 // today, fall back to the LATEST capture on the most recent prior date (that date's "close").
 async function _investLoadPeriodBaselines(groupId) {
-    var snap = await _investSnapshotCol().orderBy('date', 'desc').limit(200).get();
+    var snap = await _investSnapshotCol(groupId).orderBy('date', 'desc').limit(200).get();
     var todayStr = new Date().toISOString().split('T')[0];
     var byType = { daily: [], weekly: [], monthly: [], yearly: [] };
     snap.forEach(function(doc) {
@@ -4215,8 +4290,9 @@ async function _investLoadGroupAccounts(group) {
 
     // Personal (non-joint) accounts for each person in the group
     for (var i = 0; i < personIds.length; i++) {
-        var ns   = personIds[i];
-        var snap = await userCol('investments').doc(ns).collection('accounts').get();
+        var ns   = finGroupNs(group, personIds[i]);    // 'share:<id>' for a person shared with me; null = not part of the share
+        if (!ns) continue;
+        var snap = await finAcctCol(ns).get();
         snap.forEach(function(doc) {
             var data = doc.data();
             if (!data.archived && data.ownerType !== 'joint') {
@@ -4226,8 +4302,8 @@ async function _investLoadGroupAccounts(group) {
     }
 
     // Joint accounts (stored under 'self') — only included when ALL parties are in the group
-    if (personIds.indexOf('self') >= 0) {
-        var selfSnap = await userCol('investments').doc('self').collection('accounts').get();
+    if (personIds.indexOf('self') >= 0 && !(group && group._shareId)) {
+        var selfSnap = await finAcctCol('self').get();
         selfSnap.forEach(function(doc) {
             var data = doc.data();
             if (data.ownerType === 'joint' && !data.archived && data.primaryContactId) {
@@ -4317,7 +4393,13 @@ async function _investUpdateAllPrices() {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Updating…'; }
     if (status) { status.textContent = ''; }
 
-    var accounts = await _investLoadGroupAccounts(group);
+    // Update prices writes the holdings, so only accounts I may change (not view-only shared people)
+    var accounts = (await _investLoadGroupAccounts(group)).filter(function(a) { return finCanEdit(a._ns); });
+    if (!accounts.length) {
+        if (status) { status.textContent = 'This group is view only — you cannot update its prices.'; status.style.color = '#c62828'; }
+        if (btn) { btn.disabled = false; btn.textContent = '📡 Update All Prices'; }
+        return;
+    }
 
     // Deduplicate tickers across all accounts
     var priceMap = {};
@@ -4733,7 +4815,7 @@ async function _investLoadAllAccountsForStocks() {
     var allAccounts = [];
     for (var i = 0; i < allNs.length; i++) {
         var ns   = allNs[i];
-        var snap = await userCol('investments').doc(ns).collection('accounts').get();
+        var snap = await finAcctCol(ns).get();
         snap.forEach(function(doc) {
             var data = doc.data();
             if (!data.archived) {
@@ -4844,7 +4926,7 @@ var _SS_AGES = [62, 63, 64, 65, 66, 67, 68, 69, 70];
 // ---------- Firestore Helper ----------
 
 function _ssBenefitsCol() {
-    return userCol('ssBenefits');
+    return finCol(_ssBenefitsPersonFilter, 'ssBenefits');    // in the person's share when shared (sharefin.js)
 }
 
 // ---------- People Loading ----------
@@ -4864,6 +4946,10 @@ async function _ssBenefitsLoadPeople() {
             return a.name.localeCompare(b.name);
         });
     }
+    // People other owners shared with me come after my own (sharefin.js)
+    try { await finLoad(true); } catch (err) { console.error('Could not load shared financial people:', err); }
+    finSharedPeople().forEach(function(p) { _ssBenefitsPeople.push(p); });
+    if (finIsShareNs(_ssBenefitsPersonFilter) && !finSharedName(_ssBenefitsPersonFilter)) _ssBenefitsPersonFilter = 'self';
 }
 
 // ---------- Snapshots Loading ----------
@@ -4876,7 +4962,7 @@ async function _ssBenefitsLoadSnapshots() {
     var docs = [];
     snap.forEach(function(doc) {
         var data = doc.data();
-        if (data.personId === _ssBenefitsPersonFilter) {
+        if (data.personId === finPersonIdOf(_ssBenefitsPersonFilter)) {
             docs.push(Object.assign({ id: doc.id }, data));
         }
     });
@@ -4962,12 +5048,13 @@ function _ssBenefitsRenderListPage() {
                         '<div class="ss-snapshot-summary">' + escapeHtml(ageRange) + ' &mdash; ' + entries.length + ' age' + (entries.length === 1 ? '' : 's') + ' recorded</div>' +
                     '</div>' +
                     (rowsHtml ? '<table class="ss-snapshot-table"><tbody>' + rowsHtml + '</tbody></table>' : '') +
+                    (finCanEdit(_ssBenefitsPersonFilter) ?
                     '<div class="ss-snapshot-actions">' +
                         (isMostRecent
                             ? '<a class="btn btn-secondary btn-small" href="#investments/ss-benefits/edit/' + encodeURIComponent(snap.id) + '">Update Current</a>'
                             : '<a class="btn btn-secondary btn-small" href="#investments/ss-benefits/edit/' + encodeURIComponent(snap.id) + '">Edit</a>') +
                         '<button class="btn btn-danger btn-small" onclick="_ssBenefitsDeleteSnapshot(\'' + escapeHtml(snap.id) + '\',' + isMostRecent + ')">Delete</button>' +
-                    '</div>' +
+                    '</div>' : '') +
                 '</div>';
         });
     }
@@ -4976,7 +5063,7 @@ function _ssBenefitsRenderListPage() {
         '<div class="page-header">' +
             '<h2>📋 SS Benefits</h2>' +
             '<div class="page-header-actions">' +
-                '<a class="btn btn-primary" href="#investments/ss-benefits/new">+ Create Snapshot</a>' +
+                (finCanEdit(_ssBenefitsPersonFilter) ? '<a class="btn btn-primary" href="#investments/ss-benefits/new">+ Create Snapshot</a>' : '') +
             '</div>' +
         '</div>' +
         '<div class="invest-person-bar">' +
@@ -5207,8 +5294,8 @@ async function _ssBenefitsSaveSnapshot() {
     });
 
     var personId = _ssBenefitsFormIsNew
-        ? (_ssBenefitsPersonFilter || 'self')
-        : ((_ssBenefitsSnapshots.find(function(s) { return s.id === _ssBenefitsFormEditId; }) || {}).personId || _ssBenefitsPersonFilter);
+        ? finPersonIdOf(_ssBenefitsPersonFilter || 'self')
+        : ((_ssBenefitsSnapshots.find(function(s) { return s.id === _ssBenefitsFormEditId; }) || {}).personId || finPersonIdOf(_ssBenefitsPersonFilter));
 
     var payload = {
         personId:  personId,
