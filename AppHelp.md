@@ -852,6 +852,7 @@ Your existing account and password reset still work after this.
 - Tap any floor card to drill in and see its rooms
 - **Open Problems** and **All Quick Tasks** cards roll up issues and to-dos from every floor, room, thing, and sub-thing across the whole house
 - Access Garage, Vehicles, and Collections from the **More** section at the bottom
+- **Share…** lets you share the whole house with a group (View only or Can edit); see Details below
 
 ### Details
 
@@ -877,6 +878,14 @@ Your existing account and password reset still work after this.
 **Upcoming calendar events rollup:** Shows the next few scheduled events linked to any house entity, so you can see what is coming up without drilling into individual rooms.
 
 **Breaker Panels section:** If you have breaker/electrical panels recorded, they appear here.
+
+**Sharing your House:**
+- Tap **Share…** under the title to let other people use your whole house: floors, rooms, things, sub-things, items, floor plans, breaker panels, and their photos, facts, problems, quick tasks and activities. Calendar events stay private. The Garage, Vehicles and Structures are not included.
+- Pick a group and **View only** or **Can edit** (groups are made under **Settings → Sharing**). A backup file downloads first, and you stay the owner. Editors can add, change and delete anything in the house; only you can change who it is shared with or stop sharing.
+- **"Goes to (if I die)" stays yours.** People you share the House with never see who a thing goes to, can't change it, and the **Who Gets What** card is hidden for them. Dollar values stay visible.
+- The button then says **Sharing…**. Open it to change groups, or tap **Stop sharing** to bring everything — including what other people added — back to you.
+- If someone shared a house with you, a **House:** picker appears at the top so you can switch between **My house** and theirs, with a grey line saying whether you can edit or only view. In a **View only** house the add, edit and delete buttons are hidden, and the floor plan opens without an Edit button.
+- While the House is shared, things can't be moved between the House and the Garage or Structures.
 
 **Tips:**
 - Use the Open Problems card as your daily "what needs attention" view -- it aggregates everything without drilling into each room.

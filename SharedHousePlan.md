@@ -37,7 +37,7 @@
 | **H1 ✅** | **Plumbing (invisible):** helpers, active-house resolve, picker, extra target types in the photo helpers, view-only guard generalized to the house pages. | Nothing changes for anyone |
 | **H2 ✅** | **House pages** switched: house.js, floor plan editor and item pages, breaker panels, Move Thing rules; roles, stamps, who-labels, badge, "Goes to" hidden for non-owners. Tested with a share seeded by script. | The house works in a share as owner, editor, viewer |
 | **H3 ✅** | **Everything else that reads the house:** Who Gets What, checklists, Collections location picker, search, calendar labels/complete-event, Ask AI, SecondBrain. | Nothing misses house data |
-| **H4** | **Share and Stop sharing** on the House home; "Shared with me" shows it; two-account test. | The wife can use the house |
+| **H4 ✅** | **Share and Stop sharing** on the House home; "Shared with me" shows it; two-account test. | The wife can use the house |
 | **H5** | **Backup/restore** include a shared house; spec, AppHelp, phone-width check. | Docs and backup complete |
 
 Every chunk: test in the preview with the two test accounts, update spec and AppHelp where behavior changed, bump `sw.js` and the `?v=` tags, commit, notify, push.

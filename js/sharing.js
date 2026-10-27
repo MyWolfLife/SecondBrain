@@ -910,6 +910,18 @@ async function shOpenYardShareDialog() {
         'Sharing moves the whole yard into a shared area: zones, plants, weeds, chemicals, saved actions, map shapes, and their photos, facts, problems, quick tasks and activities. Calendar events stay private. A backup file downloads first, and you stay the owner. Editors can add, change and delete anything in the yard; only you can stop sharing.');
 }
 
+/** Opens the Share dialog for the whole House (owner only). */
+async function shOpenHouseShareDialog() {
+    if (!hIsOwner()) return;
+    _shDlg.kind = 'house';
+    _shDlg.collId = null;
+    _shDlg.shareId = window.houseShareId || null;
+    _shDlg.existingGroups = (window.houseShareData && window.houseShareData.shareGroups) || {};
+    await _shShowShareDialog(
+        _shDlg.shareId ? 'Sharing your House' : 'Share your House',
+        'Sharing moves the whole house into a shared area: floors, rooms, things, sub-things, items, floor plans, breaker panels, and their photos, facts, problems, quick tasks and activities. Calendar events stay private, and so does who each thing goes to (“Goes to”) and Who Gets What. A backup file downloads first, and you stay the owner. Editors can add, change and delete anything in the house; only you can stop sharing. The Garage, Vehicles and Structures are not included.');
+}
+
 /** Fills and opens the shared dialog body (title, groups with View/Edit, buttons). */
 async function _shShowShareDialog(titleText, noteNew) {
     var groups = [];
@@ -965,6 +977,11 @@ async function shSubmitShareDialog() {
             else { _shProgress('Starting…'); await shShareYard(choice); }
             closeModal('shareDialogModal');
             await _shRefreshYardAfterChange();
+        } else if (_shDlg.kind === 'house') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await shShareHouse(choice); }
+            closeModal('shareDialogModal');
+            await _shRefreshHouseAfterChange();
         } else if (_shDlg.shareId) {
             await shUpdateShareGroups(_shDlg.shareId, choice);
             closeModal('shareDialogModal');
@@ -1062,7 +1079,7 @@ async function shUnshareCollection(shareId, collId) {
 
 async function shStopSharingFromDialog() {
     if (!_shDlg.shareId) return;
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : 'this collection';
     if (!confirm('Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
                  'The people it was shared with lose access. A backup file downloads first.')) return;
     var okBtn = document.getElementById('shDlgOkBtn');
@@ -1074,6 +1091,10 @@ async function shStopSharingFromDialog() {
             await shUnshareYard(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _shRefreshYardAfterChange();
+        } else if (_shDlg.kind === 'house') {
+            await shUnshareHouse(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _shRefreshHouseAfterChange();
         } else {
             await shUnshareCollection(_shDlg.shareId, _shDlg.collId);
             closeModal('shareDialogModal');
@@ -1480,32 +1501,45 @@ async function yReadAll(name, build) {
     return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
 }
 
-// ─── Share / Stop sharing the Yard (Y4) ──────────────────────────────────────
+// ─── Share / Stop sharing the Yard or the House (Y4, H4) ─────────────────────
 // Same recipe as a collection (backup → create the share → copy with the same IDs → check the
-// counts → delete the originals), but the yard is many collections. Whole collections move as
-// they are; activities / photos / problems / facts / projects move only for yard targets.
+// counts → delete the originals), but a "space" (the Yard or the House) is many collections.
+// Whole collections move as they are; activities / photos / problems / facts / projects move only
+// for that space's target types (plus the facts/photos on its problems).
 
+var SHARE_MIXED_COLLECTIONS = ['activities', 'photos', 'problems', 'facts', 'projects'];
 var YARD_SHARE_WHOLE = ['zones', 'plants', 'weeds', 'chemicals', 'savedActions', 'gpsShapes'];
-var YARD_SHARE_MIXED = ['activities', 'photos', 'problems', 'facts', 'projects'];
+var YARD_SHARE_MIXED = SHARE_MIXED_COLLECTIONS;
 var YARD_SHARE_ALL   = YARD_SHARE_MIXED.concat(YARD_SHARE_WHOLE);   // delete order: children before parents
 
+/** Description of what a space (key 'yard' or 'house') consists of. Built on use: the House lists are defined further down the file. */
+function _shSpace(key) {
+    var whole   = key === 'house' ? HOUSE_WHOLE_COLLECTIONS : YARD_SHARE_WHOLE;
+    var targets = key === 'house' ? HOUSE_TARGET_TYPES : YARD_TARGET_TYPES;
+    return {
+        key: key, kind: key, title: key === 'house' ? 'House' : 'Yard', file: key === 'house' ? 'House' : 'Yard',
+        whole: whole, mixed: SHARE_MIXED_COLLECTIONS, targets: targets,
+        all: SHARE_MIXED_COLLECTIONS.concat(whole)
+    };
+}
+
 /**
- * Everything that belongs to the yard in one place: { collectionName: [docSnapshots] }.
- * From a share (shareId given) every document there is the yard's. From the private area the
- * mixed collections are cut down to yard targets, plus the facts/photos on yard problems.
+ * Everything that belongs to the space in one place: { collectionName: [docSnapshots] }.
+ * From a share (shareId given) every document there is the space's. From the private area the
+ * mixed collections are cut down to the space's targets, plus the facts/photos on its problems.
  */
-async function shReadYardBundle(shareId) {
+async function shReadSpaceBundle(space, shareId) {
     var out = {};
-    for (var i = 0; i < YARD_SHARE_WHOLE.length; i++) {
-        out[YARD_SHARE_WHOLE[i]] = (await dataCol(YARD_SHARE_WHOLE[i], shareId).get()).docs;
+    for (var i = 0; i < space.whole.length; i++) {
+        out[space.whole[i]] = (await dataCol(space.whole[i], shareId).get()).docs;
     }
-    for (var j = 0; j < YARD_SHARE_MIXED.length; j++) {
-        var name = YARD_SHARE_MIXED[j];
+    for (var j = 0; j < space.mixed.length; j++) {
+        var name = space.mixed[j];
         out[name] = shareId
             ? (await dataCol(name, shareId).get()).docs
-            : (await userCol(name).where('targetType', 'in', YARD_TARGET_TYPES).get()).docs;
+            : (await userCol(name).where('targetType', 'in', space.targets).get()).docs;
     }
-    if (!shareId) {      // facts and photos on a yard problem follow the problem
+    if (!shareId) {      // facts and photos on one of the space's problems follow the problem
         var problemIds = {};
         out.problems.forEach(function(d) { problemIds[d.id] = true; });
         var nested = ['facts', 'photos'];
@@ -1517,60 +1551,57 @@ async function shReadYardBundle(shareId) {
     return out;
 }
 
-function _shYardCounts(bundle) {
+function _shSpaceCounts(space, bundle) {
     var c = {};
-    YARD_SHARE_ALL.forEach(function(n) { c[n] = (bundle[n] || []).length; });
+    space.all.forEach(function(n) { c[n] = (bundle[n] || []).length; });
     return c;
 }
 
 /** Per-collection comparison; returns '' when every collection has at least the expected number. */
-function _shYardCompare(expected, actual) {
-    var bad = YARD_SHARE_ALL.filter(function(n) { return actual[n] < expected[n]; })
+function _shSpaceCompare(space, expected, actual) {
+    var bad = space.all.filter(function(n) { return actual[n] < expected[n]; })
         .map(function(n) { return n + ' ' + actual[n] + ' of ' + expected[n]; });
     return bad.join(', ');
 }
 
-function _shYardBundleToJson(bundle, type) {
+function _shSpaceBackupFile(space, bundle, type) {
     var cols = {};
-    YARD_SHARE_ALL.forEach(function(n) {
+    space.all.forEach(function(n) {
         cols[n] = (bundle[n] || []).map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; });
     });
-    return { version: 1, type: type, exportedAt: new Date().toISOString(), collections: cols };
-}
-
-function _shYardBackupFile(bundle, type) {
     var stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
-    backupDownload('Bishop_Yard_Backup_' + stamp + '.json', _shYardBundleToJson(bundle, type));
+    backupDownload('Bishop_' + space.file + '_Backup_' + stamp + '.json',
+        { version: 1, type: type, exportedAt: new Date().toISOString(), collections: cols });
 }
 
-/** Share my private yard. Nothing private is removed until the shared copy is checked. */
-async function shShareYard(shareGroups) {
+/** Share my private yard or house. Nothing private is removed until the shared copy is checked. */
+async function shShareSpace(space, shareGroups) {
     var me = _shMyUid();
-    var existing = (await shLoadMyShares()).filter(function(s) { return s.kind === 'yard'; });
-    if (existing.length) throw new Error('Your yard is already shared.');
+    var existing = (await shLoadMyShares()).filter(function(s) { return s.kind === space.kind; });
+    if (existing.length) throw new Error('Your ' + space.title.toLowerCase() + ' is already shared.');
     var groups = await _shLoadGroups();
     var flat = shFlatten(shareGroups, groups, me, await shGetMyName());
 
-    _shProgress('Reading the yard…');
-    var bundle = await shReadYardBundle(null);
-    var expected = _shYardCounts(bundle);
+    _shProgress('Reading the ' + space.title.toLowerCase() + '…');
+    var bundle = await shReadSpaceBundle(space, null);
+    var expected = _shSpaceCounts(space, bundle);
 
     _shProgress('Saving a backup file…');
-    _shYardBackupFile(bundle, 'yard-before-share');
+    _shSpaceBackupFile(space, bundle, space.key + '-before-share');
 
     var shareId = db.collection('shares').doc().id;
     var created = false;
     try {
         _shProgress('Creating the shared area…');
         await topCol('shares').doc(shareId).set({      // its own write first: the rules read this document
-            ownerUid: me, kind: 'yard', title: 'Yard',
+            ownerUid: me, kind: space.kind, title: space.title,
             shareGroups: shareGroups, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         created = true;
 
         var ops = [];
-        YARD_SHARE_WHOLE.concat(YARD_SHARE_MIXED).forEach(function(name) {
+        space.whole.concat(space.mixed).forEach(function(name) {
             bundle[name].forEach(function(d) {
                 var data = Object.assign({}, d.data());
                 data.createdBy = data.createdBy || me;
@@ -1581,13 +1612,13 @@ async function shShareYard(shareGroups) {
         await shBatchSet(ops, function(n, total) { _shProgress('Copying… ' + n + ' of ' + total); });
 
         _shProgress('Checking the copy…');
-        var problem = _shYardCompare(expected, _shYardCounts(await shReadYardBundle(shareId)));
+        var problem = _shSpaceCompare(space, expected, _shSpaceCounts(space, await shReadSpaceBundle(space, shareId)));
         if (problem) throw new Error('The copy does not match the original (' + problem + ').');
     } catch (err) {
-        console.error('shShareYard failed, rolling back:', err);
-        _shProgress('Something went wrong — undoing. Your yard has not been changed.', true);
+        console.error('shShareSpace failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. Your ' + space.title.toLowerCase() + ' has not been changed.', true);
         if (created) {
-            try { await shDeleteShareContents(shareId, YARD_SHARE_ALL); await topCol('shares').doc(shareId).delete(); }
+            try { await shDeleteShareContents(shareId, space.all); await topCol('shares').doc(shareId).delete(); }
             catch (e2) { console.error('rollback failed:', e2); }
         }
         throw err;
@@ -1596,7 +1627,7 @@ async function shShareYard(shareGroups) {
     try {
         _shProgress('Removing the private copy…');
         var refs = [];
-        YARD_SHARE_ALL.forEach(function(name) { bundle[name].forEach(function(d) { refs.push(d.ref); }); });
+        space.all.forEach(function(name) { bundle[name].forEach(function(d) { refs.push(d.ref); }); });
         await shBatchDelete(refs, function(n, total) { _shProgress('Removing the private copy… ' + n + ' of ' + total); });
     } catch (err) {
         console.error('Could not remove the private originals:', err);
@@ -1605,35 +1636,42 @@ async function shShareYard(shareGroups) {
     return shareId;
 }
 
-/** Stop sharing the yard: everything (including what others added) comes back to my private area. */
-async function shUnshareYard(shareId) {
-    _shProgress('Reading the shared yard…');
-    var bundle = await shReadYardBundle(shareId);
-    var expected = _shYardCounts(bundle);
+/** Stop sharing: everything (including what others added) comes back to my private area. */
+async function shUnshareSpace(space, shareId) {
+    _shProgress('Reading the shared ' + space.title.toLowerCase() + '…');
+    var bundle = await shReadSpaceBundle(space, shareId);
+    var expected = _shSpaceCounts(space, bundle);
 
     _shProgress('Saving a backup file…');
-    _shYardBackupFile(bundle, 'yard-before-unshare');
+    _shSpaceBackupFile(space, bundle, space.key + '-before-unshare');
 
     var ops = [];
-    YARD_SHARE_WHOLE.concat(YARD_SHARE_MIXED).forEach(function(name) {
+    space.whole.concat(space.mixed).forEach(function(name) {
         bundle[name].forEach(function(d) { ops.push({ ref: userCol(name).doc(d.id), data: Object.assign({}, d.data()) }); });
     });
     try {
         await shBatchSet(ops, function(n, total) { _shProgress('Moving back… ' + n + ' of ' + total); });
         _shProgress('Checking the copy…');
-        var problem = _shYardCompare(expected, _shYardCounts(await shReadYardBundle(null)));
+        var problem = _shSpaceCompare(space, expected, _shSpaceCounts(space, await shReadSpaceBundle(space, null)));
         if (problem) throw new Error('The copy does not match (' + problem + ').');
     } catch (err) {
-        console.error('shUnshareYard failed, rolling back:', err);
-        _shProgress('Something went wrong — undoing. The yard is still shared.', true);
+        console.error('shUnshareSpace failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. The ' + space.title.toLowerCase() + ' is still shared.', true);
         try { await shBatchDelete(ops.map(function(o) { return o.ref; })); } catch (e2) { console.error('rollback failed:', e2); }
         throw err;
     }
 
     _shProgress('Removing the shared copy…');
-    await shDeleteShareContents(shareId, YARD_SHARE_ALL);
+    await shDeleteShareContents(shareId, space.all);
     await topCol('shares').doc(shareId).delete();
 }
+
+// Yard (Y4) and House (H4) entry points
+function shReadYardBundle(shareId)  { return shReadSpaceBundle(_shSpace('yard'), shareId); }
+function shShareYard(groups)        { return shShareSpace(_shSpace('yard'), groups); }
+function shUnshareYard(shareId)     { return shUnshareSpace(_shSpace('yard'), shareId); }
+function shShareHouse(groups)       { return shShareSpace(_shSpace('house'), groups); }
+function shUnshareHouse(shareId)    { return shUnshareSpace(_shSpace('house'), shareId); }
 
 /** After sharing, changing who it is shared with, or stopping: pick the active yard again and redraw. */
 async function _shRefreshYardAfterChange() {
@@ -1642,6 +1680,15 @@ async function _shRefreshYardAfterChange() {
     await yardReady();
     if (typeof loadZonesList === 'function') loadZonesList();
     shRenderYardSwitcher();
+}
+
+/** Same for the House home. */
+async function _shRefreshHouseAfterChange() {
+    try { localStorage.removeItem(HOUSE_CHOICE_KEY); } catch (e) { /* ok */ }
+    window._houseReadyPromise = null;
+    await houseReady();
+    if (typeof loadHousePage === 'function') loadHousePage();
+    shRenderHouseSwitcher();
 }
 
 // ─── Backup and restore of my shared Yard (Y5) ───────────────────────────────
@@ -1794,6 +1841,11 @@ async function shRenderHouseSwitcher() {
     var active = window.houseShareId || 'private';
     var cur = _houseOptions.filter(function(o) { return (o.id || 'private') === active; })[0] || _houseOptions[0];
     if (title) title.textContent = cur.label === 'My house' ? 'My House' : cur.label.replace(/^./, function(c) { return c.toUpperCase(); });
+    var shareBtn = document.getElementById('shareHouseBtn');     // only the owner shares, and only their own house
+    if (shareBtn) {
+        shareBtn.classList.toggle('hidden', !hIsOwner());
+        shareBtn.textContent = window.houseShareId ? 'Sharing…' : 'Share…';
+    }
     var wgw = document.getElementById('houseWhoGetsWhatCard');     // Who Gets What is the owner's alone
     if (wgw) wgw.style.display = hHideBeneficiary() ? 'none' : '';
     var banner = document.getElementById('houseRoleBanner');
