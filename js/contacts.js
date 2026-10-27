@@ -419,6 +419,19 @@ async function loadContactsPage() {
     var crumb = document.getElementById('breadcrumbBar');
     if (crumb) crumb.innerHTML = '<a href="#life">Life</a><span class="separator">&rsaquo;</span><span>Contacts</span>';
 
+    // "Share all…" (sharecontact.js): next to + Add Contact
+    var addBtn = document.getElementById('addContactBtn');
+    var shareAllBtn = document.getElementById('contactsShareAllBtn');
+    if (addBtn && !shareAllBtn) {
+        shareAllBtn = document.createElement('button');
+        shareAllBtn.className = 'btn btn-secondary btn-small';
+        shareAllBtn.id = 'contactsShareAllBtn';
+        shareAllBtn.style.marginRight = '8px';
+        shareAllBtn.onclick = function() { shOpenAllContactsShareDialog(); };
+        addBtn.parentNode.insertBefore(shareAllBtn, addBtn);
+    }
+    if (shareAllBtn) cxLoad().then(function() { shareAllBtn.textContent = cxOwnAllContactsShareId() ? 'Sharing all…' : 'Share all…'; });
+
     var container  = document.getElementById('contactsListContainer');
     var emptyState = document.getElementById('contactsListEmpty');
     container.innerHTML = '';

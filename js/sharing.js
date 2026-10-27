@@ -997,6 +997,12 @@ async function shSubmitShareDialog() {
             await bgLoad(true);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'allContacts') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await cxShareAll(choice); }
+            await cxLoad(true);
+            closeModal('shareDialogModal');
+            await _cxAfterShareChange();
         } else if (_shDlg.kind === 'contact') {
             if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
             else { _shProgress('Starting…'); await cxSharePerson(_shDlg.personId, choice); }
@@ -1133,7 +1139,7 @@ async function shStopSharingFromDialog() {
         _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
         return;
     }
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : _shDlg.kind === 'contact' ? 'this contact' : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : _shDlg.kind === 'contact' ? 'this contact' : _shDlg.kind === 'allContacts' ? 'all your contacts' : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1156,6 +1162,10 @@ async function shStopSharingFromDialog() {
             await bgUnshareBudget(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'allContacts') {
+            await cxUnshareAll(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _cxAfterShareChange();
         } else if (_shDlg.kind === 'contact') {
             await cxUnsharePerson(_shDlg.shareId);
             closeModal('shareDialogModal');
@@ -2278,6 +2288,18 @@ async function shOpenContactShareDialog(personId, name) {
     await _shShowShareDialog(
         (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
         'Sharing moves this contact — with the family members or staff listed under them, their interactions, important dates, photos and facts — into a shared area. The rest of the app (journal, health, neighbors, calendar…) keeps finding them as before. Other contacts stay private. A backup file downloads first, and you stay the owner. Editors can change the contact and add or change what is on it; only you can share, delete or stop sharing it.');
+}
+
+/** Opens the Share dialog for ALL contacts and the Neighborhood (owner). */
+async function shOpenAllContactsShareDialog() {
+    await cxLoad(true);
+    _shDlg.kind = 'allContacts';
+    _shDlg.collId = null;
+    _shDlg.shareId = cxOwnAllContactsShareId();
+    _shDlg.existingGroups = (_shDlg.shareId && _cxOwn[_shDlg.shareId].data.shareGroups) || {};
+    await _shShowShareDialog(
+        _shDlg.shareId ? 'Sharing all your contacts' : 'Share all your contacts',
+        'Sharing moves all your contacts (except "Me") — with their interactions, important dates, photos and facts — and the whole Neighborhood (neighborhoods, houses, residents, notes) into a shared area. New contacts and neighbors you add later are shared too. Contacts you already share one at a time stay as they are. The rest of the app keeps finding your contacts as before. A backup file downloads first, and you stay the owner. Editors can change contacts and neighbors; only you can delete contacts, share or stop sharing.');
 }
 
 // ─── Sharing one checklist (K1) ──────────────────────────────────────────────

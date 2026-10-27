@@ -50,7 +50,7 @@ async function loadNeighborhoodsPage() {
     empty.classList.add('hidden');
 
     try {
-        var snap = await userCol('neighborhoods').orderBy('createdAt', 'asc').get();
+        var snap = await pplColAll('neighborhoods').orderBy('createdAt', 'asc').get();
         if (snap.empty) {
             container.innerHTML = '';
             empty.classList.remove('hidden');
@@ -64,7 +64,7 @@ async function loadNeighborhoodsPage() {
         // Fetch house count per neighborhood in parallel
         var countSnaps = await Promise.all(
             neighborhoods.map(function(nb) {
-                return userCol('neighborHouses').where('neighborhoodId', '==', nb.id).get();
+                return pplCol('neighborHouses').where('neighborhoodId', '==', nb.id).get();
             })
         );
 
@@ -117,7 +117,7 @@ async function openEditNeighborhoodModal(id) {
     _nbPendingImage = null;
 
     try {
-        var snap = await userCol('neighborhoods').doc(id).get();
+        var snap = await pplCol('neighborhoods').doc(id).get();
         if (!snap.exists) return;
         var nb = snap.data();
 
@@ -213,13 +213,13 @@ async function _nbSaveNeighborhood() {
 
         if (isNew) {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            var ref = await userCol('neighborhoods').add(data);
+            var ref = await pplCol('neighborhoods').add(data);
             var newId = ref.id;
             closeModal('nbNeighborhoodModal');
             // Defer navigation so closeModal's history.back() settles before we push the new hash
             setTimeout(function() { window.location.hash = '#neighborhood/' + newId; }, 50);
         } else {
-            await userCol('neighborhoods').doc(_nbEditingNeighborhoodId).update(data);
+            await pplCol('neighborhoods').doc(_nbEditingNeighborhoodId).update(data);
             // Refresh map image if we're currently viewing this neighborhood
             if (_nbPendingImage && _nbCurrentNeighborhood &&
                     _nbCurrentNeighborhood.id === _nbEditingNeighborhoodId) {
@@ -247,9 +247,9 @@ async function _nbDeleteNeighborhood(id) {
     if (!confirm('Delete this neighborhood? All house pins and data will be permanently removed. Contacts will not be affected.')) return;
 
     try {
-        var housesSnap = await userCol('neighborHouses').where('neighborhoodId', '==', id).get();
+        var housesSnap = await pplCol('neighborHouses').where('neighborhoodId', '==', id).get();
         await Promise.all(housesSnap.docs.map(function(d) { return _nbDeleteHouseData(d.id); }));
-        await userCol('neighborhoods').doc(id).delete();
+        await pplCol('neighborhoods').doc(id).delete();
         loadNeighborhoodsPage();
     } catch (e) {
         alert('Delete failed. Please try again.');
@@ -261,14 +261,14 @@ async function _nbDeleteNeighborhood(id) {
 async function _nbDeleteHouseData(houseId) {
     var batch = db.batch();
     var [residentsSnap, notesSnap, archivesSnap] = await Promise.all([
-        userCol('neighborHouseResidents').where('houseId', '==', houseId).get(),
-        userCol('neighborHouseNotes').where('houseId', '==', houseId).get(),
-        userCol('neighborArchivedFamilies').where('houseId', '==', houseId).get()
+        pplCol('neighborHouseResidents').where('houseId', '==', houseId).get(),
+        pplCol('neighborHouseNotes').where('houseId', '==', houseId).get(),
+        pplCol('neighborArchivedFamilies').where('houseId', '==', houseId).get()
     ]);
     residentsSnap.forEach(function(d) { batch.delete(d.ref); });
     notesSnap.forEach(function(d) { batch.delete(d.ref); });
     archivesSnap.forEach(function(d) { batch.delete(d.ref); });
-    batch.delete(userCol('neighborHouses').doc(houseId));
+    batch.delete(cxRef('neighborHouses', houseId));
     await batch.commit();
 }
 
@@ -280,7 +280,8 @@ async function loadNeighborhoodMapPage(id) {
     _nbCleanupMap();
 
     try {
-        var snap = await userCol('neighborhoods').doc(id).get();
+        var snap = await pplCol('neighborhoods').doc(id).get();
+        _nbApplyRole('page-neighborhood', 'neighborhoods', id);
         if (!snap.exists) { window.location.hash = '#neighbors'; return; }
         _nbCurrentNeighborhood = Object.assign({ id: snap.id }, snap.data());
 
@@ -350,7 +351,7 @@ async function _nbLoadPins(neighborhoodId) {
     _nbHouseDocs = {};
 
     try {
-        var snap = await userCol('neighborHouses').where('neighborhoodId', '==', neighborhoodId).get();
+        var snap = await pplCol('neighborHouses').where('neighborhoodId', '==', neighborhoodId).get();
         snap.forEach(function(d) {
             var house = Object.assign({ id: d.id }, d.data());
             _nbHouseDocs[house.id] = house;
@@ -390,7 +391,7 @@ function _nbAddMarkerToMap(house) {
         var newPinY = Math.max(0, Math.min(1, 1 - ll.lat / h));
         house.pinX  = newPinX;
         house.pinY  = newPinY;
-        userCol('neighborHouses').doc(house.id)
+        pplCol('neighborHouses').doc(house.id)
             .update({ pinX: newPinX, pinY: newPinY })
             .catch(function(err) { console.error('pin dragend save:', err); });
     });
@@ -458,7 +459,7 @@ async function _nbSaveHouse() {
 
     try {
         if (_nbEditingHouseId) {
-            await userCol('neighborHouses').doc(_nbEditingHouseId).update({ nickname: nickname, address: address });
+            await pplCol('neighborHouses').doc(_nbEditingHouseId).update({ nickname: nickname, address: address });
             // Update map pin if we're on the map page
             var house = _nbHouseDocs[_nbEditingHouseId];
             if (house) {
@@ -485,7 +486,7 @@ async function _nbSaveHouse() {
             var pinX = Math.max(0, Math.min(1, _nbPendingPinLatLng.lng / w));
             var pinY = Math.max(0, Math.min(1, 1 - _nbPendingPinLatLng.lat / h));
 
-            var ref  = await userCol('neighborHouses').add({
+            var ref  = await pplCol('neighborHouses').add({
                 neighborhoodId:    _nbCurrentNeighborhood.id,
                 nickname:          nickname,
                 address:           address,
@@ -519,7 +520,7 @@ async function _nbSaveHouse() {
 function _nbSaveMapView() {
     if (!_nbMap || !_nbCurrentNeighborhood) return;
     var center = _nbMap.getCenter();
-    userCol('neighborhoods').doc(_nbCurrentNeighborhood.id).update({
+    pplCol('neighborhoods').doc(_nbCurrentNeighborhood.id).update({
         defaultZoom: _nbMap.getZoom(),
         defaultPanX: center.lat,
         defaultPanY: center.lng
@@ -553,7 +554,8 @@ function _nbExitPlacementModeSilent() {
 async function loadNeighborHousePage(id) {
     _nbCurrentHouse = null;
     try {
-        var snap = await userCol('neighborHouses').doc(id).get();
+        var snap = await pplCol('neighborHouses').doc(id).get();
+        _nbApplyRole('page-neighborhouse', 'neighborHouses', id);
         if (!snap.exists) { window.location.hash = '#neighbors'; return; }
         _nbCurrentHouse = Object.assign({ id: snap.id }, snap.data());
         var house = _nbCurrentHouse;
@@ -622,7 +624,7 @@ async function _nbLoadResidents(houseId) {
     emptyEl.classList.add('hidden');
 
     try {
-        var snap = await userCol('neighborHouseResidents')
+        var snap = await pplCol('neighborHouseResidents')
             .where('houseId', '==', houseId)
             .where('archived', '==', false)
             .get();
@@ -753,7 +755,7 @@ function _nbToggleIntelPanel(btn) {
 async function _nbRemoveResident(residentId) {
     if (!confirm('Remove this person from the house? Their contact record will not be deleted.')) return;
     try {
-        await userCol('neighborHouseResidents').doc(residentId).delete();
+        await pplCol('neighborHouseResidents').doc(residentId).delete();
         if (_nbCurrentHouse) _nbLoadResidents(_nbCurrentHouse.id);
     } catch (e) {
         alert('Failed to remove resident.');
@@ -847,7 +849,7 @@ async function _nbSaveResident() {
     var btn = document.getElementById('nbResidentPickerSaveBtn');
     btn.disabled = true; btn.textContent = 'Adding…';
     try {
-        await userCol('neighborHouseResidents').add({
+        await pplCol('neighborHouseResidents').add({
             houseId:         _nbCurrentResidentHouseId,
             personId:        _nbPickedContactId,
             role:            role,
@@ -912,7 +914,7 @@ async function _nbSaveNewNeighbor() {
             parentPersonId: null,
             createdAt:     firebase.firestore.FieldValue.serverTimestamp()
         });
-        await userCol('neighborHouseResidents').add({
+        await pplCol('neighborHouseResidents').add({
             houseId:         _nbCurrentResidentHouseId,
             personId:        personRef.id,
             role:            role,
@@ -941,7 +943,7 @@ async function _nbLoadHouseNotes(houseId) {
     emptyEl.classList.add('hidden');
 
     try {
-        var snap = await userCol('neighborHouseNotes')
+        var snap = await pplCol('neighborHouseNotes')
             .where('houseId', '==', houseId)
             .get();
 
@@ -979,7 +981,7 @@ async function _nbOpenHouseNoteModal(houseId, noteId) {
     if (noteId) {
         document.getElementById('nbHouseNoteModalTitle').textContent = 'Edit Note';
         try {
-            var snap = await userCol('neighborHouseNotes').doc(noteId).get();
+            var snap = await pplCol('neighborHouseNotes').doc(noteId).get();
             var note = snap.data() || {};
             document.getElementById('nbHouseNoteDate').value = note.date || '';
             document.getElementById('nbHouseNoteText').value = note.text || '';
@@ -1002,9 +1004,9 @@ async function _nbSaveHouseNote() {
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
         if (_nbEditingNoteId) {
-            await userCol('neighborHouseNotes').doc(_nbEditingNoteId).update({ date: date, text: text });
+            await pplCol('neighborHouseNotes').doc(_nbEditingNoteId).update({ date: date, text: text });
         } else {
-            await userCol('neighborHouseNotes').add({
+            await pplCol('neighborHouseNotes').add({
                 houseId:   _nbCurrentNoteHouseId,
                 date:      date || new Date().toISOString().split('T')[0],
                 text:      text,
@@ -1024,7 +1026,7 @@ async function _nbSaveHouseNote() {
 async function _nbDeleteHouseNote(noteId, houseId) {
     if (!confirm('Delete this note?')) return;
     try {
-        await userCol('neighborHouseNotes').doc(noteId).delete();
+        await pplCol('neighborHouseNotes').doc(noteId).delete();
         _nbLoadHouseNotes(houseId);
     } catch (e) {
         alert('Failed to delete note.');
@@ -1095,13 +1097,13 @@ async function _nbArchiveFamily(house) {
     var moveNote = document.getElementById('nbDeleteMoveNote').value.trim();
 
     // Snapshot all current residents
-    var residentsSnap = await userCol('neighborHouseResidents')
+    var residentsSnap = await pplCol('neighborHouseResidents')
         .where('houseId', '==', house.id)
         .where('archived', '==', false)
         .get();
 
     // Create archived family record
-    var archiveRef = await userCol('neighborArchivedFamilies').add({
+    var archiveRef = await pplCol('neighborArchivedFamilies').add({
         houseId:    house.id,
         address:    house.address || house.nickname || '',
         archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1113,7 +1115,7 @@ async function _nbArchiveFamily(house) {
     residentsSnap.forEach(function(d) {
         batch.update(d.ref, { archived: true, archivedGroupId: archiveRef.id });
     });
-    batch.update(userCol('neighborHouses').doc(house.id), { lastInteractionAt: null });
+    batch.update(cxRef('neighborHouses', house.id), { lastInteractionAt: null });
     await batch.commit();
 
     closeModal('nbDeleteHouseModal');
@@ -1137,7 +1139,7 @@ async function _nbLoadPreviousFamilies(houseId) {
     var container = document.getElementById('nbPreviousFamiliesContainer');
 
     try {
-        var snap = await userCol('neighborArchivedFamilies')
+        var snap = await pplCol('neighborArchivedFamilies')
             .where('houseId', '==', houseId)
             .get();
 
@@ -1188,7 +1190,7 @@ async function _nbLoadJournalMentions(houseId) {
 
     try {
         // Get current resident person IDs for this house
-        var resSnap = await userCol('neighborHouseResidents')
+        var resSnap = await pplCol('neighborHouseResidents')
             .where('houseId', '==', houseId)
             .where('archived', '==', false)
             .get();
@@ -1239,12 +1241,13 @@ function _nbBuildJournalMentionCardHtml(entry) {
 
 async function loadNeighborArchivePage(archivedGroupId) {
     try {
-        var archiveSnap = await userCol('neighborArchivedFamilies').doc(archivedGroupId).get();
+        var archiveSnap = await pplCol('neighborArchivedFamilies').doc(archivedGroupId).get();
+        _nbApplyRole('page-neighborarchive', 'neighborArchivedFamilies', archivedGroupId);
         if (!archiveSnap.exists) { window.location.hash = '#neighbors'; return; }
         var archive = Object.assign({ id: archiveSnap.id }, archiveSnap.data());
 
         // Load house for breadcrumb + name
-        var houseSnap = await userCol('neighborHouses').doc(archive.houseId).get();
+        var houseSnap = await pplCol('neighborHouses').doc(archive.houseId).get();
         var house = houseSnap.exists
             ? Object.assign({ id: houseSnap.id }, houseSnap.data())
             : { id: archive.houseId, nickname: 'House', neighborhoodId: '' };
@@ -1275,7 +1278,7 @@ async function loadNeighborArchivePage(archivedGroupId) {
         }
 
         // Load residents in this archive group
-        var residentsSnap = await userCol('neighborHouseResidents')
+        var residentsSnap = await pplCol('neighborHouseResidents')
             .where('archivedGroupId', '==', archivedGroupId)
             .get();
 
@@ -1340,7 +1343,7 @@ function _nbBuildArchivedResidentHtml(resident, person) {
 
 async function _nbUpdateHouseLastInteraction(personId, date) {
     try {
-        var snap = await userCol('neighborHouseResidents')
+        var snap = await pplCol('neighborHouseResidents')
             .where('personId', '==', personId)
             .where('archived', '==', false)
             .get();
@@ -1349,7 +1352,7 @@ async function _nbUpdateHouseLastInteraction(personId, date) {
         var ts = date ? new Date(date) : new Date();
         var batch = db.batch();
         snap.forEach(function(d) {
-            batch.update(userCol('neighborHouses').doc(d.data().houseId), { lastInteractionAt: ts });
+            batch.update(cxRef('neighborHouses', d.data().houseId), { lastInteractionAt: ts });
         });
         await batch.commit();
 
@@ -1429,4 +1432,10 @@ function _nbCompressMapImage(file) {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+/** A neighborhood, house or archived family shared with me as View only: hide the page's edit controls (CSS .cx-viewonly). */
+function _nbApplyRole(pageId, collection, id) {
+    var page = document.getElementById(pageId);
+    if (page) page.classList.toggle('cx-viewonly', cxRoleOf(collection, id) === 'view');
 }

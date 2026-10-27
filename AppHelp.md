@@ -3398,6 +3398,8 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 **Sharing a contact (Share…)**: on a contact's page, tap **Share…** (next to Edit) to share that contact — with the family members or staff under them, and their interactions, important dates, photos and facts — with one of your groups as **View only** or **Can edit**. A backup file downloads first and you stay the owner; the rest of the app keeps finding the contact. People you share with see it under **Shared with me** on their Contacts page. Editors can change the contact and add interactions, dates, photos, facts and family members; only you can delete, share or stop sharing it. Not yet: shared contacts are not in search or the Data backup.
 ---
 
+**Sharing all contacts (Share all…)**: the **Share all…** button at the top of Contacts shares ALL your contacts (except "Me") — with their interactions, dates, photos and facts — and your whole **Neighborhood** (neighborhoods, houses, residents, notes) with one of your groups as **View only** or **Can edit**. Contacts you already share one at a time stay as they are. Contacts and neighbors you add later are shared automatically. A backup file downloads first and you stay the owner. The people you share with see your contacts under **Shared with me** on Contacts, and your neighborhoods in Neighbors. Only you can delete contacts or stop sharing (tap **Sharing all…** to change who or stop). The Neighborhood can only be shared together with all contacts, not on its own. Not yet: shared contacts are not in search or the Data backup.
+
 ## screen:neighbors
 
 ### Quick Help
