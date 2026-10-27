@@ -1143,6 +1143,9 @@ async function runBackup() {
         // And the budgets I have shared (sharebudget.js bgRestoreShared)
         try { var sharedBudgets = await bgBackupShared(); if (sharedBudgets) dataPayload.sharedBudgets = sharedBudgets; }
         catch (shErr) { console.error('Backup: shared budgets not included:', shErr); }
+        // And the checklists I have shared (sharechecklist.js clRestoreShared)
+        try { var sharedLists = await clBackupShared(); if (sharedLists) dataPayload.sharedChecklists = sharedLists; }
+        catch (shErr) { console.error('Backup: shared checklists not included:', shErr); }
         // And the Financial people and the Household I have shared (sharefin.js finRestoreShared)
         var finLockedNote = '';
         try {
@@ -1582,6 +1585,7 @@ async function runRestore(payload) {
     if (payload.type === 'data'   && payload.sharedHouse)       await shRestoreSharedHouse(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedCredentials) await shRestoreSharedCredentials(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedBudgets)     await bgRestoreShared(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedChecklists) await clRestoreShared(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedFinancial)   await finRestoreShared(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedHousePhotos) await shRestoreSharedHousePhotos(payload, restoreLog);
 

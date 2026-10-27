@@ -310,3 +310,36 @@ async function clRefreshRunNow(runId) {
         if (d.exists) _clLiveApply(runId, d.data()); else _clLiveReloadAll();
     } catch (e) { console.error(e); }
 }
+
+// ---------- Backup and restore of my shared lists (K3) ----------
+// Added to the Data backup file as the extra key sharedChecklists. The private backup of checklistRuns
+// misses them because the list lives in the share. Restored as PRIVATE lists, skipping any list that is
+// still shared (share it again if you want).
+
+async function clBackupShared() {
+    await clShLoad(true);
+    var ids = Object.keys(_clOwn);
+    if (!ids.length) return null;
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+        var d = await shareCol(_clOwn[ids[i]].shareId, 'checklistRuns').doc(ids[i]).get();
+        if (!d.exists) continue;
+        out.push({ shareId: _clOwn[ids[i]].shareId, share: backupSerialize(_clOwn[ids[i]].data), run: { id: d.id, data: backupSerialize(d.data()) } });
+    }
+    return out;
+}
+
+async function clRestoreShared(payload, log) {
+    var list = payload.sharedChecklists || [];
+    if (!list.length) return;
+    await clShLoad(true);
+    var restored = 0, skipped = 0;
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (_clOwn[e.run.id]) { skipped++; continue; }
+        await userCol('checklistRuns').doc(e.run.id).set(e.run.data);
+        restored++;
+    }
+    if (restored) log('✓ ' + restored + ' shared checklist(s) restored as your private checklists. Share them again if you want.', '#2e7d32');
+    if (skipped) log('• ' + skipped + ' shared checklist(s) are still shared — left as they are.');
+}
