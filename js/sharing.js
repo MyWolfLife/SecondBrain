@@ -1458,8 +1458,9 @@ function yShowWho(titleElId, data) {
  */
 async function yPlaces() {
     await yardReady();
+    await houseReady();
     var ids = [null];
-    _yardOptions.forEach(function(o) { if (o.id) ids.push(o.id); });
+    _yardOptions.concat(_houseOptions).forEach(function(o) { if (o.id && ids.indexOf(o.id) === -1) ids.push(o.id); });
     return ids;
 }
 
@@ -1793,6 +1794,8 @@ async function shRenderHouseSwitcher() {
     var active = window.houseShareId || 'private';
     var cur = _houseOptions.filter(function(o) { return (o.id || 'private') === active; })[0] || _houseOptions[0];
     if (title) title.textContent = cur.label === 'My house' ? 'My House' : cur.label.replace(/^./, function(c) { return c.toUpperCase(); });
+    var wgw = document.getElementById('houseWhoGetsWhatCard');     // Who Gets What is the owner's alone
+    if (wgw) wgw.style.display = hHideBeneficiary() ? 'none' : '';
     var banner = document.getElementById('houseRoleBanner');
     if (banner) {
         var who = cur.id && cur.data && cur.data.names ? (cur.data.names[cur.data.ownerUid] || 'someone') : '';
@@ -1908,4 +1911,21 @@ function hShowWho(titleElId, data) {
     var text = window.houseShareId ? shWhoLabel(data, window.houseShareData) : '';
     el.textContent = text;
     el.style.display = text ? '' : 'none';
+}
+
+// ─── The person's OWN house, whatever other houses are open (H3) ─────────────
+
+/**
+ * A house collection in the person's OWN house (private, or the share it moved into), regardless of
+ * which house is open on screen. For things that belong to the owner only: Who Gets What, and the
+ * location of a collection item.
+ */
+function hOwnCol(name) {
+    var own = _houseOptions[0];
+    return dataCol(name, own && own.id ? own.id : null);
+}
+
+/** Collection by name in the person's own world: own house for house collections, private area otherwise. */
+function hOwnNameCol(name) {
+    return HOUSE_WHOLE_COLLECTIONS.indexOf(name) !== -1 ? hOwnCol(name) : userCol(name);
 }

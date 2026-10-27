@@ -136,11 +136,11 @@ async function _sbBuildContext() {
             yardCol('weeds').get(),
             yardCol('chemicals').get(),
             userCol('journalCategories').get(),
-            userCol('floors').get(),
-            userCol('rooms').get(),
-            userCol('things').get(),
-            userCol('subThings').get(),
-            userCol('subThingItems').get(),
+            houseCol('floors').get(),
+            houseCol('rooms').get(),
+            houseCol('things').get(),
+            houseCol('subThings').get(),
+            houseCol('subThingItems').get(),
             userCol('garageRooms').get(),
             userCol('garageThings').get(),
             userCol('garageSubThings').get(),
@@ -2192,7 +2192,7 @@ async function _sbWrite(action, payload) {
             var newDoc = { name: payload.name || '', notes: payload.notes || '', createdAt: ts };
             newDoc[mapping.parentField] = payload.parentId || '';
 
-            ref = await userCol(mapping.col).add(newDoc);
+            ref = await yNameCol(mapping.col).add(newDoc);
             newId = ref.id;
 
             // Resolve photo targetType for the new entity
@@ -2232,6 +2232,13 @@ async function _sbWrite(action, payload) {
             var mvCollection = mvCollMap[mvItemType];
             if (!mvCollection) throw new Error('MOVE_THING: unknown itemType "' + mvItemType + '"');
 
+            // While the House is shared it cannot exchange things with the (private) Garage or Structures.
+            if (window.houseShareId) {
+                var mvSrcHouse = ['thing', 'subthing', 'item'].indexOf(mvItemType) !== -1;
+                var mvDstHouse = ['room', 'thing', 'subthing'].indexOf(mvDestType) !== -1;
+                if (mvSrcHouse !== mvDstHouse) throw new Error('While your House is shared, things cannot be moved between the House and the Garage or Structures.');
+            }
+
             var mvIsSubThing = mvItemType.indexOf('subthing') !== -1 && mvItemType !== 'subthing';
             var mvIsItem     = mvItemType === 'item';
             var mvIsHouseSubThing = mvItemType === 'subthing';
@@ -2240,10 +2247,10 @@ async function _sbWrite(action, payload) {
                 var mvItemId = mvItemIds[k];
                 if (mvIsItem) {
                     // Item: update subThingId to point to the new parent subThing
-                    await userCol(mvCollection).doc(mvItemId).update({ subThingId: mvDestId });
+                    await yNameCol(mvCollection).doc(mvItemId).update({ subThingId: mvDestId });
                 } else if (mvIsHouseSubThing || mvIsSubThing) {
                     // SubThing (house or garage/structure): update thingId to point to the new parent thing
-                    await userCol(mvCollection).doc(mvItemId).update({ thingId: mvDestId });
+                    await yNameCol(mvCollection).doc(mvItemId).update({ thingId: mvDestId });
                 } else {
                     // Thing: clear old parent fields, set new one
                     var mvUpdate = {};
@@ -2254,7 +2261,7 @@ async function _sbWrite(action, payload) {
                     } else if (mvDestType === 'structure') {
                         mvUpdate.structureId = mvDestId;
                     }
-                    await userCol(mvCollection).doc(mvItemId).update(mvUpdate);
+                    await yNameCol(mvCollection).doc(mvItemId).update(mvUpdate);
                 }
             }
 

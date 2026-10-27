@@ -631,7 +631,7 @@ async function askAiThingPrompt(kind, id) {
         askAiHome(),
         askAiRelatedRecords(k.targetType, id),
         childDef ? yNameCol(childDef.col).where(childDef.field, '==', id).get().catch(function() { return null; }) : null,
-        data.beneficiaryContactId ? userCol('people').doc(data.beneficiaryContactId).get().catch(function() { return null; }) : null
+        (data.beneficiaryContactId && !(HOUSE_WHOLE_COLLECTIONS.indexOf(k.col) !== -1 && hHideBeneficiary())) ? userCol('people').doc(data.beneficiaryContactId).get().catch(function() { return null; }) : null
     ]);
     var where = results[0], home = results[1], rel = results[2], children = results[3], beneficiary = results[4];
 

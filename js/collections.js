@@ -1223,7 +1223,7 @@ function renderCollectionItemLocation(container, itemData, itemId) {
         return;
     }
 
-    userCol(colName).doc(locRef.locId).get()
+    hOwnNameCol(colName).doc(locRef.locId).get()
         .then(function(doc) {
             var locName = doc.exists ? (doc.data().name || 'Unknown')
                         : (window.currentShareId && !shIsOwner() ? 'Private location' : 'Not found');
@@ -1331,8 +1331,8 @@ function openCollectionLocationModal(itemId) {
 
     // Load all three groups
     Promise.all([
-        userCol('rooms').orderBy('name').get(),
-        userCol('things').orderBy('name').get(),
+        hOwnCol('rooms').orderBy('name').get(),
+        hOwnCol('things').orderBy('name').get(),
         userCol('garageRooms').orderBy('order').get()
     ])
     .then(function(results) {

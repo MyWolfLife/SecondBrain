@@ -240,15 +240,15 @@ async function clResolveContextFilter(ctx) {
     } else if (ctx.type === 'floor') {
         // Fetch floor name if missing (refresh case)
         if (!result.name && ctx.id) {
-            var floorDoc = await userCol('floors').doc(ctx.id).get();
+            var floorDoc = await houseCol('floors').doc(ctx.id).get();
             if (floorDoc.exists) result.name = floorDoc.data().name;
         }
         // Floor shows itself + all rooms on that floor
-        var rSnap = await userCol('rooms').where('floorId', '==', ctx.id).get();
+        var rSnap = await houseCol('rooms').where('floorId', '==', ctx.id).get();
         result.filterIds = rSnap.docs.map(function(d) { return d.id; });
 
     } else if (ctx.type === 'room' && !result.name && ctx.id) {
-        var roomDoc = await userCol('rooms').doc(ctx.id).get();
+        var roomDoc = await houseCol('rooms').doc(ctx.id).get();
         if (roomDoc.exists) result.name = roomDoc.data().name;
 
     } else if (ctx.type === 'vehicle' && !result.name && ctx.id) {
@@ -2343,12 +2343,12 @@ async function clPopulateTargetPicker(ctx, existing) {
         houseOpt.textContent = 'House (general)';
         select.appendChild(houseOpt);
 
-        var floorsSnap = await userCol('floors').get();
+        var floorsSnap = await houseCol('floors').get();
         var floors = floorsSnap.docs
             .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
             .sort(function(a, b) { return (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name); });
 
-        var roomsSnap = await userCol('rooms').get();
+        var roomsSnap = await houseCol('rooms').get();
         var roomsByFloor = {};
         roomsSnap.forEach(function(doc) {
             var r = Object.assign({ id: doc.id }, doc.data());

@@ -92,9 +92,9 @@ function loadBeneficiariesPage() {
 
     // Query all 9 collections for direct beneficiary assignments, collect unique contact IDs
     Promise.all([
-        userCol('things').get(),
-        userCol('subThings').get(),
-        userCol('subThingItems').get(),
+        hOwnCol('things').get(),
+        hOwnCol('subThings').get(),
+        hOwnCol('subThingItems').get(),
         userCol('garageThings').get(),
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),
@@ -212,9 +212,9 @@ function _loadBeneficiaryResults(contactId, contactName) {
     resultEl.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
     Promise.all([
-        userCol('things').get(),
-        userCol('subThings').get(),
-        userCol('subThingItems').get(),
+        hOwnCol('things').get(),
+        hOwnCol('subThings').get(),
+        hOwnCol('subThingItems').get(),
         userCol('garageThings').get(),
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),
@@ -254,9 +254,9 @@ function _loadAllBeneficiaryResults() {
     resultEl.innerHTML = '<p class="empty-state">Loading\u2026</p>';
 
     Promise.all([
-        userCol('things').get(),
-        userCol('subThings').get(),
-        userCol('subThingItems').get(),
+        hOwnCol('things').get(),
+        hOwnCol('subThings').get(),
+        hOwnCol('subThingItems').get(),
         userCol('garageThings').get(),
         userCol('garageSubThings').get(),
         userCol('structureThings').get(),

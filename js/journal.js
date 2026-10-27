@@ -3233,7 +3233,7 @@ async function loadAllActivityFeed() {
             yReadAll('plants'),
             yReadAll('weeds'),
             userCol('vehicles').get(),
-            userCol('rooms').get(),
+            hReadAll('rooms'),
             userCol('concerns').get(),
             userCol('conditions').get(),
             userCol('lifeEvents').get(),
