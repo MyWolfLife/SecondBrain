@@ -84,7 +84,7 @@ function loadMoveDestinations() {
 
     // Load all three destination types in parallel
     Promise.all([
-        userCol('rooms').orderBy('name').get(),
+        houseCol('rooms').orderBy('name').get(),
         userCol('garageRooms').orderBy('order').get(),
         userCol('structures').where('isStorage', '==', true).orderBy('name').get()
     ]).then(function(results) {
@@ -95,17 +95,17 @@ function loadMoveDestinations() {
         listEl.innerHTML = '';
 
         // ---- House rooms ----
-        if (!roomsSnap.empty) {
+        if (!roomsSnap.empty && _mvAllow(true)) {
             listEl.appendChild(buildMoveDestGroup('\uD83C\uDFE0 House', roomsSnap, 'room'));
         }
 
         // ---- Garage rooms ----
-        if (!garageSnap.empty) {
+        if (!garageSnap.empty && _mvAllow(false)) {
             listEl.appendChild(buildMoveDestGroup('\uD83D\uDE97 Garage', garageSnap, 'garageroom'));
         }
 
         // ---- Storage structures ----
-        if (!structuresSnap.empty) {
+        if (!structuresSnap.empty && _mvAllow(false)) {
             listEl.appendChild(buildMoveDestGroup('\uD83C\uDFDA\uFE0F Structures', structuresSnap, 'structure'));
         }
 
@@ -175,19 +175,19 @@ function loadMoveThingSearchList() {
 
     // Load all things from all three collections in parallel
     Promise.all([
-        userCol('things').get(),
+        houseCol('things').get(),
         userCol('garageThings').get(),
         userCol('structureThings').get()
     ]).then(function(results) {
         var allThings = [];
 
-        results[0].forEach(function(doc) {
+        if (_mvAllow(true)) results[0].forEach(function(doc) {
             allThings.push({ id: doc.id, name: doc.data().name || '', context: 'House', targetType: 'thing' });
         });
-        results[1].forEach(function(doc) {
+        if (_mvAllow(false)) results[1].forEach(function(doc) {
             allThings.push({ id: doc.id, name: doc.data().name || '', context: 'Garage', targetType: 'garagething' });
         });
-        results[2].forEach(function(doc) {
+        if (_mvAllow(false)) results[2].forEach(function(doc) {
             allThings.push({ id: doc.id, name: doc.data().name || '', context: 'Structure', targetType: 'structurething' });
         });
 
@@ -353,7 +353,7 @@ async function executeMoveThingToDestination(thingId, sourceType, destType, dest
         update.structureId = destId;
     }
 
-    await userCol(collection).doc(thingId).update(update);
+    await yNameCol(collection).doc(thingId).update(update);
 }
 
 /**
@@ -366,7 +366,7 @@ async function executeMoveThingToDestination(thingId, sourceType, destType, dest
 async function executeMoveSubThingToThing(subThingId, newThingId) {
     // The subthing collection is determined by sourceType stored at open time
     var collection = subThingSourceTypeToCollection(moveThing_sourceType);
-    await userCol(collection).doc(subThingId).update({ thingId: newThingId });
+    await yNameCol(collection).doc(subThingId).update({ thingId: newThingId });
 }
 
 /**
@@ -388,7 +388,7 @@ async function executeMoveSubThingToThing(subThingId, newThingId) {
 async function executePromoteSubThingToThing(subThingId, sourceType, destType, destId) {
     // Load the subthing document
     var subCollection = subThingSourceTypeToCollection(sourceType);
-    var subDoc = await userCol(subCollection).doc(subThingId).get();
+    var subDoc = await yNameCol(subCollection).doc(subThingId).get();
     if (!subDoc.exists) throw new Error('Subthing not found.');
     var subData = subDoc.data();
 
@@ -422,7 +422,7 @@ async function executePromoteSubThingToThing(subThingId, sourceType, destType, d
     }
 
     // Create the new thing doc
-    var newRef = await userCol(thingCollection).add(newThingData);
+    var newRef = await yNameCol(thingCollection).add(newThingData);
     var newThingId = newRef.id;
 
     // Migrate all cross-entity docs from old subthing to new thing
@@ -433,13 +433,13 @@ async function executePromoteSubThingToThing(subThingId, sourceType, destType, d
 
     for (var i = 0; i < crossEntityCollections.length; i++) {
         var colName = crossEntityCollections[i];
-        var snap = await userCol(colName)
+        var snap = await (colName === 'calendarEvents' ? userCol(colName) : yTargetCol(colName, sourceType))
             .where('targetType', '==', sourceType)
             .where('targetId',   '==', subThingId)
             .get();
 
         for (var j = 0; j < snap.docs.length; j++) {
-            await userCol(colName).doc(snap.docs[j].id).update({
+            await snap.docs[j].ref.update({
                 targetType: newTargetType,
                 targetId:   newThingId
             });
@@ -447,7 +447,7 @@ async function executePromoteSubThingToThing(subThingId, sourceType, destType, d
     }
 
     // Delete the old subthing doc
-    await userCol(subCollection).doc(subThingId).delete();
+    await yNameCol(subCollection).doc(subThingId).delete();
 
     return newThingId;
 }
@@ -506,3 +506,14 @@ document.getElementById('moveThingConfirmBtn').addEventListener('click', functio
 document.getElementById('moveThingCancelBtn').addEventListener('click', function() {
     closeModal('moveThingModal');
 });
+
+/**
+ * While the House is shared, a thing cannot move between the House and the Garage / Structures
+ * (one side is shared, the other private), so only destinations on the same side are offered.
+ * @param {boolean} destIsHouse - true when the destination is a House room / thing
+ */
+function _mvAllow(destIsHouse) {
+    if (!window.houseShareId) return true;
+    var sourceIsHouse = ['thing', 'subthing', 'item'].indexOf(moveThing_sourceType) !== -1;
+    return destIsHouse === sourceIsHouse;
+}

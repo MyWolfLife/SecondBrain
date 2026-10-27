@@ -503,29 +503,29 @@ function handleRoute() {
     } else if (page === 'floor' && id) {
         window.clLastEntityType = 'floor';
         showPage('floor');
-        loadFloorDetail(id);
+        houseEnsureFor('floors', id).then(function() { loadFloorDetail(id); });
     } else if (page === 'room' && id) {
         window.clLastEntityType = 'room';
         showPage('room');
-        loadRoomDetail(id);
+        houseEnsureFor('rooms', id).then(function() { loadRoomDetail(id); });
     } else if (page === 'thing' && id) {
         showPage('thing');
-        loadThingDetail(id);
+        houseEnsureFor('things', id).then(function() { loadThingDetail(id); });
     } else if (page === 'floorplan' && id) {
         showPage('floorplan');
-        loadFloorPlanPage(id);
+        houseEnsureFor('floors', id).then(function() { loadFloorPlanPage(id); });
     } else if (page === 'floorplanitem' && id) {
         showPage('floorplanitem');
-        loadFloorPlanItemPage(id, parts[2], parts[3]);
+        houseEnsureFor('floorPlans', id).then(function() { loadFloorPlanItemPage(id, parts[2], parts[3]); });
     } else if (page === 'panel' && id) {
         showPage('panel');
-        loadPanelDetail(id);
+        houseEnsureFor('breakerPanels', id).then(function() { loadPanelDetail(id); });
     } else if (page === 'subthing' && id) {
         showPage('subthing');
-        loadSubThingDetail(id);
+        houseEnsureFor('subThings', id).then(function() { loadSubThingDetail(id); });
     } else if (page === 'item' && id) {
         showPage('item');
-        loadItemDetail(id);
+        houseEnsureFor('subThingItems', id).then(function() { loadItemDetail(id); });
     } else if (page === 'checklist-focus') {
         // #checklist-focus/{runId}/{targetType}/{targetId?}
         // Sets a focus run ID so loadChecklistsPage() auto-expands it.

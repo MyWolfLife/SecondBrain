@@ -42,57 +42,57 @@ var thingsActiveTag      = null;  // Currently selected tag name, or null
 async function getHouseContextLabel(targetType, targetId) {
     try {
         if (targetType === 'floor') {
-            var floorDoc = await userCol('floors').doc(targetId).get();
+            var floorDoc = await houseCol('floors').doc(targetId).get();
             if (!floorDoc.exists) return null;
             return 'House \u203a ' + floorDoc.data().name;
 
         } else if (targetType === 'room') {
-            var roomDoc = await userCol('rooms').doc(targetId).get();
+            var roomDoc = await houseCol('rooms').doc(targetId).get();
             if (!roomDoc.exists) return null;
             var roomData = roomDoc.data();
-            var floorDoc2 = await userCol('floors').doc(roomData.floorId).get();
+            var floorDoc2 = await houseCol('floors').doc(roomData.floorId).get();
             var floorName = floorDoc2.exists ? floorDoc2.data().name : 'Floor';
             return 'House \u203a ' + floorName + ' \u203a ' + roomData.name;
 
         } else if (targetType === 'thing') {
-            var thingDoc = await userCol('things').doc(targetId).get();
+            var thingDoc = await houseCol('things').doc(targetId).get();
             if (!thingDoc.exists) return null;
             var thingData = thingDoc.data();
-            var roomDoc2 = await userCol('rooms').doc(thingData.roomId).get();
+            var roomDoc2 = await houseCol('rooms').doc(thingData.roomId).get();
             if (!roomDoc2.exists) return 'House \u203a \u2026 \u203a ' + thingData.name;
             var roomData2 = roomDoc2.data();
-            var floorDoc3 = await userCol('floors').doc(roomData2.floorId).get();
+            var floorDoc3 = await houseCol('floors').doc(roomData2.floorId).get();
             var floorName2 = floorDoc3.exists ? floorDoc3.data().name : 'Floor';
             return 'House \u203a ' + floorName2 + ' \u203a ' + roomData2.name + ' \u203a ' + thingData.name;
 
         } else if (targetType === 'subthing') {
-            var stDoc = await userCol('subThings').doc(targetId).get();
+            var stDoc = await houseCol('subThings').doc(targetId).get();
             if (!stDoc.exists) return null;
             var stData   = stDoc.data();
-            var thingDoc = await userCol('things').doc(stData.thingId).get();
+            var thingDoc = await houseCol('things').doc(stData.thingId).get();
             if (!thingDoc.exists) return 'House \u203a \u2026 \u203a ' + stData.name;
             var tData    = thingDoc.data();
-            var rDoc2    = await userCol('rooms').doc(tData.roomId).get();
+            var rDoc2    = await houseCol('rooms').doc(tData.roomId).get();
             if (!rDoc2.exists) return 'House \u203a \u2026 \u203a ' + tData.name + ' \u203a ' + stData.name;
             var rData2   = rDoc2.data();
-            var fDoc2    = await userCol('floors').doc(rData2.floorId).get();
+            var fDoc2    = await houseCol('floors').doc(rData2.floorId).get();
             var fName2   = fDoc2.exists ? fDoc2.data().name : 'Floor';
             return 'House \u203a ' + fName2 + ' \u203a ' + rData2.name + ' \u203a ' + tData.name + ' \u203a ' + stData.name;
 
         } else if (targetType === 'item') {
-            var itemDoc = await userCol('subThingItems').doc(targetId).get();
+            var itemDoc = await houseCol('subThingItems').doc(targetId).get();
             if (!itemDoc.exists) return null;
             var itemData2 = itemDoc.data();
-            var stDoc2    = await userCol('subThings').doc(itemData2.subThingId).get();
+            var stDoc2    = await houseCol('subThings').doc(itemData2.subThingId).get();
             if (!stDoc2.exists) return 'House \u203a \u2026 \u203a ' + itemData2.name;
             var stData2   = stDoc2.data();
-            var tDoc2     = await userCol('things').doc(stData2.thingId).get();
+            var tDoc2     = await houseCol('things').doc(stData2.thingId).get();
             if (!tDoc2.exists) return 'House \u203a \u2026 \u203a ' + stData2.name + ' \u203a ' + itemData2.name;
             var tData2    = tDoc2.data();
-            var rDoc3     = await userCol('rooms').doc(tData2.roomId).get();
+            var rDoc3     = await houseCol('rooms').doc(tData2.roomId).get();
             if (!rDoc3.exists) return 'House \u203a \u2026 \u203a ' + tData2.name + ' \u203a ' + stData2.name + ' \u203a ' + itemData2.name;
             var rData3    = rDoc3.data();
-            var fDoc3     = await userCol('floors').doc(rData3.floorId).get();
+            var fDoc3     = await houseCol('floors').doc(rData3.floorId).get();
             var fName3    = fDoc3.exists ? fDoc3.data().name : 'Floor';
             return 'House \u203a ' + fName3 + ' \u203a ' + rData3.name + ' \u203a ' + tData2.name + ' \u203a ' + stData2.name + ' \u203a ' + itemData2.name;
         }
@@ -149,12 +149,12 @@ function loadHousePage() {
     var in30Str  = in30.toISOString().slice(0, 10);
 
     // Run all six queries in parallel
-    var floorsQ   = userCol('floors').orderBy('floorNumber', 'asc').get();
-    var roomsQ    = userCol('rooms').get();
-    var thingsQ   = userCol('things').get();
-    var problemsQ = userCol('problems')
+    var floorsQ   = houseCol('floors').orderBy('floorNumber', 'asc').get();
+    var roomsQ    = houseCol('rooms').get();
+    var thingsQ   = houseCol('things').get();
+    var problemsQ = houseCol('problems')
         .where('targetType', 'in', ['floor', 'room', 'thing']).get();
-    var projectsQ = userCol('projects')
+    var projectsQ = houseCol('projects')
         .where('targetType', 'in', ['floor', 'room', 'thing']).get();
     var eventsQ   = userCol('calendarEvents')
         .where('targetType', 'in', ['floor', 'room', 'thing']).get();
@@ -557,10 +557,10 @@ async function loadHouseProjectsPage() {
 
     try {
         var [projectSnap, floorSnap, roomSnap, thingSnap] = await Promise.all([
-            userCol('projects').where('targetType', 'in', ['floor', 'room', 'thing']).get(),
-            userCol('floors').get(),
-            userCol('rooms').get(),
-            userCol('things').get()
+            houseCol('projects').where('targetType', 'in', ['floor', 'room', 'thing']).get(),
+            houseCol('floors').get(),
+            houseCol('rooms').get(),
+            houseCol('things').get()
         ]);
 
         var floorById = {};
@@ -647,10 +647,10 @@ async function loadHouseProblemsPage() {
 
     try {
         var [problemSnap, floorSnap, roomSnap, thingSnap] = await Promise.all([
-            userCol('problems').where('targetType', 'in', ['floor', 'room', 'thing']).get(),
-            userCol('floors').get(),
-            userCol('rooms').get(),
-            userCol('things').get()
+            houseCol('problems').where('targetType', 'in', ['floor', 'room', 'thing']).get(),
+            houseCol('floors').get(),
+            houseCol('rooms').get(),
+            houseCol('things').get()
         ]);
 
         // Build lookup maps
@@ -742,7 +742,7 @@ function buildFloorCard(id, data, roomCount) {
  * Called by app.js when the route is #floor/{id}.
  */
 function loadFloorDetail(floorId) {
-    userCol('floors').doc(floorId).get()
+    houseCol('floors').doc(floorId).get()
         .then(function(doc) {
             if (!doc.exists) {
                 window.location.hash = '#house';
@@ -760,6 +760,7 @@ function loadFloorDetail(floorId) {
  */
 function renderFloorDetail(floor) {
     document.getElementById('floorTitle').textContent = floor.name || 'Floor';
+    hShowWho('floorTitle', floor);
 
     var meta = document.getElementById('floorMeta');
     if (floor.floorNumber !== undefined && floor.floorNumber !== null) {
@@ -790,7 +791,7 @@ function renderFloorDetail(floor) {
 
     // Set button text: "View Floor Plan" if a plan exists, "Add Floor Plan" if not.
     // loadFloorPlanPage automatically opens in edit mode when no plan exists.
-    userCol('floorPlans').doc(floor.id).get().then(function(planDoc) {
+    houseCol('floorPlans').doc(floor.id).get().then(function(planDoc) {
         var btn = document.getElementById('editFloorPlanBtn');
         if (btn) btn.textContent = planDoc.exists ? 'View Floor Plan' : 'Add Floor Plan';
         var emptyMsg = document.getElementById('floorPlanThumbnailEmpty');
@@ -859,7 +860,7 @@ function loadRoomsList(floorId) {
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
 
-    userCol('rooms')
+    houseCol('rooms')
         .where('floorId', '==', floorId)
         .get()
         .then(function(snapshot) {
@@ -892,7 +893,7 @@ function loadRoomsList(floorId) {
                         // Persist the new order — write sortOrder = position index to each room
                         var batch = db.batch();
                         container.querySelectorAll('[data-id]').forEach(function(card, index) {
-                            var docRef = userCol('rooms').doc(card.dataset.id);
+                            var docRef = houseCol('rooms').doc(card.dataset.id);
                             batch.update(docRef, { sortOrder: index });
                         });
                         batch.commit().catch(function(err) {
@@ -956,7 +957,7 @@ function buildRoomTypeBadge(type) {
  * Called by app.js when the route is #room/{id}.
  */
 function loadRoomDetail(roomId) {
-    userCol('rooms').doc(roomId).get()
+    houseCol('rooms').doc(roomId).get()
         .then(function(doc) {
             if (!doc.exists) {
                 window.location.hash = '#house';
@@ -965,7 +966,7 @@ function loadRoomDetail(roomId) {
             currentRoom = window.currentRoom = Object.assign({ id: doc.id }, doc.data());
 
             // Also load the parent floor so we can show it in the breadcrumb
-            return userCol('floors').doc(currentRoom.floorId).get()
+            return houseCol('floors').doc(currentRoom.floorId).get()
                 .then(function(floorDoc) {
                     currentFloor = floorDoc.exists
                         ? Object.assign({ id: floorDoc.id }, floorDoc.data())
@@ -982,6 +983,7 @@ function loadRoomDetail(roomId) {
  */
 function renderRoomDetail(room, floor) {
     document.getElementById('roomTitle').textContent = room.name || 'Room';
+    hShowWho('roomTitle', room);
 
     // Meta: floor name + type badge
     var meta = document.getElementById('roomMeta');
@@ -1132,7 +1134,7 @@ async function loadFpItemRollup(scopeType, scopeId, floorId, containerId) {
 
     try {
         // 1. Load the floor plan doc for this floor
-        var planDoc = await userCol('floorPlans').doc(floorId).get();
+        var planDoc = await houseCol('floorPlans').doc(floorId).get();
         if (!planDoc.exists) return;
         var plan = planDoc.data();
         var planId = floorId;
@@ -1179,8 +1181,8 @@ async function loadFpItemRollup(scopeType, scopeId, floorId, containerId) {
 
         // 3. Query open problems and active projects in parallel
         var results = await Promise.all([
-            userCol('problems').where('targetType', 'in', FP_ITEM_TYPES).where('status', '==', 'open').get(),
-            userCol('projects').where('targetType', 'in', FP_ITEM_TYPES).get()
+            houseCol('problems').where('targetType', 'in', FP_ITEM_TYPES).where('status', '==', 'open').get(),
+            houseCol('projects').where('targetType', 'in', FP_ITEM_TYPES).get()
         ]);
         var problemSnap = results[0];
         var projectSnap = results[1];
@@ -1238,7 +1240,7 @@ async function loadFpItemRollupForHouse(containerId) {
 
     try {
         // 1. Load all floors to get their IDs
-        var floorSnap = await userCol('floors').get();
+        var floorSnap = await houseCol('floors').get();
         if (floorSnap.empty) return;
 
         var floorIds = [];
@@ -1246,7 +1248,7 @@ async function loadFpItemRollupForHouse(containerId) {
 
         // 2. Load all floorPlan docs in parallel
         var planDocs = await Promise.all(
-            floorIds.map(function(fid) { return userCol('floorPlans').doc(fid).get(); })
+            floorIds.map(function(fid) { return houseCol('floorPlans').doc(fid).get(); })
         );
 
         // 3. Collect all items across every floor plan
@@ -1275,8 +1277,8 @@ async function loadFpItemRollupForHouse(containerId) {
 
         // 4. Query open problems and active projects in parallel
         var results = await Promise.all([
-            userCol('problems').where('targetType', 'in', FP_ITEM_TYPES).where('status', '==', 'open').get(),
-            userCol('projects').where('targetType', 'in', FP_ITEM_TYPES).get()
+            houseCol('problems').where('targetType', 'in', FP_ITEM_TYPES).where('status', '==', 'open').get(),
+            houseCol('projects').where('targetType', 'in', FP_ITEM_TYPES).get()
         ]);
         var problemSnap = results[0];
         var projectSnap = results[1];
@@ -1346,7 +1348,7 @@ async function loadRoomFloorPlanItems(roomId, floorId) {
 
     try {
         // The floorPlans doc ID is the same as the floor's Firestore ID
-        var planDoc = await userCol('floorPlans').doc(floorId).get();
+        var planDoc = await houseCol('floorPlans').doc(floorId).get();
         if (!planDoc.exists) {
             if (emptyState) emptyState.textContent = 'No floor plan found for this floor.';
             return;
@@ -1518,7 +1520,7 @@ function loadRoomElectricalControls(roomId) {
     if (!container) return;
     container.innerHTML = '';
 
-    userCol('floorPlans').get()
+    houseCol('floorPlans').get()
         .then(function(snap) {
             var matches = [];
 
@@ -1691,7 +1693,7 @@ document.getElementById('floorModalSaveBtn').addEventListener('click', function(
     var editId = modal.dataset.editId;
 
     if (mode === 'edit' && editId) {
-        userCol('floors').doc(editId).update(floorData)
+        houseCol('floors').doc(editId).update(floorData)
             .then(function() {
                 closeModal('floorModal');
                 if (window.location.hash.startsWith('#floor/')) {
@@ -1703,7 +1705,7 @@ document.getElementById('floorModalSaveBtn').addEventListener('click', function(
             .catch(function(err) { console.error('Update floor error:', err); });
     } else {
         floorData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        userCol('floors').add(floorData)
+        houseCol('floors').add(floorData)
             .then(function() {
                 closeModal('floorModal');
                 loadHousePage();
@@ -1721,14 +1723,14 @@ document.getElementById('floorModalDeleteBtn').addEventListener('click', functio
     if (!editId) return;
 
     // Block delete if the floor has rooms
-    userCol('rooms').where('floorId', '==', editId).limit(1).get()
+    houseCol('rooms').where('floorId', '==', editId).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 alert('This floor has rooms. Delete or move all rooms first.');
                 return;
             }
             if (!confirm('Delete this floor? This cannot be undone.')) return;
-            userCol('floors').doc(editId).delete()
+            houseCol('floors').doc(editId).delete()
                 .then(function() {
                     closeModal('floorModal');
                     window.location.hash = '#house';
@@ -1772,7 +1774,7 @@ function openRoomModal(editId, data) {
 
     // Load all floors into the "connects to" dropdown (exclude the current floor)
     connectSel.innerHTML = '<option value="">— Not specified —</option>';
-    userCol('floors').orderBy('floorNumber', 'asc').get()
+    houseCol('floors').orderBy('floorNumber', 'asc').get()
         .then(function(snap) {
             snap.forEach(function(doc) {
                 if (currentFloor && doc.id === currentFloor.id) return; // skip current floor
@@ -1811,7 +1813,7 @@ document.getElementById('roomModalSaveBtn').addEventListener('click', function()
     }
 
     if (mode === 'edit' && editId) {
-        userCol('rooms').doc(editId).update({
+        houseCol('rooms').doc(editId).update({
             name:               nameVal,
             type:               typeVal,
             connectsToFloorId:  connectsToFloorId
@@ -1832,7 +1834,7 @@ document.getElementById('roomModalSaveBtn').addEventListener('click', function()
             sortOrder:          Date.now(),
             createdAt:          firebase.firestore.FieldValue.serverTimestamp()
         };
-        userCol('rooms').add(roomData)
+        houseCol('rooms').add(roomData)
             .then(function() {
                 closeModal('roomModal');
                 loadRoomsList(currentFloor.id);
@@ -1851,7 +1853,7 @@ document.getElementById('roomModalDeleteBtn').addEventListener('click', function
 
     if (!confirm('Delete this room? This cannot be undone.')) return;
 
-    userCol('rooms').doc(editId).delete()
+    houseCol('rooms').doc(editId).delete()
         .then(function() {
             closeModal('roomModal');
             // Go back to the floor this room belonged to
@@ -1875,7 +1877,7 @@ function openMoveRoomModal() {
     var select = document.getElementById('moveRoomFloorSelect');
     select.innerHTML = '<option value="">Loading floors…</option>';
 
-    userCol('floors').orderBy('floorNumber', 'asc').get()
+    houseCol('floors').orderBy('floorNumber', 'asc').get()
         .then(function(snapshot) {
             select.innerHTML = '';
             snapshot.forEach(function(doc) {
@@ -1905,7 +1907,7 @@ document.getElementById('moveRoomSaveBtn').addEventListener('click', function() 
         return;
     }
 
-    userCol('rooms').doc(currentRoom.id).update({ floorId: newFloorId })
+    houseCol('rooms').doc(currentRoom.id).update({ floorId: newFloorId })
         .then(function() {
             closeModal('moveRoomModal');
             // Navigate to the new floor
@@ -1965,7 +1967,7 @@ function loadThingsList(roomId) {
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
 
-    userCol('things')
+    houseCol('things')
         .where('roomId', '==', roomId)
         .get()
         .then(function(snapshot) {
@@ -2043,7 +2045,7 @@ function buildThingCategoryBadge(category) {
  * Called by app.js when the route is #thing/{id}.
  */
 function loadThingDetail(thingId) {
-    userCol('things').doc(thingId).get()
+    houseCol('things').doc(thingId).get()
         .then(function(doc) {
             if (!doc.exists) {
                 window.location.hash = '#house';
@@ -2052,7 +2054,7 @@ function loadThingDetail(thingId) {
             currentThing = window.currentThing = Object.assign({ id: doc.id }, doc.data());
 
             // Load parent room, then parent floor for breadcrumb
-            return userCol('rooms').doc(currentThing.roomId).get()
+            return houseCol('rooms').doc(currentThing.roomId).get()
                 .then(function(roomDoc) {
                     currentRoom = roomDoc.exists
                         ? Object.assign({ id: roomDoc.id }, roomDoc.data())
@@ -2065,7 +2067,7 @@ function loadThingDetail(thingId) {
                         return;
                     }
 
-                    return userCol('floors').doc(floorId).get()
+                    return houseCol('floors').doc(floorId).get()
                         .then(function(floorDoc) {
                             currentFloor = floorDoc.exists
                                 ? Object.assign({ id: floorDoc.id }, floorDoc.data())
@@ -2082,6 +2084,7 @@ function loadThingDetail(thingId) {
  */
 function renderThingDetail(thing, room, floor) {
     document.getElementById('thingTitle').textContent = thing.name || 'Thing';
+    hShowWho('thingTitle', thing);
 
     var meta     = document.getElementById('thingMeta');
     var catLabel = THING_CATEGORIES[thing.category] || thing.category || '';
@@ -2090,7 +2093,7 @@ function renderThingDetail(thing, room, floor) {
 
     // Inventory details card
     renderInventoryDetails(thing, 'thingDetailsSection');
-    _renderBeneficiaryRow('thingGoesToRow', thing, []);
+    _hRenderBeneficiaryRow('thingGoesToRow', thing, []);
 
     // Breadcrumb: House > Floor > Room > Thing
     buildHouseBreadcrumb([
@@ -2179,6 +2182,7 @@ function openThingModal(editId, data) {
         houseCheckLlmForModal('thingFromPictureSection');
     }
 
+    hToggleBenePicker('thingBenePicker');
     openModal('thingModal');
     nameInput.focus();
 }
@@ -2202,10 +2206,11 @@ document.getElementById('thingModalSaveBtn').addEventListener('click', function(
         comment:              document.getElementById('thingCommentInput').value.trim(),
         beneficiaryContactId: document.getElementById('thingBenePicker_id').value           || null
     };
+    if (hHideBeneficiary()) delete extraFields.beneficiaryContactId;   // people a house is shared with never see or change "Goes to"
 
     if (mode === 'edit' && editId) {
         var updateData = Object.assign({ name: nameVal, category: catVal }, extraFields);
-        userCol('things').doc(editId).update(updateData)
+        houseCol('things').doc(editId).update(updateData)
             .then(function() {
                 closeModal('thingModal');
                 loadThingDetail(editId);
@@ -2219,7 +2224,7 @@ document.getElementById('thingModalSaveBtn').addEventListener('click', function(
             roomId:    currentRoom.id,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, extraFields);
-        userCol('things').add(thingData)
+        houseCol('things').add(thingData)
             .then(function() {
                 closeModal('thingModal');
                 loadThingsList(currentRoom.id);
@@ -2236,7 +2241,7 @@ document.getElementById('thingModalDeleteBtn').addEventListener('click', functio
     var editId = document.getElementById('thingModal').dataset.editId;
     if (!editId) return;
 
-    userCol('subThings').where('thingId', '==', editId).limit(1).get()
+    houseCol('subThings').where('thingId', '==', editId).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 alert('This thing has items. Delete all items first.');
@@ -2245,7 +2250,7 @@ document.getElementById('thingModalDeleteBtn').addEventListener('click', functio
 
             if (!confirm('Delete this thing? This cannot be undone.')) return;
 
-            userCol('things').doc(editId).delete()
+            houseCol('things').doc(editId).delete()
                 .then(function() {
                     closeModal('thingModal');
                     if (currentRoom) {
@@ -2271,7 +2276,7 @@ function openMoveThingModal() {
     select.innerHTML = '<option value="">Loading rooms…</option>';
 
     // Load all floors then all rooms, grouped by floor for the dropdown
-    userCol('floors').orderBy('floorNumber', 'asc').get()
+    houseCol('floors').orderBy('floorNumber', 'asc').get()
         .then(function(floorSnap) {
             var floorMap   = {};
             var floorOrder = [];
@@ -2280,7 +2285,7 @@ function openMoveThingModal() {
                 floorOrder.push(doc.id);
             });
 
-            return userCol('rooms').get().then(function(roomSnap) {
+            return houseCol('rooms').get().then(function(roomSnap) {
                 var byFloor = {};
                 roomSnap.forEach(function(doc) {
                     var d = doc.data();
@@ -2323,7 +2328,7 @@ document.getElementById('moveThingSaveBtn').addEventListener('click', function()
         return;
     }
 
-    userCol('things').doc(currentThing.id).update({ roomId: newRoomId })
+    houseCol('things').doc(currentThing.id).update({ roomId: newRoomId })
         .then(function() {
             closeModal('moveThingModal');
             window.location.hash = '#room/' + newRoomId;
@@ -2529,7 +2534,7 @@ function loadPanelList() {
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
 
-    userCol('breakerPanels').get()
+    houseCol('breakerPanels').get()
         .then(function(snap) {
             emptyState.textContent = '';
 
@@ -2598,7 +2603,7 @@ function buildPanelCard(id, data) {
  * @param {string} panelId
  */
 function loadPanelDetail(panelId) {
-    userCol('breakerPanels').doc(panelId).get()
+    houseCol('breakerPanels').doc(panelId).get()
         .then(function(doc) {
             if (!doc.exists) {
                 window.location.hash = '#house';
@@ -2782,7 +2787,7 @@ document.getElementById('panelModalSaveBtn').addEventListener('click', function(
     var editId = modal.dataset.editId;
 
     if (mode === 'edit' && editId) {
-        userCol('breakerPanels').doc(editId).update(panelData)
+        houseCol('breakerPanels').doc(editId).update(panelData)
             .then(function() {
                 closeModal('panelModal');
                 loadPanelDetail(editId);
@@ -2791,7 +2796,7 @@ document.getElementById('panelModalSaveBtn').addEventListener('click', function(
     } else {
         panelData.breakers  = [];
         panelData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        userCol('breakerPanels').add(panelData)
+        houseCol('breakerPanels').add(panelData)
             .then(function(ref) {
                 closeModal('panelModal');
                 window.location.hash = '#panel/' + ref.id;
@@ -2808,7 +2813,7 @@ document.getElementById('panelModalDeleteBtn').addEventListener('click', functio
     var editId = document.getElementById('panelModal').dataset.editId;
     if (!editId) return;
     if (!confirm('Delete this panel and all its breaker data? This cannot be undone.')) return;
-    userCol('breakerPanels').doc(editId).delete()
+    houseCol('breakerPanels').doc(editId).delete()
         .then(function() {
             closeModal('panelModal');
             window.location.hash = '#house';
@@ -2900,7 +2905,7 @@ document.getElementById('breakerModalSaveBtn').addEventListener('click', functio
     // Keep array sorted by slot for readability in Firestore
     breakers.sort(function(a, b) { return a.slot - b.slot; });
 
-    userCol('breakerPanels').doc(currentPanel.id).update({ breakers: breakers })
+    houseCol('breakerPanels').doc(currentPanel.id).update({ breakers: breakers })
         .then(function() {
             currentPanel.breakers = breakers;
             closeModal('breakerModal');
@@ -2922,7 +2927,7 @@ document.getElementById('breakerClearBtn').addEventListener('click', function() 
         return b.slot !== bpEditSlot;
     });
 
-    userCol('breakerPanels').doc(currentPanel.id).update({ breakers: breakers })
+    houseCol('breakerPanels').doc(currentPanel.id).update({ breakers: breakers })
         .then(function() {
             currentPanel.breakers = breakers;
             closeModal('breakerModal');
@@ -2956,7 +2961,7 @@ document.getElementById('editPanelBtn').addEventListener('click', function() {
 document.getElementById('deletePanelBtn').addEventListener('click', function() {
     if (!currentPanel) return;
     if (!confirm('Delete "' + (currentPanel.name || 'this panel') + '"? This cannot be undone.')) return;
-    userCol('breakerPanels').doc(currentPanel.id).delete()
+    houseCol('breakerPanels').doc(currentPanel.id).delete()
         .then(function() { window.location.hash = '#house'; })
         .catch(function(err) { console.error('Delete panel error:', err); });
 });
@@ -2965,7 +2970,7 @@ document.getElementById('deletePanelBtn').addEventListener('click', function() {
 document.getElementById('addBreakerSlotBtn').addEventListener('click', function() {
     if (!currentPanel) return;
     var newTotal = (currentPanel.totalSlots || 0) + 2;
-    userCol('breakerPanels').doc(currentPanel.id).update({ totalSlots: newTotal })
+    houseCol('breakerPanels').doc(currentPanel.id).update({ totalSlots: newTotal })
         .then(function() {
             currentPanel.totalSlots = newTotal;
             renderPanelGrid(currentPanel);
@@ -3015,8 +3020,8 @@ function loadRoomsPage() {
         { label: 'Rooms', hash: null }
     ]);
 
-    var floorsQ = userCol('floors').orderBy('floorNumber', 'asc').get();
-    var roomsQ  = userCol('rooms').get();
+    var floorsQ = houseCol('floors').orderBy('floorNumber', 'asc').get();
+    var roomsQ  = houseCol('rooms').get();
 
     Promise.all([floorsQ, roomsQ])
         .then(function(results) {
@@ -3106,7 +3111,7 @@ function loadBreakerDevices(breakerId, containerId, emptyId) {
     emptyEl.textContent    = 'Loading…';
 
     // Scan all floorPlans documents for markers with this breakerId
-    userCol('floorPlans').get()
+    houseCol('floorPlans').get()
         .then(function(snap) {
             var devices = [];
 
@@ -3153,7 +3158,7 @@ function loadBreakerDevices(breakerId, containerId, emptyId) {
 
             // Fetch floor names, then render
             return Promise.all(uniqueFloorIds.map(function(fid) {
-                return userCol('floors').doc(fid).get();
+                return houseCol('floors').doc(fid).get();
             })).then(function(floorDocs) {
                 var floorNames = {};
                 floorDocs.forEach(function(d) {
@@ -3240,7 +3245,7 @@ function loadSubThingsList(thingId) {
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
 
-    userCol('subThings').where('thingId', '==', thingId).get()
+    houseCol('subThings').where('thingId', '==', thingId).get()
         .then(function(snapshot) {
             emptyState.textContent = '';
             if (snapshot.empty) {
@@ -3301,13 +3306,13 @@ function buildSubThingCard(id, data) {
 // ============================================================
 
 function loadSubThingDetail(subThingId) {
-    userCol('subThings').doc(subThingId).get()
+    houseCol('subThings').doc(subThingId).get()
         .then(function(doc) {
             if (!doc.exists) { window.location.hash = '#house'; return; }
             currentSubThing = window.currentSubThing = Object.assign({ id: doc.id }, doc.data());
 
             // Load parent chain: thing → room → floor
-            return userCol('things').doc(currentSubThing.thingId).get()
+            return houseCol('things').doc(currentSubThing.thingId).get()
                 .then(function(thingDoc) {
                     currentThing = thingDoc.exists
                         ? Object.assign({ id: thingDoc.id }, thingDoc.data())
@@ -3321,7 +3326,7 @@ function loadSubThingDetail(subThingId) {
                         return;
                     }
 
-                    return userCol('rooms').doc(roomId).get()
+                    return houseCol('rooms').doc(roomId).get()
                         .then(function(roomDoc) {
                             currentRoom = roomDoc.exists
                                 ? Object.assign({ id: roomDoc.id }, roomDoc.data())
@@ -3334,7 +3339,7 @@ function loadSubThingDetail(subThingId) {
                                 return;
                             }
 
-                            return userCol('floors').doc(floorId).get()
+                            return houseCol('floors').doc(floorId).get()
                                 .then(function(floorDoc) {
                                     currentFloor = floorDoc.exists
                                         ? Object.assign({ id: floorDoc.id }, floorDoc.data())
@@ -3364,7 +3369,7 @@ function loadItemsList(subThingId) {
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
 
-    userCol('subThingItems').where('subThingId', '==', subThingId).get()
+    houseCol('subThingItems').where('subThingId', '==', subThingId).get()
         .then(function(snapshot) {
             emptyState.textContent = '';
             if (snapshot.empty) {
@@ -3428,6 +3433,7 @@ function buildItemCard(id, data) {
 
 function renderSubThingDetail(subThing, thing, room, floor) {
     document.getElementById('stTitle').textContent = subThing.name || 'Item';
+    hShowWho('stTitle', subThing);
 
     // Meta line: Floor › Room › Thing · #tag1 #tag2
     var meta     = document.getElementById('stMeta');
@@ -3449,7 +3455,7 @@ function renderSubThingDetail(subThing, thing, room, floor) {
 
     // Details card
     renderInventoryDetails(subThing, 'stDetailsSection');
-    _renderBeneficiaryRow('stGoesToRow', subThing, [
+    _hRenderBeneficiaryRow('stGoesToRow', subThing, [
         { entity: thing, label: thing.name || 'Thing' }
     ]);
 
@@ -3542,6 +3548,7 @@ function openSubThingModal(editId, data) {
         initialName: editId ? (data.beneficiaryName      || undefined) : undefined
     });
 
+    hToggleBenePicker('stBenePicker');
     openModal('subThingModal');
     nameInput.focus();
 }
@@ -3562,12 +3569,13 @@ document.getElementById('stModalSaveBtn').addEventListener('click', function() {
         tags:                 stSelectedTags.slice(),
         beneficiaryContactId: document.getElementById('stBenePicker_id').value || null
     };
+    if (hHideBeneficiary()) delete itemData.beneficiaryContactId;   // people a house is shared with never see or change "Goes to"
 
     var mode   = modal.dataset.mode;
     var editId = modal.dataset.editId;
 
     if (mode === 'edit' && editId) {
-        userCol('subThings').doc(editId).update(itemData)
+        houseCol('subThings').doc(editId).update(itemData)
             .then(function() {
                 closeModal('subThingModal');
                 loadSubThingDetail(editId);
@@ -3577,7 +3585,7 @@ document.getElementById('stModalSaveBtn').addEventListener('click', function() {
         if (!currentThing) { alert('No parent item selected.'); return; }
         itemData.thingId   = currentThing.id;
         itemData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        userCol('subThings').add(itemData)
+        houseCol('subThings').add(itemData)
             .then(function() {
                 closeModal('subThingModal');
                 loadSubThingsList(currentThing.id);
@@ -3606,14 +3614,14 @@ document.getElementById('stModalDeleteBtn').addEventListener('click', function()
     var editId = document.getElementById('subThingModal').dataset.editId;
     if (!editId) return;
     // Guard: block delete if this subThing has items
-    userCol('subThingItems').where('subThingId', '==', editId).limit(1).get()
+    houseCol('subThingItems').where('subThingId', '==', editId).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 alert('This sub-item has items. Delete all items first.');
                 return;
             }
             if (!confirm('Delete this item? This cannot be undone.')) return;
-            userCol('subThings').doc(editId).delete()
+            houseCol('subThings').doc(editId).delete()
                 .then(function() {
                     closeModal('subThingModal');
                     if (currentThing) {
@@ -3826,9 +3834,9 @@ function openStMoveModal() {
 
     // Load things + rooms + floors in parallel (or reuse if already cached)
     Promise.all([
-        userCol('things').orderBy('name').get(),
-        userCol('rooms').get(),
-        userCol('floors').get()
+        houseCol('things').orderBy('name').get(),
+        houseCol('rooms').get(),
+        houseCol('floors').get()
     ]).then(function(results) {
         var thingsSnap = results[0];
         var roomsSnap  = results[1];
@@ -3902,7 +3910,7 @@ function stMoveConfirm(targetThing) {
     var stName = currentSubThing.name || 'this item';
     if (!confirm('Move "' + stName + '" to "' + targetThing.name + '"?')) return;
 
-    userCol('subThings').doc(currentSubThing.id)
+    houseCol('subThings').doc(currentSubThing.id)
         .update({ thingId: targetThing.id })
         .then(function() {
             closeModal('stMoveModal');
@@ -3932,14 +3940,14 @@ document.getElementById('stMoveSearchInput').addEventListener('input', function(
 // Sub-thing detail — Delete (guarded: blocked if items exist)
 document.getElementById('deleteStBtn').addEventListener('click', function() {
     if (!currentSubThing) return;
-    userCol('subThingItems').where('subThingId', '==', currentSubThing.id).limit(1).get()
+    houseCol('subThingItems').where('subThingId', '==', currentSubThing.id).limit(1).get()
         .then(function(snap) {
             if (!snap.empty) {
                 alert('This sub-item has items. Delete all items first.');
                 return;
             }
             if (!confirm('Delete "' + (currentSubThing.name || 'this item') + '"? This cannot be undone.')) return;
-            userCol('subThings').doc(currentSubThing.id).delete()
+            houseCol('subThings').doc(currentSubThing.id).delete()
                 .then(function() {
                     if (currentThing) {
                         window.location.hash = '#thing/' + currentThing.id;
@@ -4158,13 +4166,13 @@ function thingsEnsureDataLoaded(includeSubThings) {
     if (needsThings) {
         // Fetch things + room + floor lookup maps in parallel
         promises.push(
-            userCol('things').get(),
-            userCol('rooms').get(),
-            userCol('floors').get()
+            houseCol('things').get(),
+            houseCol('rooms').get(),
+            houseCol('floors').get()
         );
     }
     if (needsSubThings) {
-        promises.push(userCol('subThings').get());
+        promises.push(houseCol('subThings').get());
     }
 
     return Promise.all(promises).then(function(results) {
@@ -4748,17 +4756,17 @@ async function houseSaveFromLlm(parsed, images, targetType, nameOverride) {
         if (!currentRoom) throw new Error('No room selected.');
         itemData.category = document.getElementById('thingCategorySelect').value || 'other';
         itemData.roomId   = currentRoom.id;
-        newRef = await userCol('things').add(itemData);
+        newRef = await houseCol('things').add(itemData);
     } else if (targetType === 'item') {
         if (!currentSubThing) throw new Error('No parent sub-item selected.');
         itemData.subThingId = currentSubThing.id;
         itemData.tags       = [];
-        newRef = await userCol('subThingItems').add(itemData);
+        newRef = await houseCol('subThingItems').add(itemData);
     } else {
         if (!currentThing) throw new Error('No parent item selected.');
         itemData.thingId = currentThing.id;
         itemData.tags    = [];
-        newRef = await userCol('subThings').add(itemData);
+        newRef = await houseCol('subThings').add(itemData);
     }
 
     // Save photos only when identification produced a name
@@ -4766,7 +4774,7 @@ async function houseSaveFromLlm(parsed, images, targetType, nameOverride) {
     if (identified) {
         var photoTargetType = isThing ? 'thing' : (targetType === 'item' ? 'item' : 'subthing');
         for (var i = 0; i < images.length; i++) {
-            await userCol('photos').add({
+            await yTargetCol('photos', photoTargetType).add({
                 targetType : photoTargetType,
                 targetId   : newRef.id,
                 imageData  : images[i],
@@ -4779,7 +4787,7 @@ async function houseSaveFromLlm(parsed, images, targetType, nameOverride) {
             try {
                 var thumbData = await _compressToThumb(images[0]);
                 var thumbCol = isThing ? 'things' : (targetType === 'item' ? 'subThingItems' : 'subThings');
-                await userCol(thumbCol).doc(newRef.id).update({ profilePhotoData: thumbData });
+                await yNameCol(thumbCol).doc(newRef.id).update({ profilePhotoData: thumbData });
             } catch (thumbErr) {
                 console.warn('Could not auto-set house item thumbnail:', thumbErr);
             }
@@ -4984,7 +4992,7 @@ var siAllTags      = [];     // All known tag names (shared tag collection)
 async function _deleteItemCascade(itemId) {
     var collections = ['problems', 'facts', 'projects', 'activities', 'photos', 'calendarEvents'];
     for (var i = 0; i < collections.length; i++) {
-        var snap = await userCol(collections[i])
+        var snap = await (collections[i] === 'calendarEvents' ? userCol('calendarEvents') : yTargetCol(collections[i], 'item'))
             .where('targetType', '==', 'item')
             .where('targetId',   '==', itemId)
             .get();
@@ -4992,7 +5000,7 @@ async function _deleteItemCascade(itemId) {
             await snap.docs[j].ref.delete();
         }
     }
-    await userCol('subThingItems').doc(itemId).delete();
+    await houseCol('subThingItems').doc(itemId).delete();
 }
 
 // ============================================================
@@ -5005,13 +5013,13 @@ async function _deleteItemCascade(itemId) {
  * @param {string} itemId
  */
 function loadItemDetail(itemId) {
-    userCol('subThingItems').doc(itemId).get()
+    houseCol('subThingItems').doc(itemId).get()
         .then(function(doc) {
             if (!doc.exists) { window.location.hash = '#house'; return; }
             currentItem = window.currentItem = Object.assign({ id: doc.id }, doc.data());
 
             // Load parent subThing
-            return userCol('subThings').doc(currentItem.subThingId).get()
+            return houseCol('subThings').doc(currentItem.subThingId).get()
                 .then(function(stDoc) {
                     currentSubThing = stDoc.exists
                         ? Object.assign({ id: stDoc.id }, stDoc.data())
@@ -5024,7 +5032,7 @@ function loadItemDetail(itemId) {
                         return;
                     }
 
-                    return userCol('things').doc(thingId).get()
+                    return houseCol('things').doc(thingId).get()
                         .then(function(tDoc) {
                             currentThing = tDoc.exists
                                 ? Object.assign({ id: tDoc.id }, tDoc.data())
@@ -5038,7 +5046,7 @@ function loadItemDetail(itemId) {
                                 return;
                             }
 
-                            return userCol('rooms').doc(roomId).get()
+                            return houseCol('rooms').doc(roomId).get()
                                 .then(function(rDoc) {
                                     currentRoom = rDoc.exists
                                         ? Object.assign({ id: rDoc.id }, rDoc.data())
@@ -5051,7 +5059,7 @@ function loadItemDetail(itemId) {
                                         return;
                                     }
 
-                                    return userCol('floors').doc(floorId).get()
+                                    return houseCol('floors').doc(floorId).get()
                                         .then(function(fDoc) {
                                             currentFloor = fDoc.exists
                                                 ? Object.assign({ id: fDoc.id }, fDoc.data())
@@ -5070,6 +5078,7 @@ function loadItemDetail(itemId) {
  */
 function renderItemDetail(item, subThing, thing, room, floor) {
     document.getElementById('siTitle').textContent = item.name || 'Item';
+    hShowWho('siTitle', item);
 
     // Meta line: Floor › Room › Thing › SubThing · #tag1 #tag2
     var tagsText = (item.tags || []).map(function(t) { return '#' + t; }).join(' ');
@@ -5092,7 +5101,7 @@ function renderItemDetail(item, subThing, thing, room, floor) {
 
     // Inventory details card
     renderInventoryDetails(item, 'siDetailsSection');
-    _renderBeneficiaryRow('siGoesToRow', item, [
+    _hRenderBeneficiaryRow('siGoesToRow', item, [
         { entity: subThing, label: subThing.name || 'Sub-item' },
         { entity: thing,    label: thing.name    || 'Thing' }
     ]);
@@ -5168,6 +5177,7 @@ function openItemModal(editId, data) {
         initialName: editId ? (data.beneficiaryName      || undefined) : undefined
     });
 
+    hToggleBenePicker('siBenePicker');
     openModal('subThingItemModal');
     nameInput.focus();
 }
@@ -5189,12 +5199,13 @@ document.getElementById('siModalSaveBtn').addEventListener('click', function() {
         tags:                 siSelectedTags.slice(),
         beneficiaryContactId: document.getElementById('siBenePicker_id').value || null
     };
+    if (hHideBeneficiary()) delete itemData.beneficiaryContactId;   // people a house is shared with never see or change "Goes to"
 
     var mode   = modal.dataset.mode;
     var editId = modal.dataset.editId;
 
     if (mode === 'edit' && editId) {
-        userCol('subThingItems').doc(editId).update(itemData)
+        houseCol('subThingItems').doc(editId).update(itemData)
             .then(function() {
                 closeModal('subThingItemModal');
                 loadItemDetail(editId);
@@ -5204,7 +5215,7 @@ document.getElementById('siModalSaveBtn').addEventListener('click', function() {
         if (!currentSubThing) { alert('No parent sub-item selected.'); return; }
         itemData.subThingId = currentSubThing.id;
         itemData.createdAt  = firebase.firestore.FieldValue.serverTimestamp();
-        userCol('subThingItems').add(itemData)
+        houseCol('subThingItems').add(itemData)
             .then(function(ref) {
                 closeModal('subThingItemModal');
                 // Navigate to the new item's detail page

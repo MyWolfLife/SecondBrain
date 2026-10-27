@@ -105,7 +105,7 @@ function loadFloorPlanPage(floorId) {
         (knownFloorName || 'Floor') + ' — Floor Plan Drawing';
 
     // Load floor record (also updates title if navigated directly by URL)
-    userCol('floors').doc(floorId).get()
+    houseCol('floors').doc(floorId).get()
         .then(function(doc) {
             if (!doc.exists) { window.location.hash = '#house'; return; }
             fpFloor = Object.assign({ id: doc.id }, doc.data());
@@ -123,7 +123,7 @@ function loadFloorPlanPage(floorId) {
             }
 
             // Load rooms list (for linking shapes + stairs detection)
-            var roomsPromise = userCol('rooms').where('floorId', '==', floorId).get()
+            var roomsPromise = houseCol('rooms').where('floorId', '==', floorId).get()
                 .then(function(snap) {
                     fpRoomList = [];
                     snap.forEach(function(d) {
@@ -137,7 +137,7 @@ function loadFloorPlanPage(floorId) {
                 });
 
             // Load all floors so stair labels can show the connected floor name
-            var floorsPromise = userCol('floors').get().then(function(snap) {
+            var floorsPromise = houseCol('floors').get().then(function(snap) {
                 fpAllFloors = {};
                 snap.forEach(function(d) {
                     fpAllFloors[d.id] = d.data();
@@ -148,7 +148,7 @@ function loadFloorPlanPage(floorId) {
         })
         .then(function() {
             // Load or initialize the floor plan document
-            return userCol('floorPlans').doc(floorId).get();
+            return houseCol('floorPlans').doc(floorId).get();
         })
         .then(function(planDoc) {
             if (planDoc.exists) {
@@ -1824,7 +1824,7 @@ function fpOpenRoomLinkModal(points, color) {
     openModal('fpRoomLinkModal');
 
     // Always do a fresh query so we get rooms added after the page loaded
-    userCol('rooms').where('floorId', '==', fpFloorId).get()
+    houseCol('rooms').where('floorId', '==', fpFloorId).get()
         .then(function(snap) {
             // Refresh fpRoomList from this fresh query
             fpRoomList = [];
@@ -1912,7 +1912,7 @@ document.getElementById('fpRoomLinkSaveBtn').addEventListener('click', function(
         addShape(select.value, existing ? existing.name : 'Room');
     } else {
         // Create a new room record in Firestore, then link
-        userCol('rooms').add({
+        houseCol('rooms').add({
             name:      newName,
             floorId:   fpFloorId,
             type:      'standard',
@@ -1983,7 +1983,7 @@ function fpOpenRoomEditModal() {
     linkedSelect.innerHTML = '<option value="">Loading rooms…</option>';
     openModal('fpRoomEditModal');
 
-    userCol('rooms').where('floorId', '==', fpFloorId).get()
+    houseCol('rooms').where('floorId', '==', fpFloorId).get()
         .then(function(snap) {
             fpRoomList = [];
             snap.forEach(function(d) {
@@ -3146,7 +3146,7 @@ function fpScrubTargetIds(ids) {
 
 function fpSilentSave() {
     if (!fpFloorId || !fpPlan || !fpDirty) return;
-    userCol('floorPlans').doc(fpFloorId).set({
+    houseCol('floorPlans').doc(fpFloorId).set({
         widthFt:         fpPlan.widthFt,
         heightFt:        fpPlan.heightFt,
         rooms:           fpPlan.rooms            || [],
@@ -3172,7 +3172,7 @@ function fpSave() {
     btn.textContent = 'Saving…';
     btn.disabled    = true;
 
-    userCol('floorPlans').doc(fpFloorId).set({
+    houseCol('floorPlans').doc(fpFloorId).set({
         widthFt:          fpPlan.widthFt,
         heightFt:         fpPlan.heightFt,
         rooms:            fpPlan.rooms            || [],
@@ -3250,7 +3250,7 @@ function fpLoadAndRenderThumbnail(floorId, containerId, emptyId) {
     var emptyEl   = document.getElementById(emptyId);
     if (!container) return;
 
-    userCol('floorPlans').doc(floorId).get()
+    houseCol('floorPlans').doc(floorId).get()
         .then(function(doc) {
             if (!doc.exists || !doc.data().widthFt) {
                 // No plan at all
@@ -3822,7 +3822,7 @@ function fpLoadBreakerOptions(selectId, currentBreakerId) {
     var select = document.getElementById(selectId);
     select.innerHTML = '<option value="">— No breaker linked —</option>';
 
-    userCol('breakerPanels').get()
+    houseCol('breakerPanels').get()
         .then(function(snap) {
             if (snap.empty) return;  // No panels configured yet — leave just the default option
 
@@ -4446,7 +4446,7 @@ function fpOpenCeilingModal(editId, data) {
     // Async: load ceiling-fan/ceiling-light Things in this room
     var firestoreRoomId = modal.dataset.firestoreRoomId;
     if (firestoreRoomId) {
-        userCol('things')
+        houseCol('things')
             .where('roomId', '==', firestoreRoomId)
             .get()
             .then(function(snap) {
@@ -4545,7 +4545,7 @@ document.getElementById('fpCeilingSaveBtn').addEventListener('click', function()
     } else {
         // Create a new Thing record then link
         var newCat = category;
-        userCol('things').add({
+        houseCol('things').add({
             name:      newName,
             category:  newCat,
             roomId:    firestoreRoomId,
@@ -5272,7 +5272,7 @@ function fpOpenExternalTargetModal(slotRow) {
     document.getElementById('fpExtTargetNameGroup').style.display = 'none';
 
     // Load all floors
-    userCol('floors').orderBy('name').get()
+    houseCol('floors').orderBy('name').get()
         .then(function(snap) {
             snap.forEach(function(doc) {
                 var opt = document.createElement('option');
@@ -5308,7 +5308,7 @@ document.getElementById('fpExtTargetFloorSelect').addEventListener('change', fun
 
     document.getElementById('fpExtTargetRoomGroup').style.display = '';
 
-    userCol('rooms').where('floorId', '==', floorId).orderBy('name').get()
+    houseCol('rooms').where('floorId', '==', floorId).orderBy('name').get()
         .then(function(snap) {
             snap.forEach(function(doc) {
                 var opt = document.createElement('option');
@@ -5343,7 +5343,7 @@ document.getElementById('fpExtTargetRoomSelect').addEventListener('change', func
     document.getElementById('fpExtTargetItemGroup').style.display = '';
 
     // Load the floorPlan doc (planId = floorId per our convention)
-    userCol('floorPlans').doc(floorId).get()
+    houseCol('floorPlans').doc(floorId).get()
         .then(function(doc) {
             if (!doc.exists) return;
             var plan  = doc.data();
@@ -5478,7 +5478,7 @@ function fpWallPlateUpdateAddBtn() {
 function fpWallPlateLoadBreakers() {
     var selects = document.querySelectorAll('#fpWallPlateSlots .fp-slot-breaker');
     if (!selects.length) return;
-    userCol('breakerPanels').get()
+    houseCol('breakerPanels').get()
         .then(function(snap) {
             selects.forEach(function(sel) {
                 var saved = sel.dataset.breakerId || '';

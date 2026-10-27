@@ -97,7 +97,7 @@ function loadFloorPlanItemPage(planId, itemType, itemId) {
     document.getElementById('fpItemEditNameRow').style.display = 'none';
 
     // Load the floorPlan document
-    userCol('floorPlans').doc(planId).get()
+    houseCol('floorPlans').doc(planId).get()
         .then(function(doc) {
             if (!doc.exists) {
                 document.getElementById('fpItemTitle').textContent = 'Item Not Found';
@@ -170,7 +170,7 @@ function renderFloorPlanItemPage(item, itemType, planId, plan) {
     // planId IS the floor's Firestore ID (floorPlans doc has same ID as floor doc)
     var storedFloorId = plan.floorId || planId;
 
-    userCol('floors').doc(storedFloorId).get()
+    houseCol('floors').doc(storedFloorId).get()
         .then(function(floorDoc) {
             if (floorDoc.exists) {
                 floorName = floorDoc.data().name || 'Floor';
@@ -195,7 +195,7 @@ function renderFloorPlanItemPage(item, itemType, planId, plan) {
             }
 
             // Load the Firestore room document
-            return userCol('rooms').doc(firestoreRoomId).get()
+            return houseCol('rooms').doc(firestoreRoomId).get()
                 .then(function(roomDoc) {
                     if (roomDoc.exists) {
                         roomName = roomDoc.data().name || 'Room';
@@ -299,7 +299,7 @@ function fpItemSaveName() {
     var update = {};
     update[fieldKey] = currentFpPlanForItem[fieldKey] || [];
 
-    userCol('floorPlans').doc(currentFpPlanId).update(update)
+    houseCol('floorPlans').doc(currentFpPlanId).update(update)
         .then(function() {
             // Update displayed title
             var displayName = fpItemGetDisplayName(item, currentFpItemType);

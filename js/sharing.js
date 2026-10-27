@@ -1868,3 +1868,44 @@ async function hReadAll(name, build) {
     snaps.forEach(function(s) { s.forEach(function(d) { docs.push(d); }); });
     return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
 }
+
+// ─── House: "Goes to (if I die)" stays private to the owner (H2) ─────────────
+
+/** True when the person is looking at a house someone else owns: they must not see or change "Goes to". */
+function hHideBeneficiary() {
+    return !!(window.houseShareId && !hIsOwner());
+}
+
+/** House version of _renderBeneficiaryRow: shows nothing for people the house is shared with. */
+function _hRenderBeneficiaryRow(rowId, entity, parents) {
+    if (hHideBeneficiary()) {
+        var row = document.getElementById(rowId);
+        if (row) { row.classList.add('hidden'); row.innerHTML = ''; }
+        return;
+    }
+    _renderBeneficiaryRow(rowId, entity, parents);
+}
+
+/** Hides (or shows) the "Goes to" picker's form group in an add/edit dialog. */
+function hToggleBenePicker(pickerId) {
+    var el = document.getElementById(pickerId);
+    var group = el && el.closest('.form-group');
+    if (group) group.style.display = hHideBeneficiary() ? 'none' : '';
+}
+
+/** Small "Added by … / Changed by …" line under a house page's title (only when Show who added/modified is on). */
+function hShowWho(titleElId, data) {
+    var title = document.getElementById(titleElId);
+    if (!title) return;
+    var header = title.closest('.page-header') || title.parentElement;
+    var el = header.nextElementSibling;
+    if (!el || !el.classList.contains('yard-who-label')) {
+        el = document.createElement('p');
+        el.className = 'yard-who-label';
+        el.style.cssText = 'color:#888; font-size:0.85rem; margin:0 16px 8px;';
+        header.parentNode.insertBefore(el, header.nextSibling);
+    }
+    var text = window.houseShareId ? shWhoLabel(data, window.houseShareData) : '';
+    el.textContent = text;
+    el.style.display = text ? '' : 'none';
+}
