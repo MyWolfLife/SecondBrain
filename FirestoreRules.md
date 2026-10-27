@@ -2,7 +2,7 @@
 
 *What this is:* the rules in the Firebase console decide who can read and write what. `firestore.rules` in this repo is the **new version**. It is a draft: **nothing changes until you paste it into the console and press Publish.** Part of the plan in `SharedSpacesBuildPlan.md`.
 
-## Update for Shared Financial (chunk F1) — publish `firestore.rules` once more
+## Update for Shared Financial (chunk F1) — PUBLISHED 2026-10-27 and verified with two accounts
 
 The rules deployed in October 2026 do not cover three things the Financial sharing needs. `firestore.rules` now has them; **paste it into the console and Publish again** (same steps as below; only these parts are new):
 

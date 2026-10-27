@@ -1,7 +1,7 @@
 // ============================================================
-// DRAFT — NOT DEPLOYED. For the user to review (SharedSpacesBuildPlan.md S1).
+// These rules are DEPLOYED (published in the Firebase console 2026-10-26, updated 2026-10-27 for Shared Financial).
 // Firestore rules live in the Firebase console (Build > Firestore Database > Rules).
-// Nothing here takes effect until the user pastes it there and publishes.
+// A change here takes effect only after it is pasted into the console and published.
 //
 // Built from the rules the user pasted from the console on 2026-10-26: the users and
 // sharedDevNotes rules are kept as they were, the empty legacy flat-collection rules are

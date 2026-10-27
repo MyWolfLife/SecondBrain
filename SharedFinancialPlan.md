@@ -69,7 +69,7 @@ Recipients **use the same passphrase they already use** for their own Legacy/Pri
 | # | Chunk | Result |
 |---|---|---|
 | **C1 ✅** | **Credentials sharing (built 2026-10-27):** Share control per credential, audience shares, Shared with me list, badge, view-only guard, backup. Two-account test. | Netflix login shared with the family |
-| **F1 ✅** | **Key plumbing (built 2026-10-27; needs the rules publish, see FirestoreRules.md):** lock-and-key pairs protected by passphrase, data keys, envelopes, "waiting for" state. | Nothing changes for anyone |
+| **F1 ✅** | **Key plumbing (built and verified 2026-10-27; rules published):** lock-and-key pairs protected by passphrase, data keys, envelopes, "waiting for" state. | Nothing changes for anyone |
 | **F2** | **Financial plumbing:** `finCol` helpers, rules change for holdings, active-person resolve, dropdown lists shared people. | Nothing changes for anyone |
 | **F3** | **Financial screens** switched to the helpers: accounts, holdings, Social Security, summary, snapshots, groups; view-only guard. Tested with a seeded share. | Works as owner, editor, viewer |
 | **F4** | **Sensitive info** via data key + envelopes; reset; rotate on remove. | Each person unlocks with their passphrase |
