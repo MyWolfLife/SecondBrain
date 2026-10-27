@@ -2,7 +2,7 @@
 
 Sharing under Life → **Checklists** and Life → **Contacts** (with Neighborhood), using the same Shared Spaces engine as Collections, Yard, House, Credentials, Financial and Budgets (groups Wife / Family / Guest, View only or Can edit; owner keeps everything; only the owner shares, stops sharing or deletes).
 
-Status: K1–K3 (checklists), P1 (one contact) and P2 (all contacts + Neighborhood, with auto-join) BUILT. P3 (backup of shared contacts) still to build.
+Status: ALL BUILT — K1–K3 (checklists) and P1–P3 (one contact, all contacts + Neighborhood with auto-join, backup). Remaining gaps: search and Ask AI do not see shared contacts.
 
 ## Decisions (settled with the user)
 
@@ -43,7 +43,7 @@ Two share kinds:
 ### Chunks
 - **P1 ✅ — Share one contact.** Move engine for a contact and its interactions/dates, lookup values copied into the share, recipient sees it under "Shared with me" in Contacts, editors may change it, owner-only share/stop/delete.
 - **P2 ✅ — All contacts and Neighborhood.** Move engine for the whole set including Neighborhood; recipient gets Contacts and Neighborhood screens reading from the share; parent/child contact links (`parentPersonId`) kept inside the share.
-- **P3 — Auto-join and backup.** New contacts (and new houses/residents) written into the all-contacts share automatically; backup/restore of shared contacts (`sharedContacts`).
+- **P3 ✅ — Auto-join (done in P2) and backup.** New contacts (and new houses/residents) written into the all-contacts share automatically; backup/restore of shared contacts (`sharedContacts`).
 
 ## Open questions (to settle before building)
 

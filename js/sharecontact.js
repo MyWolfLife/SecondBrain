@@ -266,7 +266,7 @@ function _cxOps(b, destShareId) {
     return ops;
 }
 
-function _cxAllRefs(b) {
+function _cxBundleRefs(b) {
     return [].concat(b.people, b.interactions, b.dates, b.photos, b.facts).map(function(d) { return d.ref; });
 }
 
@@ -334,7 +334,7 @@ async function cxSharePerson(personId, shareGroups) {
 
     try {
         _shProgress('Removing the private copy…');
-        await shBatchDelete(_cxAllRefs(bundle));
+        await shBatchDelete(_cxBundleRefs(bundle));
     } catch (err) {
         console.error('Could not remove the private originals:', err);
         throw new Error('Shared, but the private copy could not be fully removed (' + err.message + '). Nothing is lost; open Contacts and try again, or tell the developer.');
@@ -420,7 +420,7 @@ function _cxAllOps(lists, destShareId) {
     });
     return ops;
 }
-function _cxAllRefs(lists) { var r = []; CX_ALL_NAMES.forEach(function(n) { lists[n].forEach(function(d) { r.push(d.ref); }); }); return r; }
+function _cxAllListRefs(lists) { var r = []; CX_ALL_NAMES.forEach(function(n) { lists[n].forEach(function(d) { r.push(d.ref); }); }); return r; }
 function _cxAllBackupJson(lists, kind) {
     var c = {};
     CX_ALL_NAMES.forEach(function(n) { c[n] = lists[n].map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); });
@@ -467,7 +467,7 @@ async function cxShareAll(shareGroups) {
 
     try {
         _shProgress('Removing the private copies…');
-        await shBatchDelete(_cxAllRefs(lists));
+        await shBatchDelete(_cxAllListRefs(lists));
     } catch (err) {
         console.error('Could not remove the private originals:', err);
         throw new Error('Shared, but the private copies could not be fully removed (' + err.message + '). Nothing is lost; open Contacts and try again, or tell the developer.');
@@ -512,4 +512,50 @@ function cxRoleOf(name, id) {
     if (!sid) return 'owner';
     if (_cxOwn[sid]) return 'owner';
     return _cxWithMe[sid] ? _cxWithMe[sid].role : 'owner';
+}
+
+// ---------- Backup and restore of my shared contacts (P3) ----------
+// Added to the Data backup file as the extra key sharedContacts: one entry per contact share I own (one
+// contact, or all contacts with the Neighborhood), with every document in it. The private backup of
+// people/neighbor collections misses them because they live in the share. Restored as PRIVATE data,
+// skipping anything that is still shared (share again if you want).
+
+async function cxBackupShared() {
+    await cxLoad(true);
+    var ids = Object.keys(_cxOwn);
+    if (!ids.length) return null;
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+        var sid = ids[i], data = _cxOwn[sid].data, cols = {};
+        if (data.kind === 'allContacts') {
+            var lists = await cxReadAllBundle(sid);
+            CX_ALL_NAMES.forEach(function(n) { cols[n] = lists[n].map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); });
+        } else {
+            var b = await cxReadBundle(_cxOwn[sid].personId, sid);
+            var map = { people: b.people, peopleInteractions: b.interactions, peopleImportantDates: b.dates, photos: b.photos, facts: b.facts };
+            Object.keys(map).forEach(function(n) { cols[n] = map[n].map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); });
+        }
+        out.push({ shareId: sid, kind: data.kind, personId: _cxOwn[sid].personId || null, share: backupSerialize(data), collections: cols });
+    }
+    return out;
+}
+
+async function cxRestoreShared(payload, log) {
+    var list = payload.sharedContacts || [];
+    if (!list.length) return;
+    await cxLoad(true);
+    var restored = 0, skipped = 0;
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        var stillShared = e.kind === 'allContacts' ? !!cxOwnAllContactsShareId() : (e.personId && !!cxShareOf(e.personId));
+        if (stillShared) { skipped++; continue; }
+        var ops = [];
+        Object.keys(e.collections).forEach(function(n) {
+            e.collections[n].forEach(function(r) { ops.push({ ref: userCol(n).doc(r.id), data: r.data }); });
+        });
+        await shBatchSet(ops);
+        restored++;
+    }
+    if (restored) log('✓ ' + restored + ' shared contact share(s) restored as your private contacts. Share them again if you want.', '#2e7d32');
+    if (skipped) log('• ' + skipped + ' contact share(s) are still shared — left as they are.');
 }
