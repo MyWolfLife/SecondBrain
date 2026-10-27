@@ -85,7 +85,7 @@ var _investActiveGroupId    = null;  // shared: last group selected on any inves
 // ---------- Firestore Path ----------
 
 function _investCol() {
-    return userCol('investments').doc(_investPersonFilter).collection('accounts');
+    return finAcctCol(_investPersonFilter);    // private, or inside the share when that person is shared (sharefin.js)
 }
 
 // ---------- Hub Page Loader ----------
@@ -502,6 +502,9 @@ async function loadInvestmentsAccountsPage() {
 // ---------- Data Loading ----------
 
 async function _investLoadAll() {
+    // People shared by me / with me (sharefin.js). A shared person that is gone (sharing stopped) falls back to "Me".
+    try { await finLoad(true); } catch (err) { console.error('Could not load shared financial people:', err); }
+    if (finIsShareNs(_investPersonFilter) && !finSharedName(_investPersonFilter)) _investPersonFilter = 'self';
     var settingsDoc = await userCol('settings').doc('investments').get();
     _investPeople = [];
     if (settingsDoc.exists) {
@@ -551,6 +554,11 @@ function _investRenderPage() {
 
     var personOpts = '<option value="self"' + (_investPersonFilter === 'self' ? ' selected' : '') + '>Me</option>';
     _investPeople.forEach(function(p) {
+        personOpts += '<option value="' + escapeHtml(p.id) + '"' +
+            (_investPersonFilter === p.id ? ' selected' : '') + '>' +
+            escapeHtml(p.name) + '</option>';
+    });
+    finSharedPeople().forEach(function(p) {      // people other owners shared with me
         personOpts += '<option value="' + escapeHtml(p.id) + '"' +
             (_investPersonFilter === p.id ? ' selected' : '') + '>' +
             escapeHtml(p.name) + '</option>';
@@ -615,7 +623,7 @@ function _investRenderList() {
             html += '</div>';
         }
     } else {
-        var personName    = (_investPeople.find(function(p) { return p.id === _investPersonFilter; }) || {}).name || 'Accounts';
+        var personName    = (_investPeople.find(function(p) { return p.id === _investPersonFilter; }) || {}).name || finSharedName(_investPersonFilter) || 'Accounts';
         var ownAccounts   = list.filter(function(a) { return !a._joint; });
         var jointAccounts = list.filter(function(a) { return !!a._joint; });
 
@@ -2004,7 +2012,7 @@ var _investHoldingEditId     = null;   // null = add mode; holding doc ID = edit
 // ---------- Firestore Path for Holdings ----------
 
 function _investHoldingCol(ns, accountId) {
-    return userCol('investments').doc(ns).collection('accounts').doc(accountId).collection('holdings');
+    return finHoldingCol(ns, accountId);
 }
 
 // ---------- Account Detail Page Loader ----------
