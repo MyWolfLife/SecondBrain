@@ -327,13 +327,14 @@ async function clLoadActiveRuns() {
     emptyEl.classList.add('hidden');
 
     try {
-        var snap = await userCol('checklistRuns')
-            .where('completedAt', '==', null)
-            .get();
+        // Mine: private lists plus my own lists that live in a share (Shared Checklists).
+        var ownDocs = await clOwnRunDocs(
+            userCol('checklistRuns').where('completedAt', '==', null),
+            function(d) { return !d.completedAt; });
 
         // Full active set (all contexts) — used both for the board backfill and
         // then filtered down to the current context for display.
-        var allActive = snap.docs.map(function(doc) {
+        var allActive = ownDocs.map(function(doc) {
             return Object.assign({ id: doc.id }, doc.data());
         });
 
@@ -358,8 +359,10 @@ async function clLoadActiveRuns() {
         container.innerHTML = '';
         container.classList.remove('cl-board-cols', 'cl-board-single');
 
+        var sharedCount = await clRenderSharedWithMe();
+
         if (runs.length === 0) {
-            emptyEl.classList.remove('hidden');
+            if (!sharedCount) emptyEl.classList.remove('hidden');
             return;
         }
 
@@ -454,7 +457,7 @@ async function clBackfillBoardPositions(allActive) {
         run.boardCol   = k % CL_BOARD_COLS;
         run.boardOrder = baseRow + Math.floor(k / CL_BOARD_COLS);
         updates.push(
-            userCol('checklistRuns').doc(run.id)
+            clRunRef(run.id)
                 .update({ boardCol: run.boardCol, boardOrder: run.boardOrder })
         );
     });
@@ -603,7 +606,7 @@ async function clOnBoardDrop(evt) {
     card.dataset.boardOrder = String(newOrder);
 
     try {
-        await userCol('checklistRuns').doc(runId).update({ boardCol: newCol, boardOrder: newOrder });
+        await clRunRef(runId).update({ boardCol: newCol, boardOrder: newOrder });
     } catch (err) {
         console.error('Error saving board position:', err);
         clLoadActiveRuns();  // reload to resync on failure
@@ -841,6 +844,19 @@ function clBuildRunCard(run) {
     dateEl.textContent = 'Started ' + clFormatDate(run.startedAt);
     card.appendChild(dateEl);
 
+    // ── Shared badge (Shared Checklists): who it is shared by / that I share it ──
+    var shInfo = clShInfo(run.id);
+    if (shInfo) {
+        var shBadge = document.createElement('div');
+        shBadge.className = 'cl-target-badge';
+        shBadge.textContent = shInfo.role === 'owner'
+            ? '👥 Shared'
+            : '👥 Shared by ' + shInfo.ownerName + ' · ' + (shInfo.role === 'edit' ? 'Can edit' : 'View only');
+        card.appendChild(shBadge);
+    }
+    var isOwner = clIsOwner(run.id);
+    var canEditRun = clCanEdit(run.id);
+
     // ── Items wrapper (undone + done toggle) ───────────────────
     card.appendChild(clBuildItemsWrapper(run.id, items, card));
 
@@ -889,10 +905,25 @@ function clBuildRunCard(run) {
     deleteBtn.textContent = '🗑️';
     deleteBtn.addEventListener('click', function() { clDeleteRun(run.id, 'active'); });
 
-    actions.appendChild(completeBtn);
-    actions.appendChild(editBtn);
-    actions.appendChild(archiveBtn);
-    actions.appendChild(deleteBtn);
+    // Share (owner only): a list is shared one at a time
+    var shareBtn = document.createElement('button');
+    shareBtn.type      = 'button';
+    shareBtn.className = 'cl-run-action-btn';
+    shareBtn.title     = clIsShared(run.id) ? 'Sharing…' : 'Share';
+    shareBtn.textContent = '👥';
+    shareBtn.addEventListener('click', function() { clOpenShare(run.id, run.templateName); });
+
+    // Only the owner completes, archives, abandons, stars or shares a list; an editor ticks and edits items
+    if (isOwner) {
+        actions.appendChild(shareBtn);
+        actions.appendChild(completeBtn);
+    }
+    if (canEditRun) actions.appendChild(editBtn);
+    if (isOwner) {
+        actions.appendChild(archiveBtn);
+        actions.appendChild(deleteBtn);
+    }
+    if (!isOwner) pinBtn.style.display = 'none';
     footer.appendChild(actions);
 
     card.appendChild(footer);
@@ -997,10 +1028,10 @@ async function clSaveRunItemOrder(runId, wrapper, originalItems, card) {
     });
 
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
         var runData = doc.data();
-        await userCol('checklistRuns').doc(runId).update({ items: newItems });
+        await clRunRef(runId).update({ items: newItems });
         clRerenderRunItems(runId, newItems, runData.templateId || null, card);
     } catch (err) {
         console.error('Error saving run item order:', err);
@@ -1051,6 +1082,7 @@ function clBuildItemEl(runId, item, idx, card) {
     var cb = document.createElement('input');
     cb.type    = 'checkbox';
     cb.checked = !!item.done;
+    cb.disabled = !clCanEdit(runId);            // View only (shared with me): look, don't tick
     cb.addEventListener('change', function() {
         clToggleItem(runId, cb.checked, idx, card);
     });
@@ -1083,6 +1115,7 @@ function clBuildItemEl(runId, item, idx, card) {
     noteBtn.className = 'cl-item-note-btn';
     noteBtn.title     = item.note ? 'Edit note' : 'Add note';
     noteBtn.textContent = '📝';
+    if (!clCanEdit(runId)) noteBtn.style.display = 'none';
 
     // ✕ remove button — only visible when card has cl-run-card--editing class
     var removeBtn = document.createElement('button');
@@ -1147,6 +1180,7 @@ function clBuildItemEl(runId, item, idx, card) {
     // Clicking the note text itself also opens the editor for re-editing
     noteDisplay.style.cursor = 'text';
     noteDisplay.addEventListener('click', function() {
+        if (!clCanEdit(runId)) return;
         noteWrap.classList.remove('hidden');
         noteInput.focus();
         var len = noteInput.value.length;
@@ -1298,14 +1332,14 @@ async function clAddItemToRun(runId, templateId, label, card, inputEl) {
     if (!label) return;
 
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var items = (doc.data().items || []).concat([{ label: label, done: false, note: null }]);
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
         // Offer to add to the template as well (template-derived runs only)
-        if (templateId) {
+        if (templateId && clIsOwner(runId)) {
             if (confirm('Add "' + label + '" to the template too?')) {
                 var tmplDoc = await userCol('checklistTemplates').doc(templateId).get();
                 if (tmplDoc.exists) {
@@ -1340,12 +1374,12 @@ async function clAddItemToRun(runId, templateId, label, card, inputEl) {
  */
 async function clRemoveItemFromRun(runId, idx, card) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var runData  = doc.data();
         var items    = runData.items.filter(function(_, i) { return i !== idx; });
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
         clRerenderRunItems(runId, items, runData.templateId || null, card);
 
@@ -1362,12 +1396,12 @@ async function clRemoveItemFromRun(runId, idx, card) {
  */
 async function clSaveItemNote(runId, idx, noteText) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var items = doc.data().items;
         items[idx] = Object.assign({}, items[idx], { note: noteText || null });
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
     } catch (err) {
         console.error('Error saving item note:', err);
@@ -1379,11 +1413,11 @@ async function clSaveItemNote(runId, idx, noteText) {
  */
 async function clSaveItemIndent(runId, idx, newIndent) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
         var items = doc.data().items;
         items[idx] = Object.assign({}, items[idx], { indent: newIndent });
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
     } catch (err) {
         console.error('Error saving item indent:', err);
     }
@@ -1397,11 +1431,11 @@ async function clSaveItemIndent(runId, idx, newIndent) {
  */
 async function clSaveItemLabel(runId, idx, newLabel) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
         var items = doc.data().items;
         items[idx] = Object.assign({}, items[idx], { label: newLabel });
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
     } catch (err) {
         console.error('Error saving item label:', err);
     }
@@ -1419,7 +1453,7 @@ async function clSaveItemLabel(runId, idx, newLabel) {
  */
 async function clCommitLabelAndAddNext(runId, idx, label, indent, card) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var runData = doc.data();
@@ -1431,7 +1465,7 @@ async function clCommitLabelAndAddNext(runId, idx, label, indent, card) {
         var newIdx = idx + 1;
         items.splice(newIdx, 0, { label: '', done: false, note: null, indent: indent });
 
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
         // Ask the next render to open the freshly-inserted item for editing.
         _clAutoEditItem = { runId: runId, idx: newIdx };
@@ -1483,7 +1517,7 @@ async function clNewBlankList() {
  */
 async function clToggleItem(runId, checked, idx, card) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var runData = doc.data();
@@ -1495,7 +1529,7 @@ async function clToggleItem(runId, checked, idx, card) {
             doneAt: checked ? new Date().toISOString() : null
         });
 
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
         // Full re-render so the item moves to the bottom (done) or back up (undone)
         // and the completion date appears/disappears next to the label.
@@ -1514,7 +1548,7 @@ async function clToggleItem(runId, checked, idx, card) {
  */
 async function clClearAllItems(runId, card) {
     try {
-        var doc = await userCol('checklistRuns').doc(runId).get();
+        var doc = await clRunRef(runId).get();
         if (!doc.exists) return;
 
         var runData = doc.data();
@@ -1522,7 +1556,7 @@ async function clClearAllItems(runId, card) {
             return Object.assign({}, item, { done: false, doneAt: null });
         });
 
-        await userCol('checklistRuns').doc(runId).update({ items: items });
+        await clRunRef(runId).update({ items: items });
 
         // Full re-render: removes all completion dates and strikethroughs
         clRerenderRunItems(runId, items, runData.templateId || null, card);
@@ -1539,7 +1573,7 @@ async function clClearAllItems(runId, card) {
 async function clMarkRunComplete(runId) {
     if (!confirm('Mark this checklist as complete? It will move to the Completed section.')) return;
     try {
-        await userCol('checklistRuns').doc(runId).update({
+        await clRunRef(runId).update({
             completedAt: new Date().toISOString()
         });
         clLoadActiveRuns();
@@ -1565,7 +1599,7 @@ async function clToggleRunPin(runId, newPinned) {
             update.boardCol   = 0;
             update.boardOrder = clMinBoardOrderVisible() - 1;
         }
-        await userCol('checklistRuns').doc(runId).update(update);
+        await clRunRef(runId).update(update);
         clLoadActiveRuns();
     } catch (err) {
         console.error('Error toggling checklist pin:', err);
@@ -1585,7 +1619,8 @@ async function clDeleteRun(runId, section) {
         : 'Delete this completed checklist record?';
     if (!confirm(msg)) return;
     try {
-        await userCol('checklistRuns').doc(runId).delete();
+        if (clIsShared(runId) && clIsOwner(runId)) await clDeleteSharedRun(runId);   // the list, then its share
+        else await clRunRef(runId).delete();
         if (section === 'active') {
             clLoadActiveRuns();
         } else if (section === 'archived') {
@@ -1807,13 +1842,13 @@ async function clLoadCompletedRuns() {
 
     try {
         // Fetch all completed runs and sort client-side to avoid composite index
-        var snap = await userCol('checklistRuns')
-            .where('completedAt', '!=', null)
-            .get();
+        var ownDocs = await clOwnRunDocs(
+            userCol('checklistRuns').where('completedAt', '!=', null),
+            function(d) { return !!d.completedAt; });
 
         var ctx = clCurrentContext || { type: 'yard' };
 
-        var runs = snap.docs
+        var runs = ownDocs
             .map(function(doc) { return Object.assign({ id: doc.id }, doc.data()); })
             .filter(function(run) { return clMatchesContext(run, ctx); })
             .filter(function(run) { return !run.archived; })
@@ -1976,12 +2011,12 @@ async function clLoadArchivedRuns() {
     emptyEl.classList.add('hidden');
 
     try {
-        var snap = await userCol('checklistRuns')
-            .where('archived', '==', true)
-            .get();
+        var ownDocs = await clOwnRunDocs(
+            userCol('checklistRuns').where('archived', '==', true),
+            function(d) { return d.archived === true; });
 
         var ctx  = clCurrentContext || { type: 'yard' };
-        var runs = snap.docs
+        var runs = ownDocs
             .map(function(doc) { return Object.assign({ id: doc.id }, doc.data()); })
             .filter(function(run) { return clMatchesContext(run, ctx); })
             .filter(clMatchesFilter)
@@ -2073,7 +2108,7 @@ function clBuildArchivedCard(run) {
  */
 async function clArchiveRun(runId, archive) {
     try {
-        await userCol('checklistRuns').doc(runId).update({ archived: archive });
+        await clRunRef(runId).update({ archived: archive });
         clLoadActiveRuns();
         var completedToggle = document.getElementById('clShowCompletedToggle');
         if (completedToggle && completedToggle.checked) clLoadCompletedRuns();
@@ -2145,7 +2180,7 @@ function clBuildRunTagsEditor(run, card) {
     // Persists the current tags array to Firestore (run only, not the template).
     async function save() {
         try {
-            await userCol('checklistRuns').doc(run.id).update({ tags: run.tags });
+            await clRunRef(run.id).update({ tags: run.tags });
             clAddTagsToUniverse(run.tags);
         } catch (err) {
             console.error('Error saving run tags:', err);
@@ -2645,3 +2680,53 @@ document.addEventListener('DOMContentLoaded', function() {
         if (inputs.length) inputs[inputs.length - 1].focus();
     });
 });
+
+// ============================================================
+// SHARING (sharechecklist.js)
+// ============================================================
+
+/**
+ * Shows the lists other people shared with me, above my own board (Life checklists only — a shared list
+ * carries the owner's yard/house links, which mean nothing here). Returns how many were shown.
+ */
+async function clRenderSharedWithMe() {
+    var box = document.getElementById('clSharedWithMeContainer');
+    if (!box) return 0;
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    var ctx = clCurrentContext || { type: 'yard' };
+    if (ctx.type !== 'life') return 0;
+
+    var docs = await clSharedWithMeDocs();
+    var runs = docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(clMatchesFilter)
+        .sort(function(a, b) { return (b.startedAt || '').localeCompare(a.startedAt || ''); });
+    if (!runs.length) return 0;
+
+    var head = document.createElement('h3');
+    head.className = 'section-heading';
+    head.textContent = 'Shared with me';
+    box.appendChild(head);
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; align-items:start; margin-bottom:16px;';
+    runs.forEach(function(run) { grid.appendChild(clBuildRunCard(run)); });
+    box.appendChild(grid);
+    box.classList.remove('hidden');
+    return runs.length;
+}
+
+/** Opens the Share dialog for one list (owner only). */
+async function clOpenShare(runId, name) {
+    if (!clIsOwner(runId)) return;
+    await shOpenChecklistShareDialog(runId, name);
+}
+
+/** After sharing / stopping / changing who: reload the page's lists. */
+async function _clAfterShareChange() {
+    await clShLoad(true);
+    await clLoadActiveRuns();
+    var toggle = document.getElementById('clShowCompletedToggle');
+    var archiveToggle = document.getElementById('clShowArchivedToggle');
+    if (toggle && toggle.checked) clLoadCompletedRuns();
+    if (archiveToggle && archiveToggle.checked) clLoadArchivedRuns();
+}

@@ -997,6 +997,11 @@ async function shSubmitShareDialog() {
             await bgLoad(true);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'checklist') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await clShareRun(_shDlg.runId, choice); }
+            closeModal('shareDialogModal');
+            await _clAfterShareChange();
         } else if (_shDlg.kind === 'financialPerson') {
             var finMsg = '';
             if (_shDlg.shareId) {
@@ -1120,7 +1125,7 @@ async function shStopSharingFromDialog() {
         _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
         return;
     }
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1143,6 +1148,10 @@ async function shStopSharingFromDialog() {
             await bgUnshareBudget(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _budgetAfterShareChange(_shDlg.budgetId);
+        } else if (_shDlg.kind === 'checklist') {
+            await clUnshareRun(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _clAfterShareChange();
         } else if (_shDlg.kind === 'financialPerson') {
             await finUnsharePerson(_shDlg.shareId);
             closeModal('shareDialogModal');
@@ -2231,6 +2240,22 @@ async function shOpenFinanceShareDialog(personId, personName) {
     await _shShowShareDialog(
         (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
         'Sharing moves ' + _shDlg.personName + '\'s accounts and holdings, Social Security, and their own Financial group (with its snapshots and all-time highs) into a shared area. Joint accounts and groups with other people stay private. Their account numbers, usernames and passwords are locked again so each person opens them with their own passphrase. A backup file downloads first, and you stay the owner. Editors can change accounts, holdings and snapshots; only you can stop sharing.');
+}
+
+// ─── Sharing one checklist (K1) ──────────────────────────────────────────────
+
+/** Opens the Share dialog for one checklist (owner only). */
+async function shOpenChecklistShareDialog(runId, name) {
+    if (!clIsOwner(runId)) return;
+    _shDlg.kind = 'checklist';
+    _shDlg.collId = null;
+    _shDlg.runId = runId;
+    _shDlg.runName = name || 'this checklist';
+    _shDlg.shareId = clShareIdFor(runId);
+    _shDlg.existingGroups = (_clOwn[runId] && _clOwn[runId].data.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing “' : 'Share “') + _shDlg.runName + '”',
+        'Sharing moves just this list into a shared area; its template and your other lists stay private. A backup file downloads first, and you stay the owner. Editors can tick, add, change and remove items; only you can share, complete, archive, delete or stop sharing it.');
 }
 
 // ─── Sharing one budget (F6) ─────────────────────────────────────────────────

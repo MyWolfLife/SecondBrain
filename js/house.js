@@ -520,9 +520,9 @@ async function renderHouseChecklistsPanel() {
     var container = document.getElementById('houseChecklistsPanelContainer');
     if (!container) return;
     try {
-        var snap = await userCol('checklistRuns').where('completedAt', '==', null).get();
+        var ownDocs = await clOwnRunDocs(userCol('checklistRuns').where('completedAt', '==', null), function(d) { return !d.completedAt; });
         var count = 0;
-        snap.forEach(function(doc) {
+        ownDocs.forEach(function(doc) {
             var t = doc.data().targetType;
             if (t === 'house' || t === 'floor' || t === 'room') count++;
         });

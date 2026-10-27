@@ -534,9 +534,9 @@ async function renderYardChecklistsPanel() {
 
     try {
         // Fetch all active (non-completed) checklist runs and filter to yard context
-        var snap = await userCol('checklistRuns').where('completedAt', '==', null).get();
+        var ownDocs = await clOwnRunDocs(userCol('checklistRuns').where('completedAt', '==', null), function(d) { return !d.completedAt; });
         var count = 0;
-        snap.forEach(function(doc) {
+        ownDocs.forEach(function(doc) {
             var t = doc.data().targetType;
             if (t === 'yard' || t === 'zone') count++;
         });
