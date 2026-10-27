@@ -1134,6 +1134,9 @@ async function runBackup() {
         // Same for my Yard when it is shared (sharing.js shRestoreSharedYard)
         try { var sharedYard = await shBackupSharedYard(); if (sharedYard) dataPayload.sharedYard = sharedYard; }
         catch (shErr) { console.error('Backup: shared yard not included:', shErr); }
+        // And my House when it is shared (sharing.js shRestoreSharedHouse)
+        try { var sharedHouse = await shBackupSharedHouse(); if (sharedHouse) dataPayload.sharedHouse = sharedHouse; }
+        catch (shErr) { console.error('Backup: shared house not included:', shErr); }
         backupDownload(appName + '_Data_' + ts + '.json', dataPayload);
 
         // ---- Photos file (optional) ----
@@ -1151,6 +1154,8 @@ async function runBackup() {
             catch (shErr) { console.error('Backup: shared photos not included:', shErr); }
             try { var sharedYardPhotos = await shBackupSharedYardPhotos(); if (sharedYardPhotos) photoPayload.sharedYardPhotos = sharedYardPhotos; }
             catch (shErr) { console.error('Backup: shared yard photos not included:', shErr); }
+            try { var sharedHousePhotos = await shBackupSharedHousePhotos(); if (sharedHousePhotos) photoPayload.sharedHousePhotos = sharedHousePhotos; }
+            catch (shErr) { console.error('Backup: shared house photos not included:', shErr); }
             backupDownload(appName + '_Photos_' + ts + '.json', photoPayload);
         }
 
@@ -1557,6 +1562,8 @@ async function runRestore(payload) {
     if (payload.type === 'photos' && payload.sharedPhotos)      await shRestoreSharedPhotos(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedYard)        await shRestoreSharedYard(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedYardPhotos)  await shRestoreSharedYardPhotos(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedHouse)       await shRestoreSharedHouse(payload, restoreLog);
+    if (payload.type === 'photos' && payload.sharedHousePhotos) await shRestoreSharedHousePhotos(payload, restoreLog);
 
     restoreLog('\n\u2705 Restore complete!', '#2e7d32');
     restoreSetProgress(100);
