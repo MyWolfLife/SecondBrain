@@ -127,6 +127,9 @@ function loadHousePage() {
     var emptyState = document.getElementById('floorEmptyState');
     var statsEl    = document.getElementById('houseSummaryStats');
 
+    // Shared Spaces: the "House: …" picker and role banner (hidden unless a house is shared)
+    if (typeof shRenderHouseSwitcher === 'function') shRenderHouseSwitcher();
+
     container.innerHTML    = '';
     emptyState.textContent = 'Loading…';
     statsEl.innerHTML      = '';

@@ -369,6 +369,7 @@ function openAddProblemModal(targetType, targetId) {
     modal.dataset.mode = 'add';
     modal.dataset.targetType = targetType;
     window.yardProblemOpen = _yIsYardTarget(targetType);   // facts/photos on this problem follow it into the yard share
+    window.houseProblemOpen = _hIsHouseTarget(targetType);   // same for the house
     modal.dataset.targetId = targetId;
 
     // Hide Delete button and Status field in add mode (new problems are always Open)
@@ -409,6 +410,7 @@ function openEditProblemModal(problem, targetType, targetId) {
     modal.dataset.editId = problem.id;
     modal.dataset.targetType = targetType;
     window.yardProblemOpen = _yIsYardTarget(targetType);   // facts/photos on this problem follow it into the yard share
+    window.houseProblemOpen = _hIsHouseTarget(targetType);   // same for the house
     modal.dataset.targetId = targetId;
 
     // Show Delete button and Status field in edit mode

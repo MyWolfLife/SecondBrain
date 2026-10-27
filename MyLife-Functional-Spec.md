@@ -777,6 +777,13 @@ Tracks physical collectible inventories. Each collection is a named list with a 
 - Verified with two real accounts: an editor adds/deletes inside the shared yard (stamped), cannot edit the share document; a viewer is refused every write and sees no edit buttons; Stop sharing returns what the editor added to the owner.
 - **Y5 — Backup / Restore.** `runBackup` adds `sharedYard` (Data file: every yard collection except photos, `shBackupSharedYard`) and `sharedYardPhotos` (Photos file, `shBackupSharedYardPhotos`) when my yard is shared; `runRestore` calls `shRestoreSharedYard` / `shRestoreSharedYardPhotos`, which bring it back as my private yard unless it is still shared (then left alone). A yard shared with me is not in my backup.
 
+### Sharing the House — plumbing (SharedHousePlan.md H1; not user-visible yet)
+- The House will be one share (`kind: 'house'`). Helpers in `sharing.js`, parallel to the Yard's: `houseCol(name)` (stamped in a share), `hCanEdit`, `hIsOwner`, `shResolveHouse` / `houseReady` (run at sign-in), globals `window.houseShareId` / `houseRole` / `houseShareData`, `houseEnsureFor` (deep links), `hPlaces` / `hReadAll` (read across every house the person can open).
+- House target types (`HOUSE_TARGET_TYPES`): floor, room, thing, subthing, item, and the floor-plan item types (door, window, ceiling, recessedLight, wallplate, fixture, plumbingEndpoint, plumbing, switch, outlet, breaker, panel). Whole house collections (`HOUSE_WHOLE_COLLECTIONS`): floors, rooms, things, subThings, subThingItems, floorPlans, breakerPanels.
+- `yTargetCol(name, targetType)` now routes yard targets to the yard, house targets to the house, and everything else to the person's own area; `yNameCol` does the same for whole collections; the photo helpers (`_pShareId`, `_pCanEditPhoto`) know house targets. Facts/photos on a *problem* follow it (`window.houseProblemOpen`, set with `yardProblemOpen` when the dialog opens).
+- House home: hidden "House:" picker (`#houseSwitcher`), role banner (`#houseRoleBanner`) and title (`#houseHomeTitle`), shown only when a house is shared. The view-only tidy-up (`yApplyViewOnlyMode`) also covers the house pages (`HOUSE_PAGE_IDS`).
+- No house share exists yet, so nothing behaves differently.
+
 ### LLM Identification for Collections
 - User taps `+Photo` → opens photo staging modal
 - Photo sent to LLM with type-specific prompt (returns JSON matching the type's schema)

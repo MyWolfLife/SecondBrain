@@ -1344,6 +1344,8 @@ function initApp() {
     if (typeof shLoadPrefs === 'function') shLoadPrefs();
     // Which yard is open (own, or one shared with me) — see sharing.js
     if (typeof yardReady === 'function') yardReady();
+    // Which house is open (own, or one shared with me)
+    if (typeof houseReady === 'function') houseReady();
     // Load favorites (star button + home page widget)
     if (typeof favInit === 'function') favInit();
     // Watch for another device's active Offline Trip Mode session (read-only lock)

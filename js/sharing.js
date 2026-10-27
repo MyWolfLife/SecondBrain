@@ -999,6 +999,7 @@ function _pCol(name, targetType) {
 function _pShareId(targetType) {
     if (targetType === 'collectionitem' || targetType === 'collection') return window.currentShareId || null;
     if (_yIsYardTarget(targetType)) return window.yardShareId || null;
+    if (_hIsHouseTarget(targetType)) return window.houseShareId || null;
     return null;
 }
 
@@ -1012,7 +1013,9 @@ function _pStamp(data, targetType) {
 /** False for someone who may only view the shared collection the photo belongs to. */
 function _pCanEditPhoto(targetType) {
     if (!_pShareId(targetType)) return true;
-    return _yIsYardTarget(targetType) ? yCanEdit() : shCanEdit();
+    if (_yIsYardTarget(targetType)) return yCanEdit();
+    if (_hIsHouseTarget(targetType)) return hCanEdit();
+    return shCanEdit();
 }
 
 /**
@@ -1238,7 +1241,9 @@ function _yStampedRef(ref) {
  * projects): the yard's collection when the row's target is a yard thing, else the person's own.
  */
 function yTargetCol(name, targetType) {
-    return _yIsYardTarget(targetType) ? yardCol(name) : userCol(name);
+    if (_yIsYardTarget(targetType)) return yardCol(name);
+    if (_hIsHouseTarget(targetType)) return houseCol(name);     // House rows follow the same rule (SharedHousePlan.md)
+    return userCol(name);
 }
 
 /** Stamp a yard write with who/when, only when the yard lives in a share. */
@@ -1347,7 +1352,9 @@ function shSwitchYard(key) {
  */
 var YARD_WHOLE_COLLECTIONS = ['zones', 'plants', 'weeds', 'chemicals', 'savedActions', 'gpsShapes'];
 function yNameCol(name) {
-    return YARD_WHOLE_COLLECTIONS.indexOf(name) !== -1 ? yardCol(name) : userCol(name);
+    if (YARD_WHOLE_COLLECTIONS.indexOf(name) !== -1) return yardCol(name);
+    if (HOUSE_WHOLE_COLLECTIONS.indexOf(name) !== -1) return houseCol(name);
+    return userCol(name);
 }
 
 /**
@@ -1390,24 +1397,32 @@ var YARD_PAGE_IDS = ['page-home', 'page-yard-projects', 'page-yard-problems', 'p
 var _YARD_EDIT_WORDS = /^\s*(\+|add\b|edit\b|delete\b|remove\b|log\b|save\b|move\b|copy\b|clone\b|complete\b|reopen\b|resolve\b|new\b|set\b|crop\b|caption\b|rename\b|import\b|scan\b|draw\b|bulk\b|take\b|upload\b|choose\b|📷|📋|✏|🗑|➕)/i;
 var _yVoTimer = null, _yVoObserver = null;
 
+var HOUSE_PAGE_IDS = ['page-house', 'page-house-projects', 'page-house-problems', 'page-house-calendar-events', 'page-panel',
+                      'page-floor', 'page-room', 'page-thing', 'page-subthing', 'page-item', 'page-rooms', 'page-things',
+                      'page-floorplan', 'page-floorplanitem'];
+
 function _yVoSweep() {
-    var on = window.yardShareId && window.yardRole === 'view';
-    YARD_PAGE_IDS.forEach(function(pid) {
-        var page = document.getElementById(pid);
-        if (!page) return;
-        page.querySelectorAll('button').forEach(function(b) {
-            if (b.dataset.yardKeep) return;
-            if (on && _YARD_EDIT_WORDS.test(b.textContent || '')) b.classList.add('yard-vo-hide');
-            else b.classList.remove('yard-vo-hide');
+    var yardOn  = !!(window.yardShareId  && window.yardRole  === 'view');
+    var houseOn = !!(window.houseShareId && window.houseRole === 'view');
+    [[YARD_PAGE_IDS, yardOn], [HOUSE_PAGE_IDS, houseOn]].forEach(function(pair) {
+        var on = pair[1];
+        pair[0].forEach(function(pid) {
+            var page = document.getElementById(pid);
+            if (!page) return;
+            page.querySelectorAll('button').forEach(function(b) {
+                if (b.dataset.yardKeep) return;
+                if (on && _YARD_EDIT_WORDS.test(b.textContent || '')) b.classList.add('yard-vo-hide');
+                else b.classList.remove('yard-vo-hide');
+            });
+            page.querySelectorAll('[data-project-id] input[type=checkbox]').forEach(function(c) { c.disabled = on; });
+            page.querySelectorAll('.add-checklist-row').forEach(function(r) { r.classList.toggle('yard-vo-hide', on); });
         });
-        page.querySelectorAll('[data-project-id] input[type=checkbox]').forEach(function(c) { c.disabled = !!on; });
-        page.querySelectorAll('.add-checklist-row').forEach(function(r) { r.classList.toggle('yard-vo-hide', !!on); });
     });
 }
 
-/** Turns the view-only tidy-up on or off to match the active yard. */
+/** Turns the view-only tidy-up on or off to match the active yard and house. */
 function yApplyViewOnlyMode() {
-    var on = !!(window.yardShareId && window.yardRole === 'view');
+    var on = !!((window.yardShareId && window.yardRole === 'view') || (window.houseShareId && window.houseRole === 'view'));
     document.body.classList.toggle('yard-view-only', on);
     if (on && !_yVoObserver && window.MutationObserver) {
         _yVoObserver = new MutationObserver(function() {
@@ -1682,4 +1697,174 @@ async function shRestoreSharedYardPhotos(payload, log) {
     if (await _shMyYardShare()) return;
     await shBatchSet((e.photos || []).map(function(r) { return { ref: userCol('photos').doc(r.id), data: r.data }; }));
     log('✓ ' + (e.photos || []).length + ' photo(s) of the formerly shared yard restored.', '#2e7d32');
+}
+
+// ─── The House in shares (H1) ────────────────────────────────────────────────
+// Same idea as the Yard (SharedHousePlan.md): the whole House section is one share (kind 'house').
+// Floors, rooms, things, sub-things, items, floor plans and breaker panels live in it, and so do
+// the activities / photos / problems / facts / projects whose targetType is a house target.
+// The person looks at one house at a time:
+//   window.houseShareId   null = the person's own private house, otherwise a share ID
+//   window.houseRole      'owner' (also for private) | 'edit' | 'view'
+//   window.houseShareData the share document's data (names{} for the "Added by" labels)
+
+var HOUSE_TARGET_TYPES = ['floor', 'room', 'thing', 'subthing', 'item',
+    'door', 'window', 'ceiling', 'recessedLight', 'wallplate', 'fixture', 'plumbingEndpoint', 'plumbing',
+    'switch', 'outlet', 'breaker', 'panel'];
+var HOUSE_WHOLE_COLLECTIONS = ['floors', 'rooms', 'things', 'subThings', 'subThingItems', 'floorPlans', 'breakerPanels'];
+var HOUSE_CHOICE_KEY = 'bishopHouseChoice';     // per-device convenience: which house was last open
+
+window.houseShareId   = null;
+window.houseRole      = 'owner';
+window.houseShareData = null;
+var _houseOptions = [{ id: null, role: 'owner', data: null, label: 'My house' }];
+
+/** True for the target types whose rows belong to the house (the rest stay private or go to the yard). */
+function _hIsHouseTarget(targetType) {
+    // Facts and photos on a problem follow the problem: house while a house problem's dialog is open.
+    if (targetType === 'problem') return !!window.houseProblemOpen;
+    return HOUSE_TARGET_TYPES.indexOf(targetType) !== -1;
+}
+
+/** A house collection (floors, rooms, things ...) in the active house. */
+function houseCol(name) {
+    var col = dataCol(name, window.houseShareId);
+    // In a share every write also records who/when; a private house is left exactly as it was.
+    return window.houseShareId ? _yStampedRef(col) : col;
+}
+
+/** True when the person may add / change / delete inside the active house. */
+function hCanEdit() {
+    return !window.houseShareId || window.houseRole === 'owner' || window.houseRole === 'edit';
+}
+
+/** True only for the owner of the active house (always true for the private house). */
+function hIsOwner() {
+    return !window.houseShareId || window.houseRole === 'owner';
+}
+
+function _hSetActive(opt) {
+    window.houseShareId   = opt.id || null;
+    window.houseRole      = opt.role || 'owner';
+    window.houseShareData = opt.data || null;
+}
+
+/**
+ * Works out which houses this person can open and which one is active: their own (private, or the
+ * share it moved into) plus any house shared with them. The last choice on this device wins;
+ * otherwise their own house. Never throws: on any failure the private house stays active.
+ */
+async function shResolveHouse() {
+    try {
+        var mine   = (await shLoadMyShares()).filter(function(s) { return s.kind === 'house'; });
+        var withMe = (await shLoadSharedWithMe()).filter(function(s) { return s.kind === 'house'; });
+        var options = [];
+        if (mine.length) options.push({ id: mine[0].id, role: 'owner', data: mine[0].data, label: 'My house' });
+        else             options.push({ id: null, role: 'owner', data: null, label: 'My house' });
+        withMe.forEach(function(s) {
+            options.push({ id: s.id, role: s.role, data: s.data, label: s.ownerName + '’s house' });
+        });
+        var saved = null;
+        try { saved = localStorage.getItem(HOUSE_CHOICE_KEY); } catch (e) { /* storage blocked: fine */ }
+        var pick = options[0];
+        options.forEach(function(o) { if ((o.id || 'private') === saved) pick = o; });
+        _houseOptions = options;
+        _hSetActive(pick);
+        yApplyViewOnlyMode();
+    } catch (err) {
+        console.error('shResolveHouse:', err);
+        _houseOptions = [{ id: null, role: 'owner', data: null, label: 'My house' }];
+        _hSetActive(_houseOptions[0]);
+    }
+}
+
+/** Started at sign-in (app.js); screens that need the answer wait on it. */
+function houseReady() {
+    if (!window._houseReadyPromise) window._houseReadyPromise = shResolveHouse();
+    return window._houseReadyPromise;
+}
+
+/** Fills the "House: …" picker and the role banner on the House home. Picker hidden unless there is more than one house. */
+async function shRenderHouseSwitcher() {
+    var box = document.getElementById('houseSwitcher');
+    var title = document.getElementById('houseHomeTitle');
+    if (!box) return;
+    await houseReady();
+    var active = window.houseShareId || 'private';
+    var cur = _houseOptions.filter(function(o) { return (o.id || 'private') === active; })[0] || _houseOptions[0];
+    if (title) title.textContent = cur.label === 'My house' ? 'My House' : cur.label.replace(/^./, function(c) { return c.toUpperCase(); });
+    var banner = document.getElementById('houseRoleBanner');
+    if (banner) {
+        var who = cur.id && cur.data && cur.data.names ? (cur.data.names[cur.data.ownerUid] || 'someone') : '';
+        banner.textContent = !cur.id ? '' :
+            cur.role === 'owner' ? 'Shared house — you are the owner.' :
+            (cur.role === 'edit' ? 'Can edit' : 'View only') + ' · shared by ' + who;
+        banner.style.display = banner.textContent ? '' : 'none';
+    }
+    if (_houseOptions.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    var html = '<label style="font-size:0.9rem; color:#666;">House: </label><select id="houseSwitcherSelect" onchange="shSwitchHouse(this.value)" style="width:auto;">';
+    _houseOptions.forEach(function(o) {
+        var key = o.id || 'private';
+        var role = o.id && o.role === 'edit' ? ' (can edit)' : (o.id && o.role === 'view' ? ' (view only)' : '');
+        html += '<option value="' + key + '"' + (key === active ? ' selected' : '') + '>' + escapeHtml(o.label + role) + '</option>';
+    });
+    box.innerHTML = html + '</select>';
+    box.classList.remove('hidden');
+}
+
+/** Picker changed: remember the choice, make that house active and redraw the House home. */
+function shSwitchHouse(key) {
+    var opt = _houseOptions.filter(function(o) { return (o.id || 'private') === key; })[0];
+    if (!opt) return;
+    try { localStorage.setItem(HOUSE_CHOICE_KEY, key); } catch (e) { /* storage blocked: fine */ }
+    _hSetActive(opt);
+    yApplyViewOnlyMode();
+    if (typeof loadHousePage === 'function') loadHousePage();
+    shRenderHouseSwitcher();
+}
+
+/**
+ * Deep links (#room/abc, #thing/abc ...) carry only an ID. If the thing is not in the active
+ * house but is in another house the person can open, switch to that house first.
+ */
+async function houseEnsureFor(name, id) {
+    await houseReady();
+    if (_houseOptions.length < 2 || !id) return;
+    try { if ((await houseCol(name).doc(id).get()).exists) return; } catch (e) { /* fall through to the others */ }
+    for (var i = 0; i < _houseOptions.length; i++) {
+        var o = _houseOptions[i];
+        if ((o.id || null) === (window.houseShareId || null)) continue;
+        try {
+            if ((await dataCol(name, o.id).doc(id).get()).exists) {
+                try { localStorage.setItem(HOUSE_CHOICE_KEY, o.id || 'private'); } catch (e) { /* ok */ }
+                _hSetActive(o);
+                yApplyViewOnlyMode();
+                shRenderHouseSwitcher();
+                return;
+            }
+        } catch (e) { /* not readable: skip */ }
+    }
+}
+
+/** Every place house rows can live for this person: their private area plus every house share they can open. */
+async function hPlaces() {
+    await houseReady();
+    var ids = [null];
+    _houseOptions.forEach(function(o) { if (o.id) ids.push(o.id); });
+    return ids;
+}
+
+/**
+ * Like userCol(name).get() but across ALL the person's houses (see hPlaces). `build` optionally turns
+ * each collection into a query. Returns a snapshot-like object: forEach, docs, size, empty.
+ */
+async function hReadAll(name, build) {
+    var places = await hPlaces();
+    var snaps = await Promise.all(places.map(function(id) {
+        var col = dataCol(name, id);
+        return (build ? build(col) : col).get();
+    }));
+    var docs = [];
+    snaps.forEach(function(s) { s.forEach(function(d) { docs.push(d); }); });
+    return { docs: docs, size: docs.length, empty: docs.length === 0, forEach: function(fn) { docs.forEach(fn); } };
 }

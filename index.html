@@ -1805,8 +1805,11 @@
         <!-- Page: House Home (floor list) -->
         <section class="page hidden" id="page-house">
             <div class="page-header">
-                <h2>My House</h2>
+                <h2 id="houseHomeTitle">My House</h2>
             </div>
+            <!-- H1: "House: My house / Steve's house" picker and role banner; hidden unless a house is shared -->
+            <div id="houseSwitcher" class="hidden" style="padding: 0 16px 8px;"></div>
+            <p id="houseRoleBanner" class="yard-role-banner" style="display:none;"></p>
             <!-- Summary stats bar (events only after problems moved to own section) -->
             <div id="houseSummaryStats" class="house-summary-stats"></div>
             <!-- Open Problems panel — single clickable card rendered by renderHouseProblems() -->
@@ -12379,7 +12382,7 @@ export default {
     <script src="js/auth.js?v=487"></script>
     <script src="js/zones.js?v=489"></script>
     <script src="js/plants.js?v=488"></script>
-    <script src="js/problems.js?v=488"></script>
+    <script src="js/problems.js?v=489"></script>
     <script src="js/facts.js?v=488"></script>
     <script src="js/projects.js?v=488"></script>
     <script src="js/chemicals.js?v=488"></script>
@@ -12396,10 +12399,10 @@ export default {
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=487"></script>
     <script src="js/settings.js?v=501"></script>
-    <script src="js/sharing.js?v=12"></script>
+    <script src="js/sharing.js?v=13"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
-    <script src="js/house.js?v=487"></script>
+    <script src="js/house.js?v=488"></script>
     <script src="js/floorplan.js?v=487"></script>
     <script src="js/floorplanitem.js?v=487"></script>
     <script src="js/search.js?v=489"></script>
@@ -12484,7 +12487,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=505"></script>
+    <script src="js/app.js?v=506"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>
