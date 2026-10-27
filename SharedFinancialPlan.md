@@ -86,7 +86,7 @@ Every chunk: test in the preview with the test accounts, update spec and AppHelp
 - **Existing sensitive info** is re-locked under a data key only when an account is first shared; unshared accounts stay exactly as today.
 - **Size:** many holdings per person; batches are size-aware and a backup file downloads first.
 
-## 7. Open questions (recommended answer first)
+## 7. Questions — all settled (yes to each)
 
 1. Does the wife see **balance history / performance** for shared people? Recommend yes (view).
 2. **Budgets:** share one budget at a time (so kids never get yours). Recommend yes.
