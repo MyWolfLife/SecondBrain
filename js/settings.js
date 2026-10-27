@@ -1143,6 +1143,17 @@ async function runBackup() {
         // And the budgets I have shared (sharebudget.js bgRestoreShared)
         try { var sharedBudgets = await bgBackupShared(); if (sharedBudgets) dataPayload.sharedBudgets = sharedBudgets; }
         catch (shErr) { console.error('Backup: shared budgets not included:', shErr); }
+        // And the Financial people and the Household I have shared (sharefin.js finRestoreShared)
+        var finLockedNote = '';
+        try {
+            var sharedFin = await finBackupShared();
+            if (sharedFin) {
+                dataPayload.sharedFinancial = sharedFin;
+                if (sharedFin.some(function(e) { return e.mode === 'shared-key'; })) {
+                    finLockedNote = ' (shared financial people were saved with their shared lock because your passphrase is locked; restoring them needs your passphrase)';
+                }
+            }
+        } catch (shErr) { console.error('Backup: shared financial people not included:', shErr); }
         backupDownload(appName + '_Data_' + ts + '.json', dataPayload);
 
         // ---- Photos file (optional) ----
@@ -1169,9 +1180,9 @@ async function runBackup() {
         var photoCount = withPhotos
             ? (dataCollections ? 0 : 0)  // photos counted separately
             : 0;
-        statusMsg.textContent = withPhotos
+        statusMsg.textContent = (withPhotos
             ? '\u2713 Data and photos files downloaded'
-            : '\u2713 Data file downloaded';
+            : '\u2713 Data file downloaded') + finLockedNote;
 
         // Record last backup time in localStorage (per-device display string)
         var now          = new Date();
@@ -1571,6 +1582,7 @@ async function runRestore(payload) {
     if (payload.type === 'data'   && payload.sharedHouse)       await shRestoreSharedHouse(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedCredentials) await shRestoreSharedCredentials(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedBudgets)     await bgRestoreShared(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedFinancial)   await finRestoreShared(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedHousePhotos) await shRestoreSharedHousePhotos(payload, restoreLog);
 
     restoreLog('\n\u2705 Restore complete!', '#2e7d32');

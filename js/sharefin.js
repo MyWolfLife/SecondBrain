@@ -587,3 +587,95 @@ function _finAccessResultText(res) {
     }
     return parts.join('\n\n');
 }
+
+// ---------- Backup and restore of my shared Financial people and Household (F7) ----------
+// Added to the Data backup file as the extra key sharedFinancial: one entry per person (or the
+// Household) I have shared. The private backup of investments misses them because their data lives
+// in the share. Each entry carries the person's accounts + holdings, Social Security rows, their own
+// group with snapshots and all-time highs.
+// The sensitive fields are saved in one of two ways:
+//   mode 'passphrase'  — my passphrase was unlocked: they were re-locked with my passphrase key, so a
+//                        restore needs nothing (same as every other private account);
+//   mode 'shared-key'  — my passphrase was locked: they are saved as stored (locked with the share's
+//                        data key) together with my envelope for that key; a restore then needs my
+//                        passphrase unlocked to open the envelope and re-lock them.
+// Restored as PRIVATE data (share again if you want), skipping anyone who is still shared.
+
+async function finBackupShared() {
+    await finLoad(true);
+    if (!_finOwnList.length) return null;
+    var me = _shMyUid();
+    var unlocked = legacyIsUnlocked();
+    var out = [];
+    for (var i = 0; i < _finOwnList.length; i++) {
+        var s = _finOwnList[i];
+        var b = await finReadPersonBundle(s.personId, s.id);
+        var j = _finBundleBackup(b, null, 'backup', s.personId, s.data.personName || s.personId);
+        var hasSensitive = b.accts.some(function(d) { return finHasSensitive(d.data()); });
+        var mode = 'passphrase', envelope = null;
+        if (hasSensitive) {
+            if (unlocked) {
+                var cipher = await finCipher(s.personId);
+                if (cipher.state !== 'ok') throw new Error(finCipherMessage(cipher.state));
+                for (var a = 0; a < j.accounts.length; a++) {
+                    j.accounts[a].data = backupSerialize(await finConvertFields(b.accts[a].data(), cipher.decrypt, legacyEncrypt));
+                }
+            } else {
+                mode = 'shared-key';
+                var env = await shareCol(s.id, 'keyEnvelopes').doc(me).get();
+                envelope = env.exists ? backupSerialize(env.data()) : null;
+            }
+        }
+        out.push({
+            shareId: s.id, share: backupSerialize(s.data), personId: s.personId, personName: j.personName,
+            mode: mode, ownerEnvelope: envelope,
+            accounts: j.accounts, holdings: j.holdings, ssBenefits: j.ssBenefits,
+            investmentGroups: j.investmentGroups, investmentSnapshots: j.investmentSnapshots, allTimeHighs: j.allTimeHighs
+        });
+    }
+    return out;
+}
+
+async function finRestoreShared(payload, log) {
+    var list = payload.sharedFinancial || [];
+    if (!list.length) return;
+    await finLoad(true);
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        var label = e.personName || e.personId;
+        if (finShareIdFor(e.personId)) { log('• ' + label + ' is still shared — left as it is.'); continue; }
+
+        var convert = null;                    // function that turns a stored account into a private one
+        if (e.mode === 'shared-key') {
+            if (!legacyIsUnlocked()) {
+                log('• ' + label + ' was saved with the shared lock. Unlock your passphrase (open Financial and reveal something), then restore this file again to bring ' + label + ' back.');
+                continue;
+            }
+            try {
+                var pair = await skLoadMyKeyPair();
+                var dk = await skUnwrapDataKey(e.ownerEnvelope.wrappedKey, pair.privateKey);
+                convert = function(data) { return finConvertFields(data, function(b64) { return skDecrypt(dk, b64); }, legacyEncrypt); };
+            } catch (err) {
+                console.error('Could not open the saved key for ' + label + ':', err);
+                log('• ' + label + ': the saved shared key could not be opened with your key, so it was not restored (' + err.message + ').');
+                continue;
+            }
+        }
+
+        var privNs = e.personId === FIN_HOUSEHOLD ? 'self' : e.personId;
+        var acctCol = userCol('investments').doc(privNs).collection('accounts');
+        var ops = [];
+        for (var a = 0; a < e.accounts.length; a++) {
+            var data = e.accounts[a].data;
+            if (convert) data = await convert(data);
+            ops.push({ ref: acctCol.doc(e.accounts[a].id), data: data });
+        }
+        e.holdings.forEach(function(h) { ops.push({ ref: acctCol.doc(h.acctId).collection('holdings').doc(h.id), data: h.data }); });
+        e.ssBenefits.forEach(function(r) { ops.push({ ref: userCol('ssBenefits').doc(r.id), data: r.data }); });
+        e.investmentGroups.forEach(function(r) { ops.push({ ref: userCol('investmentGroups').doc(r.id), data: r.data }); });
+        e.investmentSnapshots.forEach(function(r) { ops.push({ ref: userCol('investmentSnapshots').doc(r.id), data: r.data }); });
+        await shBatchSet(ops);
+        if (e.allTimeHighs && Object.keys(e.allTimeHighs).length) await userCol('investmentConfig').doc('main').set(e.allTimeHighs, { merge: true });
+        log('✓ ' + label + ' restored as private (' + e.accounts.length + ' account(s)). Share again if you want.', '#2e7d32');
+    }
+}

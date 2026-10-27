@@ -1,6 +1,6 @@
 # Sharing Credentials and Financial — build plan
 
-*C1 (credentials) and F1 (keys) and F2 (helpers) and F3 (screens) and F4 (sensitive info) and F5 (share a person) and F6 (budgets, household) are built; the other Financial chunks are not. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
+*C1 (credentials) and F1 (keys) and F2 (helpers) and F3 (screens) and F4 (sensitive info) and F5 (share a person) and F6 (budgets, household) and F7 (backup) are built: the whole plan is done. Same recipe as Collections, Yard and House (`SharedSpacesBuildPlan.md`, `SharedYardPlan.md`, `SharedHousePlan.md`): groups (Wife / Family / Guest), View only / Can edit per group, owner keeps everything, editors can add/change/delete inside what is shared, only the owner changes sharing or stops it.*
 
 Two separate things, built in this order:
 
@@ -75,7 +75,7 @@ Recipients **use the same passphrase they already use** for their own Legacy/Pri
 | **F4 ✅** | **Sensitive info (built and verified 2026-10-27)** via data key + envelopes; reset; rotate on remove. | Each person unlocks with their passphrase |
 | **F5 ✅** | **Share / Stop sharing a person (built and verified 2026-10-27)** (dialog, move engine with holdings, "Shared with me"). Two-account test with a real kid-style account. | Wife and kids can see their people |
 | **F6 ✅** | **Household (built and verified 2026-10-27):** joint accounts share; **per-budget** sharing. | Budget with the wife, not the kids |
-| **F7** | **Backup/restore**, spec, AppHelp, phone-width check. | Docs and backup complete |
+| **F7 ✅** | **Backup/restore (built and verified 2026-10-27)**, spec, AppHelp, phone-width check. | Docs and backup complete |
 
 Every chunk: test in the preview with the test accounts, update spec and AppHelp where behavior changed, bump `sw.js` and the `?v=` tags, commit, notify, push.
 
