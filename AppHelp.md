@@ -2329,6 +2329,7 @@ This is the list of people going on the trip or helping with it. You can pick th
 - Badge shows tax category: green = Roth · orange = Pre-Tax · purple = Brokerage · blue = Cash · gray = Other
 - Sensitive fields (account number, username, password) are encrypted and require your Legacy passphrase to reveal
 - Use the **Person** dropdown to switch between your accounts and those of people you track
+- Tap **Share…** to share a person you track (not "Me") with your groups; people shared with you appear in the **Person** dropdown, marked "shared by …"
 - Joint accounts appear under both the owner ("Me") and the co-owner's view
 - Accounts are never deleted — **Archive** hides a closed account; use **Show Archived** to see it again
 - Drag the ⠿ handle to reorder personal accounts
@@ -2336,6 +2337,10 @@ This is the list of people going on the trip or helping with it. You can pick th
 ### Details
 
 **Person switcher**: Defaults to "Me". Add family members or others via **Manage → Manage People** (picks from your Contacts list). Each person's accounts are stored independently. Changing the person reloads the list.
+
+**Sharing a person**: Pick a person you track (not "Me") in the Person dropdown and tap **Share…**. Choose which of your groups (set up under Settings → Sharing) get **View only** or **Can edit**. Sharing moves that person's accounts and holdings, their Social Security entries, and their own Financial group (the one that holds only them, with its snapshots and all-time highs) into a shared area; joint accounts and groups that include other people stay private. A backup file downloads first, and you stay the owner. Their **account numbers, usernames and passwords are locked again** so that each person opens them with their **own** passphrase (the passphrase they use for Legacy / Financial); you need yours unlocked to share, and the first time you share you will be asked for it. The button changes to **Sharing…**: change who has access, or **Stop sharing** to bring everything back to private (including changes the people made), locked with your passphrase again. If someone has not set up their passphrase yet, they cannot open the sensitive info yet: ask them to open Financial and unlock their passphrase once, then tap **Update access** in the yellow notice that appears above the accounts. The same notice appears when you remove someone from a group (it replaces the shared key so they cannot open the sensitive info) or when someone's key changes. **View only** people see everything but have no edit buttons; **Can edit** people can change accounts, holdings, snapshots and Social Security and run Update All Prices with their own price key. The Retire Estimate and Ask AI are only shown for your own people, not for someone else's.
+
+**People shared with you**: they appear in the Person dropdown as "Name (shared by Owner)". Open **Reveal** and unlock your passphrase to see the account number, username and password. If it says you do not have access yet, the owner has to give it to you (see above). You cannot share someone else's person.
 
 **Tax category badges**: Derived automatically from account type — green (Roth) = Roth IRA/Roth 401k; orange (Pre-Tax) = Traditional IRA/401k/403b/HSA/529; purple (Brokerage) = Individual/Joint brokerage; blue (Cash) = Checking/Savings/Money Market/CD; gray (Other) = other types.
 
@@ -2362,6 +2367,7 @@ This is the list of people going on the trip or helping with it. You can pick th
 - The **Me** group is created automatically on your first visit and cannot be deleted
 - Add groups for households, kids' accounts, etc. — each with its own snapshot schedule
 - Joint accounts only appear in a group's summary when **all** parties of the joint are in that group
+- When you share a person, the group that holds only them goes with them and shows a **Shared** badge; groups of people shared with you show **Shared with me** and only their owner can change them
 
 ### Details
 

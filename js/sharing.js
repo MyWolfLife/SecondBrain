@@ -970,6 +970,15 @@ async function shSubmitShareDialog() {
     var okBtn = document.getElementById('shDlgOkBtn');
     var cancelBtn = document.getElementById('shDlgCancelBtn');
     if (!_shDlg.shareId && !Object.keys(choice).length) { _shProgress('Pick at least one group first.', true); return; }
+    if (_shDlg.kind === 'financialPerson' && _shDlg.shareId && !Object.keys(choice).length) {
+        _shProgress('Use "Stop sharing" to bring this person back to private.', true); return;
+    }
+    // A shared person's sensitive info is re-locked with my passphrase key, so unlock first (then come back to this dialog)
+    if (_shDlg.kind === 'financialPerson' && !legacyIsUnlocked()) {
+        closeModal('shareDialogModal');
+        _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
+        return;
+    }
     okBtn.disabled = true; cancelBtn.disabled = true;
     try {
         if (_shDlg.kind === 'yard') {
@@ -982,6 +991,21 @@ async function shSubmitShareDialog() {
             else { _shProgress('Starting…'); await shShareHouse(choice); }
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'financialPerson') {
+            var finMsg = '';
+            if (_shDlg.shareId) {
+                await shUpdateShareGroups(_shDlg.shareId, choice);
+                var syncRes = await finSyncAccess(_shDlg.shareId);
+                finMsg = _finAccessResultText(syncRes, choice);
+            } else {
+                _shProgress('Starting…');
+                var shared = await finSharePerson(_shDlg.personId, _shDlg.personName, choice);
+                finMsg = _finAccessResultText(shared.access, choice);
+            }
+            await finRefresh();
+            closeModal('shareDialogModal');
+            if (finMsg) alert(finMsg);
+            await _finAfterShareChange();
         } else if (_shDlg.kind === 'credential') {
             // Empty choice on something already shared = stop sharing it (moves back to private)
             await shMoveCredential(_shDlg.credId, _shDlg.credFromShareId, choice, _shDlg.credMeta);
@@ -1084,7 +1108,13 @@ async function shUnshareCollection(shareId, collId) {
 
 async function shStopSharingFromDialog() {
     if (!_shDlg.shareId) return;
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : 'this collection';
+    // Stopping a shared Financial person locks their sensitive info with my passphrase key again, so unlock first
+    if (_shDlg.kind === 'financialPerson' && !legacyIsUnlocked()) {
+        closeModal('shareDialogModal');
+        _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
+        return;
+    }
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1103,6 +1133,10 @@ async function shStopSharingFromDialog() {
             await shUnshareHouse(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'financialPerson') {
+            await finUnsharePerson(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _finAfterShareChange();
         } else if (_shDlg.kind === 'credential') {
             await shMoveCredential(_shDlg.credId, _shDlg.credFromShareId, {}, _shDlg.credMeta);
             closeModal('shareDialogModal');
@@ -2164,4 +2198,21 @@ async function shRestoreSharedCredentials(payload, log) {
     await shBatchSet(ops);
     if (ops.length) log('✓ ' + ops.length + ' shared credential(s) restored as your private credentials. Share them again if you want.', '#2e7d32');
     if (skipped) log('• ' + skipped + ' shared credential(s) are still shared — left as they are.');
+}
+
+// ─── Sharing a person tracked in Financial (F5) ──────────────────────────────
+
+/** Opens the Share dialog for a Financial person (owner only; never "Me"). */
+async function shOpenFinanceShareDialog(personId, personName) {
+    if (!personId || personId === 'self' || finIsShareNs(personId)) return;
+    _shDlg.kind = 'financialPerson';
+    _shDlg.collId = null;
+    _shDlg.personId = personId;
+    _shDlg.personName = personName || 'this person';
+    _shDlg.shareId = finShareIdFor(personId);
+    var own = _finOwnList.filter(function(s) { return s.id === _shDlg.shareId; })[0];
+    _shDlg.existingGroups = (own && own.data.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
+        'Sharing moves ' + _shDlg.personName + '\'s accounts and holdings, Social Security, and their own Financial group (with its snapshots and all-time highs) into a shared area. Joint accounts and groups with other people stay private. Their account numbers, usernames and passwords are locked again so each person opens them with their own passphrase. A backup file downloads first, and you stay the owner. Editors can change accounts, holdings and snapshots; only you can stop sharing.');
 }

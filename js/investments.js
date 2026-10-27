@@ -505,6 +505,8 @@ async function _investLoadAll() {
     // People shared by me / with me (sharefin.js). A shared person that is gone (sharing stopped) falls back to "Me".
     try { await finLoad(true); } catch (err) { console.error('Could not load shared financial people:', err); }
     if (finIsShareNs(_investPersonFilter) && !finSharedName(_investPersonFilter)) _investPersonFilter = 'self';
+    // Someone shared with me and my passphrase is unlocked: make sure my sharing key exists and is published, so owners can give me access
+    if (legacyIsUnlocked() && finSharedPeople().length) { skLoadMyKeyPair().catch(function(err) { console.error('Sharing key:', err); }); }
     var settingsDoc = await userCol('settings').doc('investments').get();
     _investPeople = [];
     if (settingsDoc.exists) {
@@ -582,13 +584,74 @@ function _investRenderPage() {
         '</div>' +
         '<div class="invest-toolbar">' +
             '<button class="btn btn-primary" id="investAddAccountBtn" onclick="window.location.hash=\'#investments/accounts/add\'">+ Add Account</button>' +
+            '<button class="btn btn-secondary" id="investShareBtn" onclick="_investOpenShare()" style="display:none">Share…</button>' +
             '<button class="btn btn-secondary" id="investShowArchivedBtn" onclick="_investToggleArchived()">' +
                 (_investShowArchived ? 'Hide Archived' : 'Show Archived') +
             '</button>' +
         '</div>' +
+        '<div id="investAccessBanner"></div>' +
         '<div id="investAccountList"></div>';
 
     _investRenderList();
+}
+
+// ---------- Sharing a person (F5) ----------
+
+// Share / Sharing… button: only for people I track (not "Me", not someone else's shared person)
+function _investUpdateShareControls() {
+    var btn = document.getElementById('investShareBtn');
+    if (btn) {
+        var canShare = _investPersonFilter !== 'self' && !finIsShareNs(_investPersonFilter);
+        btn.style.display = canShare ? '' : 'none';
+        btn.textContent = finShareIdFor(_investPersonFilter) ? 'Sharing…' : 'Share…';
+    }
+    _investRefreshAccessBanner();
+}
+
+async function _investOpenShare() {
+    var p = _investPeople.find(function(x) { return x.id === _investPersonFilter; });
+    if (!p) return;
+    await shOpenFinanceShareDialog(p.id, p.name);
+}
+
+// After sharing / stopping / changing who: reload everything and redraw
+async function _finAfterShareChange() {
+    _investBannerCache = { sid: null, at: 0, html: "" };
+    await _investLoadAll();
+    await _investLoadGroups();
+    _investRenderPage();
+}
+
+var _investBannerCache = { sid: null, at: 0, html: '' };     // so expanding a card does not re-read the share every time
+
+// Owner: a line above the accounts when someone's access needs updating (new person, removed person, new key)
+async function _investRefreshAccessBanner(force) {
+    var el = document.getElementById('investAccessBanner');
+    if (!el) return;
+    var sid = finIsShareNs(_investPersonFilter) ? null : finShareIdFor(_investPersonFilter);
+    if (!sid) { el.innerHTML = ''; return; }
+    if (!force && _investBannerCache.sid === sid && Date.now() - _investBannerCache.at < 30000) { el.innerHTML = _investBannerCache.html; return; }
+    try {
+        var text = await finAccessNotice(sid);
+        if (finShareIdFor(_investPersonFilter) !== sid) return;           // switched person meanwhile
+        var html = text
+            ? '<div class="invest-access-banner" style="background:#fff7e0; border:1px solid #e6c860; border-radius:8px; padding:8px 12px; margin:8px 0;">' +
+                escapeHtml(text) + ' <button class="btn btn-secondary btn-small" onclick="_investUpdateAccess(\'' + sid + '\')">Update access</button></div>'
+            : '';
+        _investBannerCache = { sid: sid, at: Date.now(), html: html };
+        el.innerHTML = html;
+    } catch (err) { console.error('Access banner:', err); }
+}
+
+function _investUpdateAccess(sid) {
+    _legacyRequireUnlock(async function() {
+        try {
+            var res = await finSyncAccess(sid);
+            var msg = _finAccessResultText(res);
+            if (msg) alert(msg);
+        } catch (err) { console.error(err); alert('Could not update access: ' + err.message); }
+        _investRefreshAccessBanner(true);
+    });
 }
 
 function _investRenderList() {
@@ -598,6 +661,7 @@ function _investRenderList() {
     // A person someone shared with me as "View only": no adding accounts
     var addBtn = document.getElementById('investAddAccountBtn');
     if (addBtn) addBtn.style.display = finCanEdit(_investPersonFilter) ? '' : 'none';
+    _investUpdateShareControls();
 
     var list = _investAccounts.filter(function(a) {
         return _investShowArchived || !a.archived;

@@ -265,8 +265,8 @@ async function finSyncAccess(shareId) {
     (share.viewerUids || []).forEach(function(u) { want[u] = true; });
     (share.editorUids || []).forEach(function(u) { want[u] = true; });
 
-    var holders = await skEnvelopeHolders(shareId);
-    var removed = Object.keys(holders).filter(function(u) { return !want[u]; });
+    var st = await finAccessStatus(shareId);      // missing / stale (their key changed) / removed envelopes
+    var removed = st.removed;
     var keys = await skOpenShareKeys(shareId);
     var result = { granted: [], waiting: [], removed: removed, rotated: false };
 
@@ -308,7 +308,7 @@ async function finSyncAccess(shareId) {
         return result;
     }
 
-    var missing = Object.keys(want).filter(function(u) { return u !== me && !holders[u]; });
+    var missing = st.missing.concat(st.stale);    // stale = their key changed after their envelope was made: make it again
     var g = await skGrantAccess(shareId, dk, missing);
     result.granted = g.ok;
     result.waiting = g.waiting;
@@ -320,4 +320,265 @@ async function finRegrant(shareId, uid) {
     var keys = await skOpenShareKeys(shareId);
     if (!keys) throw new Error('This share has no key yet.');
     return skGrantAccess(shareId, keys.key, [uid]);
+}
+
+// ---------- Sharing and stopping a person (F5) ----------
+// Sharing person P moves everything that belongs to them into a new share (kind 'financialPerson'),
+// same document IDs: their accounts with holdings, their Social Security rows, the Financial group
+// that holds ONLY them with its snapshots and its all-time-high settings. Joint accounts and groups of
+// several people stay private (they are household things). The sensitive fields of the accounts are
+// re-locked from my passphrase key to the share's data key on the way in, and back on the way out.
+// Same safety steps as the Yard / House: backup file first, copy, check the counts, only then delete
+// the originals, undo everything if a step fails.
+
+function _finIsSoloGroup(g, personId) {
+    return (g.personIds || []).length === 1 && g.personIds[0] === personId;
+}
+
+/** Everything that belongs to one person, from the private area (shareId null) or from their share. */
+async function finReadPersonBundle(personId, shareId) {
+    var acctCol = shareId ? shareCol(shareId, 'accounts') : userCol('investments').doc(personId).collection('accounts');
+    var acctSnap = await acctCol.get();
+    var holdings = [];
+    for (var i = 0; i < acctSnap.docs.length; i++) {
+        var hs = await acctSnap.docs[i].ref.collection('holdings').get();
+        hs.docs.forEach(function(h) { holdings.push({ acctId: acctSnap.docs[i].id, doc: h }); });
+    }
+    function col(name) { return shareId ? shareCol(shareId, name) : userCol(name); }
+    var ss = (await col('ssBenefits').get()).docs.filter(function(d) { return d.data().personId === personId; });
+    var groups = (await col('investmentGroups').get()).docs.filter(function(d) { return _finIsSoloGroup(d.data(), personId); });
+    var groupIds = {};
+    groups.forEach(function(g) { groupIds[g.id] = true; });
+    var snaps = (await col('investmentSnapshots').get()).docs.filter(function(d) { return groupIds[d.data().groupId]; });
+    var cfg = await col('investmentConfig').doc('main').get();
+    var ath = {};
+    if (cfg.exists) {
+        Object.keys(cfg.data()).forEach(function(k) {
+            var m = /^allTimeHigh[A-Za-z]+_(.+)$/.exec(k);
+            if (m && groupIds[m[1]]) ath[k] = cfg.data()[k];
+        });
+    }
+    return { accts: acctSnap.docs, holdings: holdings, ss: ss, groups: groups, snaps: snaps, ath: ath };
+}
+
+function _finBundleCounts(b) {
+    return { accounts: b.accts.length, holdings: b.holdings.length, ss: b.ss.length,
+             groups: b.groups.length, snapshots: b.snaps.length, ath: Object.keys(b.ath).length };
+}
+
+function _finBundleBackup(b, convertedAccts, kind, personId, personName) {
+    function rows(docs) { return docs.map(function(d) { return { id: d.id, data: backupSerialize(d.data()) }; }); }
+    return {
+        version: 1, type: 'financial-person-' + kind, exportedAt: new Date().toISOString(),
+        personId: personId, personName: personName,
+        accounts: rows(b.accts), holdings: b.holdings.map(function(h) { return { acctId: h.acctId, id: h.doc.id, data: backupSerialize(h.doc.data()) }; }),
+        ssBenefits: rows(b.ss), investmentGroups: rows(b.groups), investmentSnapshots: rows(b.snaps),
+        allTimeHighs: backupSerialize(b.ath)
+    };
+}
+
+/** Deletes everything inside a financial-person share (not the share document). */
+async function finDeleteShareContents(shareId) {
+    var accts = await shareCol(shareId, 'accounts').get();
+    for (var i = 0; i < accts.docs.length; i++) {
+        var hs = await accts.docs[i].ref.collection('holdings').get();
+        await shBatchDelete(hs.docs.map(function(d) { return d.ref; }));
+    }
+    await shBatchDelete(accts.docs.map(function(d) { return d.ref; }));
+    var names = ['ssBenefits', 'investmentGroups', 'investmentSnapshots', 'investmentConfig', 'keyEnvelopes'];
+    for (var n = 0; n < names.length; n++) {
+        var snap = await shareCol(shareId, names[n]).get();
+        await shBatchDelete(snap.docs.map(function(d) { return d.ref; }));
+    }
+}
+
+function _finStamp() { return new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16); }
+
+/**
+ * Share person `personId` (a contact I track) with the groups in `shareGroups`. Needs my passphrase
+ * unlocked (it re-locks their sensitive fields). Returns {shareId, access} where access is the
+ * finSyncAccess result (people who have not set up a key yet are "waiting").
+ */
+async function finSharePerson(personId, personName, shareGroups) {
+    if (!legacyIsUnlocked()) { var e = new Error('Unlock your passphrase first.'); e.name = 'SkLocked'; throw e; }
+    if (!personId || personId === 'self') throw new Error('Only people you track (not "Me") can be shared.');
+    if (finShareIdFor(personId)) throw new Error('This person is already shared.');
+    var me = _shMyUid();
+    var groups = await _shLoadGroups();
+    var flat = shFlatten(shareGroups, groups, me, await shGetMyName());
+
+    _shProgress('Reading ' + personName + '…');
+    var bundle = await finReadPersonBundle(personId, null);
+    var dk = await skNewDataKey();
+
+    // Re-lock every account's sensitive fields with the new data key BEFORE anything is written (fails early, changes nothing)
+    _shProgress('Locking the sensitive info with the shared key…');
+    var converted = [];
+    for (var i = 0; i < bundle.accts.length; i++) {
+        converted.push(await finConvertFields(bundle.accts[i].data(), legacyDecrypt, function(t) { return skEncrypt(dk, t); }));
+    }
+
+    _shProgress('Saving a backup file…');
+    backupDownload('Bishop_Financial_' + personName.replace(/[^A-Za-z0-9]+/g, '_') + '_Backup_' + _finStamp() + '.json',
+                   _finBundleBackup(bundle, converted, 'before-share', personId, personName));
+
+    var shareId = db.collection('shares').doc().id;
+    var created = false;
+    try {
+        _shProgress('Creating the shared area…');
+        await topCol('shares').doc(shareId).set({           // its own write, before anything goes inside (the rules read it)
+            ownerUid: me, kind: 'financialPerson', title: 'Financial — ' + personName,
+            personId: personId, personName: personName,
+            shareGroups: shareGroups, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        created = true;
+        await skCreateShareKey(shareId, dk);                // my own envelope
+
+        var ops = [];
+        bundle.accts.forEach(function(d, idx) { ops.push({ ref: shareCol(shareId, 'accounts').doc(d.id), data: converted[idx] }); });
+        bundle.holdings.forEach(function(h) { ops.push({ ref: shareCol(shareId, 'accounts').doc(h.acctId).collection('holdings').doc(h.doc.id), data: h.doc.data() }); });
+        bundle.ss.forEach(function(d) { ops.push({ ref: shareCol(shareId, 'ssBenefits').doc(d.id), data: d.data() }); });
+        bundle.groups.forEach(function(d) { ops.push({ ref: shareCol(shareId, 'investmentGroups').doc(d.id), data: d.data() }); });
+        bundle.snaps.forEach(function(d) { ops.push({ ref: shareCol(shareId, 'investmentSnapshots').doc(d.id), data: d.data() }); });
+        if (Object.keys(bundle.ath).length) ops.push({ ref: shareCol(shareId, 'investmentConfig').doc('main'), data: bundle.ath });
+        await shBatchSet(ops, function(n, total) { _shProgress('Copying… ' + n + ' of ' + total); });
+
+        _shProgress('Checking the copy…');
+        var check = await finReadPersonBundle(personId, shareId);
+        var a = _finBundleCounts(bundle), b = _finBundleCounts(check);
+        if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error('The copy does not match the original (' + JSON.stringify(b) + ' instead of ' + JSON.stringify(a) + ').');
+    } catch (err) {
+        console.error('finSharePerson failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. Nothing has been changed.', true);
+        if (created) { try { await finDeleteShareContents(shareId); await topCol('shares').doc(shareId).delete(); } catch (e2) { console.error('rollback failed:', e2); } }
+        throw err;
+    }
+
+    // The copy is verified: give people their envelopes, then remove the private originals
+    _shProgress('Giving people access…');
+    var access = await finSyncAccess(shareId);
+    try {
+        _shProgress('Removing the private copy…');
+        await shBatchDelete(bundle.holdings.map(function(h) { return h.doc.ref; }));
+        await shBatchDelete(bundle.accts.map(function(d) { return d.ref; }));
+        await shBatchDelete(bundle.ss.map(function(d) { return d.ref; }));
+        await shBatchDelete(bundle.snaps.map(function(d) { return d.ref; }));
+        await shBatchDelete(bundle.groups.map(function(d) { return d.ref; }));
+        var athKeys = Object.keys(bundle.ath);
+        if (athKeys.length) {
+            var del = {};
+            athKeys.forEach(function(k) { del[k] = firebase.firestore.FieldValue.delete(); });
+            await userCol('investmentConfig').doc('main').update(del);
+        }
+    } catch (err) {
+        console.error('Could not remove the private originals:', err);
+        throw new Error('Shared, but the private copy could not be fully removed (' + err.message + '). Nothing is lost; open Financial and share again, or tell the developer.');
+    }
+    await finRefresh();
+    return { shareId: shareId, access: access };
+}
+
+/**
+ * Stop sharing a person (owner): everything, including what other people added or changed, goes back
+ * to my private area and the sensitive fields are locked with my passphrase key again. Needs the
+ * passphrase unlocked.
+ */
+async function finUnsharePerson(shareId) {
+    if (!legacyIsUnlocked()) { var e = new Error('Unlock your passphrase first.'); e.name = 'SkLocked'; throw e; }
+    var own = _finOwnList.filter(function(s) { return s.id === shareId; })[0];
+    if (!own) throw new Error('That is not one of your shared people.');
+    var personId = own.personId, personName = own.data.personName || 'this person';
+    var ns = personId;                                  // maps to the share while it exists
+    _shProgress('Reading the shared ' + personName + '…');
+    var bundle = await finReadPersonBundle(personId, shareId);
+
+    _shProgress('Unlocking the sensitive info…');
+    var cipher = await finCipher(ns);
+    if (cipher.state !== 'ok') throw new Error(finCipherMessage(cipher.state));
+    var converted = [];
+    for (var i = 0; i < bundle.accts.length; i++) {
+        converted.push(await finConvertFields(bundle.accts[i].data(), cipher.decrypt, legacyEncrypt));
+    }
+
+    _shProgress('Saving a backup file…');
+    backupDownload('Bishop_Financial_' + personName.replace(/[^A-Za-z0-9]+/g, '_') + '_Backup_' + _finStamp() + '.json',
+                   _finBundleBackup(bundle, converted, 'before-unshare', personId, personName));
+
+    var acctCol = userCol('investments').doc(personId).collection('accounts');
+    var ops = [];
+    bundle.accts.forEach(function(d, idx) { ops.push({ ref: acctCol.doc(d.id), data: converted[idx] }); });
+    bundle.holdings.forEach(function(h) { ops.push({ ref: acctCol.doc(h.acctId).collection('holdings').doc(h.doc.id), data: h.doc.data() }); });
+    bundle.ss.forEach(function(d) { ops.push({ ref: userCol('ssBenefits').doc(d.id), data: d.data() }); });
+    bundle.groups.forEach(function(d) { ops.push({ ref: userCol('investmentGroups').doc(d.id), data: d.data() }); });
+    bundle.snaps.forEach(function(d) { ops.push({ ref: userCol('investmentSnapshots').doc(d.id), data: d.data() }); });
+    try {
+        await shBatchSet(ops, function(n, total) { _shProgress('Moving back… ' + n + ' of ' + total); });
+        if (Object.keys(bundle.ath).length) await userCol('investmentConfig').doc('main').set(bundle.ath, { merge: true });
+        _shProgress('Checking the copy…');
+        var check = await finReadPersonBundle(personId, null);
+        var a = _finBundleCounts(bundle), b = _finBundleCounts(check);
+        if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error('The copy does not match (' + JSON.stringify(b) + ' instead of ' + JSON.stringify(a) + ').');
+    } catch (err) {
+        console.error('finUnsharePerson failed, rolling back:', err);
+        _shProgress('Something went wrong — undoing. The person is still shared.', true);
+        try { await shBatchDelete(ops.map(function(o) { return o.ref; })); } catch (e2) { console.error('rollback failed:', e2); }
+        throw err;
+    }
+    _shProgress('Removing the shared copy…');
+    await finDeleteShareContents(shareId);
+    await topCol('shares').doc(shareId).delete();
+    await finRefresh();
+}
+
+/**
+ * Who needs an envelope change: {missing: [uid] (in the share, no envelope), stale: [uid] (their key
+ * changed after their envelope was made), removed: [uid] (have an envelope but no longer in the share)}.
+ */
+async function finAccessStatus(shareId) {
+    var me = _shMyUid();
+    var share = (await topCol('shares').doc(shareId).get()).data();
+    var want = {};
+    (share.viewerUids || []).forEach(function(u) { want[u] = true; });
+    (share.editorUids || []).forEach(function(u) { want[u] = true; });
+    var envSnap = await shareCol(shareId, 'keyEnvelopes').get();
+    var env = {};
+    envSnap.docs.forEach(function(d) { env[d.id] = d.data(); });
+    var status = { missing: [], stale: [], removed: [] };
+    Object.keys(want).forEach(function(u) { if (!env[u]) status.missing.push(u); });
+    Object.keys(env).forEach(function(u) { if (u !== me && !want[u]) status.removed.push(u); });
+    var members = Object.keys(want).filter(function(u) { return env[u]; });
+    for (var i = 0; i < members.length; i++) {
+        var pk = await topCol('publicKeys').doc(members[i]).get();
+        var pkMs = pk.exists && pk.data().updatedAt && pk.data().updatedAt.toMillis ? pk.data().updatedAt.toMillis() : 0;
+        var envMs = env[members[i]].createdAt && env[members[i]].createdAt.toMillis ? env[members[i]].createdAt.toMillis() : 0;
+        if (pkMs > envMs) status.stale.push(members[i]);
+    }
+    return status;
+}
+
+/** For the owner's Accounts page: the plain-language line when access needs updating, else ''. */
+async function finAccessNotice(shareId) {
+    var st = await finAccessStatus(shareId);
+    var share = (await topCol('shares').doc(shareId).get()).data();
+    var names = share.names || {};
+    function list(uids) { return uids.map(function(u) { return names[u] || 'someone'; }).join(', '); }
+    var parts = [];
+    if (st.removed.length) parts.push('Access was removed for ' + st.removed.length + (st.removed.length === 1 ? ' person' : ' people') + ' — the shared key has to be replaced so they cannot open the sensitive info.');
+    if (st.stale.length) parts.push(list(st.stale) + ' made a new key — their access has to be re-sent.');
+    if (st.missing.length) parts.push(list(st.missing) + ' ' + (st.missing.length === 1 ? 'has' : 'have') + ' not been given access to the sensitive info yet.');
+    return parts.join(' ');
+}
+
+/** Plain-language result of giving people access: '' when everything is done. */
+function _finAccessResultText(res) {
+    if (!res) return '';
+    var parts = [];
+    if (res.rotated) parts.push('The shared key was replaced, so people who lost access can no longer open the account numbers and passwords.');
+    if (res.waiting && res.waiting.length) {
+        parts.push(res.waiting.length + (res.waiting.length === 1 ? ' person has' : ' people have') +
+            ' not set up a sharing key yet, so ' + (res.waiting.length === 1 ? 'they cannot' : 'they cannot') +
+            ' open the account numbers and passwords yet. Each needs to open Financial and unlock their passphrase once; then use "Update access" on your Accounts page.');
+    }
+    return parts.join('\n\n');
 }

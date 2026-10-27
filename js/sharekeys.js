@@ -154,9 +154,9 @@ async function skUnwrapDataKey(wrappedB64, privateKey) {
  * Owner starts the locked box for a share: a new data key with my own envelope.
  * Returns the data key (keep it in memory only while locking/unlocking things).
  */
-async function skCreateShareKey(shareId) {
+async function skCreateShareKey(shareId, existingKey) {
     var pair = await skLoadMyKeyPair();
-    var dk = await skNewDataKey();
+    var dk = existingKey || await skNewDataKey();     // sharing makes the key first so accounts can be locked with it before the share exists
     await shareCol(shareId, 'keyEnvelopes').doc(pair.uid).set({
         forUid: pair.uid, wrappedKey: await skWrapDataKey(dk, pair.publicKey),
         createdBy: pair.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
