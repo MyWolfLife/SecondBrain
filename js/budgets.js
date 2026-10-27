@@ -69,9 +69,9 @@ async function loadBudgetArchivePage() {
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Loading…</p>';
 
-    var snap = await userCol('budgets').where('isArchived', '==', true).get();
+    var archivedDocs = await bgOwnDocs(true);      // mine, including ones I shared
     var archived = [];
-    snap.forEach(function(doc) {
+    archivedDocs.forEach(function(doc) {
         archived.push(Object.assign({ id: doc.id }, doc.data()));
     });
     archived.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
@@ -115,14 +115,19 @@ async function _budgetLoadMeta() {
     var appSettings = await userCol('settings').doc('app').get();
     _budgetDefaultId = appSettings.exists ? (appSettings.data().defaultBudgetId || null) : null;
 
-    // Load all non-archived budgets
-    var snap = await userCol('budgets').where('isArchived', '==', false).get();
+    // Load all non-archived budgets: mine (private and the ones I shared), then the ones shared with me (sharebudget.js)
+    await bgLoad(true);
+    var ownDocs = await bgOwnDocs(false);
     _budgetList = [];
-    snap.forEach(function(doc) {
-        _budgetList.push(Object.assign({ id: doc.id }, doc.data()));
+    ownDocs.forEach(function(doc) {
+        _budgetList.push(Object.assign({ id: doc.id }, doc.data(), { _shareId: bgShareIdFor(doc.id), _role: 'owner' }));
     });
-    // Default first; then alphabetical
+    (await bgSharedWithMeDocs()).forEach(function(doc) {
+        _budgetList.push(Object.assign({ id: doc.id }, doc.data(), { _shareId: bgShareIdFor(doc.id), _role: bgRoleFor(doc.id), _ownerName: _bgWithMe[doc.id].ownerName }));
+    });
+    // Mine first (default first, then alphabetical), then the ones shared with me
     _budgetList.sort(function(a, b) {
+        if ((a._role !== 'owner') !== (b._role !== 'owner')) return a._role === 'owner' ? -1 : 1;
         if (a.id === _budgetDefaultId) return -1;
         if (b.id === _budgetDefaultId) return 1;
         return (a.name || '').localeCompare(b.name || '');
@@ -130,7 +135,7 @@ async function _budgetLoadMeta() {
 }
 
 async function _budgetLoadData(budgetId) {
-    var budgetDoc = await userCol('budgets').doc(budgetId).get();
+    var budgetDoc = await bgRef(budgetId).get();
     if (!budgetDoc.exists) return;
 
     var data = budgetDoc.data();
@@ -150,7 +155,7 @@ async function _budgetLoadData(budgetId) {
         incomeItems: new Set()
     };
 
-    var ref = userCol('budgets').doc(budgetId);
+    var ref = bgRef(budgetId);
 
     var [catSnap, itemSnap, incSnap, nmSnap] = await Promise.all([
         ref.collection('categories').orderBy('sortOrder').get(),
@@ -219,7 +224,7 @@ function _budgetRender(page) {
         '<div class="budget-name-display">' +
             '<span class="budget-name-text" id="budgetNameDisplay">' + escapeHtml(_budgetDraft.name) + '</span>' +
             (isDefault ? '<span class="budget-default-badge">Default Budget</span>' : '') +
-            '<button class="btn-icon budget-rename-btn" onclick="_budgetStartRename()" title="Rename">✏️</button>' +
+            (bgIsOwner(_budgetDraft.id) ? '<button class="btn-icon budget-rename-btn" onclick="_budgetStartRename()" title="Rename">✏️</button>' : '') +
         '</div>' +
     '</div>';
 
@@ -293,16 +298,22 @@ function _budgetRender(page) {
             '<button class="btn btn-primary" onclick="_budgetSave()" id="budgetSaveBtn">Save</button>' +
             '<button class="btn btn-secondary" onclick="_budgetDiscardConfirm()">Discard Changes</button>' +
         '</div>' +
+        // Only the owner shares, sets the default, archives or deletes a budget
+        (bgIsOwner(_budgetDraft.id) ?
         '<div class="budget-actions-secondary">' +
+            '<button class="btn btn-secondary btn-small" id="budgetShareBtn" onclick="_budgetOpenShare()">' + (bgShareIdFor(_budgetDraft.id) ? 'Sharing…' : 'Share…') + '</button>' +
             (!isDefault ? '<button class="btn btn-secondary btn-small" onclick="_budgetSetDefault(\'' + _budgetDraft.id + '\')">Use as Default</button>' : '') +
             '<button class="btn btn-secondary btn-small" onclick="_budgetArchiveConfirm()">Archive</button>' +
             '<button class="btn btn-danger btn-small" onclick="_budgetDeleteConfirm(\'' + _budgetDraft.id + '\', ' + JSON.stringify(_budgetDraft.name) + ', false)">Delete</button>' +
-        '</div>' +
+        '</div>' : '') +
     '</div>';
 
     html += '</div>'; // .budget-page
 
     page.innerHTML = html;
+
+    // A budget shared with me as "View only": no fields or buttons (the Non-Monthly "Manage" button stays: that page is view only too)
+    if (!bgCanEdit(_budgetDraft.id)) bgApplyViewOnly(page.querySelector('.budget-page'), '.budget-dropdown, .budget-nonmonthly-cat button');
 
     // Wire drag-to-reorder on all category row containers and income rows
     _budgetDraft.categories.forEach(function(cat) {
@@ -316,7 +327,8 @@ function _budgetRender(page) {
 function _budgetDropdownHtml() {
     var html = '<select class="budget-dropdown" onchange="_budgetDropdownChanged(this.value)">';
     _budgetList.forEach(function(b) {
-        var label = b.name + (b.id === _budgetDefaultId ? ' ★' : '');
+        var label = b.name + (b.id === _budgetDefaultId ? ' ★' : '') +
+            (b._role !== 'owner' ? ' (shared by ' + (b._ownerName || 'someone') + ')' : (b._shareId ? ' (shared)' : ''));
         html += '<option value="' + b.id + '"' + (b.id === (_budgetDraft && _budgetDraft.id) ? ' selected' : '') + '>' +
             escapeHtml(label) + '</option>';
     });
@@ -589,8 +601,8 @@ async function _budgetCreateNew(name, copyFromId) {
 }
 
 async function _budgetCopyFrom(srcId, destId) {
-    var srcRef  = userCol('budgets').doc(srcId);
-    var destRef = userCol('budgets').doc(destId);
+    var srcRef  = bgRef(srcId);
+    var destRef = bgRef(destId);
 
     var [catSnap, itemSnap, incSnap] = await Promise.all([
         srcRef.collection('categories').orderBy('sortOrder').get(),
@@ -675,7 +687,7 @@ function _budgetArchiveConfirm() {
 }
 
 async function _budgetArchive(budgetId) {
-    await userCol('budgets').doc(budgetId).update({
+    await bgRef(budgetId).update({
         isArchived: true,
         updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -693,7 +705,7 @@ async function _budgetArchive(budgetId) {
 }
 
 async function _budgetUnarchive(budgetId) {
-    await userCol('budgets').doc(budgetId).update({
+    await bgRef(budgetId).update({
         isArchived: false,
         updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -710,8 +722,22 @@ function _budgetDeleteConfirm(budgetId, budgetName, fromArchive) {
 }
 
 async function _budgetDelete(budgetId, fromArchive) {
+    // A budget that lives in a share: contents first, then the share (sharebudget.js)
+    if (bgShareIdFor(budgetId) && bgIsOwner(budgetId)) {
+        await bgDeleteSharedBudget(budgetId);
+        if (budgetId === _budgetDefaultId) {
+            await userCol('settings').doc('app').set({ defaultBudgetId: null }, { merge: true });
+            _budgetDefaultId = null;
+        }
+        if (fromArchive) { loadBudgetArchivePage(); return; }
+        await _budgetLoadMeta();
+        var pg = document.getElementById('page-budget');
+        if (_budgetList.length === 0) { _budgetDraft = null; _budgetDirty = false; _budgetRenderEmpty(pg); }
+        else { await _budgetLoadData(_budgetDefaultId || _budgetList[0].id); _budgetRender(pg); }
+        return;
+    }
     // Delete all subcollections first, then the budget doc
-    var ref = userCol('budgets').doc(budgetId);
+    var ref = bgRef(budgetId);
     var subs = ['categories', 'lineItems', 'incomeItems', 'nonMonthlyItems'];
     for (var s = 0; s < subs.length; s++) {
         var snap = await ref.collection(subs[s]).get();
@@ -978,7 +1004,7 @@ async function _budgetSave() {
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
     try {
-        var budgetRef = userCol('budgets').doc(_budgetDraft.id);
+        var budgetRef = bgRef(_budgetDraft.id);
 
         // Update the budget doc itself (name, updatedAt)
         await budgetRef.update({
@@ -1249,8 +1275,9 @@ async function loadBudgetNonMonthlyPage(budgetId) {
     _nmBudgetId = budgetId;
     _nmItems    = [];
 
+    await bgLoad();       // so the budget resolves to its share when it is shared (direct link)
     // Load the budget name for the breadcrumb
-    var budgetDoc = await userCol('budgets').doc(budgetId).get();
+    var budgetDoc = await bgRef(budgetId).get();
     var budgetName = budgetDoc.exists ? (budgetDoc.data().name || 'Budget') : 'Budget';
 
     document.getElementById('breadcrumbBar').innerHTML =
@@ -1270,7 +1297,7 @@ async function loadBudgetNonMonthlyPage(budgetId) {
     if (!page) return;
     page.innerHTML = '<p class="muted-text" style="padding:16px">Loading…</p>';
 
-    var snap = await userCol('budgets').doc(budgetId).collection('nonMonthlyItems')
+    var snap = await bgRef(budgetId).collection('nonMonthlyItems')
         .orderBy('sortOrder').get();
     snap.forEach(function(doc) {
         _nmItems.push(Object.assign({ id: doc.id }, doc.data()));
@@ -1328,6 +1355,7 @@ function _nmRender(page) {
     '</div>';
 
     page.innerHTML = html;
+    if (!bgCanEdit(_nmBudgetId)) bgApplyViewOnly(page, null);       // budget shared with me as View only
 }
 
 function _nmItemRowHtml(item) {
@@ -1381,7 +1409,7 @@ function _nmRefreshReserve() {
 
 async function _nmAddItem() {
     var sortOrder = _nmItems.length;
-    var newDoc = await userCol('budgets').doc(_nmBudgetId).collection('nonMonthlyItems').add({
+    var newDoc = await bgRef(_nmBudgetId).collection('nonMonthlyItems').add({
         name:      '',
         amount:    0,
         notes:     '',
@@ -1417,7 +1445,7 @@ async function _nmToggleActive(itemId, checked) {
 
     _nmRefreshReserve();
 
-    await userCol('budgets').doc(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).update({
+    await bgRef(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).update({
         isActive: checked
     });
 }
@@ -1434,7 +1462,7 @@ async function _nmFieldChanged(itemId, field, value) {
 
     var update = {};
     update[field] = parsed;
-    await userCol('budgets').doc(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).update(update);
+    await bgRef(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).update(update);
 }
 
 async function _nmDeleteItem(itemId) {
@@ -1445,5 +1473,24 @@ async function _nmDeleteItem(itemId) {
     if (row) row.remove();
     _nmRefreshReserve();
 
-    await userCol('budgets').doc(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).delete();
+    await bgRef(_nmBudgetId).collection('nonMonthlyItems').doc(itemId).delete();
+}
+
+// ---------------------------------------------------------------------------
+// Sharing one budget (sharebudget.js)
+// ---------------------------------------------------------------------------
+
+async function _budgetOpenShare() {
+    if (!_budgetDraft || !bgIsOwner(_budgetDraft.id)) return;
+    if (_budgetDirty && !confirm('You have unsaved changes. Sharing moves the saved budget. Continue without saving them?')) return;
+    await shOpenBudgetShareDialog(_budgetDraft.id, _budgetDraft.name);
+}
+
+// After sharing / stopping / changing who: reload the list and show the same budget again
+async function _budgetAfterShareChange(budgetId) {
+    await _budgetLoadMeta();
+    var page = document.getElementById('page-budget');
+    if (!page) return;
+    await _budgetLoadData(budgetId || (_budgetDraft && _budgetDraft.id) || _budgetDefaultId || (_budgetList[0] && _budgetList[0].id));
+    _budgetRender(page);
 }

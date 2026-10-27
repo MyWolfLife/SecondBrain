@@ -991,6 +991,12 @@ async function shSubmitShareDialog() {
             else { _shProgress('Starting…'); await shShareHouse(choice); }
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'budget') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await bgShareBudget(_shDlg.budgetId, choice); }
+            await bgLoad(true);
+            closeModal('shareDialogModal');
+            await _budgetAfterShareChange(_shDlg.budgetId);
         } else if (_shDlg.kind === 'financialPerson') {
             var finMsg = '';
             if (_shDlg.shareId) {
@@ -1114,7 +1120,7 @@ async function shStopSharingFromDialog() {
         _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
         return;
     }
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1133,6 +1139,10 @@ async function shStopSharingFromDialog() {
             await shUnshareHouse(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'budget') {
+            await bgUnshareBudget(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _budgetAfterShareChange(_shDlg.budgetId);
         } else if (_shDlg.kind === 'financialPerson') {
             await finUnsharePerson(_shDlg.shareId);
             closeModal('shareDialogModal');
@@ -2212,7 +2222,29 @@ async function shOpenFinanceShareDialog(personId, personName) {
     _shDlg.shareId = finShareIdFor(personId);
     var own = _finOwnList.filter(function(s) { return s.id === _shDlg.shareId; })[0];
     _shDlg.existingGroups = (own && own.data.shareGroups) || {};
+    if (personId === FIN_HOUSEHOLD) {        // the joint accounts, as one Household
+        await _shShowShareDialog(
+            _shDlg.shareId ? 'Sharing your joint accounts' : 'Share your joint accounts',
+            'Sharing moves all your joint accounts and their holdings into a shared area (the Household). Your own accounts, and each person\'s own accounts, stay as they are; share a person separately. Account numbers, usernames and passwords are locked again so each person opens them with their own passphrase. A backup file downloads first, and you stay the owner. Editors can change the joint accounts and holdings; only you can stop sharing.');
+        return;
+    }
     await _shShowShareDialog(
         (_shDlg.shareId ? 'Sharing ' : 'Share ') + _shDlg.personName,
         'Sharing moves ' + _shDlg.personName + '\'s accounts and holdings, Social Security, and their own Financial group (with its snapshots and all-time highs) into a shared area. Joint accounts and groups with other people stay private. Their account numbers, usernames and passwords are locked again so each person opens them with their own passphrase. A backup file downloads first, and you stay the owner. Editors can change accounts, holdings and snapshots; only you can stop sharing.');
+}
+
+// ─── Sharing one budget (F6) ─────────────────────────────────────────────────
+
+/** Opens the Share dialog for one budget (owner only). */
+async function shOpenBudgetShareDialog(budgetId, name) {
+    if (!bgIsOwner(budgetId)) return;
+    _shDlg.kind = 'budget';
+    _shDlg.collId = null;
+    _shDlg.budgetId = budgetId;
+    _shDlg.budgetName = name || 'this budget';
+    _shDlg.shareId = bgShareIdFor(budgetId);
+    _shDlg.existingGroups = (_bgOwn[budgetId] && _bgOwn[budgetId].data.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing “' : 'Share “') + _shDlg.budgetName + '”',
+        'Sharing moves this budget (its categories, line items, income and non-monthly items) into a shared area. Other budgets stay private. A backup file downloads first, and you stay the owner. Editors can change the budget; only you can rename, archive, delete or stop sharing it.');
 }

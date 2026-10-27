@@ -20,6 +20,7 @@
 // ============================================================
 
 var FIN_NS_PREFIX = 'share:';
+var FIN_HOUSEHOLD = 'household';     // the "person" id of the shared joint accounts (personId of that share)
 var _finOwn    = {};        // {personId: shareId} person shares I own (their data lives in the share)
 var _finWithMe = [];        // [{ns, shareId, name, personName, ownerName, role, data}] people shared with me
 var _finLoaded = false;
@@ -337,13 +338,17 @@ function _finIsSoloGroup(g, personId) {
 
 /** Everything that belongs to one person, from the private area (shareId null) or from their share. */
 async function finReadPersonBundle(personId, shareId) {
-    var acctCol = shareId ? shareCol(shareId, 'accounts') : userCol('investments').doc(personId).collection('accounts');
+    // The Household (joint accounts) is a "person" whose private accounts are the joint ones stored under 'self'
+    var isHousehold = personId === FIN_HOUSEHOLD;
+    var acctCol = shareId ? shareCol(shareId, 'accounts') : userCol('investments').doc(isHousehold ? 'self' : personId).collection('accounts');
     var acctSnap = await acctCol.get();
+    var acctDocs = acctSnap.docs.filter(function(d) { return !isHousehold || shareId || d.data().ownerType === 'joint'; });
     var holdings = [];
-    for (var i = 0; i < acctSnap.docs.length; i++) {
-        var hs = await acctSnap.docs[i].ref.collection('holdings').get();
-        hs.docs.forEach(function(h) { holdings.push({ acctId: acctSnap.docs[i].id, doc: h }); });
+    for (var i = 0; i < acctDocs.length; i++) {
+        var hs = await acctDocs[i].ref.collection('holdings').get();
+        hs.docs.forEach(function(h) { holdings.push({ acctId: acctDocs[i].id, doc: h }); });
     }
+    if (isHousehold) return { accts: acctDocs, holdings: holdings, ss: [], groups: [], snaps: [], ath: {} };
     function col(name) { return shareId ? shareCol(shareId, name) : userCol(name); }
     var ss = (await col('ssBenefits').get()).docs.filter(function(d) { return d.data().personId === personId; });
     var groups = (await col('investmentGroups').get()).docs.filter(function(d) { return _finIsSoloGroup(d.data(), personId); });
@@ -358,7 +363,7 @@ async function finReadPersonBundle(personId, shareId) {
             if (m && groupIds[m[1]]) ath[k] = cfg.data()[k];
         });
     }
-    return { accts: acctSnap.docs, holdings: holdings, ss: ss, groups: groups, snaps: snaps, ath: ath };
+    return { accts: acctDocs, holdings: holdings, ss: ss, groups: groups, snaps: snaps, ath: ath };
 }
 
 function _finBundleCounts(b) {
@@ -505,7 +510,7 @@ async function finUnsharePerson(shareId) {
     backupDownload('Bishop_Financial_' + personName.replace(/[^A-Za-z0-9]+/g, '_') + '_Backup_' + _finStamp() + '.json',
                    _finBundleBackup(bundle, converted, 'before-unshare', personId, personName));
 
-    var acctCol = userCol('investments').doc(personId).collection('accounts');
+    var acctCol = userCol('investments').doc(personId === FIN_HOUSEHOLD ? 'self' : personId).collection('accounts');
     var ops = [];
     bundle.accts.forEach(function(d, idx) { ops.push({ ref: acctCol.doc(d.id), data: converted[idx] }); });
     bundle.holdings.forEach(function(h) { ops.push({ ref: acctCol.doc(h.acctId).collection('holdings').doc(h.doc.id), data: h.doc.data() }); });

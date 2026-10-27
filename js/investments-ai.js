@@ -633,7 +633,7 @@ async function _investAiBuildPayload(groupId, includedGroupKeys) {
 
     // ---------- Budgets ----------
     if (has('budgets')) {
-        var budgetSnap      = await userCol('budgets').where('isArchived', '==', false).get();
+        var budgetSnap      = { docs: await bgOwnDocs(false) };      // my budgets, including ones I shared (sharebudget.js)
         var appSettingsDoc  = await userCol('settings').doc('app').get().catch(function() { return { exists: false, data: function() { return {}; } }; });
         var defaultBudgetId = _investConfig.selectedBudgetId ||
             (appSettingsDoc.exists ? (appSettingsDoc.data().defaultBudgetId || null) : null);

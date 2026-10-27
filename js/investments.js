@@ -524,6 +524,12 @@ async function _investLoadAll() {
     await _investLoadAccounts();
 }
 
+// Joint accounts I shared as a "Household" live in that share (ns 'household'); they still show in my own lists
+async function _investHouseholdDocs() {
+    if (!finShareIdFor(FIN_HOUSEHOLD)) return [];
+    return (await finAcctCol(FIN_HOUSEHOLD).get()).docs;
+}
+
 async function _investLoadAccounts() {
     _investExpandedIds = {};
     _investRevealedIds = {};
@@ -537,12 +543,24 @@ async function _investLoadAccounts() {
 
     // When viewing a contact, also pull joint accounts stored under 'self' that list them as co-owner.
     // These are loaded client-side to avoid needing a composite Firestore index.
-    if (_investPersonFilter !== 'self' && !finIsShareNs(_investPersonFilter)) {
+    var householdDocs = (finIsShareNs(_investPersonFilter)) ? [] : await _investHouseholdDocs();
+    if (_investPersonFilter === 'self') {
+        // my shared joint accounts (they live in the Household share)
+        householdDocs.forEach(function(doc) {
+            _investAccounts.push(Object.assign({ id: doc.id, _ns: FIN_HOUSEHOLD }, doc.data()));
+        });
+    } else if (!finIsShareNs(_investPersonFilter)) {
         var selfSnap = await finAcctCol('self').get();
         selfSnap.forEach(function(doc) {
             var data = doc.data();
             if (data.ownerType === 'joint' && data.primaryContactId === _investPersonFilter) {
                 _investAccounts.push(Object.assign({ id: doc.id, _ns: 'self', _joint: true }, data));
+            }
+        });
+        householdDocs.forEach(function(doc) {
+            var data = doc.data();
+            if (data.ownerType === 'joint' && data.primaryContactId === _investPersonFilter) {
+                _investAccounts.push(Object.assign({ id: doc.id, _ns: FIN_HOUSEHOLD, _joint: true }, data));
             }
         });
     }
@@ -601,14 +619,19 @@ function _investRenderPage() {
 function _investUpdateShareControls() {
     var btn = document.getElementById('investShareBtn');
     if (btn) {
-        var canShare = _investPersonFilter !== 'self' && !finIsShareNs(_investPersonFilter);
+        var canShare = !finIsShareNs(_investPersonFilter);
         btn.style.display = canShare ? '' : 'none';
-        btn.textContent = finShareIdFor(_investPersonFilter) ? 'Sharing…' : 'Share…';
+        if (_investPersonFilter === 'self') {        // on "Me" the button shares my joint accounts as a Household
+            btn.textContent = finShareIdFor(FIN_HOUSEHOLD) ? 'Sharing joint accounts…' : 'Share joint accounts…';
+        } else {
+            btn.textContent = finShareIdFor(_investPersonFilter) ? 'Sharing…' : 'Share…';
+        }
     }
     _investRefreshAccessBanner();
 }
 
 async function _investOpenShare() {
+    if (_investPersonFilter === 'self') { await shOpenFinanceShareDialog(FIN_HOUSEHOLD, 'Household'); return; }
     var p = _investPeople.find(function(x) { return x.id === _investPersonFilter; });
     if (!p) return;
     await shOpenFinanceShareDialog(p.id, p.name);
@@ -628,12 +651,12 @@ var _investBannerCache = { sid: null, at: 0, html: '' };     // so expanding a c
 async function _investRefreshAccessBanner(force) {
     var el = document.getElementById('investAccessBanner');
     if (!el) return;
-    var sid = finIsShareNs(_investPersonFilter) ? null : finShareIdFor(_investPersonFilter);
+    var sid = finIsShareNs(_investPersonFilter) ? null : finShareIdFor(_investPersonFilter === 'self' ? FIN_HOUSEHOLD : _investPersonFilter);
     if (!sid) { el.innerHTML = ''; return; }
     if (!force && _investBannerCache.sid === sid && Date.now() - _investBannerCache.at < 30000) { el.innerHTML = _investBannerCache.html; return; }
     try {
         var text = await finAccessNotice(sid);
-        if (finShareIdFor(_investPersonFilter) !== sid) return;           // switched person meanwhile
+        if (finShareIdFor(_investPersonFilter === 'self' ? FIN_HOUSEHOLD : _investPersonFilter) !== sid) return;           // switched person meanwhile
         var html = text
             ? '<div class="invest-access-banner" style="background:#fff7e0; border:1px solid #e6c860; border-radius:8px; padding:8px 12px; margin:8px 0;">' +
                 escapeHtml(text) + ' <button class="btn btn-secondary btn-small" onclick="_investUpdateAccess(\'' + sid + '\')">Update access</button></div>'
@@ -765,7 +788,7 @@ function _investCardHtml(acct) {
             var coOwnerName = '';
             if (acct.primaryContactId) {
                 var contact = _investPeople.find(function(p) { return p.id === acct.primaryContactId; });
-                coOwnerName = contact ? contact.name : acct.primaryContactId;
+                coOwnerName = contact ? contact.name : (finIsShareNs(acct._ns || _investPersonFilter) ? '' : acct.primaryContactId);
             }
             body += '<div class="invest-detail-row">' +
                 '<span class="invest-detail-label">Owner</span>' +
@@ -942,7 +965,7 @@ function _investHideAccount(id) {
 
 // Navigate to edit form, switching person filter to the account's actual namespace first
 function _investEditAccount(id, ns) {
-    if (ns && ns !== _investPersonFilter) {
+    if (ns && ns !== _investPersonFilter && ns !== FIN_HOUSEHOLD) {      // shared joint accounts are listed under Me
         _investPersonFilter = ns;
     }
     window.location.hash = '#investments/accounts/edit/' + id;
@@ -1050,7 +1073,7 @@ async function loadInvestmentsFormPage(id) {
     }
 
     // Record original namespace so save can detect an owner change
-    _investFormOriginalNs = _investPersonFilter || 'self';
+    _investFormOriginalNs = (acct && acct._ns) ? acct._ns : (_investPersonFilter || 'self');
 
     // A person shared with me as "View only" cannot add or change accounts
     if (!finCanEdit(_investFormOriginalNs)) {
@@ -1093,6 +1116,7 @@ async function loadInvestmentsFormPage(id) {
     finSharedPeople().forEach(function(p) {
         personOpts += '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(p.name) + '</option>';
     });
+    if (_investFormOriginalNs === FIN_HOUSEHOLD) personOpts += '<option value="' + FIN_HOUSEHOLD + '">Household (shared joint accounts)</option>';
     var personDisabled = (_investPeople.length === 0 || (formInShare && id)) ? ' disabled' : '';
 
     page.innerHTML =
@@ -1297,6 +1321,13 @@ async function _investSaveForm() {
     var isNew = !id;
     // An existing account in a share stays with that person (the holder list is disabled)
     if (!isNew && finShareIdFor(_investFormOriginalNs)) selectedNs = _investFormOriginalNs;
+    // A new joint account (or one made joint) goes into my shared Household when I have one
+    if (ownerType === 'joint' && selectedNs === 'self' && finShareIdFor(FIN_HOUSEHOLD)) selectedNs = FIN_HOUSEHOLD;
+    // Joint accounts in the shared Household stay joint (stop sharing them first to change that)
+    if (_investFormOriginalNs === FIN_HOUSEHOLD && ownerType !== 'joint') {
+        alert('Accounts in your shared Household must stay joint. Stop sharing the joint accounts first if you want to change this one.');
+        return;
+    }
     if (!finCanEdit(selectedNs)) { alert('You can only view this person.'); return; }
 
     var data = {
@@ -1412,14 +1443,16 @@ function _investCancelForm() {
 
 async function _investArchive(id) {
     if (!confirm('Archive this account? It will be hidden from the main list. You can restore it anytime with "Show Archived".')) return;
-    await _investCol().doc(id).update({ archived: true });
+    var archAcct = _investAccounts.find(function(a) { return a.id === id; });
+    await finAcctCol((archAcct && archAcct._ns) || _investPersonFilter).doc(id).update({ archived: true });
     delete _investExpandedIds[id];
     await _investLoadAccounts();
     _investRenderList();
 }
 
 async function _investRestore(id) {
-    await _investCol().doc(id).update({ archived: false });
+    var restAcct = _investAccounts.find(function(a) { return a.id === id; });
+    await finAcctCol((restAcct && restAcct._ns) || _investPersonFilter).doc(id).update({ archived: false });
     await _investLoadAccounts();
     _investRenderList();
 }
@@ -2147,7 +2180,7 @@ async function loadInvestmentsAccountPage(ns, accountId) {
     _investCurrentAccountId = accountId;
 
     // Ensure person context matches this account's namespace
-    if (_investPersonFilter !== ns) {
+    if (_investPersonFilter !== ns && ns !== FIN_HOUSEHOLD) {
         _investPersonFilter = ns;
     }
 
@@ -2204,7 +2237,7 @@ function _investRenderAccountDetail(acct) {
     var coOwnerName = '';
     if (acct.ownerType === 'joint' && acct.primaryContactId) {
         var contact = _investPeople.find(function(p) { return p.id === acct.primaryContactId; });
-        coOwnerName = contact ? contact.name : acct.primaryContactId;
+        coOwnerName = contact ? contact.name : (finIsShareNs(_investCurrentAccountNs) ? '' : acct.primaryContactId);
     }
 
     var totals = _investComputeAccountTotals(_investCurrentHoldings, acct.cashBalance, acct.pendingActivity);
@@ -3566,12 +3599,12 @@ async function _investCheckAndUpdateATH(type, netWorth, date, groupId) {
 
 async function _investLoadBudgets() {
     try {
-        var [budgetsSnap, settingsDoc] = await Promise.all([
-            userCol('budgets').where('isArchived', '==', false).get(),
+        var [budgetDocs, settingsDoc] = await Promise.all([
+            bgOwnDocs(false),                                 // my budgets, including ones I shared
             userCol('settings').doc('app').get()
         ]);
         _investBudgets = [];
-        budgetsSnap.forEach(function(d) {
+        budgetDocs.forEach(function(d) {
             _investBudgets.push({ id: d.id, name: d.data().name || 'Budget' });
         });
         _investDefaultBudgetId = (settingsDoc.exists && settingsDoc.data().defaultBudgetId) || null;
@@ -3581,7 +3614,7 @@ async function _investLoadBudgets() {
 async function _investLoadBudgetTotals(budgetId) {
     if (!budgetId) return null;
     try {
-        var ref = userCol('budgets').doc(budgetId);
+        var ref = bgRef(budgetId);        // private, or inside the share when I shared this budget
         var results = await Promise.all([
             ref.get(),
             ref.collection('categories').orderBy('sortOrder').get(),
@@ -4381,13 +4414,15 @@ async function _investLoadGroupAccounts(group) {
     // Joint accounts (stored under 'self') — only included when ALL parties are in the group
     if (personIds.indexOf('self') >= 0 && !(group && group._shareId)) {
         var selfSnap = await finAcctCol('self').get();
-        selfSnap.forEach(function(doc) {
-            var data = doc.data();
+        var jointDocs = selfSnap.docs.map(function(d) { return { doc: d, ns: 'self' }; });
+        (await _investHouseholdDocs()).forEach(function(d) { jointDocs.push({ doc: d, ns: FIN_HOUSEHOLD }); });   // shared joint accounts
+        jointDocs.forEach(function(entry) {
+            var doc = entry.doc, data = doc.data();
             if (data.ownerType === 'joint' && !data.archived && data.primaryContactId) {
                 var alreadyIn      = allAccounts.find(function(a) { return a.id === doc.id; });
                 var coOwnerInGroup = personIds.indexOf(data.primaryContactId) >= 0;
                 if (!alreadyIn && coOwnerInGroup) {
-                    allAccounts.push(Object.assign({ id: doc.id, _ns: 'self', _joint: true }, data));
+                    allAccounts.push(Object.assign({ id: doc.id, _ns: entry.ns, _joint: true }, data));
                 }
             }
         });
@@ -4886,7 +4921,8 @@ function _investSetStocksSort(sort) {
 async function _investLoadAllAccountsForStocks() {
     // _investPeople already loaded by loadInvestmentsStocksPage()
     var allNs       = ['self'].concat(_investPeople.map(function(p) { return p.id; }));
-    var personNames = { self: 'Me' };
+    if (finShareIdFor(FIN_HOUSEHOLD)) allNs.push(FIN_HOUSEHOLD);       // joint accounts I shared as a Household
+    var personNames = { self: 'Me', household: 'Joint' };
     _investPeople.forEach(function(p) { personNames[p.id] = p.name; });
 
     var allAccounts = [];
