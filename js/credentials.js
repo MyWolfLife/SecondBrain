@@ -51,7 +51,9 @@ function _credFormatCurrency(num) {
 // ---------- Module State ----------
 
 var _credCategories  = [];      // [{id, name, order}] sorted by order
-var _credentials     = [];      // all credential docs for current user
+var _credentials     = [];      // all credential docs for current user (private + mine that are shared; shared ones carry _shareId)
+var _credSharedWithMe = [];     // credentials other people shared with me (view/edit); carry _shareId, _role, _ownerName
+var CRED_SHARED_FILTER = '__shared';   // person-filter value that shows _credSharedWithMe
 var _credPeople      = [];      // [{id, name}] enrolled contact refs
 var _credPersonFilter = null;   // null = "Me"; contact ID string otherwise
 var _credExpandedCats  = {};    // {catKeyStr: bool}
@@ -86,9 +88,9 @@ async function loadCredentialAddPage() {
 async function loadCredentialEditPage(credId) {
     document.getElementById('breadcrumbBar').innerHTML =
         '<a href="#credentials">Credentials</a><span class="separator">›</span><span>Edit</span>';
-    if (!_credentials.length) await _credLoadAll();
-    var cred = _credentials.find(function(c) { return c.id === credId; });
-    if (!cred) { await _credLoadAll(); cred = _credentials.find(function(c) { return c.id === credId; }); }
+    if (!_credentials.length && !_credSharedWithMe.length) await _credLoadAll();
+    var cred = _credFind(credId);
+    if (!cred) { await _credLoadAll(); cred = _credFind(credId); }
     _credRenderForm(cred || null, null);
 }
 
@@ -123,6 +125,16 @@ async function _credLoadAll() {
         _credentials.push(Object.assign({ id: doc.id }, doc.data()));
     });
 
+    // Credentials that live in a share (C1): mine join the normal list (with _shareId set so they
+    // read and write the shared copy); the ones other people shared with me are kept apart.
+    _credSharedWithMe = [];
+    try {
+        var sharedAll = await shLoadSharedCredentials();
+        sharedAll.forEach(function(c) {
+            if (c._role === 'owner') _credentials.push(c); else _credSharedWithMe.push(c);
+        });
+    } catch (err) { console.error('Could not load shared credentials:', err); }
+
     var settingsDoc = await userCol('settings').doc('credentials').get();
     _credPeople = [];
     if (settingsDoc.exists) {
@@ -151,6 +163,10 @@ function _credRenderList() {
             (_credPersonFilter === p.id ? ' selected' : '') + '>' +
             escapeHtml(p.name) + '</option>';
     });
+    if (_credSharedWithMe.length) {
+        personOpts += '<option value="' + CRED_SHARED_FILTER + '"' +
+            (_credPersonFilter === CRED_SHARED_FILTER ? ' selected' : '') + '>Shared with me (' + _credSharedWithMe.length + ')</option>';
+    }
 
     page.innerHTML =
         '<div class="page-header">' +
@@ -189,6 +205,8 @@ function _credRefreshCatList() {
 
     var query    = _credSearchQuery.trim().toLowerCase();
     var personId = _credPersonFilter || null;
+
+    if (personId === CRED_SHARED_FILTER) { container.innerHTML = _credSharedWithMeHtml(query); return; }
 
     var allCats = _credCategories.concat([{ id: null, name: 'Uncategorized', _virtual: true }]);
     var html = '';
@@ -260,23 +278,105 @@ function _credRefreshCatList() {
     }
 }
 
+// ---------- Shared credentials (C1) ----------
+
+/** A credential by ID from my own list or from the ones shared with me. */
+function _credFind(id) {
+    return _credentials.find(function(c) { return c.id === id; }) ||
+           _credSharedWithMe.find(function(c) { return c.id === id; });
+}
+
+/** True for a credential someone else owns (shared with me). */
+function _credIsForeign(item) { return !!item._shareId && item._role !== 'owner'; }
+
+/** Where this credential is stored: its share when it is shared, otherwise my private list. */
+function _credRef(item) { return dataCol('credentials', item._shareId || null).doc(item.id); }
+
+/**
+ * "Added by Sam · Last changed by Steve" for a shared credential, when the person has the
+ * "Show who added/modified" setting on. (No dates: updatedAt on a credential means "password last changed".)
+ */
+function _credWhoLabel(item) {
+    if (!item._shareId || !shShowWhoEnabled()) return '';
+    var names = (item._share && item._share.names) || {};
+    function who(uid) { return uid === _shMyUid() ? 'you' : (names[uid] || 'someone'); }
+    var text = item.createdBy ? 'Added by ' + who(item.createdBy) : '';
+    if (item.updatedBy && item.updatedBy !== item.createdBy) text += (text ? ' · ' : '') + 'Last changed by ' + who(item.updatedBy);
+    return text;
+}
+
+/** The owner's private category/person names travel with a shared credential as plain text. */
+function _credMeta(c) {
+    var cat = _credCategories.find(function(x) { return x.id === c.categoryId; });
+    return { categoryName: cat ? cat.name : '', personName: _credPersonName(c.personId) };
+}
+
+/** The "Shared with me" view: grouped by owner, then by the category name the owner uses. */
+function _credSharedWithMeHtml(query) {
+    var items = _credSharedWithMe.filter(function(c) {
+        return !query || (c.name || '').toLowerCase().includes(query) || (c.url || '').toLowerCase().includes(query);
+    });
+    if (!items.length) {
+        return '<div class="empty-state">' + (query ? 'No credentials match your search.' : 'Nothing has been shared with you.') + '</div>';
+    }
+    var groups = {};
+    items.forEach(function(c) {
+        var key = (c._ownerName || 'Someone') + ' — ' + (c.sharedCategoryName || 'Uncategorized');
+        (groups[key] = groups[key] || []).push(c);
+    });
+    var html = '', n = 0;
+    Object.keys(groups).sort().forEach(function(key) {
+        var catKey = '__sh' + (n++);
+        if (_credExpandedCats[catKey] === undefined) _credExpandedCats[catKey] = true;    // open by default: there are few
+        var isOpen = _credExpandedCats[catKey];
+        html += '<div class="cred-cat" data-cat-key="' + catKey + '">' +
+                    '<div class="cred-cat-header" onclick="_credToggleCat(\'' + catKey + '\')">' +
+                        '<span class="cred-chevron">' + (isOpen ? '▼' : '►') + '</span>' +
+                        '<span class="cred-cat-name">' + escapeHtml(key) + '</span>' +
+                        '<span class="cred-cat-count">(' + groups[key].length + ')</span>' +
+                    '</div>' +
+                    '<div class="cred-cat-body" id="credBody_' + catKey + '" style="' + (isOpen ? '' : 'display:none') + '">';
+        groups[key].sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); })
+            .forEach(function(item) { html += _credItemHtml(item, catKey); });
+        html += '</div></div>';
+    });
+    return html;
+}
+
+async function _credOpenShare(credId) {
+    var c = _credFind(credId);
+    if (!c || _credIsForeign(c)) return;
+    await shOpenCredentialShareDialog(c, _credMeta(c));
+}
+
+/** After sharing / stopping: reload the lists and redraw. */
+async function _credAfterShareChange() {
+    await _credLoadAll();
+    _credRenderList();
+}
+
 // ---------- Credential Item HTML ----------
 
 function _credItemHtml(item, catKey) {
     var id   = item.id;
     var open = !!_credExpandedItems[id];
-    return (
-        '<div class="cred-item" data-item-id="' + escapeHtml(id) + '" data-cat-key="' + escapeHtml(catKey) + '"' +
+    var foreign = _credIsForeign(item);
+    var drag = foreign ? '' :
             ' draggable="true"' +
             ' ondragstart="_credItemDragStart(event,\'' + escapeHtml(id) + '\',\'' + escapeHtml(catKey) + '\')"' +
             ' ondragover="_credItemDragOver(event,\'' + escapeHtml(id) + '\')"' +
             ' ondragleave="_credItemDragLeave(event,\'' + escapeHtml(id) + '\')"' +
             ' ondrop="_credItemDrop(event,\'' + escapeHtml(id) + '\',\'' + escapeHtml(catKey) + '\')"' +
-            ' ondragend="_credItemDragEnd()">' +
+            ' ondragend="_credItemDragEnd()"';
+    var badge = !item._shareId ? '' :
+        '<span class="cred-shared-badge" style="background:#eef3ee; border-radius:10px; padding:1px 8px; font-size:0.75rem; margin-left:8px;">' +
+            (foreign ? (item._role === 'edit' ? 'Can edit' : 'View only') : 'Shared') + '</span>';
+    return (
+        '<div class="cred-item" data-item-id="' + escapeHtml(id) + '" data-cat-key="' + escapeHtml(catKey) + '"' + drag + '>' +
             '<div class="cred-item-header" onclick="_credToggleItem(\'' + escapeHtml(id) + '\')">' +
-                '<span class="cred-drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">≡</span>' +
+                (foreign ? '' : '<span class="cred-drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">≡</span>') +
                 '<span class="cred-chevron">' + (open ? '▼' : '►') + '</span>' +
-                '<span class="cred-item-name">' + escapeHtml(item.name || '(unnamed)') + '</span>' +
+                '<span class="cred-item-name">' + escapeHtml(item.name || '(unnamed)') + '</span>' + badge +
             '</div>' +
             '<div class="cred-item-body" id="credItemBody_' + escapeHtml(id) + '"' +
                  ' style="' + (open ? '' : 'display:none') + '">' +
@@ -351,13 +451,22 @@ function _credItemBodyHtml(item) {
         html += _credRow('Notes', '<span class="cred-multiline">' + escapeHtml(item.notes) + '</span>');
     }
 
+    if (_credIsForeign(item)) html += _credRow('Shared by', escapeHtml(item._ownerName || 'Someone'));
+    var who = _credWhoLabel(item);
+    if (who) html += _credRow('History', escapeHtml(who));
+
     html += '</div>';
-    html +=
-        '<div class="cred-item-actions">' +
+    var canEdit = !_credIsForeign(item) || item._role === 'edit';       // viewers get no buttons
+    var canShare = !_credIsForeign(item);
+    html += '<div class="cred-item-actions">' +
+        (canEdit ?
             '<button class="btn btn-secondary btn-small"' +
                     ' onclick="_credGoEdit(\'' + escapeHtml(id) + '\')">Edit</button>' +
             '<button class="btn btn-danger btn-small"' +
-                    ' onclick="_credConfirmDelete(\'' + escapeHtml(id) + '\',\'' + _credEscJs(item.name || '') + '\')">Delete</button>' +
+                    ' onclick="_credConfirmDelete(\'' + escapeHtml(id) + '\',\'' + _credEscJs(item.name || '') + '\')">Delete</button>' : '') +
+        (canShare ?
+            '<button class="btn btn-secondary btn-small"' +
+                    ' onclick="_credOpenShare(\'' + escapeHtml(id) + '\')">' + (item._shareId ? 'Sharing…' : 'Share') + '</button>' : '') +
         '</div>';
     html += _credPMRollHtml(item);
     return html;
@@ -367,6 +476,7 @@ function _credItemBodyHtml(item) {
 // item, listing recurring (Monthly/Yearly) and Other charges tied to it. One Time
 // charges are excluded entirely. Header shows count + monthly/yearly totals.
 function _credPMRollHtml(item) {
+    if (_credIsForeign(item)) return '';       // the owner's category list is private
     var pmCat = _credCategories.find(function(x) { return x.system === 'paymentMethods'; });
     if (!pmCat || item.categoryId !== pmCat.id) return '';
 
@@ -460,7 +570,7 @@ function _credToggleCat(catKey) {
 
 function _credToggleItem(itemId) {
     _credExpandedItems[itemId] = !_credExpandedItems[itemId];
-    var item = _credentials.find(function(c) { return c.id === itemId; });
+    var item = _credFind(itemId);
     var chevron = document.querySelector('.cred-item[data-item-id="' + itemId + '"] .cred-chevron');
     var body    = document.getElementById('credItemBody_' + itemId);
     if (!chevron || !body) return;
@@ -614,7 +724,7 @@ async function _credRemovePerson(contactId, name) {
     if (count > 0) {
         var batch = db.batch();
         _credentials.filter(function(c) { return c.personId === contactId; }).forEach(function(c) {
-            batch.delete(userCol('credentials').doc(c.id));
+            batch.delete(_credRef(c));       // a shared one is deleted from its share
         });
         await batch.commit();
         _credentials = _credentials.filter(function(c) { return c.personId !== contactId; });
@@ -659,6 +769,13 @@ function _credRenderForm(cred, prefilledCatKey) {
     if (otherPage) otherPage.innerHTML = '';
 
     var c = cred || {};
+    var limited = _credIsForeign(c);            // someone else's credential shared with me
+    if (limited && c._role !== 'edit') {
+        page.innerHTML = '<div class="page-header"><h2>View only</h2></div>' +
+            '<p>This credential was shared with you as view only.</p>' +
+            '<button class="btn btn-secondary" onclick="window.location.hash=\'#credentials\'">Back</button>';
+        return;
+    }
 
     // Category preselect
     var selCatId = '';
@@ -749,6 +866,8 @@ function _credRenderForm(cred, prefilledCatKey) {
                 '<textarea id="cfSecretQA" rows="4"' +
                           ' placeholder="Enter question/answer pairs however you like">' +
                     escapeHtml(c.secretQA || '') + '</textarea></div>' +
+            // Pay-for-service, Person and Category use the owner's private lists: hidden for people it was shared with
+            (limited ? '' :
             '<div class="form-group">' +
                 '<label class="cred-check-label">' +
                     '<input type="checkbox" id="cfPayFor"' + (payFor ? ' checked' : '') +
@@ -772,7 +891,7 @@ function _credRenderForm(cred, prefilledCatKey) {
             '<div class="form-group"><label>Category</label>' +
                 '<select id="cfCategory" onchange="_credOnCatChange()">' + catOpts + '</select>' +
                 '<input type="text" id="cfNewCat" placeholder="New category name"' +
-                       ' style="display:none;margin-top:8px"></div>' +
+                       ' style="display:none;margin-top:8px"></div>') +
             '<div class="form-actions">' +
                 '<button type="submit" class="btn btn-primary">Save</button>' +
                 '<button type="button" class="btn btn-secondary"' +
@@ -822,9 +941,14 @@ async function _credSaveForm(existingId) {
     var payAmount = _credParseAmount(_fv('cfPayAmount'));
     var payMethodId = _fv('cfPayMethod') || null;
 
+    // A credential someone else shared with me: only its login fields are on the form (no person,
+    // category or payment fields, which belong to the owner's private lists)
+    var existing = existingId ? _credFind(existingId) : null;
+    var limited  = !!existing && _credIsForeign(existing);
+
     // Resolve category
     var categoryId = catSel === '' ? null : catSel;
-    if (catSel === '__new__') {
+    if (catSel === '__new__' && !limited) {
         if (!newCatNm.trim()) {
             alert('Please enter a name for the new category.');
             document.getElementById('cfNewCat').focus();
@@ -841,30 +965,39 @@ async function _credSaveForm(existingId) {
     var now = new Date();
 
     // Determine if credential value changed
-    var oldValue = '';
-    if (existingId) {
-        var existing = _credentials.find(function(c) { return c.id === existingId; });
-        oldValue = existing ? (existing.credentialValue || '') : '';
-    }
+    var oldValue = existing ? (existing.credentialValue || '') : '';
 
     var data = {
         name: name.trim(), url: url.trim(), email: email.trim(),
         username: username.trim(), credentialType: credType,
         notes: notes.trim(), secretQA: secretQA.trim(),
-        personId: personId, categoryId: categoryId,
         credentialValue: credValue,
-        previousCredential: (credValue !== oldValue && existingId) ? oldValue : prevCred,
-        payForService: payFor,
-        paymentFrequency: payFor ? payFreq : '',
-        paymentAmount: payFor ? payAmount : null,
-        paymentMethodId: payFor ? payMethodId : null
+        previousCredential: (credValue !== oldValue && existingId) ? oldValue : prevCred
     };
+    if (!limited) {
+        data.personId = personId;
+        data.categoryId = categoryId;
+        data.payForService = payFor;
+        data.paymentFrequency = payFor ? payFreq : '';
+        data.paymentAmount = payFor ? payAmount : null;
+        data.paymentMethodId = payFor ? payMethodId : null;
+    }
     if (credValue !== oldValue) data.updatedAt = now;
 
+    if (existing && existing._shareId) {
+        // Lives in a share: write the shared copy, note who changed it, and keep the plain-text
+        // category/person names current (only the owner can change those)
+        data.updatedBy = _shMyUid();
+        if (!limited) {
+            var meta = _credMeta(data);
+            data.sharedCategoryName = meta.categoryName;
+            data.sharedPersonName = meta.personName;
+        }
+    }
+
     if (existingId) {
-        await userCol('credentials').doc(existingId).update(data);
-        var idx = _credentials.findIndex(function(c) { return c.id === existingId; });
-        if (idx >= 0) _credentials[idx] = Object.assign(_credentials[idx], data);
+        await _credRef(existing || { id: existingId }).update(data);
+        Object.assign(existing, data);               // the object in _credentials or _credSharedWithMe
     } else {
         var siblings = _credentials.filter(function(c) {
             return (c.personId || null) === (data.personId || null) &&
@@ -889,8 +1022,10 @@ function _fv(id) {
 
 async function _credConfirmDelete(credId, credName) {
     if (!confirm('Delete "' + (credName || 'this credential') + '"? This cannot be undone.')) return;
-    await userCol('credentials').doc(credId).delete();
+    var cred = _credFind(credId);
+    await _credRef(cred || { id: credId }).delete();
     _credentials = _credentials.filter(function(c) { return c.id !== credId; });
+    _credSharedWithMe = _credSharedWithMe.filter(function(c) { return c.id !== credId; });
     delete _credExpandedItems[credId];
     _credRefreshCatList();
 }
@@ -1010,7 +1145,7 @@ async function _credDeleteCat(catId, catName) {
     if (count > 0) {
         var batch = db.batch();
         _credentials.filter(function(c) { return c.categoryId === catId; }).forEach(function(c) {
-            batch.update(userCol('credentials').doc(c.id), { categoryId: null });
+            batch.update(_credRef(c), c._shareId ? { categoryId: null, sharedCategoryName: '' } : { categoryId: null });
             c.categoryId = null;
         });
         await batch.commit();
@@ -1098,14 +1233,19 @@ async function _credItemDrop(e, targetId, catKey) {
 
         srcItem.categoryId = catId;
         var batch = db.batch();
-        batch.update(userCol('credentials').doc(sourceId), { categoryId: catId });
+        var moveData = { categoryId: catId };
+        if (srcItem._shareId) {          // shared copy carries the category name as plain text
+            srcItem.sharedCategoryName = _credMeta(srcItem).categoryName;
+            moveData.sharedCategoryName = srcItem.sharedCategoryName;
+        }
+        batch.update(_credRef(srcItem), moveData);
         targetItems.forEach(function(item, i) {
             item.order = i;
-            batch.update(userCol('credentials').doc(item.id), { order: i });
+            batch.update(_credRef(item), { order: i });
         });
         srcItems.forEach(function(item, i) {
             item.order = i;
-            batch.update(userCol('credentials').doc(item.id), { order: i });
+            batch.update(_credRef(item), { order: i });
         });
         await batch.commit();
         _credRefreshCatList();
@@ -1129,7 +1269,7 @@ async function _credItemDrop(e, targetId, catKey) {
     var batch = db.batch();
     items.forEach(function(item, i) {
         item.order = i;
-        batch.update(userCol('credentials').doc(item.id), { order: i });
+        batch.update(_credRef(item), { order: i });
     });
     await batch.commit();
 

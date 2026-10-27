@@ -1137,6 +1137,9 @@ async function runBackup() {
         // And my House when it is shared (sharing.js shRestoreSharedHouse)
         try { var sharedHouse = await shBackupSharedHouse(); if (sharedHouse) dataPayload.sharedHouse = sharedHouse; }
         catch (shErr) { console.error('Backup: shared house not included:', shErr); }
+        // And the credentials I have shared (sharing.js shRestoreSharedCredentials)
+        try { var sharedCreds = await shBackupSharedCredentials(); if (sharedCreds) dataPayload.sharedCredentials = sharedCreds; }
+        catch (shErr) { console.error('Backup: shared credentials not included:', shErr); }
         backupDownload(appName + '_Data_' + ts + '.json', dataPayload);
 
         // ---- Photos file (optional) ----
@@ -1563,6 +1566,7 @@ async function runRestore(payload) {
     if (payload.type === 'data'   && payload.sharedYard)        await shRestoreSharedYard(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedYardPhotos)  await shRestoreSharedYardPhotos(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedHouse)       await shRestoreSharedHouse(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedCredentials) await shRestoreSharedCredentials(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedHousePhotos) await shRestoreSharedHousePhotos(payload, restoreLog);
 
     restoreLog('\n\u2705 Restore complete!', '#2e7d32');

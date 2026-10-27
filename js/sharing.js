@@ -982,6 +982,11 @@ async function shSubmitShareDialog() {
             else { _shProgress('Starting…'); await shShareHouse(choice); }
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'credential') {
+            // Empty choice on something already shared = stop sharing it (moves back to private)
+            await shMoveCredential(_shDlg.credId, _shDlg.credFromShareId, choice, _shDlg.credMeta);
+            closeModal('shareDialogModal');
+            await _credAfterShareChange();
         } else if (_shDlg.shareId) {
             await shUpdateShareGroups(_shDlg.shareId, choice);
             closeModal('shareDialogModal');
@@ -1079,9 +1084,12 @@ async function shUnshareCollection(shareId, collId) {
 
 async function shStopSharingFromDialog() {
     if (!_shDlg.shareId) return;
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : 'this collection';
-    if (!confirm('Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
-                 'The people it was shared with lose access. A backup file downloads first.')) return;
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : 'this collection';
+    var msg = _shDlg.kind === 'credential'
+        ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
+        : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
+          'The people it was shared with lose access. A backup file downloads first.';
+    if (!confirm(msg)) return;
     var okBtn = document.getElementById('shDlgOkBtn');
     var stopBtn = document.getElementById('shDlgStopBtn');
     var cancelBtn = document.getElementById('shDlgCancelBtn');
@@ -1095,6 +1103,10 @@ async function shStopSharingFromDialog() {
             await shUnshareHouse(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _shRefreshHouseAfterChange();
+        } else if (_shDlg.kind === 'credential') {
+            await shMoveCredential(_shDlg.credId, _shDlg.credFromShareId, {}, _shDlg.credMeta);
+            closeModal('shareDialogModal');
+            await _credAfterShareChange();
         } else {
             await shUnshareCollection(_shDlg.shareId, _shDlg.collId);
             closeModal('shareDialogModal');
@@ -1992,4 +2004,164 @@ function hOwnCol(name) {
 /** Collection by name in the person's own world: own house for house collections, private area otherwise. */
 function hOwnNameCol(name) {
     return HOUSE_WHOLE_COLLECTIONS.indexOf(name) !== -1 ? hOwnCol(name) : userCol(name);
+}
+
+// ─── Sharing individual credentials (C1) ─────────────────────────────────────
+// Credentials are shared one at a time. They live in "audience shares" (kind 'credentials'):
+// one share per distinct set of groups + roles (for example "Family: view only"). Choosing who a
+// credential is shared with moves that one record (same ID) into the matching share, which is
+// created on the fly; stopping moves it back to the private list. The security rules are the same
+// as for every other share. The record is one stored copy: the owner and the people it is shared
+// with all read and write the same document.
+
+/** The same audience always gives the same text, whatever order the groups were picked in. */
+function _shAudienceKey(shareGroups) {
+    var out = {};
+    Object.keys(shareGroups || {}).sort().forEach(function(k) { if (shareGroups[k]) out[k] = shareGroups[k]; });
+    return JSON.stringify(out);
+}
+
+function _shAudienceTitle(shareGroups, groups) {
+    var parts = [];
+    groups.forEach(function(g) {
+        var role = (shareGroups || {})[g.id];
+        if (role) parts.push(g.name + (role === 'edit' ? ' (can edit)' : ' (view only)'));
+    });
+    return 'Credentials — ' + (parts.join(', ') || 'nobody');
+}
+
+/**
+ * Every credential that lives in a share, either mine or shared with me: [{id, ...fields,
+ * _shareId, _role ('owner'|'edit'|'view'), _share (the share document), _ownerName}].
+ */
+async function shLoadSharedCredentials() {
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'credentials'; })
+        .map(function(s) { return { id: s.id, role: 'owner', data: s.data, ownerName: 'You' }; });
+    var withMe = (await shLoadSharedWithMe()).filter(function(s) { return s.kind === 'credentials'; })
+        .map(function(s) { return { id: s.id, role: s.role, data: s.data, ownerName: s.ownerName }; });
+    var out = [];
+    var all = mine.concat(withMe);
+    for (var i = 0; i < all.length; i++) {
+        var s = all[i];
+        var snap = await shareCol(s.id, 'credentials').get();
+        snap.docs.forEach(function(d) {
+            out.push(Object.assign({ id: d.id }, d.data(), { _shareId: s.id, _role: s.role, _share: s.data, _ownerName: s.ownerName }));
+        });
+    }
+    return out;
+}
+
+/** Deletes a credentials share once nothing is left in it (the share document may only go after its contents). */
+async function _shDropShareIfEmpty(shareId) {
+    var left = await shareCol(shareId, 'credentials').get();
+    if (left.empty) await topCol('shares').doc(shareId).delete();
+}
+
+/**
+ * Moves one credential to the audience in `shareGroups` (owner only): into the share that already
+ * has exactly that audience, or a new one; an empty audience moves it back to the private list.
+ * `fromShareId` is where it lives now (null = private). `meta` = {categoryName, personName}: the
+ * owner's category and person lists are private, so the names travel with the record as plain text.
+ * Returns the share ID it now lives in (null = private).
+ */
+async function shMoveCredential(credId, fromShareId, shareGroups, meta) {
+    var me = _shMyUid();
+    meta = meta || {};
+    var srcRef = dataCol('credentials', fromShareId).doc(credId);
+    var snap = await srcRef.get();
+    if (!snap.exists) throw new Error('That credential no longer exists.');
+    var data = Object.assign({}, snap.data());
+
+    var key = _shAudienceKey(shareGroups);
+    var toShareId = null;
+    if (key !== '{}') {
+        var groups = await _shLoadGroups();
+        var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'credentials'; });
+        var match = mine.filter(function(s) { return _shAudienceKey(s.data.shareGroups) === key; })[0];
+        if (match) {
+            toShareId = match.id;
+        } else {
+            var flat = shFlatten(shareGroups, groups, me, await shGetMyName());
+            toShareId = db.collection('shares').doc().id;
+            // Its own write, before anything goes inside: the rules read this document.
+            await topCol('shares').doc(toShareId).set({
+                ownerUid: me, kind: 'credentials', title: _shAudienceTitle(shareGroups, groups),
+                shareGroups: shareGroups, viewerUids: flat.viewerUids, editorUids: flat.editorUids, names: flat.names,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    }
+
+    if (toShareId === fromShareId) return toShareId;      // same audience: nothing to move
+
+    if (toShareId) {
+        data.sharedCategoryName = meta.categoryName || '';
+        data.sharedPersonName   = meta.personName || '';
+        data.createdBy = data.createdBy || me;
+        data.updatedBy = me;
+    } else {
+        delete data.sharedCategoryName;
+        delete data.sharedPersonName;
+    }
+
+    var batch = db.batch();                                // one atomic step: it is never in both places, never in neither
+    batch.set(dataCol('credentials', toShareId).doc(credId), data);
+    batch.delete(srcRef);
+    await batch.commit();
+    if (fromShareId) { try { await _shDropShareIfEmpty(fromShareId); } catch (err) { console.error('Could not remove the empty share:', err); } }
+    return toShareId;
+}
+
+/** Opens the Share dialog for one credential (owner only). `cred` is a row from credentials.js. */
+async function shOpenCredentialShareDialog(cred, meta) {
+    _shDlg.kind = 'credential';
+    _shDlg.collId = null;
+    _shDlg.credId = cred.id;
+    _shDlg.credFromShareId = cred._shareId || null;
+    _shDlg.credMeta = meta || {};
+    _shDlg.shareId = cred._shareId || null;
+    _shDlg.existingGroups = (cred._share && cred._share.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing “' : 'Share “') + (cred.name || 'Credential') + '”',
+        'Pick who can see this one credential. You stay the owner. People you share it with see the login details (not your other credentials). “Can edit” lets them change it or delete it; only you change who it is shared with.');
+}
+
+// ─── Backup and restore of my shared credentials (C1) ────────────────────────
+// Added to the Data backup file as the extra key sharedCredentials. Credentials in a share are not
+// in the normal private backup, so they are added here. Restored as PRIVATE credentials.
+
+async function shBackupSharedCredentials() {
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'credentials'; });
+    if (!mine.length) return null;
+    var out = [];
+    for (var i = 0; i < mine.length; i++) {
+        out.push({
+            shareId: mine[i].id, share: backupSerialize(mine[i].data),
+            credentials: _shRows((await shareCol(mine[i].id, 'credentials').get()).docs)
+        });
+    }
+    return out;
+}
+
+async function shRestoreSharedCredentials(payload, log) {
+    var list = payload.sharedCredentials || [];
+    if (!list.length) return;
+    var live = {};                                         // credentials that are shared right now are left alone
+    var mine = (await shLoadMyShares()).filter(function(s) { return s.kind === 'credentials'; });
+    for (var i = 0; i < mine.length; i++) {
+        (await shareCol(mine[i].id, 'credentials').get()).docs.forEach(function(d) { live[d.id] = true; });
+    }
+    var ops = [], skipped = 0;
+    list.forEach(function(e) {
+        (e.credentials || []).forEach(function(r) {
+            if (live[r.id]) { skipped++; return; }
+            var data = Object.assign({}, r.data);
+            delete data.sharedCategoryName;
+            delete data.sharedPersonName;
+            ops.push({ ref: userCol('credentials').doc(r.id), data: data });
+        });
+    });
+    await shBatchSet(ops);
+    if (ops.length) log('✓ ' + ops.length + ' shared credential(s) restored as your private credentials. Share them again if you want.', '#2e7d32');
+    if (skipped) log('• ' + skipped + ' shared credential(s) are still shared — left as they are.');
 }

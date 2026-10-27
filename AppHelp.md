@@ -2274,8 +2274,13 @@ This is the list of people going on the trip or helping with it. You can pick th
 - Use the **Person** filter at the top to switch between your credentials and those you track for family members
 - **Copy** buttons grab a value to your clipboard — the clipboard auto-clears after 60 seconds
 - **Credential values are masked** by default — tap 👁 to reveal
+- Tap **Share** inside a credential to share just that one with a group (View only or Can edit); credentials other people shared with you appear under **Person → Shared with me**
 
 ### Details
+
+**Sharing a credential**: Expand a credential and tap **Share**. Pick one or more of your groups (set up under Settings → Sharing) and choose **View only** or **Can edit** for each. Only that one credential is shared, not your other ones. The people you share it with see the login details (they are not hidden behind a passphrase here). It shows a **Shared** badge in your list; tap **Sharing…** to change who has it, or set every group to "Not shared" (or tap **Stop sharing**) to bring it back to private, including any changes they made. People with **Can edit** can change the login or delete it, but only you decide who it is shared with. If you remove someone from a group, they lose access at once. A shared credential still counts as yours.
+
+**Shared with me**: When someone shares a credential with you, **Shared with me** appears at the end of the Person dropdown. They are grouped by who shared them and the category they use. View only shows the details with no buttons; Can edit also shows Edit and Delete (the edit form has just the login fields). Turn on Settings → Sharing → "Show who added/modified" to see who last changed a shared credential.
 
 **Person filter**: Defaults to "Me". Add family members or others via Manage → Manage People (picks from your Contacts list). Their credentials are stored separately and toggled with the Person dropdown.
 
@@ -4823,6 +4828,8 @@ Downloads a JSON file of all your Firestore data (activities, plants, zones, hea
 
 **Shared yard:** if you have shared your Yard, it is included too (the Data file has zones, plants, weeds, chemicals, saved actions, map shapes and their facts, problems, tasks and activities; the Photos file has their photos). A yard other people shared with you belongs to them and is not in your backup. When you restore, a shared yard comes back as your **private** yard (share it again if you want) — unless your yard is still shared right now, in which case it is left alone.
 **Shared house:** if you have shared your House, it is included too (the Data file has floors, rooms, things, sub-things, items, floor plans, breaker panels and their facts, problems, tasks and activities, including who each thing goes to; the Photos file has their photos). A house other people shared with you belongs to them and is not in your backup. When you restore, a shared house comes back as your **private** house (share it again if you want) — unless your house is still shared right now, in which case it is left alone.
+
+**Shared credentials:** credentials you have shared with other people are included in the Data file too. Ones other people shared with you belong to them and are not in your backup. When you restore, a shared credential comes back as a **private** credential (share it again if you want) — unless it is still shared right now, in which case it is left alone.
 
 **Backup Private Data (vault only):**
 - Only visible when the Private Vault is activated in Settings → General Settings
