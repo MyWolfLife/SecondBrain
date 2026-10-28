@@ -22172,3 +22172,7 @@ body.yard-view-only .yard-vo-hide { display: none !important; }
 #page-memory-edit.mm-viewonly .memory-new-tag-row { display: none; }
 #page-memory-edit.mm-viewonly .memory-tags-container,
 #page-memory-edit.mm-viewonly .memory-checkbox-label { pointer-events: none; }
+
+/* Shared thoughts (sharethought.js): a thought shared View only looks read-only */
+#viewDetailContent.th-viewonly button,
+#viewHistoryContent.th-viewonly button { display: none; }

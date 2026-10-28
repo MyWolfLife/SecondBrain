@@ -2,7 +2,7 @@
 
 Sharing under **Thoughts → Memories** and **Thoughts → My Thoughts**, using the same Shared Spaces engine as the other sections (groups Wife / Family / Guest, View only or Can edit; owner keeps everything; only the owner shares, stops sharing or deletes).
 
-Status: T1 (memories) BUILT; T2 (My Thoughts) and T3 (search for shared items) not yet. Top 10 Lists are not part of this plan.
+Status: T1 (memories) and T2 (My Thoughts) BUILT; T3 (search for shared items) not yet. Top 10 Lists are not part of this plan.
 
 ## What the user asked for
 
@@ -34,7 +34,7 @@ Same method as contacts: **move into the share and route every read/write throug
 ## Chunks
 
 - **T1 ✅ — Memories (one and all).** (also includes the backup of shared memories) Routing helper for `memories`/`memoryLinks`/`memoryTags`; Share… on the memory page and Share all… on the list; "Shared with me" on the Memories list; roles; auto-join for new memories; counts on the Thoughts landing page include shared items shown separately.
-- **T2 — My Thoughts (one and all).** Routing helper for `views` (+ history) and `viewCategories` (+ subcategories); Share… on a thought and Share all… on the list; "Shared with me" section; roles; category labels travel; auto-join.
+- **T2 ✅ — My Thoughts (one and all).** (also includes the backup of shared thoughts) Routing helper for `views` (+ history) and `viewCategories` (+ subcategories); Share… on a thought and Share all… on the list; "Shared with me" section; roles; category labels travel; auto-join.
 - **T3 — Backup and restore** of both (`sharedMemories`, `sharedThoughts`), plus Search for shared items.
 
 ## Open questions

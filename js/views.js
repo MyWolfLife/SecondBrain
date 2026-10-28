@@ -19,12 +19,13 @@ var _adviceCategorySeed     = ['Parenting', 'Career', 'Faith', 'Money'];
 var _reflectionCategorySeed = ['General'];
 
 function seedViewCategories() {
-    userCol('viewCategories').get().then(function(snap) {
+    // Merged read (private + shares I own) so categories moved into my all-thoughts share are not seeded again (sharethought.js)
+    thCol('viewCategories').get().then(function(snap) {
         if (snap.empty) {
             // No categories yet — seed fresh
             var batch = db.batch();
             _viewsCategorySeed.forEach(function(cat, catIdx) {
-                var catRef = userCol('viewCategories').doc();
+                var catRef = thNewRef('viewCategories');
                 batch.set(catRef, { name: cat.name, order: catIdx, thoughtType: 'view', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
                 var generalRef = catRef.collection('subcategories').doc();
                 batch.set(generalRef, { name: 'General', order: 0, isDefault: true, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -53,7 +54,7 @@ function seedViewCategories() {
                 if (!exists) {
                     var batch2 = db.batch();
                     seed.names.forEach(function(name, idx) {
-                        var catRef = userCol('viewCategories').doc();
+                        var catRef = thNewRef('viewCategories');
                         batch2.set(catRef, { name: name, order: idx, thoughtType: seed.type, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
                         var genRef = catRef.collection('subcategories').doc();
                         batch2.set(genRef, { name: 'General', order: 0, isDefault: true, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -75,6 +76,8 @@ var _viewAiPrevSuggestions = [];
 var _viewAiCurrentTopics   = [];
 var _viewCurrentType       = 'view'; // active type tab on list page
 var _catPageCurrentType    = 'view'; // active type on categories page
+var _viewTargetShareId     = null;   // new-thought page: the share a new thought is added to (someone's all-thoughts share), or null
+var _viewReadOnly          = false;  // true while a thought shared View only is open
 
 // ─────── Helpers ───────
 function _viewEsc(str) {
@@ -103,10 +106,11 @@ function _viewChangedBtnLabel(thoughtType) {
 }
 
 // ─────── Load Category Data (filtered by type) ───────
-function _viewLoadCatsData(thoughtType) {
-    return userCol('viewCategories').get()
-        .then(function(catSnap) {
-            var filteredDocs = catSnap.docs
+function _viewLoadCatsData(thoughtType, opts) {
+    // opts.shareId: also the categories of a share (a thought shared with me, or adding to someone's all-thoughts share with opts.only)
+    return thCatDocs(opts)
+        .then(function(catDocs) {
+            var filteredDocs = catDocs
                 .filter(function(d) { var t = d.data().thoughtType; return t === thoughtType || (!t && thoughtType === 'view'); })
                 .sort(function(a, b) { return (a.data().order || 0) - (b.data().order || 0); });
 
@@ -177,7 +181,7 @@ function _viewOnTypeChange(newType) {
     var aiBtn = document.getElementById('viewAskAiBtn');
     if (aiBtn) aiBtn.classList.toggle('hidden', newType !== 'view');
 
-    _viewLoadCatsData(newType).then(function(cats) {
+    _viewLoadCatsData(newType, _viewTargetShareId ? { shareId: _viewTargetShareId, only: true } : null).then(function(cats) {
         _viewCatsData = cats;
         if (majorEl) {
             // If only one category exists, auto-select it
@@ -235,6 +239,8 @@ function loadViewsPage() {
     var searchEl = document.getElementById('viewsSearchInput');
     if (searchEl) { searchEl.value = ''; searchEl.oninput = function() { _viewSearch(this.value); }; }
 
+    thRenderListControls();      // Share all… button (sharethought.js)
+
     _viewLoadForType(_viewCurrentType);
 }
 
@@ -250,11 +256,12 @@ function _viewLoadForType(thoughtType) {
     var container = document.getElementById('viewsAccordion');
     if (!container) return;
     container.innerHTML = '<p class="views-empty-state">Loading...</p>';
+    thRenderSharedWithMe(thoughtType);     // thoughts other people shared with me, above mine
 
     // Fetch all docs and filter client-side — avoids composite index requirements
     Promise.all([
-        userCol('viewCategories').get(),
-        userCol('views').get()
+        thCol('viewCategories').get(),
+        thCol('views').get()
     ]).then(function(results) {
         var allCatDocs  = results[0].docs.filter(function(d) { var t = d.data().thoughtType; return t === thoughtType || (!t && thoughtType === 'view'); });
         var allViewDocs = results[1].docs.filter(function(d) { return d.data().thoughtType === thoughtType; });
@@ -491,10 +498,13 @@ function loadViewDetailPage(id) {
 
     if (_viewId === null) {
         // New thought — start with empty cats, type selector drives the load
+        _viewTargetShareId = _viewNewShareId;     // "+ New thought in …" (sharethought.js) says where it goes
+        _viewNewShareId = null;
         _viewCatsData = [];
         _viewRenderNewPage();
     } else {
-        userCol('views').doc(_viewId).get().then(function(doc) {
+        _viewReadOnly = false;
+        thDocGet('views', _viewId).then(function(doc) {
             if (!doc.exists) {
                 container.innerHTML = '<p class="views-empty-state">Thought not found. <a href="#views">Back to My Thoughts</a></p>';
                 return;
@@ -502,9 +512,12 @@ function loadViewDetailPage(id) {
             _viewData = Object.assign({ id: doc.id }, doc.data());
             _viewUrls = (_viewData.urls || []).map(function(u) { return Object.assign({}, u); });
             var type  = _viewData.thoughtType || 'view';
-            _viewLoadCatsData(type).then(function(cats) {
+            // a thought shared with me brings its own category names
+            var viewShare = thShareOf(_viewId);
+            _viewLoadCatsData(type, viewShare && !_thOwn[viewShare] ? { shareId: viewShare } : null).then(function(cats) {
                 _viewCatsData = cats;
                 _viewRenderExistingPage();
+                thRenderDetailControls(_viewId);       // Share… button, badge, View-only look (sharethought.js)
             });
         }).catch(function(err) {
             console.error('loadViewDetailPage error:', err);
@@ -619,7 +632,9 @@ function _viewCreateNew() {
     var btn = document.getElementById('viewCreateBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
 
-    userCol('views').add({
+    // Where it goes: the share chosen with "+ New thought in …", my all-thoughts share, or private
+    var createCol = _viewTargetShareId ? shareCol(_viewTargetShareId, 'views') : thCol('views');
+    createCol.add({
         title:         title,
         shortVersion:  '',
         longVersion:   '',
@@ -632,6 +647,7 @@ function _viewCreateNew() {
         createdAt:     firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt:     firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(ref) {
+        if (_viewTargetShareId) _thIdx.views[ref.id] = _viewTargetShareId;
         window.location.hash = '#view/' + ref.id;
     }).catch(function(err) {
         console.error('_viewCreateNew error:', err);
@@ -667,7 +683,7 @@ async function _viewAskAiForTopic(isRetry) {
     var llm = (typeof LLM_PROVIDERS !== 'undefined') ? LLM_PROVIDERS[cfg.provider] : null;
     if (!llm) { alert('Unknown LLM provider. Check Settings > AI.'); return; }
 
-    var snap = await userCol('views').where('categoryId', '==', catId).get();
+    var snap = await thCol('views').where('categoryId', '==', catId).get();
     var existingTitles = [];
     snap.forEach(function(doc) { var t = doc.data().title; if (t) existingTitles.push(t); });
 
@@ -886,11 +902,11 @@ function _viewWireDetailHandlers() {
 
 // ─────── Save Functions ───────
 function _viewSaveTitle() {
-    if (!_viewId) return;
+    if (!_viewId || _viewReadOnly) return;
     var el    = document.getElementById('viewTitleInput');
     var title = el ? el.value.trim() : '';
     if (!title) { alert('Title cannot be empty.'); return; }
-    userCol('views').doc(_viewId).update({
+    thRef('views', _viewId).update({
         title:     title,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() {
@@ -900,33 +916,33 @@ function _viewSaveTitle() {
 }
 
 function _viewSaveShort() {
-    if (!_viewId) return;
+    if (!_viewId || _viewReadOnly) return;
     var el  = document.getElementById('viewShortInput');
     var val = el ? el.value : '';
-    userCol('views').doc(_viewId).update({
+    thRef('views', _viewId).update({
         shortVersion: val,
         updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function(err) { console.error('_viewSaveShort error:', err); });
 }
 
 function _viewSaveLong() {
-    if (!_viewId) return;
+    if (!_viewId || _viewReadOnly) return;
     var el  = document.getElementById('viewLongInput');
     var val = el ? el.value : '';
     _viewLongLast = val;
-    userCol('views').doc(_viewId).update({
+    thRef('views', _viewId).update({
         longVersion: val,
         updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function(err) { console.error('_viewSaveLong error:', err); });
 }
 
 function _viewSaveCategory() {
-    if (!_viewId) return;
+    if (!_viewId || _viewReadOnly) return;
     var majorEl = document.getElementById('viewMajorCatSelect');
     var subEl   = document.getElementById('viewSubCatSelect');
     var catId   = majorEl ? majorEl.value : '';
     var subId   = subEl   ? subEl.value   : '';
-    userCol('views').doc(_viewId).update({
+    thRef('views', _viewId).update({
         categoryId:    catId || null,
         subcategoryId: subId || null,
         updatedAt:     firebase.firestore.FieldValue.serverTimestamp()
@@ -936,12 +952,14 @@ function _viewSaveCategory() {
 function _viewDeleteView() {
     if (!_viewId) return;
     if (!confirm('Delete this thought and all its history? This cannot be undone.')) return;
-    userCol('views').doc(_viewId).collection('history').get().then(function(snap) {
+    var delId = _viewId;
+    thRef('views', _viewId).collection('history').get().then(function(snap) {
         var batch = db.batch();
         snap.docs.forEach(function(d) { batch.delete(d.ref); });
-        batch.delete(userCol('views').doc(_viewId));
+        batch.delete(thRef('views', _viewId));
         return batch.commit();
-    }).then(function() {
+    }).then(function() { return thFinishDelete(delId); })     // a thought shared on its own: remove its share too (sharethought.js)
+    .then(function() {
         window.location.hash = '#views';
     }).catch(function(err) { console.error('_viewDeleteView error:', err); });
 }
@@ -974,7 +992,7 @@ function _viewSaveChangedView() {
     var saveBtn = document.getElementById('viewChangedSaveBtn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
-    var histRef = userCol('views').doc(_viewId).collection('history').doc();
+    var histRef = thRef('views', _viewId).collection('history').doc();
     var batch   = db.batch();
     batch.set(histRef, {
         shortVersion: shortVal,
@@ -982,7 +1000,7 @@ function _viewSaveChangedView() {
         prompt:       promptVal || null,
         archivedAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
-    batch.update(userCol('views').doc(_viewId), {
+    batch.update(thRef('views', _viewId), {
         currentDate:  firebase.firestore.FieldValue.serverTimestamp(),
         historyCount: firebase.firestore.FieldValue.increment(1),
         updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
@@ -1002,7 +1020,7 @@ function _viewSaveChangedView() {
 function _viewLoadHistory() {
     var container = document.getElementById('viewHistoryList');
     if (!container) return;
-    userCol('views').doc(_viewId).collection('history')
+    thRef('views', _viewId).collection('history')
         .orderBy('archivedAt', 'desc').get()
         .then(function(snap) {
             if (snap.empty) {
@@ -1028,8 +1046,8 @@ function _viewLoadHistory() {
 function _viewDeleteHistoryEntry(historyId) {
     if (!confirm('Delete this archived version? This cannot be undone.')) return;
     var batch = db.batch();
-    batch.delete(userCol('views').doc(_viewId).collection('history').doc(historyId));
-    batch.update(userCol('views').doc(_viewId), {
+    batch.delete(thRef('views', _viewId).collection('history').doc(historyId));
+    batch.update(thRef('views', _viewId), {
         historyCount: firebase.firestore.FieldValue.increment(-1),
         updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1045,10 +1063,9 @@ function loadViewHistoryPage(viewId, historyId) {
     if (!container) return;
     container.innerHTML = '<p class="views-empty-state">Loading...</p>';
 
-    Promise.all([
-        userCol('views').doc(viewId).get(),
-        userCol('views').doc(viewId).collection('history').doc(historyId).get()
-    ]).then(function(results) {
+    thDocGet('views', viewId).then(function(vDoc) {      // finds the thought wherever it lives (sharethought.js)
+        return thRef('views', viewId).collection('history').doc(historyId).get().then(function(hDoc) { return [vDoc, hDoc]; });
+    }).then(function(results) {
         var viewDoc = results[0];
         var histDoc = results[1];
 
@@ -1108,6 +1125,7 @@ function loadViewHistoryPage(viewId, historyId) {
                 '</div>' +
 
             '</div>';
+        thRenderHistoryControls(viewId);        // View-only look (sharethought.js)
     }).catch(function(err) {
         console.error('loadViewHistoryPage error:', err);
         container.innerHTML = '<p class="views-empty-state">Error loading entry.</p>';
@@ -1117,8 +1135,8 @@ function loadViewHistoryPage(viewId, historyId) {
 function _viewDeleteHistoryPage(viewId, historyId) {
     if (!confirm('Delete this archived version? This cannot be undone.')) return;
     var batch = db.batch();
-    batch.delete(userCol('views').doc(viewId).collection('history').doc(historyId));
-    batch.update(userCol('views').doc(viewId), {
+    batch.delete(thRef('views', viewId).collection('history').doc(historyId));
+    batch.update(thRef('views', viewId), {
         historyCount: firebase.firestore.FieldValue.increment(-1),
         updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1191,8 +1209,8 @@ function _viewSubmitUrlForm(index) {
 }
 
 function _viewSaveUrls() {
-    if (!_viewId) return;
-    userCol('views').doc(_viewId).update({
+    if (!_viewId || _viewReadOnly) return;
+    thRef('views', _viewId).update({
         urls:      _viewUrls.slice(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function(err) { console.error('_viewSaveUrls error:', err); });
@@ -1317,7 +1335,7 @@ function _viewCatAddMajor() {
     name = name.trim();
     var maxOrd = _catPageData.length
         ? Math.max.apply(null, _catPageData.map(function(c) { return c.order || 0; })) + 1 : 0;
-    var catRef = userCol('viewCategories').doc();
+    var catRef = thNewRef('viewCategories');
     var genRef = catRef.collection('subcategories').doc();
     var batch  = db.batch();
     batch.set(catRef, { name: name, order: maxOrd, thoughtType: _catPageCurrentType, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -1333,7 +1351,7 @@ function _viewCatAddSub(catId) {
     var cat    = _catPageData.find(function(c) { return c.id === catId; });
     var maxOrd = (cat && cat.subs.length)
         ? Math.max.apply(null, cat.subs.map(function(s) { return s.order || 0; })) + 1 : 1;
-    userCol('viewCategories').doc(catId).collection('subcategories').add({
+    thRef('viewCategories', catId).collection('subcategories').add({
         name: name, order: maxOrd, isDefault: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() { loadViewsCategoriesPage(); })
@@ -1365,12 +1383,12 @@ function _viewCatRename(type, catId, subId) {
         input.onblur = null;
         if (input.parentNode) input.replaceWith(span);
         if (type === 'major') {
-            userCol('viewCategories').doc(catId).update({ name: val })
+            thRef('viewCategories', catId).update({ name: val })
                 .catch(function(e) { console.error('rename major:', e); });
             var c = _catPageData.find(function(c) { return c.id === catId; });
             if (c) c.name = val;
         } else {
-            userCol('viewCategories').doc(catId).collection('subcategories').doc(subId).update({ name: val })
+            thRef('viewCategories', catId).collection('subcategories').doc(subId).update({ name: val })
                 .catch(function(e) { console.error('rename sub:', e); });
             var c2 = _catPageData.find(function(c) { return c.id === catId; });
             if (c2) { var s = c2.subs.find(function(s) { return s.id === subId; }); if (s) s.name = val; }
@@ -1384,17 +1402,17 @@ function _viewCatRename(type, catId, subId) {
 }
 
 function _viewCatDeleteMajor(catId) {
-    userCol('views').where('categoryId', '==', catId).limit(1).get().then(function(snap) {
+    thCol('views').where('categoryId', '==', catId).limit(1).get().then(function(snap) {
         if (!snap.empty) {
             alert('This category still has thoughts assigned to it. Move or delete those thoughts first.');
             return;
         }
         var cat = _catPageData.find(function(c) { return c.id === catId; });
         if (!confirm('Delete "' + (cat ? cat.name : 'this category') + '" and all its subcategories? This cannot be undone.')) return;
-        userCol('viewCategories').doc(catId).collection('subcategories').get().then(function(subSnap) {
+        thRef('viewCategories', catId).collection('subcategories').get().then(function(subSnap) {
             var batch = db.batch();
             subSnap.docs.forEach(function(d) { batch.delete(d.ref); });
-            batch.delete(userCol('viewCategories').doc(catId));
+            batch.delete(thRef('viewCategories', catId));
             return batch.commit();
         }).then(function() { loadViewsCategoriesPage(); })
           .catch(function(err) { console.error('_viewCatDeleteMajor error:', err); });
@@ -1402,7 +1420,7 @@ function _viewCatDeleteMajor(catId) {
 }
 
 function _viewCatDeleteSub(catId, subId) {
-    userCol('views').where('subcategoryId', '==', subId).get().then(function(snap) {
+    thCol('views').where('subcategoryId', '==', subId).get().then(function(snap) {
         var cat     = _catPageData.find(function(c) { return c.id === catId; });
         var sub     = cat ? cat.subs.find(function(s) { return s.id === subId; }) : null;
         var general = cat ? cat.subs.find(function(s) { return s.isDefault; }) : null;
@@ -1415,7 +1433,7 @@ function _viewCatDeleteSub(catId, subId) {
         if (snap.size > 0 && general) {
             snap.docs.forEach(function(d) { batch.update(d.ref, { subcategoryId: general.id }); });
         }
-        batch.delete(userCol('viewCategories').doc(catId).collection('subcategories').doc(subId));
+        batch.delete(thRef('viewCategories', catId).collection('subcategories').doc(subId));
         batch.commit().then(function() { loadViewsCategoriesPage(); })
             .catch(function(err) { console.error('_viewCatDeleteSub error:', err); });
     }).catch(function(err) { console.error('_viewCatDeleteSub check:', err); });
@@ -1460,7 +1478,7 @@ function _catReorderMajors(draggedId, targetId) {
     if (fi < 0 || ti < 0) return;
     cats.splice(ti, 0, cats.splice(fi, 1)[0]);
     var batch = db.batch();
-    cats.forEach(function(c, i) { c.order = i; batch.update(userCol('viewCategories').doc(c.id), { order: i }); });
+    cats.forEach(function(c, i) { c.order = i; batch.update(thRef('viewCategories', c.id), { order: i }); });
     _catPageData = cats;
     batch.commit().catch(function(err) { console.error('_catReorderMajors error:', err); });
     _viewCatRenderPage();
@@ -1475,7 +1493,7 @@ function _catReorderSubs(catId, draggedId, targetId) {
     if (fi < 0 || ti < 0 || subs[ti].isDefault) return;
     subs.splice(ti, 0, subs.splice(fi, 1)[0]);
     var batch = db.batch();
-    subs.forEach(function(s, i) { s.order = i; batch.update(userCol('viewCategories').doc(catId).collection('subcategories').doc(s.id), { order: i }); });
+    subs.forEach(function(s, i) { s.order = i; batch.update(thRef('viewCategories', catId).collection('subcategories').doc(s.id), { order: i }); });
     cat.subs = subs;
     batch.commit().catch(function(err) { console.error('_catReorderSubs error:', err); });
     _viewCatRenderPage();

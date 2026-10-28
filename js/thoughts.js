@@ -20,9 +20,9 @@ function loadThoughtsPage() {
     });
 
     // Count My Views and update the tile label
-    userCol('views').get().then(function(snap) {
+    thCounts().then(function(c) {      // mine (private + shares I own) and, separately, shared with me (sharethought.js)
         var el = document.getElementById('viewsCount');
-        if (el) el.textContent = 'My Thoughts (' + snap.size + ')';
+        if (el) el.textContent = 'My Thoughts (' + c.own + (c.shared ? ' + ' + c.shared + ' shared' : '') + ')';
     }).catch(function(err) {
         console.error('loadThoughtsPage views error:', err);
     });

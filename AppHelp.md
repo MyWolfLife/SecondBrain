@@ -4675,7 +4675,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - **Memories** -- long-form personal memory records. Richer than a journal entry -- memories have a title, when/where, tags, @mentions of people, linked URLs, linked other memories, and a full body textarea.
 - **My Thoughts** -- four types of personal writing: Views (opinions), Reflections (essays on experiences), Advice (guidance you'd pass on), and Reviews (books, movies, experiences). Each thought has versioned history so you can see how your thinking has evolved over time.
 
-**Thoughts landing page:** Shows three tiles with live counts (e.g., "Top 10 Lists (12)"). The Memories tile shows your own count, plus "+ n shared" when other people have shared memories with you. Tap any tile to enter that sub-section. The thoughtsNav bar at the top always shows Top 10 Lists / Memories / My Thoughts links so you can jump between sub-sections without returning here.
+**Thoughts landing page:** Shows three tiles with live counts (e.g., "Top 10 Lists (12)"). The Memories and My Thoughts tiles show your own count, plus "+ n shared" when other people have shared some with you. Tap any tile to enter that sub-section. The thoughtsNav bar at the top always shows Top 10 Lists / Memories / My Thoughts links so you can jump between sub-sections without returning here.
 
 ### See Also
 - [Top 10 Lists](#help/top10lists)
@@ -4783,6 +4783,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - Each type has its own category system so you can organize them independently
 - Each thought has versioned history so you can track how your thinking changes over time
 - Live search filters by title and short version within the current type tab
+- Share one thought (**Share…** on its page) or all of them (**Share all…** on the list) with Family, Wife or Guest groups
 
 ### Details
 
@@ -4800,6 +4801,8 @@ Each thought is a living document -- you can update it over time with history pr
 - Each card shows: title, date of current version, short version preview, type badge, and a history badge if previous versions exist.
 - **Search bar** -- live filter by title and short version within the current type. Matching accordions auto-expand; clear to collapse.
 - **+ New Thought** -- opens the create page.
+- **Share all… / Sharing all…** -- shares all your thoughts (all four types, with earlier versions and all categories) with the groups you pick, as View only or Can edit. New thoughts you add later are shared too. A backup file downloads first; you stay the owner. **Sharing all…** lets you change who it is shared with or stop sharing (everything, including what others added, comes back to your private thoughts).
+- **Shared with me** -- thoughts other people shared with you appear in a block above your own for the current type tab, marked with who shared it and whether you can edit. If someone shared all their thoughts with you and you can edit, a **+ New thought in …'s thoughts** button adds one to their set (using their categories).
 - **Manage Categories** -- link at bottom. Each type has its own independent category list.
 
 **New thought page:**

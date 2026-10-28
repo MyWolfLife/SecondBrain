@@ -148,7 +148,7 @@ function runSearch(query) {
     // We load everything (not just matches) so we can build cross-reference
     // name maps — e.g. show which zone a plant lives in.
     var promises = colDefs.map(function (def) {
-        return (YARD_SEARCH_COLS.indexOf(def.col) !== -1 ? yReadAll(def.col) : HOUSE_SEARCH_COLS.indexOf(def.col) !== -1 ? hReadAll(def.col) : def.col === 'memories' ? memCol('memories').get() : userCol(def.col).get()).then(function (snap) {
+        return (YARD_SEARCH_COLS.indexOf(def.col) !== -1 ? yReadAll(def.col) : HOUSE_SEARCH_COLS.indexOf(def.col) !== -1 ? hReadAll(def.col) : def.col === 'memories' ? memCol('memories').get() : def.col === 'views' ? thCol('views').get() : userCol(def.col).get()).then(function (snap) {
             var all = [];
             snap.forEach(function (doc) {
                 all.push({ id: doc.id, data: doc.data() });

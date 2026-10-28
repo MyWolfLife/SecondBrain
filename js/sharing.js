@@ -1009,6 +1009,18 @@ async function shSubmitShareDialog() {
             await cxLoad(true);
             closeModal('shareDialogModal');
             await _cxAfterShareChange();
+        } else if (_shDlg.kind === 'allThoughts') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await thShareAll(choice); }
+            await thLoad(true);
+            closeModal('shareDialogModal');
+            await _thAfterShareChange();
+        } else if (_shDlg.kind === 'thought') {
+            if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
+            else { _shProgress('Starting…'); await thShareThought(_shDlg.thoughtId, choice); }
+            await thLoad(true);
+            closeModal('shareDialogModal');
+            await _thAfterShareChange();
         } else if (_shDlg.kind === 'allMemories') {
             if (_shDlg.shareId) await shUpdateShareGroups(_shDlg.shareId, choice);
             else { _shProgress('Starting…'); await mmShareAll(choice); }
@@ -1151,7 +1163,7 @@ async function shStopSharingFromDialog() {
         _legacyRequireUnlock(function() { shOpenFinanceShareDialog(_shDlg.personId, _shDlg.personName); });
         return;
     }
-    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : _shDlg.kind === 'contact' ? 'this contact' : _shDlg.kind === 'allContacts' ? 'all your contacts' : _shDlg.kind === 'memory' ? 'this memory' : _shDlg.kind === 'allMemories' ? 'all your memories' : 'this collection';
+    var what = _shDlg.kind === 'yard' ? 'your Yard' : _shDlg.kind === 'house' ? 'your House' : _shDlg.kind === 'credential' ? 'this credential' : _shDlg.kind === 'financialPerson' ? _shDlg.personName : _shDlg.kind === 'budget' ? 'this budget' : _shDlg.kind === 'checklist' ? 'this checklist' : _shDlg.kind === 'contact' ? 'this contact' : _shDlg.kind === 'allContacts' ? 'all your contacts' : _shDlg.kind === 'memory' ? 'this memory' : _shDlg.kind === 'allMemories' ? 'all your memories' : _shDlg.kind === 'thought' ? 'this thought' : _shDlg.kind === 'allThoughts' ? 'all your thoughts' : 'this collection';
     var msg = _shDlg.kind === 'credential'
         ? 'Stop sharing ' + what + '?\n\nIt moves back to your private list, including any changes other people made. The people it was shared with lose access.'
         : 'Stop sharing ' + what + '?\n\nEverything — including what other people added — moves back to your private area. ' +
@@ -1182,6 +1194,14 @@ async function shStopSharingFromDialog() {
             await cxUnsharePerson(_shDlg.shareId);
             closeModal('shareDialogModal');
             await _cxAfterShareChange();
+        } else if (_shDlg.kind === 'allThoughts') {
+            await thUnshareAll(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _thAfterShareChange();
+        } else if (_shDlg.kind === 'thought') {
+            await thUnshareThought(_shDlg.shareId);
+            closeModal('shareDialogModal');
+            await _thAfterShareChange();
         } else if (_shDlg.kind === 'allMemories') {
             await mmUnshareAll(_shDlg.shareId);
             closeModal('shareDialogModal');
@@ -2386,4 +2406,38 @@ async function shOpenAllMemoriesShareDialog() {
     await _shShowShareDialog(
         _shDlg.shareId ? 'Sharing all your memories' : 'Share all your memories',
         'Sharing moves all your memories — with their tags and the links between them — into a shared area. New memories you add later are shared too. Memories you already share one at a time stay as they are. A backup file downloads first, and you stay the owner. Editors can change memories and add new ones; only you can delete memories, share or stop sharing.');
+}
+
+// ─── Sharing My Thoughts (T2) ────────────────────────────────────────────────
+
+/** Opens the Share dialog for one thought (owner only). */
+async function shOpenThoughtShareDialog(thoughtId, name) {
+    await thLoad(true);
+    var sid = thShareOf(thoughtId);
+    if (sid && thShareIdOfRoot(thoughtId) !== sid) {
+        alert('This thought is already included in your "all thoughts" share. Change who it is shared with from My Thoughts → Sharing all….');
+        return;
+    }
+    if (thRoleFor(thoughtId) !== 'owner') return;
+    _shDlg.kind = 'thought';
+    _shDlg.collId = null;
+    _shDlg.thoughtId = thoughtId;
+    _shDlg.thoughtName = name || 'this thought';
+    _shDlg.shareId = sid;
+    _shDlg.existingGroups = (sid && _thOwn[sid].data.shareGroups) || {};
+    await _shShowShareDialog(
+        (_shDlg.shareId ? 'Sharing “' : 'Share “') + _shDlg.thoughtName + '”',
+        'Sharing moves just this thought — with its earlier versions and a copy of its category names — into a shared area. Your other thoughts stay private. A backup file downloads first, and you stay the owner. Editors can change the thought and archive new versions; only you can share, delete or stop sharing it.');
+}
+
+/** Opens the Share dialog for ALL thoughts (owner). */
+async function shOpenAllThoughtsShareDialog() {
+    await thLoad(true);
+    _shDlg.kind = 'allThoughts';
+    _shDlg.collId = null;
+    _shDlg.shareId = thOwnAllShareId();
+    _shDlg.existingGroups = (_shDlg.shareId && _thOwn[_shDlg.shareId].data.shareGroups) || {};
+    await _shShowShareDialog(
+        _shDlg.shareId ? 'Sharing all your thoughts' : 'Share all your thoughts',
+        'Sharing moves all your thoughts — Views, Reflections, Advice and Reviews, with their earlier versions and all categories — into a shared area. New thoughts you add later are shared too. Thoughts you already share one at a time stay as they are. A backup file downloads first, and you stay the owner. Editors can change thoughts and add new ones; only you can delete thoughts, share or stop sharing.');
 }

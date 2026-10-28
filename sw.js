@@ -2,7 +2,7 @@
 // Caches all local static assets so the app loads offline.
 // IMPORTANT: Bump CACHE_NAME on every deploy so users get fresh files.
 
-var CACHE_NAME = 'bishop-v755';
+var CACHE_NAME = 'bishop-v756';
 
 // Web Share Target (Bucket List): the phone's share sheet POSTs a shared screenshot/text to
 // SHARE_PATH. We stash it in SHARE_CACHE and redirect into the app, which picks it up (see
@@ -76,6 +76,7 @@ var STATIC_ASSETS = [
     '/SecondBrain/js/sharechecklist.js',
     '/SecondBrain/js/sharecontact.js',
     '/SecondBrain/js/sharememory.js',
+    '/SecondBrain/js/sharethought.js',
     '/SecondBrain/js/credentials.js',
     '/SecondBrain/js/investments.js',
     '/SecondBrain/js/analyzer.js',
