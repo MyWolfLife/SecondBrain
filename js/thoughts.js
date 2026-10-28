@@ -12,9 +12,9 @@ function loadThoughtsPage() {
     });
 
     // Count Memories and update the tile label
-    userCol('memories').get().then(function(snap) {
+    mmCounts().then(function(c) {      // mine (private + shares I own) and, separately, shared with me (sharememory.js)
         var el = document.getElementById('memoriesCount');
-        if (el) el.textContent = 'Memories (' + snap.size + ')';
+        if (el) el.textContent = 'Memories (' + c.own + (c.shared ? ' + ' + c.shared + ' shared' : '') + ')';
     }).catch(function(err) {
         console.error('loadThoughtsPage memories error:', err);
     });

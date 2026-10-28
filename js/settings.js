@@ -1149,6 +1149,9 @@ async function runBackup() {
         // And the contacts I have shared (sharecontact.js cxRestoreShared)
         try { var sharedContacts = await cxBackupShared(); if (sharedContacts) dataPayload.sharedContacts = sharedContacts; }
         catch (shErr) { console.error('Backup: shared contacts not included:', shErr); }
+        // And the memories I have shared (sharememory.js mmRestoreShared)
+        try { var sharedMemories = await mmBackupShared(); if (sharedMemories) dataPayload.sharedMemories = sharedMemories; }
+        catch (shErr) { console.error('Backup: shared memories not included:', shErr); }
         // And the Financial people and the Household I have shared (sharefin.js finRestoreShared)
         var finLockedNote = '';
         try {
@@ -1590,6 +1593,7 @@ async function runRestore(payload) {
     if (payload.type === 'data'   && payload.sharedBudgets)     await bgRestoreShared(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedChecklists) await clRestoreShared(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedContacts)   await cxRestoreShared(payload, restoreLog);
+    if (payload.type === 'data'   && payload.sharedMemories)   await mmRestoreShared(payload, restoreLog);
     if (payload.type === 'data'   && payload.sharedFinancial)   await finRestoreShared(payload, restoreLog);
     if (payload.type === 'photos' && payload.sharedHousePhotos) await shRestoreSharedHousePhotos(payload, restoreLog);
 

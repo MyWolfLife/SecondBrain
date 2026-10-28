@@ -22166,3 +22166,9 @@ body.yard-view-only .yard-vo-hide { display: none !important; }
 
 /* Shared Neighborhood (sharecontact.js): View only hides edit controls, keeps the "intel" toggles readable */
 .page.cx-viewonly button:not(.nb-intel-toggle) { display: none !important; }
+
+/* Shared memories (sharememory.js): a memory shared View only looks read-only */
+#page-memory-edit.mm-viewonly button:not(.memory-help-btn) { display: none; }
+#page-memory-edit.mm-viewonly .memory-new-tag-row { display: none; }
+#page-memory-edit.mm-viewonly .memory-tags-container,
+#page-memory-edit.mm-viewonly .memory-checkbox-label { pointer-events: none; }

@@ -4675,7 +4675,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - **Memories** -- long-form personal memory records. Richer than a journal entry -- memories have a title, when/where, tags, @mentions of people, linked URLs, linked other memories, and a full body textarea.
 - **My Thoughts** -- four types of personal writing: Views (opinions), Reflections (essays on experiences), Advice (guidance you'd pass on), and Reviews (books, movies, experiences). Each thought has versioned history so you can see how your thinking has evolved over time.
 
-**Thoughts landing page:** Shows three tiles with live counts (e.g., "Top 10 Lists (12)"). Tap any tile to enter that sub-section. The thoughtsNav bar at the top always shows Top 10 Lists / Memories / My Thoughts links so you can jump between sub-sections without returning here.
+**Thoughts landing page:** Shows three tiles with live counts (e.g., "Top 10 Lists (12)"). The Memories tile shows your own count, plus "+ n shared" when other people have shared memories with you. Tap any tile to enter that sub-section. The thoughtsNav bar at the top always shows Top 10 Lists / Memories / My Thoughts links so you can jump between sub-sections without returning here.
 
 ### See Also
 - [Top 10 Lists](#help/top10lists)
@@ -4730,6 +4730,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - Fields: title, when, location, tags, body text, @mentions, people chips (++ trigger), linked URLs, linked memories
 - "In Progress" flag marks memories you are still writing or that have unfinished details
 - Voice-to-text button in the body area -- tap to speak, transcription appends automatically
+- Share one memory (**Share…** on its page) or all of them (**Share all…** on the list) with Family, Wife or Guest groups
 
 ### Details
 
@@ -4740,6 +4741,9 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - **Drag to reorder:** Grab the handle on the left side of any row and drag it to a new position. Order is saved immediately without affecting any other records.
 - **In Progress only toggle:** When checked, hides all completed memories and shows only those marked In Progress. Useful for drafts and memories you are still fleshing out.
 - **+ New Memory:** Opens the create/edit page for a new memory.
+- **Share all… / Sharing all…:** shares all your memories (with their tags and the links between them) with the groups you pick, as View only or Can edit. New memories you add later are shared too. A backup file downloads first; you stay the owner. **Sharing all…** lets you change who it is shared with or stop sharing (everything, including what others added, comes back to your private memories).
+- **Shared with me:** memories other people shared with you appear in a block above your own, each marked with who shared it and whether you can edit. If someone shared all their memories with you and you can edit, a **+ New memory in …'s memories** button adds one to their set.
+- A 👥 next to a title means that memory is shared.
 
 **Memory edit page -- fields:**
 - **Title** -- the name of this memory (required).
@@ -4753,6 +4757,9 @@ In the Collections list, collections shared with you show **Can edit** or **View
 - **++ Free-form names** -- type ++Name or ++"Full Name" in the body to add a person who is not in your contacts. On space or punctuation, the ++ prefix is stripped from the text and an amber chip appears below.
 - **URLs** -- add reference links related to the memory (articles, photos hosted elsewhere, etc.).
 - **Linked Memories** -- link to other related memory records. Creates a web of related events.
+- **Share… / Sharing…** (bottom of the page, owner only) -- shares just this one memory (with its tags) with the groups you pick. Only you can share, delete or stop sharing it. A memory inside "Share all" is changed from the list page instead.
+
+**When a memory is shared with you:** a badge under the title says who shared it and **Can edit** or **View only**. With Can edit you change it like your own (new tags you add go with it); you cannot delete it or share it onward. With View only everything is read-only. Links only connect memories shared together, so you never see a link to something not shared with you. People you  show only if they are in your own contacts or shared with you; ++Name chips always show.
 
 **In-page help button:** Tap the `?` button (top-right of the edit page) for a quick-reference modal explaining the When field, @mention, and ++ trigger shortcuts.
 

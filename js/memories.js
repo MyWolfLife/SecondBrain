@@ -34,10 +34,14 @@ function loadMemoriesPage() {
         filterEl.checked = false;
         filterEl.onchange = function() {
             _memRenderList(_memCachedList, filterEl.checked);
+            mmRenderSharedWithMe(filterEl.checked);
         };
     }
 
-    userCol('memories').orderBy('sortOrder', 'asc').get().then(function(snap) {
+    mmRenderListControls();
+    mmRenderSharedWithMe();      // memories other people shared with me (sharememory.js)
+
+    memCol('memories').orderBy('sortOrder', 'asc').get().then(function(snap) {
         _memCachedList = snap.docs.map(function(doc) {
             return Object.assign({ id: doc.id }, doc.data());
         });
@@ -78,6 +82,7 @@ function _memRenderList(memories, filterInProgress) {
             '<div class="memory-list-content" onclick="window.location.hash=\'#memory-edit/' + m.id + '\'">' +
                 progressTag +
                 '<span class="memory-list-title">' + _memEscape(m.title || 'Untitled') + '</span>' +
+                (mmShareOf(m.id) ? '<span title="Shared">&#128101;</span> ' : '') +
                 dateSpan +
             '</div>' +
         '</div>';
@@ -122,7 +127,7 @@ function _memInitDragSort() {
             var cached = _memCachedList.find(function(m) { return m.id === draggedId; });
             if (cached) cached.sortOrder = newOrder;
 
-            userCol('memories').doc(draggedId).update({ sortOrder: newOrder })
+            memCol('memories').doc(draggedId).update({ sortOrder: newOrder })
                 .catch(function(err) { console.error('sortOrder update error:', err); });
         }
     });
@@ -146,6 +151,10 @@ function loadMemoryCreatePage() {
     _memOriginal = null;
     clearTimeout(_memSaveTimer);
 
+    // "+ New memory in …'s memories" (sharememory.js) sets where this one goes; otherwise it follows my own sharing
+    var targetShareId = _memNewShareId;
+    _memNewShareId = null;
+
     var input = document.getElementById('memoryCreateTitle');
     if (!input) return;
     input.value    = '';
@@ -165,14 +174,19 @@ function loadMemoryCreatePage() {
         input.disabled = true;
 
         // Load all memories to calculate proper sort position (sortDate null → bottom)
-        userCol('memories').orderBy('sortOrder', 'asc').get()
+        // Where the new memory lives: the share chosen above, my "all memories" share, or private
+        var newShareId = null;
+        mmLoad().then(function() {
+            newShareId = targetShareId || _mmShareForNew('memories');
+            return _mmCol('memories', newShareId).orderBy('sortOrder', 'asc').get();
+        })
             .then(function(snap) {
                 var others = snap.docs.map(function(d) {
                     return { sortOrder: d.data().sortOrder || 0, sortDate: d.data().sortDate || null };
                 });
                 var sortOrder = _memCalcSortOrder(null, others);
 
-                return userCol('memories').add({
+                return _mmCol('memories', newShareId).add({
                     title:              title,
                     body:               '',
                     dateText:           '',
@@ -189,6 +203,7 @@ function loadMemoryCreatePage() {
                 });
             })
             .then(function(ref) {
+                if (newShareId) _mmIdx.memories[ref.id] = newShareId;
                 _memIsNew = true;
                 history.replaceState(null, '', '#memory-edit/' + ref.id);
                 showPage('memory-edit');
@@ -219,7 +234,7 @@ function loadMemoryEditPage(id, opts) {
         '<span class="separator">&rsaquo;</span>' +
         '<span id="memEditCrumbTitle">Memory</span>';
 
-    userCol('memories').doc(id).get().then(function(doc) {
+    memCol('memories').doc(id).get().then(function(doc) {
         if (!doc.exists) { window.location.hash = '#memories'; return; }
         var data = doc.data();
 
@@ -243,8 +258,10 @@ function loadMemoryEditPage(id, opts) {
 
         _memPopulateEditFields(data);
         _memWireEditHandlers();
+        mmRenderEditControls(id);            // Share… button, "Shared" badge, View-only look (sharememory.js)
         _memLoadAndRenderTags(data.tags || []);
         _memRenderPeopleChips();
+        _memLoadPeopleCache().then(_memRenderPeopleChips);   // chips need the contact names
         _memRenderUrls();
         _memLoadLinkedMemories();
     }).catch(function(err) {
@@ -330,13 +347,13 @@ function _memWireEditHandlers() {
 // ── Date blur: recalculate sortDate + sortOrder ────────────
 
 function _memHandleDateBlur() {
-    if (!_memId) return;
+    if (!_memId || window._memReadOnly) return;
     var dateEl  = document.getElementById('memoryEditDateText');
     var dateText = dateEl ? dateEl.value.trim() : '';
     var newSortDate = _memParseSortDate(dateText);
 
-    // Fetch all other memories to compute correct insertion position
-    userCol('memories').orderBy('sortOrder', 'asc').get().then(function(snap) {
+    // Fetch all other memories (in the same place — private or the same share) to compute correct insertion position
+    _mmCol('memories', mmShareOf(_memId)).orderBy('sortOrder', 'asc').get().then(function(snap) {
         var others = snap.docs
             .filter(function(d) { return d.id !== _memId; })
             .map(function(d) {
@@ -351,7 +368,7 @@ function _memHandleDateBlur() {
         data.sortOrder  = newSortOrder;
         data.updatedAt  = firebase.firestore.FieldValue.serverTimestamp();
 
-        return userCol('memories').doc(_memId).update(data)
+        return memCol('memories').doc(_memId).update(data)
             .then(function() {
                 return _memRebalanceIfNeeded(snap.docs, newSortOrder);
             });
@@ -368,10 +385,10 @@ function _memScheduleSave() {
 }
 
 function _memDoSave() {
-    if (!_memId) return;
+    if (!_memId || window._memReadOnly) return;
     var data = _memCollectFields();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    userCol('memories').doc(_memId).update(data)
+    memCol('memories').doc(_memId).update(data)
         .catch(function(err) { console.error('Memory auto-save error:', err); });
 }
 
@@ -395,7 +412,7 @@ function _memHandleCancel() {
 
     if (_memIsNew) {
         if (!confirm('Discard this memory?')) return;
-        userCol('memories').doc(_memId).delete()
+        memCol('memories').doc(_memId).delete()
             .catch(function(err) { console.error('Error discarding new memory:', err); });
         _memId = null;
         window.location.hash = '#memories';
@@ -404,7 +421,7 @@ function _memHandleCancel() {
         var restore = Object.assign({}, _memOriginal, {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        userCol('memories').doc(_memId).update(restore)
+        memCol('memories').doc(_memId).update(restore)
             .catch(function(err) { console.error('Error reverting memory:', err); });
         window.location.hash = '#memories';
     }
@@ -417,13 +434,14 @@ function _memHandleDelete() {
     clearTimeout(_memSaveTimer);
 
     var id = _memId;
-    userCol('memoryLinks').where('memoryIds', 'array-contains', id).get()
+    memCol('memoryLinks').where('memoryIds', 'array-contains', id).get()
         .then(function(snap) {
             var batch = db.batch();
             snap.docs.forEach(function(linkDoc) { batch.delete(linkDoc.ref); });
-            batch.delete(userCol('memories').doc(id));
+            batch.delete(mmRef('memories', id));
             return batch.commit();
         })
+        .then(function() { return mmFinishDelete(id); })      // a memory shared on its own: remove its share too (sharememory.js)
         .then(function() {
             _memId = null;
             window.location.hash = '#memories';
@@ -552,7 +570,7 @@ function _memRebalanceIfNeeded(snapDocs, newSortOrder) {
     if (!needsRebalance) return Promise.resolve();
 
     // Re-read full list in order and assign clean integer multiples
-    return userCol('memories').orderBy('sortOrder', 'asc').get().then(function(snap) {
+    return _mmCol('memories', mmShareOf(_memId)).orderBy('sortOrder', 'asc').get().then(function(snap) {
         var batch = db.batch();
         snap.docs.forEach(function(d, i) {
             batch.update(d.ref, { sortOrder: (i + 1) * 10000 });
@@ -566,8 +584,8 @@ function _memRebalanceIfNeeded(snapDocs, newSortOrder) {
 // ============================================================
 
 function _memLoadAndRenderTags(activeTags) {
-    userCol('memoryTags').orderBy('name', 'asc').get().then(function(snap) {
-        _memAllTags = snap.docs.map(function(d) { return d.data().name; });
+    mmTagNames(_memId).then(function(names) {      // my tags plus the tags of the share this memory lives in
+        _memAllTags = names;
         _memRenderTagPills(_memAllTags, activeTags);
 
         // Show the tags section now that it has content
@@ -628,7 +646,7 @@ function _memToggleTag(tagName, isChecked) {
         _memCurrentTags = _memCurrentTags.filter(function(t) { return t !== tagName; });
     }
     if (_memId) {
-        userCol('memories').doc(_memId).update({
+        memCol('memories').doc(_memId).update({
             tags:      _memCurrentTags.slice(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function(err) { console.error('Tag save error:', err); });
@@ -647,7 +665,7 @@ function _memAddNewTag(name) {
 
     var saveToFirestore = exists
         ? Promise.resolve()
-        : userCol('memoryTags').add({
+        : mmTagCol(_memId).add({
             name: normalised,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -664,7 +682,7 @@ function _memAddNewTag(name) {
         _memRenderTagPills(_memAllTags, _memCurrentTags);
 
         if (_memId) {
-            userCol('memories').doc(_memId).update({
+            memCol('memories').doc(_memId).update({
                 tags:      _memCurrentTags.slice(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }).catch(function(err) { console.error('Tag save error:', err); });
@@ -825,6 +843,7 @@ function _memRenderPeopleChips() {
     if (_memPeopleCache) _memPeopleCache.forEach(function(p) { cacheById[p.id] = p; });
     _memMentionedIds.forEach(function(id) {
         var p    = cacheById[id];
+        if (!p && _memPeopleCache && mmRoleFor(_memId) !== 'owner') return;   // a shared memory: leave out contacts I cannot see
         var name = p ? (p.nickname || p.name.split(' ')[0]) : '...';
         html += '<a href="#contact/' + id + '" class="mention-chip">@' + _memEscape(name) + '</a>';
     });
@@ -937,7 +956,7 @@ function _memLoadLinkedMemories() {
     var section = document.getElementById('memoryLinkedSection');
     if (section) section.classList.remove('hidden');
 
-    userCol('memoryLinks').where('memoryIds', 'array-contains', _memId).get()
+    memCol('memoryLinks').where('memoryIds', 'array-contains', _memId).get()
         .then(function(snap) {
             if (snap.empty) { _memLinkedDocs = []; _memRenderLinkedList(); return; }
 
@@ -948,7 +967,7 @@ function _memLoadLinkedMemories() {
 
             // Fetch the other memory docs in parallel
             var promises = otherIds.map(function(x) {
-                return userCol('memories').doc(x.otherId).get().then(function(doc) {
+                return memCol('memories').doc(x.otherId).get().then(function(doc) {
                     return {
                         linkDocId: x.linkDocId,
                         otherId:   x.otherId,
@@ -991,7 +1010,7 @@ function _memRenderLinkedList() {
     container.querySelectorAll('.memory-linked-unlink-btn').forEach(function(btn) {
         btn.onclick = function() {
             var linkId = btn.dataset.linkId;
-            userCol('memoryLinks').doc(linkId).delete()
+            memCol('memoryLinks').doc(linkId).delete()
                 .then(function() {
                     _memLinkedDocs = _memLinkedDocs.filter(function(d) { return d.linkDocId !== linkId; });
                     _memRenderLinkedList();
@@ -1013,7 +1032,8 @@ function _memOpenLinkPicker() {
 
     var alreadyLinkedIds = new Set(_memLinkedDocs.map(function(d) { return d.otherId; }));
 
-    userCol('memories').orderBy('sortOrder', 'asc').get().then(function(snap) {
+    // Only memories in the same place (private, or the same share) can be linked: a link lives where both memories live
+    _mmCol('memories', mmShareOf(_memId)).orderBy('sortOrder', 'asc').get().then(function(snap) {
         var candidates = snap.docs
             .filter(function(d) { return d.id !== _memId && !alreadyLinkedIds.has(d.id); })
             .map(function(d) {
@@ -1060,10 +1080,12 @@ function _memCreateLink(otherId) {
     var ids    = [_memId, otherId].sort();
     var docId  = ids[0] + '_' + ids[1];
 
-    userCol('memoryLinks').doc(docId).set({
+    var linkShareId = mmShareOf(_memId);
+    _mmCol('memoryLinks', linkShareId).doc(docId).set({
         memoryIds: ids,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() {
+        if (linkShareId) _mmIdx.memoryLinks[docId] = linkShareId;
         closeModal('memoryLinkPickerModal');
         _memLoadLinkedMemories(); // re-fetch to get title + dateText
     }).catch(function(err) { console.error('_memCreateLink error:', err); });
@@ -1164,7 +1186,7 @@ function _memOpenUrlForm(index) {
 
 function _memSaveUrls() {
     if (!_memId) return;
-    userCol('memories').doc(_memId).update({
+    memCol('memories').doc(_memId).update({
         urls:      _memUrls.slice(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function(err) { console.error('URL save error:', err); });

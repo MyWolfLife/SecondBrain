@@ -189,7 +189,7 @@ function _tlEndText(e) {
 async function _tlLoad() {
     var results = await Promise.all([
         userCol('timelineEvents').get(),
-        userCol('memories').get(),
+        memCol('memories').get(),      // includes memories I have shared (sharememory.js)
         _tlLoadBirthday()
     ]);
     _tlEvents = results[0].docs.map(function(d) { var e = d.data(); e.id = d.id; return e; });
