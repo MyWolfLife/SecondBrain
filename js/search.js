@@ -162,6 +162,15 @@ function runSearch(query) {
                     })
                     .catch(function (err) { console.error('Search: shared ' + def.col + ' unavailable:', err); return { def: def, all: all }; });
             }
+            // Memories / thoughts other people shared with me (sharememory.js, sharethought.js)
+            if (def.col === 'memories' || def.col === 'views') {
+                return (def.col === 'memories' ? mmSharedWithMe() : thSharedWithMe())
+                    .then(function (items) {
+                        items.forEach(function (it) { all.push({ id: it.id, data: it.data }); });
+                        return { def: def, all: all };
+                    })
+                    .catch(function (err) { console.error('Search: shared ' + def.col + ' unavailable:', err); return { def: def, all: all }; });
+            }
             return { def: def, all: all };
         });
     });

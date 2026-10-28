@@ -3791,6 +3791,8 @@ One post can name several places, so you may get several cards. The AI is told n
 
 **What it searches:** plants, zones, weeds, chemicals, rooms, things and sub-things, structures, garage areas, vehicles, collections and their items (including collections other people shared with you, and ones you shared), contacts, notebooks, places, life projects, memories, views, Top 10 lists, activities, and checklist templates and runs. Matching is on the name or title of each record.
 
+**Shared with you:** memories and thoughts other people shared with you are searched too, and show in the Memories / My Views groups with your own.
+
 **Checklists** match more broadly than the rest — a checklist template also matches on its tags and on the text of its individual items, not just its name.
 
 **Journal entries:** off by default because they are the largest and slowest collection to scan. Tick **Include Journal Entries** to add them; expect the search to take noticeably longer.
