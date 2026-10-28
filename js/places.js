@@ -729,6 +729,60 @@ async function placesNearby(lat, lng) {
 }
 
 // ============================================================
+// placesSavedNearby — the user's own saved places near a point
+// ============================================================
+
+/**
+ * Straight-line distance in meters between two lat/lng points (haversine).
+ */
+function _placesDistanceMeters(lat1, lng1, lat2, lng2) {
+    var R    = 6371000; // Earth radius in meters
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Find the user's saved places (status 1, with coordinates) within a radius of a point.
+ * Used by the check-in picker for places Foursquare doesn't know (a small office, a
+ * friend's house) — once saved with coordinates, they are suggested again next time
+ * the user is standing there.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} radiusMeters
+ * @returns {Promise<Array>} Venue objects (same shape as placesNearby, existingId set,
+ *   isSaved true, distMeters set), closest first.
+ */
+async function placesSavedNearby(lat, lng, radiusMeters) {
+    var snap = await userCol('places').where('status', '==', 1).get();
+    var found = [];
+    snap.forEach(function(doc) {
+        var d = doc.data();
+        if (d.lat == null || d.lng == null) return;
+        var dist = _placesDistanceMeters(lat, lng, d.lat, d.lng);
+        if (dist > radiusMeters) return;
+        found.push({
+            name       : d.name || '(unnamed)',
+            address    : d.address  || null,
+            category   : d.category || null,
+            fsqId      : d.fsqId    || null,
+            osmId      : d.osmId    || null,
+            lat        : d.lat,
+            lng        : d.lng,
+            existingId : doc.id,
+            isSaved    : true,
+            distMeters : dist
+        });
+    });
+    found.sort(function(a, b) { return a.distMeters - b.distMeters; });
+    return found;
+}
+
+// ============================================================
 // placesSearchByName — Firestore first, Nominatim fallback
 // ============================================================
 

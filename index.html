@@ -11090,6 +11090,14 @@ service firebase.storage {
                     <input type="radio" name="checkInSource" value="osm" onchange="_checkinSetSource('osm')"> OpenStreetMap <span style="color:#999;">(trails, lakes, parks)</span>
                 </label>
             </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin:0 0 8px;">
+                <button class="btn btn-secondary btn-small" onclick="_checkinShowSaved()" title="Show places you've saved close to where you are">⭐ Saved nearby</button>
+                <button class="btn btn-secondary btn-small" onclick="_checkinToggleAddHere()" title="Can't find it? Save a new place at this location">➕ Add place here</button>
+            </div>
+            <div id="checkInAddHereRow" class="hidden" style="display:flex; gap:8px; margin:0 0 8px;">
+                <input type="text" id="checkInAddHereName" placeholder="Name of this place" autocomplete="off" style="flex:1;">
+                <button class="btn btn-primary btn-small" id="checkInAddHereSaveBtn" onclick="_checkinAddPlaceHere()">Save &amp; check in</button>
+            </div>
             <div id="checkInPickerResults" class="checkin-picker-results"></div>
             <div class="modal-buttons">
                 <button class="btn btn-secondary" id="checkInPickerCancelBtn">Cancel</button>
@@ -11122,6 +11130,9 @@ service firebase.storage {
 
                 <h4>What Gets Saved (Foursquare result)</h4>
                 <p>When you pick a place from the list, the app saves a full place record: <strong>name, address, category, GPS coordinates, and a Foursquare ID</strong>. Your journal entry links to that place record. The place appears in your Places list and won't be duplicated if you check in again later.</p>
+
+                <h4>Can't Find the Place? Save It Once</h4>
+                <p>Foursquare doesn't list every place. Tap <strong>➕ Add place here</strong>, type a name, and tap <strong>Save &amp; check in</strong> — the place is saved with your current location. Next time you're there, it appears at the top of the list marked <strong>⭐</strong>. You can also tap <strong>⭐ Saved nearby</strong> to see your saved places within about 300 m (closer ones are shown automatically). Places saved far from you never show up.</p>
 
                 <h4>Enter Manually</h4>
                 <p>"Enter Manually" opens the journal entry form with a <strong>blank location</strong>. You type whatever you want in the notes — no place record is created, no GPS coordinates, no address. Use this for places that don't exist in Foursquare (a friend's house, a trail, a field). <em>Manual entries won't appear in your Places list or on a map.</em></p>
@@ -12415,7 +12426,7 @@ export default {
     <script src="js/garage.js?v=487"></script>
     <script src="js/structures.js?v=487"></script>
     <script src="js/moveThings.js?v=488"></script>
-    <script src="js/journal.js?v=490"></script>
+    <script src="js/journal.js?v=491"></script>
     <script src="js/contacts.js?v=492"></script>
     <script src="js/neighbors.js?v=489"></script>
     <script src="js/favorites.js?v=487"></script>
@@ -12456,7 +12467,7 @@ export default {
     <script src="js/chat.js?v=487"></script>
     <script src="js/secondbrain.js?v=490"></script>
     <script src="js/sbissues.js?v=487"></script>
-    <script src="js/places.js?v=487"></script>
+    <script src="js/places.js?v=488"></script>
     <script src="js/bucketlist.js?v=487"></script>
     <script src="js/bucketlist-import.js?v=487"></script>
     <script src="js/bucketlist-links.js?v=488"></script>

@@ -2744,6 +2744,8 @@ function openCheckIn(seedCoords) {
 
     if (resultsEl) resultsEl.innerHTML  = '';
     if (searchEl)  searchEl.value       = '';
+    var addHereRow = document.getElementById('checkInAddHereRow');
+    if (addHereRow) addHereRow.classList.add('hidden');
     _checkinPickerLat = null;
     _checkinPickerLng = null;
     _checkinPickerNearText = null;
@@ -2828,7 +2830,7 @@ function openCheckIn(seedCoords) {
                         if (statusEl2) statusEl2.textContent = '🔍 Finding nearby places...';
                         if (resultsEl2) resultsEl2.innerHTML = '';
                         try {
-                            var venues = await placesNearby(_checkinPickerLat, _checkinPickerLng);
+                            var venues = await _checkinNearbyWithSaved(_checkinPickerLat, _checkinPickerLng);
                             _checkinPickerVenues = venues;
                             _checkinPickerShowResults(venues);
                             if (statusEl2) statusEl2.textContent = venues.length
@@ -2866,7 +2868,7 @@ function openCheckIn(seedCoords) {
 
     if (seedCoords) {
         // Search around the seeded coordinates instead of fetching fresh GPS.
-        placesNearby(seedCoords.lat, seedCoords.lng).then(function(venues) {
+        _checkinNearbyWithSaved(seedCoords.lat, seedCoords.lng).then(function(venues) {
             _checkinPickerVenues = venues;
             _checkinPickerShowResults(venues);
             if (statusEl) statusEl.textContent = venues.length
@@ -2928,6 +2930,110 @@ function _checkinSetSource(src) {
     }
 }
 
+/** A saved place this close to the picker's location is suggested at the top of the list automatically. */
+var CHECKIN_AUTO_SAVED_RADIUS_M = 150;
+/** Radius used by the "Saved nearby" button. */
+var CHECKIN_SAVED_BUTTON_RADIUS_M = 300;
+
+/**
+ * Foursquare nearby venues, with the user's own saved places that are very close
+ * pinned to the top (and removed from the Foursquare part so nothing appears twice).
+ * Saved-place lookup failures are ignored — the Foursquare list still shows.
+ */
+async function _checkinNearbyWithSaved(lat, lng) {
+    var venues = await placesNearby(lat, lng);
+    try {
+        var saved = await placesSavedNearby(lat, lng, CHECKIN_AUTO_SAVED_RADIUS_M);
+        if (saved.length) {
+            var savedIds = {};
+            saved.forEach(function(s) { savedIds[s.existingId] = true; });
+            venues = saved.concat(venues.filter(function(v) { return !(v.existingId && savedIds[v.existingId]); }));
+        }
+    } catch (err) {
+        console.warn('Saved places lookup failed:', err);
+    }
+    return venues;
+}
+
+/** "⭐ Saved nearby" button — list the user's saved places within CHECKIN_SAVED_BUTTON_RADIUS_M of the picker's location. */
+async function _checkinShowSaved() {
+    var statusEl = document.getElementById('checkInPickerStatus');
+    if (_checkinPickerLat == null || _checkinPickerLng == null) {
+        if (statusEl) statusEl.textContent = 'Waiting for your location — try again in a moment.';
+        return;
+    }
+    if (statusEl) statusEl.textContent = '🔍 Looking through your saved places...';
+    try {
+        var saved = await placesSavedNearby(_checkinPickerLat, _checkinPickerLng, CHECKIN_SAVED_BUTTON_RADIUS_M);
+        _checkinPickerVenues = saved;
+        _checkinPickerShowResults(saved);
+        if (statusEl) statusEl.textContent = saved.length
+            ? 'Your saved places within ' + CHECKIN_SAVED_BUTTON_RADIUS_M + ' m — tap one to check in'
+            : 'No saved places within ' + CHECKIN_SAVED_BUTTON_RADIUS_M + ' m. Use "Add place here" to save this spot.';
+    } catch (err) {
+        if (statusEl) statusEl.textContent = 'Could not load your saved places.';
+    }
+}
+
+/** "➕ Add place here" button — show/hide the name box for saving a new place at the picker's location. */
+function _checkinToggleAddHere() {
+    var row = document.getElementById('checkInAddHereRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+        var nameEl = document.getElementById('checkInAddHereName');
+        if (nameEl) nameEl.focus();
+    }
+}
+
+/**
+ * Save a new place (name + the picker's coordinates + reverse-geocoded address) and
+ * check in to it. Because it's stored with coordinates, it shows up as a saved place
+ * the next time the user is here.
+ */
+async function _checkinAddPlaceHere() {
+    var nameEl = document.getElementById('checkInAddHereName');
+    var btn    = document.getElementById('checkInAddHereSaveBtn');
+    var name   = nameEl ? nameEl.value.trim() : '';
+    if (!name) { alert('Please enter a name for this place.'); return; }
+    if (_checkinPickerLat == null || _checkinPickerLng == null) {
+        alert('Still waiting for your location — try again in a moment.');
+        return;
+    }
+    if (_checkinPickerNearText) {
+        alert('The picker is searching near "' + _checkinPickerNearText + '", not where you are. Clear the "Search near" box first so the place is saved at your location.');
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    try {
+        var address = await _placesReverseGeocode(_checkinPickerLat, _checkinPickerLng);
+        var ref = await userCol('places').add({
+            name     : name,
+            address  : address || null,
+            category : null,
+            lat      : _checkinPickerLat,
+            lng      : _checkinPickerLng,
+            fsqId    : null,
+            osmId    : null,
+            status   : 1,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _checkinPickerVenues = [{
+            name: name, address: address || null, category: null, fsqId: null, osmId: null,
+            lat: _checkinPickerLat, lng: _checkinPickerLng, existingId: ref.id, isSaved: true
+        }];
+        if (nameEl) nameEl.value = '';
+        var row = document.getElementById('checkInAddHereRow');
+        if (row) row.classList.add('hidden');
+        _checkinSelectPlace(0);
+    } catch (err) {
+        console.error('Error saving place here:', err);
+        alert('Could not save the place — please try again.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save & check in'; }
+    }
+}
+
 /** Fetch GPS + nearby places. Called on open and by the Retry button.
  *  @param {boolean} forceRefresh - true on retry (bypasses cached GPS position) */
 function _checkinPickerFetchNearby(forceRefresh) {
@@ -2950,7 +3056,7 @@ function _checkinPickerFetchNearby(forceRefresh) {
             if (biasEl2 && !biasEl2.value) biasEl2.value = 'Current location';
             if (statusEl) statusEl.textContent = '🔍 Finding nearby places...';
             try {
-                var venues = await placesNearby(pos.coords.latitude, pos.coords.longitude);
+                var venues = await _checkinNearbyWithSaved(pos.coords.latitude, pos.coords.longitude);
                 _checkinPickerVenues = venues;
                 _checkinPickerShowResults(venues);
                 if (statusEl) statusEl.textContent = venues.length
@@ -3039,7 +3145,7 @@ function _checkinPickerShowResults(venues) {
         var subText = sub.join(' · ');
 
         html += '<div class="checkin-picker-item" data-idx="' + idx + '">' +
-                    '<div class="checkin-picker-name">' + (v.name || 'Unnamed Place') +
+                    '<div class="checkin-picker-name">' + (v.isSaved ? '⭐ ' : '') + (v.name || 'Unnamed Place') +
                         (dist ? ' <span class="place-distance">' + dist + '</span>' : '') +
                     '</div>' +
                     (subText ? '<div class="checkin-picker-sub">' + subText + '</div>' : '') +
