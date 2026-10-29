@@ -4665,6 +4665,7 @@ body.checklists-page .app-main { max-width: none; }
     color: #888;
     padding: 6px 0 2px;
 }
+.cl-done-parent input[type="checkbox"] { margin-right: 4px; cursor: pointer; }
 
 /* ── Card footer: tags left, actions right ─────────────── */
 .cl-run-footer {

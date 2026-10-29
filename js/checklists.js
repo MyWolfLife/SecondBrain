@@ -1003,7 +1003,17 @@ function clBuildItemsWrapper(runId, items, card) {
                     var hdr = document.createElement('li');
                     hdr.className = 'cl-done-parent' +
                         (items[pIdx].indent === 1 ? ' cl-item--indent-1' : '');
-                    hdr.textContent = items[pIdx].label;
+                    // Checked box = "this parent has completed items"; unchecking it resets all of them
+                    var hdrCb = document.createElement('input');
+                    hdrCb.type     = 'checkbox';
+                    hdrCb.checked  = true;
+                    hdrCb.disabled = !clCanEdit(runId);
+                    hdrCb.title    = 'Uncheck to reset all completed items under this';
+                    hdrCb.addEventListener('change', function() {
+                        if (!hdrCb.checked) clUncheckChildren(runId, pIdx, card);
+                    });
+                    hdr.appendChild(hdrCb);
+                    hdr.appendChild(document.createTextNode(' ' + items[pIdx].label));
                     doneList.appendChild(hdr);
                 });
             }
@@ -1575,6 +1585,27 @@ async function clToggleItem(runId, checked, idx, card) {
 
     } catch (err) {
         console.error('Error toggling checklist item:', err);
+    }
+}
+
+/**
+ * Unchecks every item indented under items[idx] (e.g. resetting "Monday" for the next week).
+ * @param {string}      runId
+ * @param {number}      idx   — Index of the parent item.
+ * @param {HTMLElement} card
+ */
+async function clUncheckChildren(runId, idx, card) {
+    try {
+        var res = await clChangeItems(runId, idx, function(items, at) {
+            var parentIndent = items[at].indent || 0;
+            for (var i = at + 1; i < items.length && (items[i].indent || 0) > parentIndent; i++) {
+                if (items[i].done) items[i] = Object.assign({}, items[i], { done: false, doneAt: null });
+            }
+        });
+        if (!res) { clRefreshRunNow(runId); return; }
+        clRerenderRunItems(runId, res.items, res.data.templateId || null, card);
+    } catch (err) {
+        console.error('Error resetting checklist items:', err);
     }
 }
 
