@@ -4667,6 +4667,25 @@ body.checklists-page .app-main { max-width: none; }
 }
 .cl-done-parent input[type="checkbox"] { margin-right: 4px; cursor: pointer; }
 
+/* Collapsible parents (regular view): chevron button; children hidden while collapsed. Edit mode shows all. */
+.cl-collapse-btn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 0.8rem;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0 2px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.cl-collapse-btn:hover { color: #333; }
+li.cl-item--collapsed { display: none; }
+.cl-item--drag-kid { display: none !important; }
+.cl-run-card--editing .cl-item--collapsed { display: block; }
+.cl-run-card--editing .cl-collapse-btn { display: none; }
+
 /* ── Card footer: tags left, actions right ─────────────── */
 .cl-run-footer {
     display: flex;

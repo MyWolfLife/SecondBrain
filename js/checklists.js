@@ -946,6 +946,66 @@ function clParentChain(items, idx) {
     return chain;
 }
 
+// ── Collapsible parents (regular view only; remembered per device) ──────────
+var CL_COLLAPSE_KEY = 'bishopClCollapsed';
+
+function clCollapseLoad() {
+    try { return JSON.parse(localStorage.getItem(CL_COLLAPSE_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+
+function clCollapseSave(state) {
+    try { localStorage.setItem(CL_COLLAPSE_KEY, JSON.stringify(state)); } catch (e) { /* storage blocked: just not remembered */ }
+}
+
+/**
+ * Makes the parents in `list` collapsible. Every <li> needs data-indent and data-ckey; a parent is an
+ * <li> followed by deeper-indented ones. Collapsed children get the cl-item--collapsed class (CSS hides
+ * them, except in edit mode) rather than being removed, so drag-reorder and saving still see them.
+ * Open/closed state is kept in localStorage per list (runId) + ckey.
+ */
+function clSetupCollapse(list, runId) {
+    var lis = Array.from(list.children).filter(function(li) { return li.dataset.ckey; });
+    function key(li) { return runId + '|' + li.dataset.ckey; }
+    function indent(li) { return parseInt(li.dataset.indent || '0'); }
+
+    var parents = [];
+    lis.forEach(function(li, n) {
+        var count = 0;
+        for (var m = n + 1; m < lis.length && indent(lis[m]) > indent(li); m++) count++;
+        if (count === 0) return;
+        var btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'cl-collapse-btn';
+        btn.addEventListener('click', function() {
+            var state = clCollapseLoad();
+            if (state[key(li)]) delete state[key(li)]; else state[key(li)] = 1;
+            clCollapseSave(state);
+            apply();
+        });
+        var host = li.classList.contains('cl-done-parent') ? li : li.querySelector('.cl-item-row');
+        if (host) host.insertBefore(btn, host.firstChild);
+        parents.push({ li: li, btn: btn, count: count });
+    });
+    if (parents.length === 0) return;
+
+    function apply() {
+        var state = clCollapseLoad();
+        var stopAt = null;                       // indent of the collapsed parent whose children we are skipping
+        lis.forEach(function(li) {
+            if (stopAt !== null && indent(li) > stopAt) { li.classList.add('cl-item--collapsed'); return; }
+            stopAt = null;
+            li.classList.remove('cl-item--collapsed');
+            if (state[key(li)]) stopAt = indent(li);
+        });
+        parents.forEach(function(p) {
+            var closed = !!state[key(p.li)];
+            p.btn.textContent = closed ? '▸ ' + p.count : '▾';
+            p.btn.title       = closed ? 'Show ' + p.count + ' item(s)' : 'Hide items under this';
+        });
+    }
+    apply();
+}
+
 /** The undone <li>s right after `li` that are indented deeper than it (its children, grandchildren…). */
 function clFollowingChildren(li) {
     var kids = [];
@@ -983,8 +1043,11 @@ function clBuildItemsWrapper(runId, items, card) {
     var undoneList = document.createElement('ul');
     undoneList.className = 'cl-undone-list';
     undone.forEach(function(x) {
-        undoneList.appendChild(clBuildItemEl(runId, x.item, x.idx, card));
+        var li = clBuildItemEl(runId, x.item, x.idx, card);
+        li.dataset.ckey = 'a:' + (x.item.id || x.item.label);
+        undoneList.appendChild(li);
     });
+    clSetupCollapse(undoneList, runId);
     wrapper.appendChild(undoneList);
 
     // Done section: toggle row + hidden list
@@ -1011,6 +1074,8 @@ function clBuildItemsWrapper(runId, items, card) {
                     var hdr = document.createElement('li');
                     hdr.className = 'cl-done-parent' +
                         (items[pIdx].indent === 1 ? ' cl-item--indent-1' : '');
+                    hdr.dataset.indent = String(items[pIdx].indent || 0);
+                    hdr.dataset.ckey   = 'h:' + (items[pIdx].id || items[pIdx].label);
                     // Checked box = "this parent has completed items"; unchecking it resets all of them
                     var hdrCb = document.createElement('input');
                     hdrCb.type     = 'checkbox';
@@ -1025,8 +1090,11 @@ function clBuildItemsWrapper(runId, items, card) {
                     doneList.appendChild(hdr);
                 });
             }
-            doneList.appendChild(clBuildItemEl(runId, x.item, x.idx, card));
+            var doneLi = clBuildItemEl(runId, x.item, x.idx, card);
+            doneLi.dataset.ckey = 'd:' + (x.item.id || x.item.label);
+            doneList.appendChild(doneLi);
         });
+        if (hasIndent) clSetupCollapse(doneList, runId);
 
         doneToggle.addEventListener('click', function() {
             var isOpen = !doneList.classList.contains('hidden');
@@ -1057,12 +1125,12 @@ function clBuildItemsWrapper(runId, items, card) {
             // the parent is dragged, then put back right after it where it lands.
             onStart: function(evt) {
                 dragKids = clFollowingChildren(evt.item);
-                dragKids.forEach(function(li) { li.style.display = 'none'; });
+                dragKids.forEach(function(li) { li.classList.add('cl-item--drag-kid'); });
             },
             onEnd: function(evt) {
                 var after = evt.item;
                 dragKids.forEach(function(li) {
-                    li.style.display = '';
+                    li.classList.remove('cl-item--drag-kid');
                     after.parentNode.insertBefore(li, after.nextSibling);
                     after = li;
                 });
