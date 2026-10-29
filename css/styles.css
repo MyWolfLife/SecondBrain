@@ -5101,8 +5101,8 @@ body.checklists-page .app-main { max-width: none; }
 .cl-tmpl-drag-handle { display: inline; }
 
 /* Run-card drag handle: hidden by default, shown when card is in edit mode */
-.run-drag-handle { display: none; }
-.cl-run-card--editing .run-drag-handle { display: inline; }
+.run-drag-handle { display: inline; }   /* always shown beside the checkbox, like Google Keep */
+.cl-item--done .run-drag-handle { display: none; }   /* completed items are not reorderable */
 
 /* Card-level drag handle (reorder whole list on the board): hidden unless the
    board is draggable — desktop multi-column view with no filter active. */

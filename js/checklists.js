@@ -1044,6 +1044,7 @@ function clBuildItemsWrapper(runId, items, card) {
     if (typeof Sortable !== 'undefined') {
         Sortable.create(undoneList, {
             handle: '.run-drag-handle',
+            disabled: !clCanEdit(runId),
             animation: 150,
             // Auto-scroll the page when dragging near the top/bottom edge, so an
             // item can be moved across a long list without dropping and re-grabbing.
@@ -1147,11 +1148,12 @@ function clBuildItemEl(runId, item, idx, card) {
     var row = document.createElement('div');
     row.className = 'cl-item-row';
 
-    // Drag handle — visible only when card is in edit mode (CSS-toggled)
+    // Drag handle — always visible beside the checkbox (hidden on completed items and view-only lists)
     var dragHandle = document.createElement('span');
     dragHandle.className   = 'drag-handle run-drag-handle';
     dragHandle.textContent = '⠿';
     dragHandle.title       = 'Drag to reorder';
+    if (!clCanEdit(runId)) dragHandle.style.display = 'none';   // View only (shared with me)
 
     // Indent button — visible only in edit mode, cycles 0→1→2→0
     var runIndentBtn = document.createElement('button');
