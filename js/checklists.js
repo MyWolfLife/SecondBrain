@@ -1552,12 +1552,20 @@ async function clNewBlankList() {
  */
 async function clToggleItem(runId, checked, idx, card) {
     try {
-        // Record or clear the completion timestamp alongside the done flag (only this item changes)
+        // Record or clear the completion timestamp alongside the done flag.
+        // Checking a parent also checks all its indented children; unchecking changes only this item.
         var res = await clChangeItems(runId, idx, function(items, at) {
+            var now = new Date().toISOString();
             items[at] = Object.assign({}, items[at], {
                 done:   checked,
-                doneAt: checked ? new Date().toISOString() : null
+                doneAt: checked ? now : null
             });
+            if (checked) {
+                var parentIndent = items[at].indent || 0;
+                for (var i = at + 1; i < items.length && (items[i].indent || 0) > parentIndent; i++) {
+                    if (!items[i].done) items[i] = Object.assign({}, items[i], { done: true, doneAt: now });
+                }
+            }
         });
         if (!res) { clRefreshRunNow(runId); return; }
 
