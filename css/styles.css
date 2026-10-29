@@ -4661,6 +4661,8 @@ body.checklists-page .app-main { max-width: none; }
 
 /* Greyed parent heading above completed sub-items (read-only context) */
 .cl-done-parent {
+    display: flex;
+    align-items: center;
     font-size: 0.85rem;
     font-weight: 600;
     color: #888;
@@ -4680,6 +4682,7 @@ body.checklists-page .app-main { max-width: none; }
     padding: 0 2px;
     flex-shrink: 0;
     white-space: nowrap;
+    margin-left: auto;   /* pushes the chevron to the right edge of the row */
 }
 .cl-collapse-btn:hover { color: #333; }
 li.cl-item--collapsed { display: none; }

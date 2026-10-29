@@ -983,7 +983,7 @@ function clSetupCollapse(list, runId) {
             apply();
         });
         var host = li.classList.contains('cl-done-parent') ? li : li.querySelector('.cl-item-row');
-        if (host) host.insertBefore(btn, host.firstChild);
+        if (host) host.appendChild(btn);                      // chevron on the right of the row
         var lbl = li.querySelector('.cl-item-label');
         if (lbl) lbl.classList.add('cl-item-label--parent');   // parent names in bold
         parents.push({ li: li, btn: btn, count: count });
