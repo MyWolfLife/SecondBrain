@@ -689,6 +689,7 @@ function _woRenderStartPage() {
 
     el.innerHTML =
         '<div class="page-header"><h2>' + _woEsc(w.name) + '</h2></div>' +
+        '<p class="wo-start-reminder" style="color:#c62828;font-weight:600;margin:0 0 12px;">Turn off Notifications and turn up volume</p>' +
         '<div class="ex-form">' +
             '<div class="wo-banner" id="wosEstimate"></div>' +
             woProgBannerHtml() +
