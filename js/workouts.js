@@ -596,7 +596,10 @@ function _woRenderExerciseEditor() {
     if (isNew && typeof woAiRenderBox === 'function') woAiRenderBox();
     _woUpdateAmountLabel();
     woLevelGroupRender();
+    // Only the accordions outside the level group — woLevelGroupRender() wires its own Equipment accordion
+    // (binding it twice made every click toggle it open and shut again).
     el.querySelectorAll('.wo-acc-head').forEach(function(h) {
+        if (h.closest('#woeLevelGroup')) return;
         h.addEventListener('click', function() { h.parentNode.classList.toggle('collapsed'); });
     });
     document.getElementById('woeSideMode').addEventListener('change', function() {
