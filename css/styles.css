@@ -4548,6 +4548,7 @@ body.checklists-page .app-main { max-width: none; }
     flex-shrink: 0;
 }
 .cl-collapse-btn:hover { color: #333; }
+.cl-item-label--parent { font-weight: 700; }
 
 .cl-run-count {
     display: none;

@@ -984,6 +984,8 @@ function clSetupCollapse(list, runId) {
         });
         var host = li.classList.contains('cl-done-parent') ? li : li.querySelector('.cl-item-row');
         if (host) host.insertBefore(btn, host.firstChild);
+        var lbl = li.querySelector('.cl-item-label');
+        if (lbl) lbl.classList.add('cl-item-label--parent');   // parent names in bold
         parents.push({ li: li, btn: btn, count: count });
     });
     if (parents.length === 0) return;
