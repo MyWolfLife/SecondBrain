@@ -946,6 +946,14 @@ function clParentChain(items, idx) {
     return chain;
 }
 
+/** The undone <li>s right after `li` that are indented deeper than it (its children, grandchildren…). */
+function clFollowingChildren(li) {
+    var kids = [];
+    var indent = parseInt(li.dataset.indent || '0');
+    for (var n = li.nextElementSibling; n && parseInt(n.dataset.indent || '0') > indent; n = n.nextElementSibling) kids.push(n);
+    return kids;
+}
+
 /** runId → true while that run's "X completed" section is expanded (survives re-renders). */
 var clDoneOpenByRun = {};
 
@@ -1032,6 +1040,7 @@ function clBuildItemsWrapper(runId, items, card) {
     }
 
     // SortableJS on undone list only (done items are not reorderable)
+    var dragKids = [];
     if (typeof Sortable !== 'undefined') {
         Sortable.create(undoneList, {
             handle: '.run-drag-handle',
@@ -1043,7 +1052,20 @@ function clBuildItemsWrapper(runId, items, card) {
             scrollSensitivity: 80,
             scrollSpeed: 12,
             bubbleScroll: true,
-            onEnd: function() {
+            // Dragging a parent carries its indented children with it: they are hidden while
+            // the parent is dragged, then put back right after it where it lands.
+            onStart: function(evt) {
+                dragKids = clFollowingChildren(evt.item);
+                dragKids.forEach(function(li) { li.style.display = 'none'; });
+            },
+            onEnd: function(evt) {
+                var after = evt.item;
+                dragKids.forEach(function(li) {
+                    li.style.display = '';
+                    after.parentNode.insertBefore(li, after.nextSibling);
+                    after = li;
+                });
+                dragKids = [];
                 clSaveRunItemOrder(runId, wrapper, items, card);
             }
         });
@@ -1065,16 +1087,22 @@ async function clSaveRunItemOrder(runId, wrapper, originalItems, card) {
     var itemsByIdx = {};
     originalItems.forEach(function(item, i) { itemsByIdx[i] = item; });
 
+    // Each undone item brings along the done items that sat directly after it in the stored order,
+    // so completed children stay with their parent when the parent is moved.
     var newItems = [];
-    // Undone first in their new drag order
+    var i = 0;
+    while (i < originalItems.length && originalItems[i].done) newItems.push(originalItems[i++]);   // done items before the first undone one
+    var trailing = {};
+    for (var j = 0; j < originalItems.length; j++) {
+        if (originalItems[j].done) continue;
+        trailing[j] = [];
+        for (var k = j + 1; k < originalItems.length && originalItems[k].done; k++) trailing[j].push(originalItems[k]);
+    }
     Array.from(wrapper.querySelectorAll('.cl-undone-list .cl-item')).forEach(function(li) {
         var idx = parseInt(li.dataset.storageIdx);
-        if (itemsByIdx[idx] !== undefined) newItems.push(itemsByIdx[idx]);
-    });
-    // Done items follow in their existing completion-time order
-    Array.from(wrapper.querySelectorAll('.cl-done-list .cl-item')).forEach(function(li) {
-        var idx = parseInt(li.dataset.storageIdx);
-        if (itemsByIdx[idx] !== undefined) newItems.push(itemsByIdx[idx]);
+        if (itemsByIdx[idx] === undefined) return;
+        newItems.push(itemsByIdx[idx]);
+        (trailing[idx] || []).forEach(function(d) { newItems.push(d); });
     });
 
     try {
