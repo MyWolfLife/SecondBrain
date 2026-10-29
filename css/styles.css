@@ -4658,6 +4658,14 @@ body.checklists-page .app-main { max-width: none; }
 }
 .cl-done-toggle:hover { color: #333; }
 
+/* Greyed parent heading above completed sub-items (read-only context) */
+.cl-done-parent {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #888;
+    padding: 6px 0 2px;
+}
+
 /* ── Card footer: tags left, actions right ─────────────── */
 .cl-run-footer {
     display: flex;

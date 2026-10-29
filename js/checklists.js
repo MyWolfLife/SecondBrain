@@ -932,6 +932,20 @@ function clBuildRunCard(run) {
     return card;
 }
 
+/**
+ * Indexes of the ancestors of items[idx], outermost first. An ancestor is the nearest
+ * preceding item with a smaller indent, then its own nearest such item, and so on.
+ */
+function clParentChain(items, idx) {
+    var chain = [];
+    var level = items[idx].indent || 0;
+    for (var i = idx - 1; i >= 0 && level > 0; i--) {
+        var ind = items[i].indent || 0;
+        if (ind < level) { chain.unshift(i); level = ind; }
+    }
+    return chain;
+}
+
 /** runId → true while that run's "X completed" section is expanded (survives re-renders). */
 var clDoneOpenByRun = {};
 
@@ -976,7 +990,23 @@ function clBuildItemsWrapper(runId, items, card) {
 
         var doneList = document.createElement('ul');
         doneList.className = 'cl-done-list' + (startOpen ? '' : ' hidden');
+        // Indented lists (e.g. days with sub-items): keep list order and show each completed
+        // item's unchecked parents as greyed headers, like Google Keep.
+        var hasIndent = done.some(function(x) { return (x.item.indent || 0) > 0; });
+        if (hasIndent) done.sort(function(a, b) { return a.idx - b.idx; });
+        var headerShown = {};
         done.forEach(function(x) {
+            if (hasIndent) {
+                clParentChain(items, x.idx).forEach(function(pIdx) {
+                    if (items[pIdx].done || headerShown[pIdx]) return;
+                    headerShown[pIdx] = true;
+                    var hdr = document.createElement('li');
+                    hdr.className = 'cl-done-parent' +
+                        (items[pIdx].indent === 1 ? ' cl-item--indent-1' : '');
+                    hdr.textContent = items[pIdx].label;
+                    doneList.appendChild(hdr);
+                });
+            }
             doneList.appendChild(clBuildItemEl(runId, x.item, x.idx, card));
         });
 
