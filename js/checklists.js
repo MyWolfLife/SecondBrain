@@ -932,6 +932,9 @@ function clBuildRunCard(run) {
     return card;
 }
 
+/** runId → true while that run's "X completed" section is expanded (survives re-renders). */
+var clDoneOpenByRun = {};
+
 /**
  * Builds the items wrapper for a run card.
  * Contains: undone <ul>, a collapsible "▶ X completed" toggle, and done <ul>.
@@ -964,12 +967,15 @@ function clBuildItemsWrapper(runId, items, card) {
 
     // Done section: toggle row + hidden list
     if (done.length > 0) {
+        // Stays expanded across re-renders (e.g. unchecking an item) until the user collapses it
+        var startOpen = !!clDoneOpenByRun[runId];
+
         var doneToggle = document.createElement('div');
         doneToggle.className   = 'cl-done-toggle';
-        doneToggle.textContent = '▶ ' + done.length + ' completed';
+        doneToggle.textContent = (startOpen ? '▼ ' : '▶ ') + done.length + ' completed';
 
         var doneList = document.createElement('ul');
-        doneList.className = 'cl-done-list hidden';
+        doneList.className = 'cl-done-list' + (startOpen ? '' : ' hidden');
         done.forEach(function(x) {
             doneList.appendChild(clBuildItemEl(runId, x.item, x.idx, card));
         });
@@ -977,6 +983,7 @@ function clBuildItemsWrapper(runId, items, card) {
         doneToggle.addEventListener('click', function() {
             var isOpen = !doneList.classList.contains('hidden');
             doneList.classList.toggle('hidden', isOpen);
+            clDoneOpenByRun[runId] = !isOpen;
             doneToggle.textContent = (isOpen ? '▶ ' : '▼ ') + done.length + ' completed';
         });
 
