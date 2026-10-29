@@ -2,7 +2,7 @@
 // Caches all local static assets so the app loads offline.
 // IMPORTANT: Bump CACHE_NAME on every deploy so users get fresh files.
 
-var CACHE_NAME = 'bishop-v763';
+var CACHE_NAME = 'bishop-v764';
 
 // Web Share Target (Bucket List): the phone's share sheet POSTs a shared screenshot/text to
 // SHARE_PATH. We stash it in SHARE_CACHE and redirect into the app, which picks it up (see
@@ -104,7 +104,15 @@ var STATIC_ASSETS = [
 self.addEventListener('install', function(e) {
     e.waitUntil(
         caches.open(CACHE_NAME).then(function(cache) {
-            return cache.addAll(STATIC_ASSETS);
+            // cache.addAll() would reuse files from the browser's HTTP cache (GitHub Pages allows
+            // ~10 minutes), so a new version could precache OLD files and stay stale until the next
+            // bump. cache:'reload' forces every file to come fresh from the network.
+            return Promise.all(STATIC_ASSETS.map(function(url) {
+                return fetch(new Request(url, { cache: 'reload' })).then(function(res) {
+                    if (!res.ok) throw new Error('Precache failed: ' + url + ' (' + res.status + ')');
+                    return cache.put(url, res);
+                });
+            }));
         })
     );
     self.skipWaiting();
