@@ -1942,6 +1942,7 @@ var _dmSummaryOpen        = false;  // Summary accordion (weight-loss picture + 
 var _dmMilesOpen          = false;  // Miles card accordion (now collapsible) — sticky
 var _dmWeightChartOpen    = false;  // weight chart accordion — sticky
 var _dmWeightChartRange   = 'last30'; // weight chart date range — sticky
+var _dmWeightChartFromDate = '';      // start date (YYYY-MM-DD) when range is 'fromDate' — sticky
 var _dmWeightChart        = null;   // Chart.js instance — must destroy before re-render
 var _dmWeightChartShrink   = 1.0;   // width reduction factor (1 = full natural width); not sticky
 var _dmWeightChartNaturalW = 0;     // natural width at render time — basis for the Reduce Width control
@@ -2012,6 +2013,7 @@ async function loadExerciseMetricsPage() {
     _dmMilesOpen        = prefs.dmMilesOpen        === true;
     _dmWeightChartOpen  = prefs.dmWeightChartOpen  === true;
     _dmWeightChartRange = prefs.dmWeightChartRange || 'last30';
+    _dmWeightChartFromDate = prefs.dmWeightChartFromDate || '';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
     _dmWeightChartShowMissing = prefs.dmWeightChartShowMissing === true;
     _dmWeightChartRollDays = parseInt(prefs.dmWeightChartRollDays, 10) || 3;
@@ -2625,9 +2627,11 @@ async function _dmApplyFilter() {
             ['last7',         'Last 7 Days'],
             ['last14',        'Last 2 Weeks'],
             ['last30',        'Last 30 Days'],
+            ['last60',        'Last 60 Days'],
             ['thisMonth',     'This Month'],
             ['last90',        'Last 90 Days'],
             ['thisYear',      'This Year'],
+            ['fromDate',      'From date…'],
             ['allTime',       'All Time']
         ];
         var wcRangeOpts = wcRangeOptions.map(function(o) {
@@ -2643,6 +2647,7 @@ async function _dmApplyFilter() {
                 '<div class="dm-accordion-body" id="dmWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
                     '<div class="dm-weight-chart-controls">' +
                         '<select id="dmWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
+                        '<input type="date" id="dmWeightChartFromDate" class="dm-filter-select" max="' + _dmTodayStr() + '" value="' + _dmWeightChartFromDate + '" style="display:' + (_dmWeightChartRange === 'fromDate' ? '' : 'none') + '">' +
                         '<button type="button" class="btn btn-secondary btn-small dm-wc-settings-btn" onclick="openWeightChartSettings(\'dm\')">⚙ Settings</button>' +
                     '</div>' +
                     '<div class="dm-weight-chart-wrap" id="dmWeightChartWrap"></div>' +
@@ -2867,6 +2872,16 @@ async function _dmApplyFilter() {
             wcRangeSel.addEventListener('change', function() {
                 _dmWeightChartRange = this.value;
                 userCol('settings').doc('exercisePrefs').set({ dmWeightChartRange: _dmWeightChartRange }, { merge: true });
+                var fromEl = document.getElementById('dmWeightChartFromDate');
+                if (fromEl) fromEl.style.display = (_dmWeightChartRange === 'fromDate') ? '' : 'none';
+                if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
+            });
+        }
+        var wcFromEl = document.getElementById('dmWeightChartFromDate');
+        if (wcFromEl) {
+            wcFromEl.addEventListener('change', function() {
+                _dmWeightChartFromDate = this.value;
+                userCol('settings').doc('exercisePrefs').set({ dmWeightChartFromDate: _dmWeightChartFromDate }, { merge: true });
                 if (_dmWeightChartOpen) _dmRenderWeightChart(_dmWeightChartRange);
             });
         }
@@ -3582,7 +3597,7 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId, rollDays) {
     }
     var todayStr = _wcFmt(today);
     var startStr = null;
-    var daysBack = { last7: 6, last14: 13, last30: 29, last90: 89 }[range];
+    var daysBack = { last7: 6, last14: 13, last30: 29, last60: 59, last90: 89 }[range];
     if (daysBack != null) {
         var sd = new Date(today); sd.setDate(today.getDate() - daysBack);
         startStr = _wcFmt(sd);
@@ -3608,6 +3623,10 @@ async function _dmRenderWeightChart(range, wrapId, shrinkId, rollDays) {
         // year-to-date (ends today); past years span the full calendar year.
         startStr = _dmSelYear + '-01-01';
         if (_dmSelYear < today.getFullYear()) todayStr = _dmSelYear + '-12-31';
+    } else if (range === 'fromDate') {
+        // Custom start date (each chart keeps its own). No date picked yet → show all time.
+        var fromPicked = (wrapId === 'sumWeightChartWrap') ? _sumWeightChartFromDate : _dmWeightChartFromDate;
+        if (fromPicked) startStr = fromPicked;
     }
     // allTime: startStr stays null
 
@@ -3966,6 +3985,7 @@ var _sumShowAvg          = false;   // "Show Avg line" toggle — sticky
 var _sumShowGoal         = false;   // "Show Goal line" toggle — sticky
 var _sumWeightChartOpen  = false;   // weight chart accordion open — sticky
 var _sumWeightChartRange = 'selectedYear'; // weight chart range — sticky (default: selected year)
+var _sumWeightChartFromDate = '';           // start date when range is 'fromDate' — sticky
 var _sumExGridOpen       = false;   // Exercise Summary accordion open — sticky
 var _sumExGridRange      = 'selectedYear'; // Exercise Summary range — sticky ('selectedYear' or month number '1'–'12')
 var _sumWeightChartRollDays = 3;    // Summary "N-Day Avg" trailing window — sticky, default 3 (separate from Daily Metrics)
@@ -4024,6 +4044,7 @@ async function loadExerciseSummaryPage() {
     _dmNutriColsOpen        = prefs.dmNutriColsOpen        === true;
     _sumWeightChartOpen     = prefs.sumWeightChartOpen     === true;
     _sumWeightChartRange    = prefs.sumWeightChartRange    || 'selectedYear';
+    _sumWeightChartFromDate = prefs.sumWeightChartFromDate || '';
     _sumExGridOpen          = prefs.sumExGridOpen          === true;
     _sumExGridRange         = prefs.sumExGridRange         || 'selectedYear';
     _dmWeightChartProjected = prefs.dmWeightChartProjected === true;
@@ -4292,8 +4313,10 @@ async function _sumLoadAndRender() {
     var wcRangeOptions = [
         ['selectedYear', 'Selected Year'],
         ['last30',       'Last 30 Days'],
+        ['last60',       'Last 60 Days'],
         ['last90',       'Last 90 Days'],
         ['thisYear',     'This Year'],
+        ['fromDate',     'From date…'],
         ['allTime',      'All Time']
     ];
     var wcRangeOpts = wcRangeOptions.map(function(o) {
@@ -4309,6 +4332,7 @@ async function _sumLoadAndRender() {
             '<div class="dm-accordion-body" id="sumWeightChartBody" style="display:' + (wcOpen ? 'block' : 'none') + '">' +
                 '<div class="dm-weight-chart-controls">' +
                     '<select id="sumWeightChartRangeSelect" class="dm-filter-select">' + wcRangeOpts + '</select>' +
+                    '<input type="date" id="sumWeightChartFromDate" class="dm-filter-select" max="' + _dmTodayStr() + '" value="' + _sumWeightChartFromDate + '" style="display:' + (_sumWeightChartRange === 'fromDate' ? '' : 'none') + '">' +
                     '<button type="button" class="btn btn-secondary btn-small dm-wc-settings-btn" onclick="openWeightChartSettings(\'sum\')">⚙ Settings</button>' +
                 '</div>' +
                 '<div class="dm-weight-chart-wrap" id="sumWeightChartWrap"></div>' +
@@ -4414,6 +4438,16 @@ async function _sumLoadAndRender() {
         wcRangeSel.addEventListener('change', function() {
             _sumWeightChartRange = this.value;
             userCol('settings').doc('exercisePrefs').set({ sumWeightChartRange: _sumWeightChartRange }, { merge: true });
+            var fromEl = document.getElementById('sumWeightChartFromDate');
+            if (fromEl) fromEl.style.display = (_sumWeightChartRange === 'fromDate') ? '' : 'none';
+            if (_sumWeightChartOpen) _sumRenderChart();
+        });
+    }
+    var sumFromEl = document.getElementById('sumWeightChartFromDate');
+    if (sumFromEl) {
+        sumFromEl.addEventListener('change', function() {
+            _sumWeightChartFromDate = this.value;
+            userCol('settings').doc('exercisePrefs').set({ sumWeightChartFromDate: _sumWeightChartFromDate }, { merge: true });
             if (_sumWeightChartOpen) _sumRenderChart();
         });
     }
