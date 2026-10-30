@@ -12,6 +12,7 @@
 //     acquiredDate 'YYYY-MM-DD'|'', price (number)|null, warrantyUntil 'YYYY-MM-DD'|'',
 //     status 'active'|'retired', notes, thumb (small JPEG data URL or ''),
 //     links[]  ({ id, url, description }),
+//     (extra pictures are ordinary `photos` docs, targetType 'equipment', shown by the shared gallery)
 //     log[]    ({ id, date 'YYYY-MM-DD', kind, text, cost (number)|null }), createdAt }
 //
 // Not to be confused with the Workouts "equipment list" (workoutEquipment) — that is just the
@@ -217,6 +218,18 @@ async function loadEquipmentItemPage(id) {
             '</div>' +
         '</div>' +
         '<div class="wl-done-section">' +
+            '<h3>More pictures</h3>' +
+            (isNew
+                ? '<div class="wl-hint">Save the equipment first, then come back to add more pictures.</div>'
+                : '<div class="wl-card-actions">' +
+                      '<button type="button" class="btn btn-primary btn-small" id="eqPhotoCamBtn">+ Camera</button>' +
+                      '<button type="button" class="btn btn-primary btn-small" id="eqPhotoGalBtn">+ Gallery</button>' +
+                      '<button type="button" class="btn btn-primary btn-small paste-photo-btn" data-entity="equipment">&#128203; Paste</button>' +
+                  '</div>' +
+                  '<div id="eqPhotoContainer"></div>' +
+                  '<p class="empty-state" id="eqPhotoEmptyState">No pictures yet.</p>') +
+        '</div>' +
+        '<div class="wl-done-section">' +
             '<h3>Links</h3>' +
             '<div class="wl-hint">Manufacturer, setup, how to use, where to buy parts…' + (isNew ? ' (saved when you tap Save)' : '') + '</div>' +
             '<div id="eqLinkList"></div>' +
@@ -240,6 +253,13 @@ async function loadEquipmentItemPage(id) {
         '</div>';
 
     wlPicFieldWire('eq', _eqEdit);
+    // More pictures use the shared photo gallery (photos.js, targetType 'equipment')
+    window.currentEquipment = isNew ? null : { id: id };
+    if (!isNew) {
+        document.getElementById('eqPhotoCamBtn').addEventListener('click', function() { triggerCameraUpload('equipment', id); });
+        document.getElementById('eqPhotoGalBtn').addEventListener('click', function() { triggerGalleryUpload('equipment', id); });
+        loadPhotos('equipment', id, 'eqPhotoContainer', 'eqPhotoEmptyState');
+    }
     document.getElementById('eqSaveBtn').addEventListener('click', _eqSave);
     if (!isNew) document.getElementById('eqDeleteBtn').addEventListener('click', _eqDelete);
     document.getElementById('eqLinkAddBtn').addEventListener('click', _eqAddLink);
@@ -379,8 +399,10 @@ async function _eqSave() {
 }
 
 async function _eqDelete() {
-    if (!confirm('Delete this equipment and its links and history? This cannot be undone.')) return;
+    if (!confirm('Delete this equipment and its pictures, links and history? This cannot be undone.')) return;
     try {
+        var pics = await userCol('photos').where('targetType', '==', 'equipment').where('targetId', '==', _eqEdit.id).get();
+        await Promise.all(pics.docs.map(function(d) { return d.ref.delete(); }));
         await userCol('equipment').doc(_eqEdit.id).delete();
         location.hash = '#equipment';
     } catch (err) {

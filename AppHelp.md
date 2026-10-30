@@ -4978,6 +4978,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 ### Quick Help
 - Only **Name** is required. Fill in what you like: what it is, what it's used for, when you got it, what you paid, where you bought it, brand, model, serial number, warranty end date, where it's kept
 - **Picture** works like Workout Links: Gallery, Camera or Paste, then crop
+- **More pictures**: once the item is saved, add as many extra photos as you like (receipt, serial number plate, setup…) with **+ Camera**, **+ Gallery** or **📋 Paste**. Use Newer/Older to flip through them. The single **Picture** above is just the small one shown in the list
 - **Links**: type a web address and what it's for (manufacturer, setup, how to use…), then tap **+ Add link**
 - **History**: pick a date and a kind (battery, repair, maintenance, support call…), add a note and a cost if you like, then tap **+ Add to history**
 - On an existing item, links and history are saved immediately. On a new item they're saved when you tap **Save**

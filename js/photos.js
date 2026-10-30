@@ -75,6 +75,7 @@ var PHOTO_CONTAINERS = {
     problem:            ['problemPhotoContainer',          'problemPhotoEmptyState'],
     medication:         ['medPhotoContainer',               'medPhotoEmptyState'],
     lifeEvent:          ['lcPhotoContainer',                'lcPhotoEmpty'],
+    equipment:          ['eqPhotoContainer',                'eqPhotoEmptyState'],
 };
 
 // ---------- Load & Display Photos ----------
@@ -466,6 +467,7 @@ function _getPasteEntity(type) {
         problem:           window.currentProblem,
         bucketItem:        window.currentBucketItem,
         note:              window.currentNote,
+        equipment:         window.currentEquipment,
     };
     return entityMap[type] || null;
 }
@@ -1059,6 +1061,7 @@ async function handleDeletePhoto(photoId, targetType) {
             collectionitem:     window.currentCollectionItem,
             note:               window.currentNote,
             item:               window.currentItem,
+            equipment:          window.currentEquipment,
         };
         var current = currentMap[targetType];
         if (current && current.id) {
