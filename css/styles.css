@@ -21961,7 +21961,12 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-view-cues { margin: 4px 0 0 18px; padding: 0; }
 .wo-view-chip { margin-left: auto; padding: 2px 8px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 0.75rem; color: #374151; background: #f9fafb; white-space: nowrap; cursor: pointer; }
 .wo-view-chip:hover { background: #e5e7eb; }
-.wo-view-step { margin-left: 4px; }
+.wo-view-step { margin-left: 4px; flex: 0 0 34px; width: 34px; padding: 3px 0; }   /* fixed size — .wo-frame-btn would otherwise stretch it to fill the row */
+
+/* Workout builder: use the width of the screen (the generic .ex-form is capped at 560px and the page at 800px,
+   which left a wide empty strip on a computer and made circuit rows wrap). Percent-based, with a sane ceiling. */
+#page-workout .ex-form { max-width: none; width: 100%; }
+.app-main:has(#page-workout:not(.hidden)) { max-width: 1200px; }
 .wo-view-chip--inline { margin-left: 2px; }
 
 /* Exercise levels (editor + view card) */
