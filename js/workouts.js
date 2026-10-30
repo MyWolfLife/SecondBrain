@@ -2517,7 +2517,8 @@ var _woPick = { text: '', area: '', muscle: '', pp: '', equip: '', circuit: null
 
 /** onPick (optional): called with the chosen exercise instead of adding a builder step — used by other screens. */
 function _woOpenExercisePicker(circuitIndex, onPick) {
-    _woPick = { text: '', area: '', muscle: '', pp: '', equip: '', circuit: circuitIndex, onPick: onPick || null };
+    // sel = ids ticked so far, in the order ticked (only used when there is no onPick callback — see _woRenderPicker)
+    _woPick = { text: '', area: '', muscle: '', pp: '', equip: '', circuit: circuitIndex, onPick: onPick || null, sel: [] };
     var equipUsed = {};
     _woExercises.forEach(function(e) { if (!e.archived) (e.equipment || []).forEach(function(q) { equipUsed[q] = true; }); });
     var ov = _woGrabOverlay(
@@ -2536,9 +2537,12 @@ function _woOpenExercisePicker(circuitIndex, onPick) {
         '<div id="woPickTags"></div>' +
         '<div id="woPickList" class="wo-pick-list"></div>' +
         '<div class="ex-form-actions">' +
+            (onPick ? '' : '<button type="button" class="btn btn-primary" id="woPickAddSel" disabled>Add selected</button>') +
             '<button type="button" class="btn btn-secondary" id="woPickNew">+ New exercise</button>' +
             '<button type="button" class="btn btn-secondary" id="woPickClose">Close</button>' +
         '</div>');
+    var addSel = ov.querySelector('#woPickAddSel');
+    if (addSel) addSel.addEventListener('click', _woAddSelectedExercises);
     ov.querySelector('#woPickText').addEventListener('input', function() { _woPick.text = this.value; _woRenderPicker(); });
     _woFillPickMuscle();
     var drawPickTags = function() { var tb = ov.querySelector('#woPickTags'); tb.innerHTML = woTagChipsHtml(_woExercises); woTagChipsWire(tb, function() { drawPickTags(); _woRenderPicker(); }); };
@@ -2596,6 +2600,7 @@ function _woRenderPicker() {
     if (!rows.length) { list.innerHTML = '<div class="ex-status">No exercises match. Use <strong>+ New exercise</strong> to create it.</div>'; return; }
     list.innerHTML = rows.map(function(e) {
         return '<button type="button" class="wo-pick-row" data-id="' + e.id + '">' +
+                   (_woPick.onPick ? '' : '<input type="checkbox" class="wo-pick-check" tabindex="-1"' + (_woPick.sel.indexOf(e.id) !== -1 ? ' checked' : '') + '>') +
                    '<span class="wo-thumb wo-thumb--sm">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</span>' +
                    '<span class="wo-pick-main"><span class="wo-card-name">' + _woEsc(e.name) + '</span>' +
                    '<span class="wo-card-meta">' + _woEsc(woFmtAmount(e.measure, e.defaultAmount, e.usesWeight ? e.defaultWeight : null) +
@@ -2608,10 +2613,41 @@ function _woRenderPicker() {
         b.addEventListener('click', function(ev) {
             var v = ev.target.closest('[data-view]');
             if (v) { ev.stopPropagation(); woViewExercise(v.getAttribute('data-view')); return; }   // look, don't pick
-            var ex = _woExMap[this.getAttribute('data-id')];
-            if (ex) _woPickChosen(ex);
+            var id = this.getAttribute('data-id'), ex = _woExMap[id];
+            if (!ex) return;
+            if (_woPick.onPick) { _woPickChosen(ex); return; }          // a caller wants exactly one exercise
+            var at = _woPick.sel.indexOf(id);                             // otherwise tick / untick; "Add selected" adds them all
+            if (at === -1) _woPick.sel.push(id); else _woPick.sel.splice(at, 1);
+            this.querySelector('.wo-pick-check').checked = at === -1;
+            _woUpdatePickSelCount();
         });
     });
+    _woUpdatePickSelCount();
+}
+
+/** "Add selected (3)" button: enabled only when something is ticked. */
+function _woUpdatePickSelCount() {
+    var btn = document.getElementById('woPickAddSel');
+    if (!btn) return;
+    var n = _woPick.sel.length;
+    btn.disabled = !n;
+    btn.textContent = n ? 'Add selected (' + n + ')' : 'Add selected';
+}
+
+/** Adds every ticked exercise (in the order ticked) to the workout, or to the circuit the picker was opened for. */
+function _woAddSelectedExercises() {
+    var ci = _woPick.circuit, inCircuit = ci !== null && _woW.steps[ci] && _woW.steps[ci].type === 'circuit';
+    _woPick.sel.forEach(function(id) {
+        var ex = _woExMap[id];
+        if (!ex) return;
+        if (inCircuit) _woW.steps[ci].items.push(_woNewStep(ex, true));
+        else _woW.steps.push(_woNewStep(ex, false));
+    });
+    _woCloseGrabber();
+    _woRenderSteps();
+    var cards = document.querySelectorAll('.wo-step');
+    var target = inCircuit && cards[ci] ? cards[ci] : cards[cards.length - 1];
+    if (target) target.scrollIntoView({ block: 'center' });
 }
 
 /** An exercise was chosen in the picker: hand it to the caller's callback, or add it to the builder. */

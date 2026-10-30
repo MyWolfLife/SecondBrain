@@ -21497,6 +21497,7 @@ a.legacy-fin-card:hover {
     cursor: pointer;
 }
 .wo-pick-row:hover { background: #f0fdfa; }
+.wo-pick-check { flex: 0 0 18px; width: 18px; height: 18px; margin: 0; pointer-events: none; accent-color: #0d9488; }
 .wo-pick-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .wo-thumb--sm { flex: 0 0 40px; width: 40px; height: 40px; font-size: 1.2rem; }
 
