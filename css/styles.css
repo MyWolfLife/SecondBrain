@@ -21996,6 +21996,7 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Tempo row */
 .wo-tempo-row input { width: 52px; }
 .wo-item .wo-tempo-row { flex: 1 0 100%; margin-left: 0; }
+.wo-tempo-chev { flex: 0 0 auto; min-width: 26px; padding: 2px 6px; }
 
 /* Picture captions */
 .wo-frame-cap { width: 108px; box-sizing: border-box; margin-top: 4px; font-size: 0.72rem; padding: 2px 4px; }

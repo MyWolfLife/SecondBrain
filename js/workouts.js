@@ -1915,7 +1915,26 @@ function _woGetStep(path) {
     return p.length > 1 && st ? (st.items || [])[parseInt(p[1], 10)] : st;
 }
 
+// Tempo row show/hide in the builder: path ("2" or "2.1") → true/false once the chevron has been clicked.
+// Not clicked yet → open only if the step already has a tempo. Lives in memory, never saved with the workout.
+var _woTempoOpen = {};
+
+function _woTempoIsOpen(path, st) {
+    return _woTempoOpen[path] !== undefined ? _woTempoOpen[path] : woHasTempo(st.tempo);
+}
+
+/** Chevron (left of the exercise name) that expands/collapses the Tempo row. */
+function _woTempoChevron(path, st) {
+    return '<button type="button" class="wo-frame-btn wo-tempo-chev" data-act="tempo" title="Show or hide tempo">' + (_woTempoIsOpen(path, st) ? '▾' : '▸') + '</button>';
+}
+
+/** The Tempo row when open, nothing when collapsed (the header shows a "tempo set" hint instead). */
+function _woTempoSection(path, st) {
+    return _woTempoIsOpen(path, st) ? woTempoRowHtml(st) : '';
+}
+
 async function loadWorkoutBuilderPage(id) {
+    _woTempoOpen = {};
     var isNew = (id === 'new');
     _woSetChrome([['Workouts', '#workouts'], [isNew ? 'New Workout' : 'Edit Workout']]);
     var el = document.getElementById('page-workout');
@@ -2103,13 +2122,15 @@ function _woRenderSteps() {
                     (items.length ? items.map(function(it, j) {
                         var ex = _woExMap[it.exerciseId];
                         return '<div class="wo-item" data-path="' + i + '.' + j + '">' +
+                            _woTempoChevron(i + '.' + j, it) +
                             '<span class="wo-item-name">' + _woEsc(ex ? ex.name : it.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
+                            (woHasTempo(it.tempo) && !_woTempoIsOpen(i + '.' + j, it) ? '<span class="wo-hint">tempo set</span>' : '') +
                             (ex ? _woPushPullBadge(ex.pushPull) : '') +
                             _woSideBadge(it) +
                             (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
                             (ex ? woLevelSelectHtml(it, ex) : '') +
                             _woSetsEditor(it, true) +
-                            woTempoRowHtml(it) +
+                            _woTempoSection(i + '.' + j, it) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
                     }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
@@ -2126,7 +2147,9 @@ function _woRenderSteps() {
             return '<div class="wo-step" data-path="' + i + '">' +
                 '<div class="wo-step-head">' +
                     '<span class="wo-step-num">' + (i + 1) + '</span>' +
+                    _woTempoChevron(String(i), st) +
                     '<span class="wo-step-name">' + _woEsc(ex ? ex.name : st.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
+                    (woHasTempo(st.tempo) && !_woTempoIsOpen(String(i), st) ? '<span class="wo-hint">tempo set</span>' : '') +
                     (ex ? _woPushPullBadge(ex.pushPull) : '') +
                     _woSideBadge(st) +
                     (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
@@ -2136,7 +2159,7 @@ function _woRenderSteps() {
                 (st.ladder ? '<div class="wo-hint wo-timed-note">' + _woEsc(woLadderText(st.ladder)) + ' (rung 1 to ' + st.ladder.maxRung + ' at most; you tap Start coming down in the player).</div>'
                 : st.timed ? '<div class="wo-hint wo-timed-note">' + _woEsc(woTimedText(st.timed)) + (st.measure === 'time' ? ' — hold for the work time.' : ' — as many reps as you can each round (you count them in the player).') + '</div>'
                           : _woSetsEditor(st, false)) +
-                woTempoRowHtml(st) +
+                _woTempoSection(String(i), st) +
                 woIntervalRowHtml(st) +
                 woTimedRowHtml(st) +
                 woLadderRowHtml(st) +
@@ -2237,6 +2260,8 @@ function _woStepClick(ev) {
     var path = holder.getAttribute('data-path'), act = btn.getAttribute('data-act');
     if (act === 'view') { var vs = _woGetStep(path); if (vs) woViewExercise(vs.exerciseId); return; }
     if (act === 'supersetfmt') { _woApplySupersetFormat(_woGetStep(path)); return; }
+    if (act === 'tempo') { var ts = _woGetStep(path); if (ts) { _woTempoOpen[path] = !_woTempoIsOpen(path, ts); _woRenderSteps(); } return; }
+    if (act === 'up' || act === 'down' || act === 'dup' || act === 'del') _woTempoOpen = {};   // positions shift — fall back to "open if a tempo is set"
     var parts = path.split('.'), i = parseInt(parts[0], 10), j = parts.length > 1 ? parseInt(parts[1], 10) : null;
     var list = j === null ? _woW.steps : _woW.steps[i].items;
     var idx  = j === null ? i : j;
