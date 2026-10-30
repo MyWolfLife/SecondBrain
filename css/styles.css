@@ -21966,6 +21966,31 @@ body.wo-playing .offline-banner { display: none !important; }
 /* Workout builder: use the width of the screen (the generic .ex-form is capped at 560px and the page at 800px,
    which left a wide empty strip on a computer and made circuit rows wrap). Percent-based, with a sane ceiling. */
 #page-workout .ex-form { max-width: none; width: 100%; }
+
+/* Circuit rows in the builder: on a computer, columns line up like a grid (no visible lines).
+   .wo-items is the grid; each .wo-item is a subgrid, so all rows share the same column widths.
+   Columns: chevron · name · badges · 👁 · level · reps/weight · buttons.
+   On a phone / narrow window none of this applies and rows wrap as before. */
+.wo-item-badges { display: contents; }
+.wo-slot-empty { display: none; }
+.wo-items { margin: 6px 0 0 32px; }
+.wo-items .wo-item { margin: 6px 0 0 0; }
+@media (min-width: 900px) {
+    .wo-items {
+        display: grid;
+        grid-template-columns: auto minmax(0, max-content) max-content 34px max-content max-content 1fr;
+        column-gap: 8px;
+    }
+    .wo-items .wo-item { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; }
+    .wo-items .wo-item-badges { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; white-space: nowrap; }
+    .wo-items .wo-slot-empty { display: block; }
+    .wo-items .wo-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wo-items .wo-item-sets { white-space: nowrap; }
+    .wo-items .wo-item .wo-view-step { margin-left: 0; }
+    .wo-items .wo-item .wo-level-select { margin-left: 0; }
+    .wo-items .wo-item .wo-step-btns { justify-self: end; margin-left: 0; }
+    .wo-items .wo-item > .wo-tempo-row { grid-column: 1 / -1; margin-left: 0; }
+}
 .app-main:has(#page-workout:not(.hidden)) { max-width: 1200px; }
 .wo-view-chip--inline { margin-left: 2px; }
 

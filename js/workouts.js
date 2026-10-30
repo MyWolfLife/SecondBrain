@@ -2119,21 +2119,26 @@ function _woRenderSteps() {
                         (st.stapper ? '' : '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>') +
                         _woSectionSelect(st) + btns(i, i > 0, i < steps.length - 1, true) +
                     '</div>' +
-                    (items.length ? items.map(function(it, j) {
+                    // On a wide screen .wo-items is a grid and every row is a subgrid of it, so the badges, 👁, level,
+                    // reps and weight line up from row to row. Each optional piece keeps an (empty) slot so columns never shift.
+                    (items.length ? '<div class="wo-items">' + items.map(function(it, j) {
                         var ex = _woExMap[it.exerciseId];
+                        var lvl = ex ? woLevelSelectHtml(it, ex) : '';
                         return '<div class="wo-item" data-path="' + i + '.' + j + '">' +
                             _woTempoChevron(i + '.' + j, it) +
                             '<span class="wo-item-name">' + _woEsc(ex ? ex.name : it.exerciseName) + (ex ? '' : ' (deleted)') + '</span>' +
-                            (woHasTempo(it.tempo) && !_woTempoIsOpen(i + '.' + j, it) ? '<span class="wo-hint">tempo set</span>' : '') +
-                            (ex ? _woPushPullBadge(ex.pushPull) : '') +
-                            _woSideBadge(it) +
-                            (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '') +
-                            (ex ? woLevelSelectHtml(it, ex) : '') +
+                            '<span class="wo-item-badges">' +
+                                (woHasTempo(it.tempo) && !_woTempoIsOpen(i + '.' + j, it) ? '<span class="wo-hint">tempo set</span>' : '') +
+                                (ex ? _woPushPullBadge(ex.pushPull) : '') +
+                                _woSideBadge(it) +
+                            '</span>' +
+                            (ex ? '<button type="button" class="wo-frame-btn wo-view-step" data-act="view" title="View this exercise">👁</button>' : '<span class="wo-slot-empty"></span>') +
+                            (lvl || '<span class="wo-slot-empty"></span>') +
                             _woSetsEditor(it, true) +
                             _woTempoSection(i + '.' + j, it) +
                             btns(i + '.' + j, j > 0, j < items.length - 1, false) +
                         '</div>';
-                    }).join('') : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
+                    }).join('') + '</div>' : '<p class="wo-hint wo-item-empty">No exercises in this circuit yet.</p>') +
                     '<div class="wo-set-actions"><button type="button" class="wo-link-btn" data-act="additem">+ Add exercise to circuit</button></div>' +
                     woSupersetRowHtml(st) +
                     woStapperRowHtml(st) +
