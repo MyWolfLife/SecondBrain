@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=554">
+    <link rel="stylesheet" href="css/styles.css?v=555">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7932,6 +7932,16 @@ service firebase.storage {
             <!-- Populated by loadWorkoutLinkTagsPage() in workout-links.js -->
         </section>
 
+        <!-- Page: Equipment list (#equipment) -->
+        <section class="page hidden" id="page-equipment">
+            <!-- Populated by loadEquipmentPage() in equipment.js -->
+        </section>
+
+        <!-- Page: Equipment add / edit (#equipment-item/new, #equipment-item/:id) -->
+        <section class="page hidden" id="page-equipment-item">
+            <!-- Populated by loadEquipmentItemPage() in equipment.js -->
+        </section>
+
         <!-- Page: Import exercises (#workout-import) -->
         <section class="page hidden" id="page-workout-import">
             <!-- Populated by loadWorkoutImportPage() in workout-import.js -->
@@ -12411,7 +12421,7 @@ export default {
     <script src="js/gps.js?v=488"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/gcal.js?v=488"></script>
-    <script src="js/settings.js?v=509"></script>
+    <script src="js/settings.js?v=510"></script>
     <script src="js/sharing.js?v=26"></script>
     <script src="js/llm-usage.js?v=4"></script>
     <script src="js/devnotes.js?v=487"></script>
@@ -12437,7 +12447,7 @@ export default {
     <script src="js/lifecalendar.js?v=488"></script>
     <script src="js/life-projects.js?v=488"></script>
     <script src="js/life-projects-day-ai.js?v=496"></script>
-    <script src="js/exercise.js?v=499"></script>
+    <script src="js/exercise.js?v=500"></script>
     <script src="js/workout-levels.js?v=4"></script>
     <script src="js/workout-amounts.js?v=9"></script>
     <script src="js/workout-tags.js?v=1"></script>
@@ -12455,6 +12465,7 @@ export default {
     <script src="js/program-import.js?v=2"></script>
     <script src="js/programs.js?v=6"></script>
     <script src="js/workout-links.js?v=3"></script>
+    <script src="js/equipment.js?v=1"></script>
     <script src="js/web-links.js?v=2"></script>
     <script src="js/timeline.js?v=8"></script>
     <script src="js/workout-ai.js?v=9"></script>
@@ -12508,7 +12519,7 @@ export default {
     <script src="js/analyzer-news.js?v=487"></script>
     <script src="js/analyzer-holdingshealth.js?v=487"></script>
     <script src="js/private.js?v=487"></script>
-    <script src="js/app.js?v=507"></script>
+    <script src="js/app.js?v=508"></script>
     <script src="js/offline-sync.js?v=487"></script>
 
 </body>

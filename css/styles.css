@@ -22254,3 +22254,6 @@ body.yard-view-only .yard-vo-hide { display: none !important; }
 /* Shared thoughts (sharethought.js): a thought shared View only looks read-only */
 #viewDetailContent.th-viewonly button,
 #viewHistoryContent.th-viewonly button { display: none; }
+
+/* Fitness → Equipment (equipment.js) */
+.eq-warn { color: #b45309; font-weight: 600; }

@@ -4941,7 +4941,7 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 
 ## screen:exercise
 
-**What this screen is for:** The Fitness hub (formerly "Exercise"). The **left column** is your tracking — Daily Metrics, Activities, Summary, Goals, Workout Links. The **right column** is workouts — Workouts, Workout History, Muscle Balance, Exercises, Programs.
+**What this screen is for:** The Fitness hub (formerly "Exercise"). The **left column** is your tracking — Daily Metrics, Activities, Summary, Goals, Workout Links, Equipment. The **right column** is workouts — Workouts, Workout History, Muscle Balance, Exercises, Programs.
 
 ### Quick Help
 - Tap **Daily Metrics** to track your daily health numbers and habits (sleep, steps, weight, custom habits, etc.)
@@ -4949,11 +4949,39 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - Tap **Summary** for a year-at-a-glance view of every month's numbers
 - Tap **Goals** to set and manage your yearly exercise and weight goals
 - Tap **Workout Links** for reels, videos, and web pages of workouts you want to try
+- Tap **Equipment** for the gear you own: what you paid, links, and repair/maintenance history
 - Tap **Workouts** to build and run guided workouts
 - Tap **Workout History** to see every workout you've finished
 - Tap **Muscle Balance** to see which muscles you've been working lately
 - Tap **Exercises** for your library of exercises (names, form cues, pictures)
 - **Programs** — multi-week plans built from your workouts (weeks, each with its days)
+
+---
+
+## screen:equipment
+
+**What this screen is for:** The fitness gear you own, with what you paid, links, and a history of repairs and maintenance.
+
+### Quick Help
+- Tap **+ Add Equipment** to record something. Tap a card to open and edit it
+- **Search** looks at the name, brand, model, description, what it's used for, and where it's kept
+- Retired items (sold, broken, given away) are hidden. Tick **Show retired** to see them
+- The line under the list says how much you've spent in total: purchase prices plus any costs in the history
+- A warning in amber means the warranty ends within 60 days
+
+---
+
+## screen:equipment-item
+
+**What this screen is for:** Adding or editing one piece of equipment.
+
+### Quick Help
+- Only **Name** is required. Fill in what you like: what it is, what it's used for, when you got it, what you paid, where you bought it, brand, model, serial number, warranty end date, where it's kept
+- **Picture** works like Workout Links: Gallery, Camera or Paste, then crop
+- **Links**: type a web address and what it's for (manufacturer, setup, how to use…), then tap **+ Add link**
+- **History**: pick a date and a kind (battery, repair, maintenance, support call…), add a note and a cost if you like, then tap **+ Add to history**
+- On an existing item, links and history are saved immediately. On a new item they're saved when you tap **Save**
+- Tick **Retired** to hide it from the list. **Delete** removes it with its links and history
 
 ---
 

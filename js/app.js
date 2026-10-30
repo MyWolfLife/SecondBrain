@@ -201,7 +201,7 @@ const ALL_PAGES = [
     'budget', 'budget-archive', 'budget-nonmonthly',
     'analyzer', 'analyzer-dipdrift', 'analyzer-dualmomentum', 'analyzer-dm-about', 'analyzer-stockmomentum', 'analyzer-sm-about', 'analyzer-qualityvalue', 'analyzer-qv-about', 'analyzer-earningsdrift', 'analyzer-pead-about', 'analyzer-newssentiment', 'analyzer-news-about', 'analyzer-holdingshealth', 'analyzer-hh-about', 'analyzer-universe', 'analyzer-backtest', 'analyzer-scan', 'analyzer-dossier', 'analyzer-trades', 'analyzer-scoreboard',
     'exercise-activity', 'exercise-metric', 'exercise-goals-month', 'exercise-goal-exercises',
-    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'programs', 'program', 'program-view', 'program-import', 'workout-links', 'workout-link', 'workout-link-tags', 'web-link', 'web-link-manage', 'timeline-event',
+    'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'programs', 'program', 'program-view', 'program-import', 'workout-links', 'workout-link', 'workout-link-tags', 'equipment', 'equipment-item', 'web-link', 'web-link-manage', 'timeline-event',
     'help'
 ];
 
@@ -247,7 +247,7 @@ const LIFE_PAGES  = ['life', 'bucketlist', 'bucketitem', 'web-links', 'web-link'
                      'exercise', 'exercise-activities', 'exercise-activity', 'exercise-types',
                      'exercise-metrics', 'exercise-metric', 'exercise-metric-defs',
                      'exercise-goals', 'exercise-goals-month', 'exercise-goal-exercises', 'exercise-summary',
-                     'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'programs', 'program', 'program-view', 'program-import', 'workout-links', 'workout-link', 'workout-link-tags'];
+                     'workout-exercises', 'workout-exercise', 'workouts', 'workout', 'workout-start', 'workout-run', 'workout-done', 'workout-history', 'workout-day', 'workout-exercise-history', 'workout-balance', 'workout-import', 'programs', 'program', 'program-view', 'program-import', 'workout-links', 'workout-link', 'workout-link-tags', 'equipment', 'equipment-item'];
 
 /** Tracks which nav context is currently active ('yard', 'house', or 'life'). */
 var currentNavContext = 'yard';
@@ -882,6 +882,12 @@ function handleRoute() {
     } else if (page === 'workout-link-tags') {
         showPage('workout-link-tags');
         loadWorkoutLinkTagsPage();
+    } else if (page === 'equipment') {
+        showPage('equipment');
+        loadEquipmentPage();
+    } else if (page === 'equipment-item' && id) {
+        showPage('equipment-item');
+        loadEquipmentItemPage(id);
     } else if (page === 'workout-history') {
         showPage('workout-history');
         loadWorkoutHistoryPage();

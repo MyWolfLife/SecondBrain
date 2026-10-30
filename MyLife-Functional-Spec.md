@@ -1258,7 +1258,7 @@ Tracks major life events — trips, milestones, goals, relationships.
 Exercise tracking lives in the Life section. The section is labeled **Fitness** on screen (Life tile, hub title, breadcrumbs); routes (`#exercise…`), files (`exercise.js`) and Firestore collections (`exercise…`) keep the original "exercise" names. Activities, Daily Metrics, Goals, and Summary are all built; Workouts is being built (see below).
 
 ### Fitness Hub (`#exercise`)
-Ten cards in **two columns** (placed explicitly so each reads top-down): **left** — **Daily Metrics** (`#exercise-metrics`), **Activities**, **Summary**, **Goals**, **Workout Links** (`#workout-links`); **right** — **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Muscle Balance** (`#workout-balance`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
+Eleven cards in **two columns** (placed explicitly so each reads top-down): **left** — **Daily Metrics** (`#exercise-metrics`), **Activities**, **Summary**, **Goals**, **Workout Links** (`#workout-links`), **Equipment** (`#equipment`); **right** — **Workouts** (`#workouts`), **Workout History** (`#workout-history`), **Muscle Balance** (`#workout-balance`), **Exercises** (`#workout-exercises` — the exercise library), and a greyed-out **Programs — Coming soon** card (multi-week programs, planned later).
 Breadcrumb: Life › Fitness. No back button — use breadcrumb to navigate up.
 
 ### Workouts (`js/workouts.js`) — build in progress
@@ -1510,6 +1510,14 @@ A list of web links (Instagram/Facebook reels, YouTube, TikTok, web pages) to wo
 - **Manage tags** — every tag with its link count, **Rename** (rewrites it on every link; renaming onto an existing tag merges them) and **Delete** (removes it from every link; the links stay).
 - **Phone share sheet** — sharing a link to Bishop asks "Save this link to…" Web Links, Workout Links, or Bucket List (see Part 1 → Share Target).
 - **Data** — `workoutLinks` (per-user `userCol`, in the backup list): `name`, `url`, `description`, `tags[]` (lowercase), `favorite`, `thumb` (JPEG data URL or ''), `doneLog[]` (`{id, date 'YYYY-MM-DD', minutes|null, note, activityId|null}`), `createdAt`. Linking a link to a built Workout is parked in `FutureEnhancements.md`.
+
+### Equipment (`js/equipment.js`)
+The gear the user owns (treadmill, bands, bike…). Routes: `#equipment` (list), `#equipment-item/new` and `#equipment-item/:id` (add / edit). Breadcrumb Life › Fitness › Equipment (› Add / Edit Equipment). Not the same as the Workouts "equipment list" (`workoutEquipment`, just names an exercise needs).
+
+- **List** — header **+ Add Equipment**; search box (name, brand, model, description, used-for, location); **Show retired** checkbox (retired items hidden by default). Count line shows items and total spent (purchase prices + history costs). Card: picture (🏋️ if none), name (+ Retired chip), what it is used for, "Got <date> · $price", last history entry, and a warranty line (amber when it ends within 60 days; "Warranty ended" when past). Tap a card to edit. Sorted A–Z.
+- **Add / Edit** — Name (required), Picture (same shared picture box as Workout Links), Description, What it is used for, When I got it, What I paid, Bought from, Brand, Model, Serial number, Warranty ends, Where it is kept, Notes, Retired checkbox; Save / Cancel / Delete (edit only; removes links and history too).
+- **Links** — list of URL + description ("Setup video", "Manufacturer"…); shown as the description linking out. **History** — dated entries (date, kind: Maintenance / Repair / Battery / Support call / Cleaning / Part replaced / Other, optional text, optional cost), newest first. On an existing item links and history entries are saved the moment they are added/deleted; on a new item they are saved with Save.
+- **Data** — `equipment` (per-user `userCol`, in the backup list): `name`, `description`, `usedFor`, `acquiredDate`, `price` (number|null), `boughtFrom`, `brand`, `model`, `serial`, `warrantyUntil`, `location`, `notes`, `status` ('active'|'retired'), `thumb`, `links[]` {id, url, description}, `log[]` {id, date, kind, text, cost}, `createdAt`.
 
 ### Exercise Goals (`#exercise-goals`, `#exercise-goals/:year`, `#exercise-goals/:year/:month`)
 Yearly planning grid — one row per month (Jan–Dec). Dual purpose: set monthly exercise and weight targets, and define color thresholds that drive background colors on the Daily Metrics screen.
