@@ -579,6 +579,7 @@ function _woRenderExerciseEditor() {
                     targetsHtml +
                 '</div>' +
             '</div>' +
+            '<div id="woeBodyMap">' + woBodyMapHtml(_woEdit.targets) + '</div>' +      // live preview of the muscles chosen above
 
             // Levels, equipment, cues, video and pictures: drawn by woLevelGroupRender() (workout-level-editor.js)
             '<div id="woeLevelGroup"></div>' +
@@ -676,6 +677,8 @@ function _woRefreshAccAnswers() {
     var t = document.getElementById('woeTargetsAnswer'), q = document.getElementById('woeEquipAnswer');
     if (t) t.innerHTML = _woTargetsAnswerHtml();
     if (q) q.innerHTML = _woEquipAnswerHtml();
+    var bm = document.getElementById('woeBodyMap');
+    if (bm) bm.innerHTML = woBodyMapHtml(_woEdit.targets);
 }
 
 function _woCycleTarget(btn) {

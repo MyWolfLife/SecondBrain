@@ -61,6 +61,20 @@ function _woBodySvg(shapes, state, label) {
     return out + '</svg>';
 }
 
+/** Every muscle the exercises in these workout steps work, as targets: main if it is a main target of ANY exercise. */
+function woWorkoutTargets(steps) {
+    var best = {};
+    _woFlatExercises(steps).forEach(function(st) {
+        var ex = _woExMap[st.exerciseId];
+        (ex && ex.targets || []).forEach(function(t) {
+            if (!t.muscleId) return;
+            if (t.main) best[t.muscleId] = true;
+            else if (best[t.muscleId] === undefined) best[t.muscleId] = false;
+        });
+    });
+    return Object.keys(best).map(function(id) { return { muscleId: id, main: best[id] }; });
+}
+
 function woBodyMapHtml(targets) {
     var state = {};
     (targets || []).forEach(function(t) {

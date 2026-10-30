@@ -692,6 +692,7 @@ function _woRenderStartPage() {
         '<p class="wo-start-reminder" style="color:#c62828;font-weight:600;margin:0 0 12px;">Turn off Notifications and turn up volume</p>' +
         '<div class="ex-form">' +
             '<div class="wo-banner" id="wosEstimate"></div>' +
+            '<div id="wosBodyMap"></div>' +
             woProgBannerHtml() +
             woStartLevelsAskHtml() +
             woStartSidesAskHtml() +
@@ -773,6 +774,8 @@ function _woUpdateStartEstimate() {
     var secs = woEstimateSeconds(_woS.workout.steps) + WO_GETREADY_SEC;
     var flat = _woFlatExercises(_woS.workout.steps).length;
     el.textContent = flat + ' exercise' + (flat === 1 ? '' : 's') + ' · about ' + woFmtMinutes(secs);
+    var bm = document.getElementById('wosBodyMap');          // one body map for everything this workout works
+    if (bm) bm.innerHTML = woBodyMapHtml(woWorkoutTargets(_woS.workout.steps));
 }
 
 /** Did the user change any numbers compared to the saved workout? */
