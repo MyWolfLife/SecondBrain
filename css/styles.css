@@ -21497,6 +21497,18 @@ a.legacy-fin-card:hover {
     cursor: pointer;
 }
 .wo-pick-row:hover { background: #f0fdfa; }
+/* Body map (js/workout-bodymap.js): front + back figure, worked muscles coloured in */
+.wo-bodymap { display: flex; justify-content: center; gap: 20px; margin: 10px 0 4px; }
+.wo-bodymap-view { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wo-bodymap-svg { width: 110px; height: auto; }
+.wo-bodymap-svg .bm-body { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 0.8; }
+.wo-bodymap-svg .bm-m { fill: #e5e7eb; stroke: #fff; stroke-width: 0.6; }
+.wo-bodymap-svg .bm-m.bm-also { fill: #5eead4; }
+.wo-bodymap-svg .bm-m.bm-main { fill: #0d9488; }
+.wo-bodymap-legend { display: flex; justify-content: center; gap: 16px; font-size: 0.78rem; color: #6b7280; margin-bottom: 6px; }
+.bm-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; }
+.bm-key--main { background: #0d9488; }
+.bm-key--also { background: #5eead4; }
 .wo-pick-check { flex: 0 0 18px; width: 18px; height: 18px; margin: 0; pointer-events: none; accent-color: #0d9488; }
 .wo-pick-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .wo-thumb--sm { flex: 0 0 40px; width: 40px; height: 40px; font-size: 1.2rem; }
