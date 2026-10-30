@@ -21974,6 +21974,7 @@ body.wo-playing .offline-banner { display: none !important; }
 .wo-item-badges { display: contents; }
 .wo-slot-empty { display: none; }
 .wo-items { margin: 6px 0 0 32px; }
+.wo-help-q { border: 1px solid #0d9488; border-radius: 50%; width: 18px; height: 18px; padding: 0; margin-left: 4px; font-size: 0.75rem; font-weight: 700; text-decoration: none; line-height: 16px; }
 .wo-items .wo-item { margin: 6px 0 0 0; }
 @media (min-width: 900px) {
     .wo-items {

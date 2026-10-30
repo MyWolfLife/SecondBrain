@@ -232,10 +232,10 @@ var WO_SUPERSET_DEFAULT = { seconds: 240, rounds: 2 };
 /** The builder's superset row inside a circuit card. */
 function woSupersetRowHtml(st) {
     var iv = st.interval;
-    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Superset (interval)</span>' +
+    return '<div class="wo-rest-row wo-interval-row"><span class="wo-rest-label">Timed rounds <button type="button" class="wo-link-btn wo-help-q" data-act="trhelp" title="What are timed rounds?">?</button></span>' +
         '<label class="wo-inline-check"><input type="checkbox" data-f="cIntervalOn"' + (iv ? ' checked' : '') + '> each round starts on a clock</label>' +
         (iv ? ' every <input type="text" class="wo-clock-box" data-f="cIntervalSec" value="' + woClockText(iv.seconds) + '" placeholder="4:00"> <span class="wo-hint">min:sec</span>' : '') +
-        ' <button type="button" class="wo-link-btn" data-act="supersetfmt" title="The book\'s recipe: 4:00 interval, 2 rounds, first exercise 1–5 slow reps, the rest 6–12">Apply superset format</button>' +
+        ' <button type="button" class="wo-link-btn" data-act="supersetfmt" title="The book\'s recipe: 4:00 interval, 2 rounds, first exercise 1–5 slow reps, the rest 6–12">Apply book format</button>' +
         '</div>';
 }
 

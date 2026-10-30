@@ -658,7 +658,7 @@ function _woRenderStartPage() {
                 '<div class="wo-step-head"><span class="wo-step-num">' + (i + 1) + '</span><span class="wo-step-name">Circuit</span>' +
                 (st.stapper ? '' : '<span class="wo-circuit-rounds"><input type="number" min="1" max="20" data-f="rounds" value="' + (st.rounds || 1) + '"> rounds</span>') + '</div>' +
                 (st.stapper ? '<div class="wo-rest-row"><span class="wo-rest-label">Stapper</span>as many cycles as you can in ' + st.stapper.minutes + ' min — go round the exercises until time is up</div>' : '') +
-                (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Superset</span>each round starts ' + _woEsc(woIntervalText({ seconds: st.interval.seconds })) + '</div>' : '') +
+                (st.interval ? '<div class="wo-rest-row"><span class="wo-rest-label">Timed rounds</span>each round starts ' + _woEsc(woIntervalText({ seconds: st.interval.seconds })) + '</div>' : '') +
                 (st.items || []).map(function(it, j) {
                     var s0 = (it.sets && it.sets[0]) || {};
                     return '<div class="wo-item" data-path="' + i + '.' + j + '"><span class="wo-item-name">' + _woEsc(it.exerciseName) + '</span><button type="button" class="wo-frame-btn wo-view-step" data-view-ex="' + it.exerciseId + '" title="View this exercise">👁</button>' + woStartLevelRowHtml(it, i + '.' + j, true) + _woStartPrecautionHtml(it, true) + (woHasTempo(it.tempo) ? ' <span class="wo-hint">tempo: ' + _woEsc(woTempoText(it.tempo)) + '</span>' : '') + _woLastTimeHtml(it, i + '.' + j) +

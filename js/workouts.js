@@ -2181,14 +2181,41 @@ function _woRenderSteps() {
 }
 
 /** ⏱ Interval format: every exercise step becomes an Interval Set — 3 sets, a range of 6–12 reps (timed: as long as you can), every 3:00, work cap 1:30. */
+/** The ? next to "Timed rounds": a plain-language popup with examples. */
+function _woTimedRoundsHelp() {
+    var ov = _woGrabOverlay(
+        '<h3>Timed rounds</h3>' +
+        '<p>Normally a circuit goes: do the exercises, take a fixed rest, start the next round whenever you are ready. With <strong>timed rounds</strong> every round starts on the <strong>clock</strong> instead — for example every 4:00. You do the exercises, and <strong>whatever time is left before the next 4:00 mark is your rest</strong>.</p>' +
+        '<p><strong>Example</strong> — a pair (push-ups + rows), every 4:00, 2 rounds:</p>' +
+        '<ul>' +
+            '<li>Round 1 starts at 0:00. You finish both exercises at 1:30 → you rest 2:30.</li>' +
+            '<li>Round 2 starts at 4:00 sharp. This time you finish at 2:30 → you rest 1:30.</li>' +
+            '<li>The workout ends at 8:00 (2 rounds × 4:00) — every time, however fast you were.</li>' +
+            '<li>If a round takes longer than 4:00, the next one starts right away (no rest).</li>' +
+        '</ul>' +
+        '<p><strong>Why use it?</strong> Your total time is fixed, and the rest adjusts itself: do the exercises efficiently and you get more rest; drag them out and you get less.</p>' +
+        '<p><strong>The boxes</strong></p>' +
+        '<ul>' +
+            '<li><em>each round starts on a clock</em> — turns timed rounds on for this circuit.</li>' +
+            '<li><em>every [4:00]</em> — how long each round is, in minutes:seconds (at least 10 seconds). Set it longer than one pass takes you, or you will never rest.</li>' +
+            '<li><em>Rounds</em> (at the top of the circuit) — how many times to repeat.</li>' +
+        '</ul>' +
+        '<p><strong>Apply book format</strong> fills it in the book\u2019s way: every 4:00, 2 rounds, exercises back to back. The first exercise becomes <strong>1–5 slow reps</strong> (3 seconds down, 1 second pause, 1 second up, 1 second pause) and the others <strong>6–12 reps</strong>. Add the exercises first — a pair works best — and you can change any number afterwards.</p>' +
+        '<p><strong>In the player</strong> you will see “Round 1 of 2 · Interval 4:00”, and it says “Next round starts when the clock reaches zero.”</p>' +
+        '<p class="wo-hint">Not the same as <em>Stapper</em> (as many rounds as you can in a set time) — the two cannot be combined.</p>' +
+        '<div class="ex-form-actions"><button type="button" class="btn btn-secondary" id="woTrHelpClose">Close</button></div>');
+    ov.querySelector('#woTrHelpClose').addEventListener('click', _woCloseGrabber);
+    ov.addEventListener('click', function(e) { if (e.target === ov) _woCloseGrabber(); });
+}
+
 /**
- * Apply superset format to a circuit (the book's recipe): rounds start every 4:00, 2 rounds, the exercises back to back;
+ * Apply the book format (timed rounds) to a circuit (the book's recipe): rounds start every 4:00, 2 rounds, the exercises back to back;
  * the first exercise 1–5 slow reps (lower 3 s, pause 1 s, lift 1 s, pause 1 s, not to failure), the others 6–12 reps.
  */
 function _woApplySupersetFormat(st) {
     if (!st || st.type !== 'circuit') return;
     if (!(st.items || []).length) { alert('Add the exercises to the circuit first (the book uses a pair).'); return; }
-    if (!confirm('Apply the superset format to this circuit?\n\nRounds start every 4:00, 2 rounds, exercises back to back. The first exercise becomes 1–5 slow reps (not to failure) and the others 6–12 reps. Their current numbers will be replaced; you can change any of it afterwards.')) return;
+    if (!confirm('Apply the book format (timed rounds) to this circuit?\n\nRounds start every 4:00, 2 rounds, exercises back to back. The first exercise becomes 1–5 slow reps (not to failure) and the others 6–12 reps. Their current numbers will be replaced; you can change any of it afterwards.')) return;
     st.interval = { seconds: WO_SUPERSET_DEFAULT.seconds, capSec: null };
     st.rounds = WO_SUPERSET_DEFAULT.rounds;
     st.restBetweenItems = _woBlankRest(0);
@@ -2264,6 +2291,7 @@ function _woStepClick(ev) {
     if (!holder) return;
     var path = holder.getAttribute('data-path'), act = btn.getAttribute('data-act');
     if (act === 'view') { var vs = _woGetStep(path); if (vs) woViewExercise(vs.exerciseId); return; }
+    if (act === 'trhelp') { _woTimedRoundsHelp(); return; }
     if (act === 'supersetfmt') { _woApplySupersetFormat(_woGetStep(path)); return; }
     if (act === 'tempo') { var ts = _woGetStep(path); if (ts) { _woTempoOpen[path] = !_woTempoIsOpen(path, ts); _woRenderSteps(); } return; }
     if (act === 'up' || act === 'down' || act === 'dup' || act === 'del') _woTempoOpen = {};   // positions shift — fall back to "open if a tempo is set"
