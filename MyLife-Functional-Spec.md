@@ -2123,7 +2123,7 @@ Dashboard page showing totals for the selected group.
 - Cash bucket = total balance of bank accounts (checking/savings/money market/CD)
 - Uninvested Cash = informational display only — sum of `cashBalance + pendingActivity` across all non-bank investment accounts; already baked into the category rows above, **not** added to Net Worth
 - `t.netWorth = t.roth + t.preTax + t.brokerage + t.cash` (no `+ t.invCash`)
-- `t.invested = t.netWorth - t.invCash` (how much is in actual positions vs. sitting idle)
+- `t.invested = t.netWorth - t.cash - t.invCash` (how much is in actual positions: excludes bank/cash accounts and idle investment cash). Snapshots captured before this change stored the old figure (which included bank cash) in their `invested` field.
 
 **Accounts section**: Per-person groups listing each account's name, tax category badge, and total value. Joint accounts appear in a separate "Joint Accounts" section.
 

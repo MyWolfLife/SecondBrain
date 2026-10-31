@@ -2631,7 +2631,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 ### Details
 
-**Net Worth vs Invested**: Net Worth = Roth + Pre-Tax + Brokerage + Cash + Uninvested Cash. Invested = Net Worth − Uninvested Cash (i.e., includes bank Cash but excludes idle cash sitting in brokerage/investment accounts).
+**Net Worth vs Invested**: Net Worth = Roth + Pre-Tax + Brokerage + Cash + Uninvested Cash. Invested = Net Worth − Cash − Uninvested Cash (i.e., excludes both your bank/cash accounts and idle cash sitting in brokerage/investment accounts — only money actually in positions).
 
 **Tax categories**:
 - **Roth** (green): Roth IRA, Roth 401k, HSA — full account total (holdings + uninvested cash + pending activity)

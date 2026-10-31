@@ -4479,7 +4479,8 @@ function _investComputeGroupTotals(accounts) {
 
     // invCash is already inside roth/preTax/brokerage — don't add it again to netWorth
     t.netWorth = t.roth + t.preTax + t.brokerage + t.cash;
-    t.invested = t.netWorth - t.invCash;
+    // Invested excludes bank/cash accounts (checking, savings, money market, CD) and idle investment cash
+    t.invested = t.netWorth - t.cash - t.invCash;
     return t;
 }
 
