@@ -4642,6 +4642,7 @@ function _investApplyStaleIndicators() {
 
 var _investStocksSort      = 'value';   // 'value' | 'ticker'
 var _investStocksExpandIds = {};         // { ticker: bool } — which rows are expanded
+var _investStocksGroupId   = null;       // selected group on the Stock Rollup page
 
 async function loadInvestmentsStocksPage() {
     document.getElementById('breadcrumbBar').innerHTML =
@@ -4650,6 +4651,19 @@ async function loadInvestmentsStocksPage() {
         '<a href="#main" class="home-link">' + escapeHtml(window.appName || 'My Life') + '</a>';
 
     if (_investPeople.length === 0) await _investLoadAll();
+    await _investLoadGroups();
+
+    // Switching the group re-renders the rollup for just that group's accounts
+    _investGroupSwitchHandler = function(gid) {
+        _investActiveGroupId  = gid;
+        _investStocksGroupId  = gid;
+        localStorage.setItem('investActiveGroupId', gid);
+        _investRenderStocksPage();
+    };
+
+    if (!_investStocksGroupId || !_investGroups.find(function(g) { return g.id === _investStocksGroupId; })) {
+        _investStocksGroupId = _investActiveGroupId || (_investGroups.length > 0 ? _investGroups[0].id : null);
+    }
 
     await _investRenderStocksPage();
 }
@@ -4659,7 +4673,8 @@ async function _investRenderStocksPage() {
     if (!page) return;
     page.innerHTML = '<div class="invest-summary-loading">Loading…</div>';
 
-    var accounts      = await _investLoadAllAccountsForStocks();
+    var group         = _investGroups.find(function(g) { return g.id === _investStocksGroupId; }) || null;
+    var accounts      = await _investLoadGroupAccountsForStocks(group);
     var result        = _investAggregateByTicker(accounts);
     var tickers       = result.tickers;
     var overallNW     = result.overallNetWorth;
@@ -4710,6 +4725,7 @@ async function _investRenderStocksPage() {
                 (_investConfig.lastUpdateAllTimestamp ? '<span class="invest-update-time-note" id="investStocksUpdateNote">' + escapeHtml(_investFmtUpdateTime(_investConfig.lastUpdateAllTimestamp)) + '</span>' : '<span class="invest-update-time-note" id="investStocksUpdateNote"></span>') +
             '</div>' +
         '</div>' +
+        '<div id="investStocksGroupSwitcher"></div>' +
         '<div class="invest-stocks-summary">' +
             '<div class="invest-stocks-summary-stat">' +
                 '<span class="invest-stocks-summary-label">Unique Tickers</span>' +
@@ -4722,6 +4738,7 @@ async function _investRenderStocksPage() {
         '</div>' +
         sortBtns +
         tableHtml;
+    _investRenderGroupSwitcher('investStocksGroupSwitcher', _investStocksGroupId);
     _investApplyStaleIndicators();
 }
 
@@ -4916,7 +4933,20 @@ function _investSetStocksSort(sort) {
     _investRenderStocksPage();
 }
 
-// ---------- Load All Accounts Across All Persons ----------
+// ---------- Load Accounts for the Selected Group (display) ----------
+// Same accounts the Summary page shows for the group, labelled with owner names
+// so the expanded per-account rows read "Me" / "Joint" / a person's name.
+async function _investLoadGroupAccountsForStocks(group) {
+    var accounts    = await _investLoadGroupAccounts(group);
+    var personNames = { self: 'Me', household: 'Joint' };
+    _investPeople.forEach(function(p) { personNames[p.id] = p.name; });
+    accounts.forEach(function(a) {
+        a._ownerName = a._joint ? 'Joint' : (personNames[a._ns] || a._ns);
+    });
+    return accounts;
+}
+
+// ---------- Load All Accounts Across All Persons (price updates) ----------
 
 async function _investLoadAllAccountsForStocks() {
     // _investPeople already loaded by loadInvestmentsStocksPage()

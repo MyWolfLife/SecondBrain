@@ -2437,7 +2437,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 ## screen:investments-stocks
 
 ### Quick Help
-- Shows every unique ticker held across ALL your investment accounts, aggregated by symbol
+- A **Group** dropdown (under the page title; hidden if you only have one group) limits the rollup to that group's accounts — e.g. just you and your wife, without your kids' accounts. It shares the same selection as the Summary page.
+- Shows every unique ticker held across the selected group's investment accounts, aggregated by symbol
 - Each row shows total shares, last known price, total value, and concentration % of your holdings
 - **Concentration warnings**: orange badge ≥10%, red badge ≥15% — flags over-concentration in one stock
 - Tap any row to expand and see which accounts hold that ticker and how many shares each
@@ -2446,11 +2447,11 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 ### Details
 
-**What's included**: Every holding with a ticker symbol across all your investment accounts and all enrolled people (Me + any enrolled contacts). Bank/cash accounts have no holdings and are excluded.
+**What's included**: Every holding with a ticker symbol across the investment accounts of the people in the selected group (joint accounts are included when a co-owner is in the group). Bank/cash accounts have no holdings and are excluded.
 
 **Grid columns**: Symbol · Qty (total shares) · Price (last fetched) · Cost (weighted average cost basis) · Gain $ · Gain % · Value · % Net Worth. Green = gain, red = loss. Dashes (—) appear where cost basis or price is missing.
 
-**% Net Worth**: Each ticker's total value as a percentage of your overall net worth (all accounts combined). Concentration badges highlight risk: orange ≥10%, red ≥15%.
+**% Net Worth**: Each ticker's total value as a percentage of the selected group's net worth (all of its accounts combined). Concentration badges highlight risk: orange ≥10%, red ≥15%.
 
 **Expanding a row**: Tap any ticker row to see a per-account breakdown — each account that holds the ticker, with its own shares, price, cost, gain, value, and % of that account's total. Account names are clickable and navigate directly to the holdings page for that account. A breadcrumb at the top of the holdings page takes you back to **Stock Rollup**.
 
