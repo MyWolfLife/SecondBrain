@@ -2007,7 +2007,7 @@ Per-ticker aggregated fields:
 - `weightedAvgCost` — `totalCostBasisAmount / totalShares` (computed after aggregation, only when `hasCostBasis`)
 - `accounts[]` — per-account breakdown: `{ ns, id, name, ownerLabel, shares, costBasis, lastPrice, value, accountTotal }`
 
-**Grid layout** (`_investStocksRowHtml`): 9-column CSS grid (`.ist-row`) with columns: chevron · Symbol · Qty · Price · Cost · Gain $ · Gain % · Value · % NW. Main ticker rows (`.ist-main-row`) show aggregated totals. Gain columns are green (`.ist-gain`) or red (`.ist-loss`). Dashes when cost basis or price is missing.
+**Grid layout** (`_investStocksRowHtml`): 11-column CSS grid (`.ist-row`) with columns: Symbol (narrow) · Qty · Price · Day $ · Day % · Cost · Gain $ · Gain % · Value · % NW · chevron. **Day $/Day %** = (lastPrice − prevClose) × shares and (lastPrice − prevClose) ÷ prevClose; sub-rows show the per-account Day $. `prevClose` is a field on each holding doc, written alongside `lastPrice` by all three price-update paths (account detail, Summary/hub Update All, Stock Rollup Update All) from `_investPrevCloseMap`, which the fetchers fill (Finnhub `pc`, FMP prior close, Yahoo `chartPreviousClose`). It reflects the latest price update's session, so it only shows today's move right after an update; blank (—) for holdings priced before this field existed until the next update. Main ticker rows (`.ist-main-row`) show aggregated totals. Gain columns are green (`.ist-gain`) or red (`.ist-loss`). Dashes when cost basis or price is missing.
 
 **% NW**: Each ticker's total value as a percentage of `overallNetWorth` (all accounts, including cash). This is "% of your overall net worth", not just % of invested assets.
 

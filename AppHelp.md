@@ -2449,7 +2449,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 **What's included**: Every holding with a ticker symbol across the investment accounts of the people in the selected group (joint accounts are included when a co-owner is in the group). Bank/cash accounts have no holdings and are excluded.
 
-**Grid columns**: Symbol · Qty (total shares) · Price (last fetched) · Cost (weighted average cost basis) · Gain $ · Gain % · Value · % Net Worth. Green = gain, red = loss. Dashes (—) appear where cost basis or price is missing.
+**Grid columns**: Symbol · Qty (total shares) · Price (last fetched) · Day $ · Day % (today's move versus the previous close) · Cost (weighted average cost basis) · Gain $ · Gain % · Value · % Net Worth. Green = gain, red = loss. The Day columns fill in after you tap **Update All Prices** and show the move as of the latest update, so they read as 'today' only right after refreshing; they show dashes until a price update has run. Dashes (—) appear where cost basis or price is missing.
 
 **% Net Worth**: Each ticker's total value as a percentage of the selected group's net worth (all of its accounts combined). Concentration badges highlight risk: orange ≥10%, red ≥15%.
 

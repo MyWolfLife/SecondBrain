@@ -1897,6 +1897,11 @@ async function _investGetYahooWorkerUrl() {
 // Fetch the current price for a single ticker from Finnhub.
 // Returns numeric price (current if market open, previous close if closed), or throws on error.
 // Try Finnhub for one ticker. Returns price (number) or null; throws only on invalid key.
+// Previous-close map filled by the fetchers below ({ ticker: prior close or null }).
+// The price-update writers store it on each holding as `prevClose`, which the
+// Stock Rollup uses for its daily gain/loss columns.
+var _investPrevCloseMap = {};
+
 async function _investFetchPriceFinnhub(ticker, apiKey) {
     var url  = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(ticker) +
                '&token=' + encodeURIComponent(apiKey);
@@ -1906,6 +1911,8 @@ async function _investFetchPriceFinnhub(ticker, apiKey) {
     var data = await resp.json();
     if (data.error) { console.log('[prices] Finnhub error for ' + ticker + ': ' + data.error); return null; }
     var price = (data.c && data.c > 0) ? data.c : (data.pc && data.pc > 0 ? data.pc : null);
+    // pc = previous close; only meaningful when c is a real current/last-session price
+    _investPrevCloseMap[ticker] = (data.c > 0 && data.pc > 0) ? data.pc : null;
     return price;
 }
 
@@ -1920,6 +1927,7 @@ async function _investFetchPriceFmp(ticker) {
     var from = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
     var rec  = await anaFmpHistory(ticker, from, to);
     var n    = rec.close.length - 1;
+    _investPrevCloseMap[ticker] = (n >= 1 && rec.close[n - 1] > 0) ? rec.close[n - 1] : null;
     return (n >= 0 && rec.close[n] > 0) ? rec.close[n] : null;
 }
 
@@ -1955,6 +1963,13 @@ async function _investFmpFallback(tickers, priceMap) {
 // If a Cloudflare Worker URL is configured in Settings, uses it directly (reliable, no CORS issues).
 // Otherwise falls back to a chain of free public CORS proxies with retry logic.
 // Returns { ticker: price } for tickers that resolved; missing entries = not found.
+// Prior close from a Yahoo chart response (range=1d: chartPreviousClose is yesterday's close)
+function _investYahooPrevClose(data) {
+    var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+    var pc   = meta && (meta.chartPreviousClose || meta.previousClose);
+    return (pc && pc > 0) ? pc : null;
+}
+
 async function _investFetchYahooBatch(tickers) {
     if (!tickers.length) return {};
     var map = {};
@@ -1975,6 +1990,7 @@ async function _investFetchYahooBatch(tickers) {
                 if (price && price > 0) {
                     console.log('[prices] Worker ' + ticker + ' = ' + price);
                     map[ticker] = price;
+                    _investPrevCloseMap[ticker] = _investYahooPrevClose(data);
                 } else {
                     throw new Error('no price in response');
                 }
@@ -2009,6 +2025,7 @@ async function _investFetchYahooBatch(tickers) {
                         if (price && price > 0) {
                             console.log('[prices] Yahoo ' + ticker + ' = ' + price + ' via proxy ' + i + (attempt > 0 ? ' (retry)' : ''));
                             map[ticker] = price;
+                            _investPrevCloseMap[ticker] = _investYahooPrevClose(data);
                             success = true;
                         } else {
                             throw new Error('no price in response');
@@ -2120,7 +2137,8 @@ async function _investUpdateAccountPrices() {
         if (h.ticker && priceMap[h.ticker] != null) {
             batch.update(_investHoldingCol(ns, aid).doc(h.id), {
                 lastPrice:     priceMap[h.ticker],
-                lastPriceDate: now
+                lastPriceDate: now,
+                prevClose:     _investPrevCloseMap[h.ticker] || null
             });
         }
     });
@@ -4564,7 +4582,8 @@ async function _investUpdateAllPrices() {
             if (h.ticker && priceMap[h.ticker] != null) {
                 batch.update(_investHoldingCol(acct._ns, acct.id).doc(h.id), {
                     lastPrice:     priceMap[h.ticker],
-                    lastPriceDate: now
+                    lastPriceDate: now,
+                    prevClose:     _investPrevCloseMap[h.ticker] || null
                 });
             }
         });
@@ -4707,6 +4726,8 @@ async function _investRenderStocksPage() {
                 '<div class="ist-cell ist-cell-sym">SYMBOL</div>' +
                 '<div class="ist-cell ist-cell-num">QTY</div>' +
                 '<div class="ist-cell ist-cell-num">PRICE</div>' +
+                '<div class="ist-cell ist-cell-num">DAY $</div>' +
+                '<div class="ist-cell ist-cell-num">DAY %</div>' +
                 '<div class="ist-cell ist-cell-num">COST/SH</div>' +
                 '<div class="ist-cell ist-cell-num">TOT GAIN $</div>' +
                 '<div class="ist-cell ist-cell-num">TOT GAIN %</div>' +
@@ -4788,7 +4809,7 @@ async function _investUpdateStocksAllPrices() {
     accounts.forEach(function(acct) {
         (acct._holdings || []).forEach(function(h) {
             if (h.ticker && priceMap[h.ticker] != null) {
-                batch.update(_investHoldingCol(acct._ns, acct.id).doc(h.id), { lastPrice: priceMap[h.ticker], lastPriceDate: now });
+                batch.update(_investHoldingCol(acct._ns, acct.id).doc(h.id), { lastPrice: priceMap[h.ticker], lastPriceDate: now, prevClose: _investPrevCloseMap[h.ticker] || null });
             }
         });
     });
@@ -4821,6 +4842,9 @@ function _investStocksRowHtml(t, overallNW) {
                   ? (price - wavg) * t.totalShares : null;
     var gainPct = (gain != null && wavg != null && wavg !== 0)
                   ? (price - wavg) / wavg * 100 : null;
+    var dayPx   = (price != null && t.prevClose != null) ? price - t.prevClose : null;
+    var dayGain = (dayPx != null) ? dayPx * t.totalShares : null;
+    var dayPct  = (dayPx != null) ? dayPx / t.prevClose * 100 : null;
     var pctNW   = (overallNW > 0 && t.totalValue > 0) ? t.totalValue / overallNW * 100 : 0;
     var concCls = pctNW >= 15 ? 'invest-conc-high' : (pctNW >= 10 ? 'invest-conc-warn' : 'invest-conc-ok');
 
@@ -4859,6 +4883,8 @@ function _investStocksRowHtml(t, overallNW) {
             '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtShares(a.shares) + '</div>' +
             '<div class="ist-cell ist-cell-num ist-dim">' + fmtPx(price) + '</div>' +
+            '<div class="ist-cell ist-cell-num">' + fmtGainAmt(dayPx != null && a.shares != null ? dayPx * a.shares : null) + '</div>' +
+            '<div class="ist-cell ist-cell-num">' + fmtGainPct(dayPct) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtPx(a.costBasis) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtGainAmt(aGain) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtGainPct(aGainPct) + '</div>' +
@@ -4881,6 +4907,8 @@ function _investStocksRowHtml(t, overallNW) {
             '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtShares(t.totalShares) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtPx(price) + '</div>' +
+            '<div class="ist-cell ist-cell-num">' + fmtGainAmt(dayGain) + '</div>' +
+            '<div class="ist-cell ist-cell-num">' + fmtGainPct(dayPct) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtPx(wavg) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtGainAmt(gain) + '</div>' +
             '<div class="ist-cell ist-cell-num">' + fmtGainPct(gainPct) + '</div>' +
@@ -5009,6 +5037,8 @@ function _investAggregateByTicker(accounts) {
                     companyName:          h.companyName || '',
                     lastPrice:            price,
                     lastPriceDate:        h.lastPriceDate || null,
+                    prevClose:            null,   // prior close from the most recently priced holding
+                    prevCloseStamp:       '',
                     totalShares:          0,
                     totalValue:           0,
                     totalCostBasisAmount: 0,   // sum of (shares × costBasis) for weighted avg
@@ -5020,6 +5050,11 @@ function _investAggregateByTicker(accounts) {
             entry.totalShares += shares;
             entry.totalValue  += value;
             if (price != null) entry.lastPrice = price;
+            // Daily change uses the newest price update's prior close
+            if (h.prevClose != null && (h.lastPriceDate || '') >= entry.prevCloseStamp) {
+                entry.prevClose      = h.prevClose;
+                entry.prevCloseStamp = h.lastPriceDate || '';
+            }
             if (costBasis != null) {
                 entry.totalCostBasisAmount += shares * costBasis;
             } else {

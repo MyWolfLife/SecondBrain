@@ -15472,11 +15472,11 @@ a.invest-hub-card:hover {
     border-radius: 8px;
     margin-bottom: 24px;
 }
-/* 9-column grid: symbol | qty | price | cost/sh | gain$ | gain% | value | %nw | chevron */
+/* 11-column grid: symbol | qty | price | day$ | day% | cost/sh | gain$ | gain% | value | %nw | chevron */
 .ist-row {
     display: grid;
-    grid-template-columns: 2.4fr 0.85fr 0.85fr 0.85fr 1.15fr 0.9fr 1.05fr 0.75fr 26px;
-    min-width: 720px;
+    grid-template-columns: 1.5fr 0.85fr 0.85fr 1fr 0.8fr 0.85fr 1.15fr 0.9fr 1.05fr 0.75fr 26px;
+    min-width: 860px;
 }
 .ist-header-row {
     background: #f5f5f5;
