@@ -4708,6 +4708,35 @@ async function _investRenderStocksPage() {
 
     var totalHeld = tickers.reduce(function(s, t) { return s + t.totalValue; }, 0);
 
+    // Totals for the summary strip. Only tickers with the needed data count:
+    // total gain needs a cost basis + price; daily change needs a prior close.
+    var dayGainSum = 0, dayPriorValue = 0, totGainSum = 0, totCostSum = 0;
+    tickers.forEach(function(t) {
+        if (t.lastPrice == null) return;
+        if (t.prevClose != null) {
+            dayGainSum    += (t.lastPrice - t.prevClose) * t.totalShares;
+            dayPriorValue += t.prevClose * t.totalShares;
+        }
+        if (t.weightedAvgCost != null && t.totalShares > 0) {
+            totGainSum += (t.lastPrice - t.weightedAvgCost) * t.totalShares;
+            totCostSum += t.weightedAvgCost * t.totalShares;
+        }
+    });
+    function sumAmt(v, show) {
+        if (!show) return '<span class="ist-dim">—</span>';
+        return '<span class="' + (v >= 0 ? 'ist-gain' : 'ist-loss') + '">' + (v >= 0 ? '+' : '−') + _investFmtCurrency(Math.abs(v)) + '</span>';
+    }
+    function sumPct(v, show) {
+        if (!show) return '<span class="ist-dim">—</span>';
+        return '<span class="' + (v >= 0 ? 'ist-gain' : 'ist-loss') + '">' + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%</span>';
+    }
+    function sumStat(label, valHtml) {
+        return '<div class="invest-stocks-summary-stat">' +
+                   '<span class="invest-stocks-summary-label">' + label + '</span>' +
+                   '<span class="invest-stocks-summary-val">' + valHtml + '</span>' +
+               '</div>';
+    }
+
     var sortBtns =
         '<div class="invest-stocks-sort-bar">' +
             '<span class="invest-stocks-sort-label">Sort:</span>' +
@@ -4757,6 +4786,10 @@ async function _investRenderStocksPage() {
                 '<span class="invest-stocks-summary-label">Holdings Value</span>' +
                 '<span class="invest-stocks-summary-val">' + _investFmtCurrency(totalHeld) + '</span>' +
             '</div>' +
+            sumStat('Day $',        sumAmt(dayGainSum, dayPriorValue > 0)) +
+            sumStat('Day %',        sumPct(dayPriorValue > 0 ? dayGainSum / dayPriorValue * 100 : 0, dayPriorValue > 0)) +
+            sumStat('Total Gain $', sumAmt(totGainSum, totCostSum > 0)) +
+            sumStat('Total Gain %', sumPct(totCostSum > 0 ? totGainSum / totCostSum * 100 : 0, totCostSum > 0)) +
         '</div>' +
         sortBtns +
         tableHtml;

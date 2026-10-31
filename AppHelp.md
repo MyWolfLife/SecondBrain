@@ -2442,6 +2442,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - Each row shows total shares, last known price, total value, and concentration % of your holdings
 - **Concentration warnings**: orange badge ≥10%, red badge ≥15% — flags over-concentration in one stock
 - Tap any row to expand and see which accounts hold that ticker and how many shares each
+- A summary strip above the column headers shows the group's **Day $**, **Day %**, **Total Gain $**, and **Total Gain %** across all the stocks listed (stocks missing a cost basis or previous close are left out of the matching totals)
 - Sort by **Value** (default) or **Ticker** (A–Z) using the buttons at the top
 - Expanded rows have a **🎯 Show dossier** button above the account list — opens the Stock Analyzer's deep-dive research page for that ticker (chart, similar-dips history, quality checkup, analyst view, recent news) even though this holding didn't come from a scan
 

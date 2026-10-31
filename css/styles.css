@@ -15425,6 +15425,7 @@ a.invest-hub-card:hover {
 /* Summary stats bar */
 .invest-stocks-summary {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     margin-bottom: 14px;
 }
@@ -15436,7 +15437,7 @@ a.invest-hub-card:hover {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    flex: 1;
+    flex: 1 1 140px;
 }
 .invest-stocks-summary-label {
     font-size: 0.72rem;
