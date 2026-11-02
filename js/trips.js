@@ -178,6 +178,10 @@ async function tripRenderPage(page) {
             <div id="tripBackfill" class="hidden" style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:16px;"></div>
             <h3 style="margin:0 0 6px;">👥 People</h3>
             <div id="lpBody_people" style="margin-bottom:16px;"></div>
+            <div id="tripMapWrap" class="hidden" style="margin-bottom:16px;">
+                <h3 style="margin:0 0 6px;">Map</h3>
+                <div id="tripMap" style="height:300px; border-radius:8px; border:1px solid #e2e8f0;"></div>
+            </div>
             <h3 style="margin:0 0 6px;">Timeline</h3>
             <div id="tripTimeline"><p style="color:#999;">Loading…</p></div>
         </div>`;
@@ -232,11 +236,23 @@ async function tripLoadTimeline() {
 
         // Place names for check-ins
         const placeIds = [...new Set(entries.flatMap(e => e.placeIds || []))];
-        const names = {};
+        const names = {}, coordsByPlace = {};
         await Promise.all(placeIds.map(async pid => {
             const d = await userCol('places').doc(pid).get();
             names[pid] = d.exists ? (d.data().name || '(Place)') : '(Place)';
+            if (d.exists && d.data().lat && d.data().lng) coordsByPlace[pid] = [d.data().lat, d.data().lng];
         }));
+
+        // Stops for the map, in time order: a place's coordinates, else a coordinate-pin check-in
+        const stops = [];
+        entries.forEach(e => {
+            let ll = null, label = '';
+            const pid = (e.placeIds || []).find(id => coordsByPlace[id]);
+            if (pid) { ll = coordsByPlace[pid]; label = names[pid]; }
+            else if (e.checkinCoords && e.checkinCoords.lat != null) { ll = [e.checkinCoords.lat, e.checkinCoords.lng]; label = 'Pinned location'; }
+            if (ll) stops.push({ ll, label, time: (e.date || '') + ' ' + (e.entryTime ? journalFormatTime12(e.entryTime) : '') });
+        });
+        tripDrawMap(stops);
 
         let html = '', lastDate = null;
         entries.forEach(e => {
@@ -318,4 +334,32 @@ async function tripBackfillApply() {
         document.getElementById('tripBackfill').classList.add('hidden');
         tripLoadTimeline();
     } catch (e) { console.error('tripBackfillApply:', e); alert('Could not tag the entries.'); }
+}
+
+// ---------- Map of stops ----------
+
+let _tripMap = null;
+
+/** Numbered markers in time order joined by a line; hidden when no entry has a location. */
+function tripDrawMap(stops) {
+    const wrap = document.getElementById('tripMapWrap');
+    if (!wrap) return;
+    if (_tripMap) { _tripMap.remove(); _tripMap = null; }
+    if (!stops.length || typeof L === 'undefined') { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+    _tripMap = L.map('tripMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(_tripMap);
+    stops.forEach((s, i) => {
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="background:#2563eb;color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">${i + 1}</div>`,
+            iconSize: [24, 24], iconAnchor: [12, 12]
+        });
+        L.marker(s.ll, { icon }).addTo(_tripMap).bindPopup(`<strong>${_lpEsc(s.label)}</strong><br>${_lpEsc(s.time)}`);
+    });
+    if (stops.length > 1) L.polyline(stops.map(s => s.ll), { color: '#2563eb', weight: 3, opacity: 0.5, dashArray: '6 6' }).addTo(_tripMap);
+    _tripMap.fitBounds(L.latLngBounds(stops.map(s => s.ll)), { padding: [30, 30], maxZoom: 16 });
+    setTimeout(() => { if (_tripMap) _tripMap.invalidateSize(); }, 50);
 }
