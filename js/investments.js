@@ -4660,7 +4660,7 @@ function _investApplyStaleIndicators() {
 // STOCK ROLLUP PAGE  (#investments/stocks)
 // ============================================================
 
-var _investStocksSort      = 'value';   // 'value' | 'ticker'
+var _investStocksSort      = 'value';   // 'value' | 'ticker' | 'dayAmt' | 'dayPct' | 'gainAmt' | 'gainPct'
 var _investStocksExpandIds = {};         // { ticker: bool } — which rows are expanded
 var _investStocksGroupId   = null;       // selected group on the Stock Rollup page
 
@@ -4702,8 +4702,18 @@ async function _investRenderStocksPage() {
     // Sort
     if (_investStocksSort === 'ticker') {
         tickers.sort(function(a, b) { return a.ticker.localeCompare(b.ticker); });
-    } else {
+    } else if (_investStocksSort === 'value') {
         tickers.sort(function(a, b) { return b.totalValue - a.totalValue; });
+    } else {
+        // Gain/day sorts: biggest first; tickers with no figure (missing cost basis / prior close) go last
+        var metric = _investStocksSort;
+        tickers.sort(function(a, b) {
+            var va = _investStocksMetrics(a)[metric], vb = _investStocksMetrics(b)[metric];
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            return vb - va;
+        });
     }
 
     var totalHeld = tickers.reduce(function(s, t) { return s + t.totalValue; }, 0);
@@ -4737,13 +4747,16 @@ async function _investRenderStocksPage() {
                '</div>';
     }
 
+    var sortOpts = [['value', 'Value'], ['ticker', 'Ticker (A–Z)'], ['dayAmt', 'Day $'], ['dayPct', 'Day %'],
+                    ['gainAmt', 'Total Gain $'], ['gainPct', 'Total Gain %']];
     var sortBtns =
         '<div class="invest-stocks-sort-bar">' +
-            '<span class="invest-stocks-sort-label">Sort:</span>' +
-            '<button class="btn btn-small ' + (_investStocksSort === 'value'  ? 'btn-primary' : 'btn-secondary') +
-                '" onclick="_investSetStocksSort(\'value\')">Value</button>' +
-            '<button class="btn btn-small ' + (_investStocksSort === 'ticker' ? 'btn-primary' : 'btn-secondary') +
-                '" onclick="_investSetStocksSort(\'ticker\')">Ticker</button>' +
+            '<label class="invest-stocks-sort-label" for="investStocksSortSel">Sort:</label>' +
+            '<select id="investStocksSortSel" onchange="_investSetStocksSort(this.value)">' +
+                sortOpts.map(function(o) {
+                    return '<option value="' + o[0] + '"' + (_investStocksSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+                }).join('') +
+            '</select>' +
         '</div>';
 
     var tableHtml;
@@ -4988,6 +5001,22 @@ function _investToggleStocksRow(ticker) {
 function _investStocksNavToAccount(ns, id) {
     _investAccountReturnTo = 'stocks';
     window.location.hash = '#investments/account/' + encodeURIComponent(ns) + '/' + id;
+}
+
+// Day and total gain figures for one aggregated ticker (null when the data is missing).
+// Same math as the row display in _investStocksRowHtml; used for sorting.
+function _investStocksMetrics(t) {
+    var price = t.lastPrice, wavg = t.weightedAvgCost, pc = t.prevClose;
+    var m = { dayAmt: null, dayPct: null, gainAmt: null, gainPct: null };
+    if (price != null && pc != null) {
+        m.dayAmt = (price - pc) * t.totalShares;
+        m.dayPct = (price - pc) / pc * 100;
+    }
+    if (price != null && wavg != null && t.totalShares > 0) {
+        m.gainAmt = (price - wavg) * t.totalShares;
+        if (wavg !== 0) m.gainPct = (price - wavg) / wavg * 100;
+    }
+    return m;
 }
 
 function _investSetStocksSort(sort) {

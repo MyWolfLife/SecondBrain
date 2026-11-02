@@ -2443,7 +2443,7 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 - **Concentration warnings**: orange badge ≥10%, red badge ≥15% — flags over-concentration in one stock
 - Tap any row to expand and see which accounts hold that ticker and how many shares each
 - A summary strip above the column headers shows the group's **Day $**, **Day %**, **Total Gain $**, and **Total Gain %** across all the stocks listed (stocks missing a cost basis or previous close are left out of the matching totals)
-- Sort by **Value** (default) or **Ticker** (A–Z) using the buttons at the top
+- Use the **Sort** dropdown at the top to order the list by **Value** (default), **Ticker** (A–Z), **Day $**, **Day %**, **Total Gain $**, or **Total Gain %** (biggest first; stocks with no figure for that column go to the bottom)
 - Expanded rows have a **🎯 Show dossier** button above the account list — opens the Stock Analyzer's deep-dive research page for that ticker (chart, similar-dips history, quality checkup, analyst view, recent news) even though this holding didn't come from a scan
 
 ### Details
@@ -2465,6 +2465,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 **Sort by Value**: Highest-value tickers at the top — shows your largest positions first.
 
 **Sort by Ticker**: Alphabetical A–Z — useful for quickly finding a specific symbol.
+
+**Sort by Day $ / Day % / Total Gain $ / Total Gain %**: Biggest positive first, biggest loss last — good for spotting what moved most today or what's up/down the most overall. Stocks missing a previous close or cost basis are listed at the bottom.
 
 ---
 

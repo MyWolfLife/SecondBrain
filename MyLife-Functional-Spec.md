@@ -2021,7 +2021,7 @@ Per-ticker aggregated fields:
 
 **Clickable account names**: Sub-row account names are `<a>` links that call `_investStocksNavToAccount(ns, id)`, which sets `_investAccountReturnTo = 'stocks'` then navigates to `#investments/account/:ns/:id`. The account detail breadcrumb detects `'stocks'` return and shows "← Stock Rollup" pointing to `#investments/stocks`.
 
-**Sort**: `_investStocksSort` module var — `'value'` (totalValue desc, default) or `'ticker'` (A–Z). Sort buttons re-render the page.
+**Sort**: `_investStocksSort` module var, chosen from a **Sort dropdown** (`#investStocksSortSel`): `'value'` (totalValue desc, default), `'ticker'` (A–Z), `'dayAmt'`, `'dayPct'`, `'gainAmt'`, `'gainPct'` (largest first; tickers lacking a prior close / cost basis sort last; figures from `_investStocksMetrics(t)`). Changing it re-renders the page.
 
 **DOM ID safety**: Tickers like `BRK.B` have periods replaced with underscores for element IDs (`stocksDetail-BRK_B`); the toggle function maps back using `ticker.replace(/\./g, '_')`.
 
