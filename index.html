@@ -10393,6 +10393,7 @@ service firebase.storage {
             <div class="page-header">
                 <h2>Journal</h2>
             </div>
+            <div id="journalTripBanner" style="padding:0 16px;"></div>
 
             <div class="journal-page-layout">
                 <!-- Left: toolbar + feed -->
@@ -10544,6 +10545,13 @@ service firebase.storage {
                         <button class="btn btn-secondary btn-small" type="button" onclick="_openCheckInFromEntry()">📍 Check In</button>
                     </div>
                     <div id="journalPlaceChips" class="journal-place-chips-row" style="display:none;"></div>
+                </div>
+
+                <!-- Trip section — shown when a trip exists (trips.js) -->
+                <div class="form-group hidden" id="journalTripGroup">
+                    <label>🧭 Trip</label>
+                    <select id="journalTripSelect" class="form-control" onchange="tripPickerChanged()"></select>
+                    <div id="journalTripPeople"></div>
                 </div>
             </div>
         </section>
@@ -12436,7 +12444,7 @@ export default {
     <script src="js/garage.js?v=487"></script>
     <script src="js/structures.js?v=487"></script>
     <script src="js/moveThings.js?v=488"></script>
-    <script src="js/journal.js?v=491"></script>
+    <script src="js/journal.js?v=492"></script>
     <script src="js/contacts.js?v=492"></script>
     <script src="js/neighbors.js?v=489"></script>
     <script src="js/favorites.js?v=487"></script>
@@ -12445,7 +12453,8 @@ export default {
     <script src="js/health.js?v=488"></script>
     <script src="js/notes.js?v=487"></script>
     <script src="js/lifecalendar.js?v=488"></script>
-    <script src="js/life-projects.js?v=488"></script>
+    <script src="js/life-projects.js?v=489"></script>
+    <script src="js/trips.js?v=1"></script>
     <script src="js/life-projects-day-ai.js?v=496"></script>
     <script src="js/exercise.js?v=500"></script>
     <script src="js/workout-levels.js?v=4"></script>

@@ -8,6 +8,7 @@
 
 const LP_TEMPLATES = {
     vacation: { label: 'Vacation', icon: '✈️', enabled: true },
+    trip:     { label: 'Unplanned Trip', icon: '🧭', enabled: true },
     build:    { label: 'Build',    icon: '🔨', enabled: false },
     general:  { label: 'General',  icon: '📋', enabled: false }
 };
@@ -611,6 +612,8 @@ async function loadLifeProjectDetailPage(projectId) {
 
 function _lpRenderDetailPage(page) {
     const p = _lpCurrentProject;
+    // Unplanned trips have their own lightweight page (trips.js)
+    if (p.template === 'trip') { tripRenderPage(page); return; }
     const tpl = LP_TEMPLATES[p.template] || LP_TEMPLATES.general;
     const st = LP_STATUSES[p.status] || LP_STATUSES.planning;
     const dateRange = _lpFormatDateRange(p.startDate, p.endDate);

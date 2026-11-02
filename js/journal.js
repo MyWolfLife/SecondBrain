@@ -235,6 +235,9 @@ async function loadJournalPage() {
     // Wire up toolbar buttons (safe to call each time — replaces listeners)
     _journalWireToolbar();
 
+    // Trip names for feed badges + "trip in progress" banner (trips.js)
+    if (typeof tripRenderJournalBanner === 'function') { tripRenderJournalBanner(); }
+
     // Check for a preset date passed via localStorage (from Life Project itinerary journal icon)
     var presetDate = localStorage.getItem('journalPresetDate');
     if (presetDate) {
@@ -487,6 +490,7 @@ async function saveJournalRangePreference(value) {
 async function loadJournalData() {
     var feedEl = document.getElementById('journalFeed');
     if (!feedEl) return;
+    if (typeof tripLoadNames === 'function') await tripLoadNames();   // trip badges (trips.js)
     feedEl.innerHTML = '<p class="empty-state">Loading...</p>';
 
     var range = getJournalDateRange();
@@ -789,7 +793,13 @@ function _renderEntryCard(id, data) {
         photosHtml = '<div class="journal-feed-photos">' + thumbs + '</div>';
     }
 
+    // 🧭 Trip badge — links to the trip this entry is tagged to
+    var tripBadge = (data.tripId && typeof _tripNamesMap !== 'undefined' && _tripNamesMap[data.tripId])
+        ? '<div class="journal-checkin-badge"><a href="#life-project/' + journalEscape(data.tripId) + '">🧭 ' + journalEscape(_tripNamesMap[data.tripId]) + '</a></div>'
+        : '';
+
     return '<div class="journal-item journal-item--entry' + (isCheckin ? ' journal-item--checkin' : '') + '">' +
+               tripBadge +
                checkinBadge +
                '<div class="journal-item-row">' +
                    '<span class="journal-item-time">📝 ' + journalEscape(timeStr) + '</span>' +
@@ -1291,6 +1301,9 @@ function _journalWireEntryPage() {
         textEl.addEventListener('paste', _journalHandlePaste);
     }
 
+    // Trip picker (trips.js) — defaults to the active trip in add mode
+    if (typeof tripPickerInit === 'function') tripPickerInit();
+
     // Camera / Gallery file input
     var photoInput = document.getElementById('journalPhotoInput');
     if (photoInput && !photoInput.dataset.wired) {
@@ -1334,6 +1347,7 @@ async function saveJournalEntry() {
     var mentionedIds  = [..._journalMentionedPersonIds];
     var placeIds      = [..._journalPlaceIds];
     var isCheckinEntry = _journalCheckinMode;  // capture before any async work
+    var tripId        = (typeof tripPickerValue === 'function') ? tripPickerValue() : '';
 
     // Collect links from the links section
     var links = [];
@@ -1368,6 +1382,7 @@ async function saveJournalEntry() {
                 placeIds:           placeIds,
                 links:              links,
                 photos:             _journalPhotos.slice(),
+                tripId:             tripId || firebase.firestore.FieldValue.delete(),
                 // Write the current coordinate-pin state explicitly, clearing it via
                 // delete() when it's no longer a coordinate pin (e.g. "Change Location"
                 // was used to switch to a real place) -- .update() only touches listed
@@ -1392,6 +1407,7 @@ async function saveJournalEntry() {
                 createdAt:          firebase.firestore.FieldValue.serverTimestamp()
             };
             if (checkinCoords) newEntryData.checkinCoords = checkinCoords;
+            if (tripId) newEntryData.tripId = tripId;
             // If opened from a health visit, store the back-link on the entry
             var sourceVisitId = window._journalSourceVisitId || null;
             if (sourceVisitId) newEntryData.sourceVisitId = sourceVisitId;

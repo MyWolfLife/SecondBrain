@@ -2041,11 +2041,11 @@ The status cycles Active -> Managed -> Resolved -> Active. Tap the status badge 
 
 **What Life Projects are:** Rich, multi-part plans for big undertakings -- a vacation, a build, a general project. Unlike a simple Quick Task, a project has its own workspace with a day-by-day itinerary, bookings, packing list, to-do list, people, notes, and a cost rollup. Open a project card to work inside it (see the Project Detail help).
 
-**Templates:** Every project is created from a template that shapes which sections and starter content it gets. **Vacation** is the active template (auto-adds ~10 starter to-do items on creation and offers a default packing list). **Build** and **General** are planned but not yet enabled -- they appear grayed out in the picker. The template is locked once the project is created.
+**Templates:** Every project is created from a template that shapes which sections and starter content it gets. **🧭 Unplanned Trip** is for trips with no plan (a guys weekend): create it, add the people, tap **▶ Start trip**, and every check-in or journal entry you make is tagged to it until you tap **⏹ Done** (see Project Detail help). **Vacation** is the planned-trip template (auto-adds ~10 starter to-do items on creation and offers a default packing list). **Build** and **General** are planned but not yet enabled -- they appear grayed out in the picker. The template is locked once the project is created.
 
 **Editing the vacation to-do starter list:** The **✏️ Edit new-vacation to-do template** link (below the New Project / Import buttons) opens an editor where you can change the list of to-dos that get added to future new Vacation projects -- one to-do per line, with a **Reset to defaults** button. This only affects projects you create *afterward*; it doesn't touch existing projects (edit those in their own To-Do section).
 
-**New Project flow:** Tap **+ New Project**, pick a template (only Vacation is selectable today), then enter a title, an optional description, and start/end dates. The dates drive the itinerary's day auto-generation and the "Coming Up" section on the Life home page.
+**New Project flow:** Tap **+ New Project**, pick a template (Vacation and Unplanned Trip are selectable today), then enter a title, an optional description, and start/end dates. The dates drive the itinerary's day auto-generation and the "Coming Up" section on the Life home page.
 
 **Status badge:** Each project has a status -- **Planning**, **Active**, **On Hold**, or **Done** -- shown as a color-coded badge below the title. Change it from the Edit form.
 
@@ -2062,6 +2062,7 @@ Both reuse locations already in your account (matched by name) rather than dupli
 ## screen:life-project
 
 ### Quick Help
+- **Unplanned Trip projects** open a simpler page instead of the sections below: **▶ Start trip** / **⏹ Done — end trip** (you must end it yourself; **▶ Resume trip** reopens a finished one), **📍 Check In** and **📝 Journal Entry** (already set to this trip), **🏷️ Tag existing entries** (pick a date range, tick the entries you forgot to tag, and tag them to this trip), a **People** list, and a day-by-day **Timeline** of everything tagged to the trip. While a trip is in progress, new check-ins and journal entries default to it -- change the **🧭 Trip** row on the entry form to None to leave one out, and untick any person who wasn't there
 - One project's full workspace -- **Trip Info, Itinerary, Bookings, Packing**, and more, each a collapsible section. Breadcrumb: Life › Projects › {title}
 - The **Planning ⇄ Travel mode** toggle in the header changes what's shown -- Planning shows everything; Travel strips it down to what you need on the trip
 - **⬇️ Export** in the header downloads this project as a `.json` file, so it can be handed to someone else or kept as a backup -- see **Export** below
@@ -3286,6 +3287,7 @@ Firebase Storage requires a one-time CORS configuration before files can be down
 - Filter the feed by date range (7/30/60/90 days or custom) -- preference is saved
 - **All Activity** toggle replaces the journal with a unified timeline of everything logged across the entire app
 - Tap any entry card to open and edit it
+- If an Unplanned Trip is in progress, a green banner appears at the top and new entries/check-ins are tagged to it by default (**🧭 Trip** row on the entry form; choose None to skip, untick people who weren't there)
 
 ### Details
 
