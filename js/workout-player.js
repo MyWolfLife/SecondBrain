@@ -239,6 +239,29 @@ function woNextWork(phases, i) {
     return null;
 }
 
+/**
+ * The next n DIFFERENT exercises after phase i — consecutive sets of the same exercise count once, and the
+ * exercise phase i itself is working is skipped. Returns the first phase of each (for the "coming up" list and voice).
+ */
+function woNextExercises(phases, i, n) {
+    var out = [], last = phases[i] && phases[i].kind === 'work' ? woPhaseFramesKey(phases[i]) : null;
+    for (var k = i + 1; k < phases.length && out.length < n; k++) {
+        if (phases[k].kind !== 'work') continue;
+        var key = woPhaseFramesKey(phases[k]);
+        if (key === last) continue;
+        out.push(phases[k]); last = key;
+    }
+    return out;
+}
+
+/** The form/cue lines saved on the exercise (or on the level being used) for a work phase. '' when there are none. */
+function woPhaseCues(p) {
+    var ex = (typeof _woExMap !== 'undefined' && p) ? _woExMap[p.exerciseId] : null;
+    if (!ex) return '';
+    var lv = p.levelId ? woLevelById(ex, p.levelId) : null;
+    return ((lv ? lv.instructions : ex.instructions) || '').trim();
+}
+
 /** Seconds a phase is expected to take (display only; tap phases use the same rough figures as the builder). */
 function woPhaseEstimateSec(p) {
     if (p.durationSec != null) return p.durationSec;
@@ -1016,6 +1039,7 @@ function _woPlayerRender() {
     if (!_woP || !_woP.runner) return;
     var R = _woP.runner, p = R.current(), el = document.getElementById('page-workout-run');
     if (!p) return;
+    var oldForm = document.getElementById('woFormOverlay'); if (oldForm) oldForm.remove();      // the phase changed under it
     var next = R.nextWork();
     var tap  = p.durationSec == null;
     var secs = R.secondsLeft();
@@ -1080,11 +1104,18 @@ function _woPlayerRender() {
     // UP NEXT (rest / switch / get-ready screens)
     var upnext = '';
     if (p.kind !== 'work' && next) {
-        var nb = [next.levelLabel, _woSetText(next), _woSideText(next), _woWorkText(next)].filter(Boolean).join(' · ');
+        var nb = [next.levelLabel, _woSetText(next), _woSideText(next), _woWorkText(next), next.bandLabel].filter(Boolean).join(' · ');
         upnext = '<div class="wo-upnext"><div class="wo-upnext-media">' + _woFlipHtml(woPhaseFramesKey(next), 'wo-upnext-img') + '</div>' +
                  '<div><div class="wo-upnext-label">UP NEXT</div><div class="wo-upnext-name">' + _woEsc(next.exerciseName) + '</div>' +
                  '<div class="wo-upnext-meta">' + _woEsc(nb) + '</div></div></div>';
     }
+    // Names of the exercises coming after that (work screens: the next three; rest screens: the two after the card)
+    var later = p.kind === 'work' ? woNextExercises(R.phases, R.index, 3)
+              : (next ? woNextExercises(R.phases, R.phases.indexOf(next), 2) : []);
+    var nextList = later.length
+        ? '<div class="wo-nextlist"><span class="wo-nextlist-label">' + (p.kind === 'work' ? 'NEXT' : 'THEN') + '</span> ' +
+          later.map(function(q) { return '<span>' + _woEsc(q.exerciseName) + '</span>'; }).join(' <i>›</i> ') + '</div>'
+        : '';
 
     var showSection = p.section && p.section !== 'main';
     var media = p.kind === 'work' ? '<div class="wo-player-media">' + _woFlipHtml(woPhaseFramesKey(p), 'wo-hero-img') + '</div>'
@@ -1107,6 +1138,7 @@ function _woPlayerRender() {
                     (sub ? '<div class="wo-phase-sub">' + _woEsc(sub) + '</div>' : '') +
                     center +
                     upnext +
+                    nextList +
                 '</div>' +
             '</div>' +
             '<div class="wo-controls">' +
@@ -1114,6 +1146,7 @@ function _woPlayerRender() {
                 '<button type="button" class="wo-ctl wo-ctl--main" id="woPause" title="Pause / resume">⏸</button>' +
                 '<button type="button" class="wo-ctl" id="woSkip" title="Skip">⏭</button>' +
                 (tap ? '' : '<button type="button" class="wo-ctl wo-ctl--txt" id="woPlus" title="Add 15 seconds">+15s</button>') +
+                '<button type="button" class="wo-ctl wo-ctl--txt" id="woForm" title="How to do this exercise">📖 Form</button>' +
             '</div>' +
             '<div class="wo-paused hidden" id="woPaused">⏸ PAUSED<br><span>tap ▶ to continue</span></div>' +
         '</div>';
@@ -1123,6 +1156,7 @@ function _woPlayerRender() {
     document.getElementById('woPause').addEventListener('click', _woPlayerTogglePause);
     var plus = document.getElementById('woPlus'); if (plus) plus.addEventListener('click', function() { R.addTime(15); });
     document.getElementById('woEnd').addEventListener('click', _woPlayerEndClicked);
+    document.getElementById('woForm').addEventListener('click', function(ev) { ev.stopPropagation(); woShowFormOverlay(); });
     if (typeof woCommandsBindUi === 'function') woCommandsBindUi();
     document.getElementById('woMute').addEventListener('click', function() {
         _woP.session.voiceCues = !_woP.session.voiceCues;
@@ -1202,6 +1236,44 @@ function _woPlayerTogglePause() {
     if (!_woP || !_woP.runner) return;
     var R = _woP.runner;
     if (R.state === 'paused') R.resume(); else R.pause();
+}
+
+/** The phase whose form is wanted: the exercise being done, or — on a rest/get-ready screen — the one coming up. */
+function woFormPhase() {
+    var R = _woP && _woP.runner;
+    if (!R) return null;
+    var p = R.current();
+    return p && p.kind === 'work' ? p : R.nextWork();
+}
+
+/** What the voice says for "describe": the exercise name, then each cue line. */
+function woFormSpeech(p) {
+    if (!p) return 'There is no exercise to describe.';
+    var cues = woPhaseCues(p);
+    if (!cues) return woSpokenName(p) + '. No form notes saved for this exercise.';
+    return woSpokenName(p) + '. ' + cues.split(/\r?\n/).map(function(l) { return l.trim().replace(/[.!?]+$/, ''); }).filter(Boolean).join('. ') + '.';
+}
+
+/** 📖 Form: shows the saved cues over the player. Pauses a running timer while open (and resumes on close). */
+function woShowFormOverlay() {
+    var p = woFormPhase();
+    if (!p || document.getElementById('woFormOverlay')) return;
+    var R = _woP.runner, pausedByUs = false;
+    if (R.state === 'running') { R.pause(); pausedByUs = true; }
+    var cues = woPhaseCues(p);
+    var ov = document.createElement('div');
+    ov.id = 'woFormOverlay'; ov.className = 'wo-form-overlay';
+    ov.innerHTML = '<div class="wo-form-card"><h3>' + _woEsc(woSpokenName(p)) + '</h3>' +
+        (cues ? '<ul>' + cues.split(/\r?\n/).filter(function(l) { return l.trim(); }).map(function(l) { return '<li>' + _woEsc(l.trim()) + '</li>'; }).join('') + '</ul>'
+              : '<p>No form notes saved for this exercise. Add them under Exercises.</p>') +
+        '<div class="wo-form-btns"><button type="button" class="btn btn-secondary" id="woFormSay">🔊 Read aloud</button>' +
+        '<button type="button" class="btn btn-primary" id="woFormClose">Close</button></div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('woFormSay').addEventListener('click', function() { if (typeof woSpeak === 'function') woSpeak(woFormSpeech(p)); });
+    document.getElementById('woFormClose').addEventListener('click', function() {
+        ov.remove();
+        if (pausedByUs && _woP && _woP.runner && _woP.runner.state === 'paused') _woP.runner.resume();
+    });
 }
 
 function _woPlayerEndClicked() {

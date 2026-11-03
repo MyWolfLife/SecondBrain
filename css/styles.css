@@ -22260,3 +22260,13 @@ body.yard-view-only .yard-vo-hide { display: none !important; }
 
 /* Fitness → Equipment (equipment.js) */
 .eq-warn { color: #b45309; font-weight: 600; }
+
+/* Player: names of the next few exercises, and the 📖 Form overlay */
+.wo-nextlist { width: 100%; text-align: left; font-size: clamp(0.95rem, 3.4vw, 1.25rem); font-weight: 600; opacity: 0.95; line-height: 1.35; }
+.wo-nextlist-label { font-size: 0.72rem; letter-spacing: 0.12em; opacity: 0.8; margin-right: 4px; }
+.wo-nextlist i { opacity: 0.6; font-style: normal; margin: 0 2px; }
+.wo-form-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.wo-form-card { background: #fff; color: #222; border-radius: 14px; padding: 18px; max-width: 520px; width: 100%; max-height: 85vh; overflow-y: auto; }
+.wo-form-card h3 { margin: 0 0 10px; }
+.wo-form-card ul { margin: 0 0 14px; padding-left: 20px; font-size: 1.05rem; line-height: 1.45; }
+.wo-form-btns { display: flex; gap: 10px; justify-content: flex-end; }

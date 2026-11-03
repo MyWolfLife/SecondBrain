@@ -5312,7 +5312,9 @@ Open tab = notes where Fixed is unchecked (or never set). Fixed tab = notes wher
 - The **colour** tells you where you are: teal = exercise, blue = rest, amber = get ready, purple = switch sides
 - In **Self-paced** mode every exercise waits for you: type what you actually did (if different) and tap **DONE**
 - **Timed** exercises count down by themselves. **Reps** exercises wait — tap **DONE** (or tap anywhere on the screen) when you finish the set
-- During a rest, **UP NEXT** shows the exercise coming up (and its weight) so you can get ready
+- During a rest, **UP NEXT** shows the exercise coming up (and its weight or band color) so you can get ready. Under it, **THEN** lists the names of the two exercises after that
+- While you work, a **NEXT** line under the exercise lists the names of the next three exercises, and the voice tells you once, as you start each exercise, what comes after it (“After this: Row, 25 pounds, red band”) so you can get set up
+- **📖 Form** (button under the exercise) shows the form cues you saved on the exercise, pausing a timed set while it is open; **🔊 Read aloud** has the voice read them. On a rest screen it shows the exercise coming up. With voice commands on, say **“describe”** (or “form”, “how”, “instructions”) and the voice reads the cues without pausing
 - Buttons: ⏮ back, ⏸ pause, ⏭ skip, **+15s** for a bit more time. On a computer: Space = pause, ← back, → skip, Enter = done
 - **✕ End** stops the workout early
 - Prop your phone up sideways or upright — both work. Leaving this screen stops the workout

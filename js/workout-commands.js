@@ -18,6 +18,7 @@ var WO_CMD_WORDS = {
     back:       ['back', 'previous', 'go back'],
     more_time:  ['more time', 'add time', 'add more time', 'plus fifteen', 'plus 15', '15 more seconds'],
     repeat:     ['repeat', 'say again', 'say that again', 'what', 'what was that'],
+    describe:   ['describe', 'describe it', 'describe this', 'form', 'how', 'how to', 'how do i', 'instructions', 'explain', 'cues'],
     whats_next: ['whats next', "what's next", 'what is next', 'what next', 'whats up next'],
     how_long:   ['how long', 'time', 'time left', 'how much time'],
     end:        ['end workout', 'end', 'stop workout', 'finish workout', 'quit'],
@@ -28,7 +29,7 @@ var WO_CMD_WORDS = {
 // What the flash on screen says for each action
 var WO_CMD_LABELS = {
     done: 'DONE ✓', pause: 'PAUSE', resume: 'GO', ready: 'READY', skip: 'SKIP', back: 'BACK',
-    more_time: '+15 SEC', repeat: 'REPEAT', whats_next: 'WHAT’S NEXT', how_long: 'HOW LONG',
+    more_time: '+15 SEC', repeat: 'REPEAT', describe: 'DESCRIBE', whats_next: 'WHAT’S NEXT', how_long: 'HOW LONG',
     end: 'END WORKOUT?', yes: 'YES', no: 'NO'
 };
 
@@ -90,6 +91,7 @@ function _woCmdApply(action, ctx) {
         case 'back':      R.back(); return true;
         case 'more_time': if (p && p.durationSec != null) { R.addTime(15); return true; } return false;
         case 'repeat':    woSpeak(_woRepeatSpeech(p, ctx)); return true;
+        case 'describe':  woSpeak(woFormSpeech(woFormPhase())); return true;
         case 'whats_next': {
             var next = R.nextWork();
             woSpeak(next ? 'Next: ' + woSpokenName(next) + (next.side ? ', ' + next.side + ' side' : '') + ', ' + _woSayPhase(next) + '.'

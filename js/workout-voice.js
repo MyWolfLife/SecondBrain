@@ -52,10 +52,10 @@ function woSpeak(text) {
 
 /** What the voice says for a phase's target: "10 reps", "6 to 12 reps", "as many as you can". */
 function _woSayPhase(p) {
-    var wt = p.weight != null ? ', ' + p.weight + ' pounds' : '';
+    var wt = (p.weight != null ? ', ' + p.weight + ' pounds' : '') + (p.bandColor ? ', ' + p.bandColor + ' band' : '');
     if (p.failure) return (p.measure === 'time' ? 'as long as you can' : (p.amount > 1 ? 'at least ' + p.amount + ', as many as you can' : 'as many as you can')) + wt;
     if (p.amountMax != null && p.measure !== 'time') return p.amount + ' to ' + p.amountMax + ' reps' + wt;
-    return _woSayAmount(p.measure, p.amount, p.weight);
+    return _woSayAmount(p.measure, p.amount, p.weight) + (p.bandColor ? ', ' + p.bandColor + ' band' : '');
 }
 
 function _woSayAmount(measure, amount, weight) {
@@ -114,6 +114,14 @@ function _woPhaseSpeech(p, ctx) {
         if (p.countReps) line += ' For ' + woSayClock(p.durationSec) + '.';
         if (p.durationSec != null) line += ' Go.';
         parts.push(line);
+        // Once per visit to an exercise: what comes after it, so you can get ready while you work
+        var visit = p.stepIndex + '.' + (p.itemIndex == null ? '' : p.itemIndex) + '.' + (p.round || '');
+        if (visit !== _woV.lastVisit) {
+            _woV.lastVisit = visit;
+            var after = ctx.runner.phases ? woNextExercises(ctx.runner.phases, _woV.phase, 1)[0] : null;
+            parts.push(after ? 'After this: ' + woSpokenName(after) + (after.side ? ', ' + after.side + ' side' : '') + ', ' + _woSayPhase(after) + '.'
+                             : 'This is the last exercise.');
+        }
     }
     return parts.join(' ');
 }
@@ -165,7 +173,7 @@ function _woReleaseWake() {
 
 function _woVStart(ctx) {
     _woV.started = true;
-    _woV.phase = -1; _woV.said = {}; _woV.lastSection = null; _woV.completeSpoken = false; _woV.tempoSaid = {};
+    _woV.phase = -1; _woV.said = {}; _woV.lastSection = null; _woV.completeSpoken = false; _woV.tempoSaid = {}; _woV.lastVisit = null;
     _woAcquireWake();
     // The first tap/click inside the player also unlocks audio on browsers that need a gesture
     _woV.unlockHandler = function() { var ac = _woAudioCtx(); if (ac && ac.state === 'suspended') ac.resume(); };
