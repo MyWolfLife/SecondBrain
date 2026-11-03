@@ -928,6 +928,29 @@ async function loadWorkoutRunPage() {
     _woP.hashHandler = function() { if (location.hash.indexOf('#workout-run') !== 0) _woPlayerDestroy(); };
     window.addEventListener('hashchange', _woP.hashHandler);
 
+    // Safety nets against killing a long workout by accident:
+    // 1) Back button (phone/browser): an extra history entry soaks up the first Back press and asks first.
+    history.pushState({ woGuard: true }, '', location.href);
+    _woP.popHandler = function() {
+        if (!_woP || _woP.finished || !_woP.runner || _woP.runner.state === 'done') return;
+        if (location.hash.indexOf('#workout-run') !== 0) return;                     // a real navigation — hashHandler deals with it
+        var R = _woP.runner, pausedByUs = false;
+        if (R.state === 'running') { R.pause(); pausedByUs = true; }
+        if (confirm('Leave the workout?
+
+OK = end it now and save what you have done so far.
+Cancel = keep going.')) { R.end(); return; }
+        history.pushState({ woGuard: true }, '', location.href);                      // put the guard back for the next Back press
+        if (pausedByUs && _woP && _woP.runner.state === 'paused') _woP.runner.resume();
+    };
+    window.addEventListener('popstate', _woP.popHandler);
+    // 2) Refresh / closing the tab: the browser asks first.
+    _woP.unloadHandler = function(ev) {
+        if (!_woP || _woP.finished || !_woP.runner || _woP.runner.state === 'done') return;
+        ev.preventDefault(); ev.returnValue = '';
+    };
+    window.addEventListener('beforeunload', _woP.unloadHandler);
+
     _woP.runner.start();
 }
 
@@ -938,6 +961,8 @@ function _woPlayerDestroy() {
     clearInterval(_woP.flipTimer);
     if (_woP.keyHandler)  document.removeEventListener('keydown', _woP.keyHandler);
     if (_woP.hashHandler) window.removeEventListener('hashchange', _woP.hashHandler);
+    if (_woP.popHandler)  window.removeEventListener('popstate', _woP.popHandler);
+    if (_woP.unloadHandler) window.removeEventListener('beforeunload', _woP.unloadHandler);
     if (typeof woVoiceOnEnd === 'function') { try { woVoiceOnEnd(_woP); } catch (e) {} }
     _woP = null;
 }
@@ -1294,6 +1319,7 @@ function _woPlayerOnDone(results) {
     var totalWork = R.workPhaseCount() + results.filter(function(r) { return R.phases[r.index] && R.phases[r.index].blockId; }).length;   // Stapper: what was actually attempted
     _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), startedAt: R.startedAt, endedAt: Date.now() };
     window._woFinished = _woP.finished;
+    window._woSession = null;       // so Back from the finished screen can't restart this workout
 
     var mins = Math.max(1, Math.round(R.elapsedMs() / 60000));
     document.getElementById('page-workout-run').innerHTML =
