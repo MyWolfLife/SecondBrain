@@ -925,7 +925,13 @@ async function loadWorkoutRunPage() {
     document.addEventListener('keydown', _woP.keyHandler);
 
     // Leaving the page (any navigation) stops the player cleanly
-    _woP.hashHandler = function() { if (location.hash.indexOf('#workout-run') !== 0) _woPlayerDestroy(); };
+    _woP.hashHandler = function() {
+        if (location.hash.indexOf('#workout-run') === 0) return;
+        // Left by a link mid-workout: save what was done (silently — you keep going where you clicked), then stop
+        var R = _woP && _woP.runner;
+        if (R && !_woP.finished && R.state !== 'done' && R.state !== 'idle') { _woP.leaving = true; try { R.end(); } catch (e) { console.error(e); } }
+        _woPlayerDestroy();
+    };
     window.addEventListener('hashchange', _woP.hashHandler);
 
     // Safety nets against killing a long workout by accident:
@@ -1320,6 +1326,11 @@ function _woPlayerOnDone(results) {
     _woP.finished = { session: _woP.session, phases: _woP.phases, results: results, elapsedMs: R.elapsedMs(), startedAt: R.startedAt, endedAt: Date.now() };
     window._woFinished = _woP.finished;
     window._woSession = null;       // so Back from the finished screen can't restart this workout
+    if (_woP.leaving) {             // navigated away mid-workout: save quietly if any set was done, no screens
+        var leftFin = _woP.finished; _woP.finished = null; window._woFinished = null;
+        if (done > 0) woSaveFinishedWorkout(leftFin).catch(function(err) { console.error('Workouts: could not save the interrupted workout:', err); });
+        return;
+    }
 
     var mins = Math.max(1, Math.round(R.elapsedMs() / 60000));
     document.getElementById('page-workout-run').innerHTML =
