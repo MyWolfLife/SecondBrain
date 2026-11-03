@@ -36,6 +36,7 @@ function _woSetPhases(st, set, ctx) {
             stepIndex: ctx.stepIndex, itemIndex: ctx.itemIndex,
             exerciseId: st.exerciseId, exerciseName: st.exerciseName,
             measure: st.measure, amount: amount, amountMax: amountMax, failure: failure, weight: weight, tempo: woHasTempo(st.tempo) ? st.tempo : null,
+            bandLabel: st.resistType === 'band' ? woBandLabel(st.bandColor, st.bandType) : null,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
@@ -1027,7 +1028,7 @@ function _woPlayerRender() {
     else title = _woEsc(p.exerciseName);
 
     if (p.kind === 'work') {
-        var bits = [p.levelLabel, p.rung ? 'Rung ' + p.rung + (p.ladderDir === 'down' ? ' · coming down' : ' · going up') : '', _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
+        var bits = [p.levelLabel, p.bandLabel, p.rung ? 'Rung ' + p.rung + (p.ladderDir === 'down' ? ' · coming down' : ' · going up') : '', _woSetText(p), _woSideText(p), p.sideMode === 'alternate' ? '↔ alternate sides' : '', p.interval ? 'Interval ' + woClockText(p.interval.seconds) : '', p.tempo ? 'Tempo: ' + woTempoText(p.tempo) : ''].filter(Boolean);
         sub = bits.join(' · ');   // reps/weight are shown big in the centre for tap phases
     } else if (p.kind === 'rest' && p.restKind === 'interval') {
         sub = 'Next ' + (p.intervalUnit === 'round' ? 'round' : 'set') + ' starts when the clock reaches zero';

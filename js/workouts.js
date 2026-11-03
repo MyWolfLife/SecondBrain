@@ -205,6 +205,30 @@ function _woEsc(text) {
 
 // ─── Library helpers ──────────────────────────────────────────────────────────
 
+// Resistance an exercise uses: nothing (bodyweight), a weight, or a band. Stored as resistType on the exercise;
+// usesWeight stays in step with it (true only for 'weight') because the player/history/progression read that.
+var WO_RESIST = { none: 'No weight', weight: 'Weight', band: 'Resistance band' };
+
+// The kinds of band the user owns. A band's color stands in for its weight.
+var WO_BAND_TYPES = {
+    flat:    'Flat loop band (power band, e.g. Nordstick)',
+    sleeved: 'Sleeved tube band, center strap, loop each end (Nordic Bench)',
+    tube:    'Tube band with hook each end (no center hook)',
+    leg:     'Thin band with small hooks (legs / ankles)'
+};
+var WO_BAND_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Pink', 'Black', 'Gray', 'White'];
+
+/** The exercise's resistance. Exercises saved before the dropdown existed fall back on usesWeight. */
+function woResistOf(e) {
+    return e.resistType || (e.usesWeight ? 'weight' : 'none');
+}
+
+/** "Red flat band" style label for a band color/type; '' when neither is set. */
+function woBandLabel(color, type) {
+    var t = type && WO_BAND_TYPES[type] ? WO_BAND_TYPES[type].split(' (')[0].toLowerCase() : 'band';
+    return color ? color + ' ' + t : (type ? t : '');
+}
+
 var WO_PUSHPULL = {
     push:    { label: 'Push',    cls: 'wo-badge--push' },
     pull:    { label: 'Pull',    cls: 'wo-badge--pull' },
@@ -411,6 +435,7 @@ function _woRenderExerciseList() {
         var sm = woSideModeOf(e);
         if (sm === 'each') meta += ' · each side' + (e.startSide === 'right' ? ' (right first)' : (e.startSide === 'weaker' ? ' (weaker first)' : '')) + (e.swapStart ? ', swapping' : '');
         else if (sm === 'alternate') meta += ' · alternating';
+        if (woResistOf(e) === 'band') meta += ' · ' + _woEsc(woBandLabel(e.defaultBandColor, e.bandType) || 'band');
         var equip = (e.equipment || []).length ? ' · ' + _woEsc(e.equipment.join(', ')) : '';
         return '<a href="#workout-exercise/' + e.id + '" class="wo-card' + (e.archived ? ' wo-card--archived' : '') + '">' +
                    '<div class="wo-thumb">' + (e.thumbData ? '<img src="' + e.thumbData + '" alt="">' : '🤸') + '</div>' +
@@ -445,13 +470,14 @@ async function loadWorkoutExercisePage(id) {
         await woLoadMyLevels();
         if (isNew) {
             _woEdit = { id: null, name: '', instructions: '', measure: 'reps', defaultAmount: 10,
-                        usesWeight: false, defaultWeight: null, sideMode: 'both', startSide: 'left', swapStart: false, eachSide: false, category: '', source: '', precaution: '', equipment: [],
+                        usesWeight: false, resistType: 'none', bandType: '', defaultBandColor: '', defaultWeight: null, sideMode: 'both', startSide: 'left', swapStart: false, eachSide: false, category: '', source: '', precaution: '', equipment: [],
                         targets: [], pushPull: 'neither', videoUrl: '', archived: false };
         } else {
             var doc = await woLibCol('workoutExercises').doc(id).get();
             if (!doc.exists) { el.innerHTML = '<div class="ex-status">Exercise not found.</div>'; return; }
             _woEdit = doc.data();
             _woEdit.id = doc.id;
+            _woEdit.resistType = woResistOf(_woEdit);
             _woEdit.sideMode  = woSideModeOf(_woEdit);
             _woEdit.startSide = _woEdit.startSide || 'left';
             _woEdit.equipment = (_woEdit.equipment || []).slice();
@@ -513,10 +539,20 @@ function _woRenderExerciseEditor() {
             '</div>' +
 
             '<div class="ex-form-group">' +
-                '<label class="wo-inline-check"><input type="checkbox" id="woeUsesWeight"' + (e.usesWeight ? ' checked' : '') + '> Uses weight</label>' +
-                '<div id="woeWeightRow" class="' + (e.usesWeight ? '' : 'hidden') + '" style="margin-top:8px;">' +
+                '<label class="ex-label" for="woeResist">Resistance</label>' +
+                '<select id="woeResist">' + Object.keys(WO_RESIST).map(function(k) {
+                    return '<option value="' + k + '"' + (e.resistType === k ? ' selected' : '') + '>' + WO_RESIST[k] + '</option>'; }).join('') + '</select>' +
+                '<div id="woeWeightRow" class="' + (e.resistType === 'weight' ? '' : 'hidden') + '" style="margin-top:8px;">' +
                     '<label class="ex-label" for="woeWeight">Default weight (lb)</label>' +
                     '<input type="number" class="wo-w-narrow" id="woeWeight" min="0" step="0.5" value="' + (e.defaultWeight != null ? e.defaultWeight : '') + '">' +
+                '</div>' +
+                '<div id="woeBandRow" class="' + (e.resistType === 'band' ? '' : 'hidden') + '" style="margin-top:8px;">' +
+                    '<label class="ex-label" for="woeBandType">Kind of band</label>' +
+                    '<select id="woeBandType"><option value="">Not set</option>' + Object.keys(WO_BAND_TYPES).map(function(k) {
+                        return '<option value="' + k + '"' + (e.bandType === k ? ' selected' : '') + '>' + WO_BAND_TYPES[k] + '</option>'; }).join('') + '</select>' +
+                    '<label class="ex-label" for="woeBandColor" style="margin-top:8px;">Default band color</label>' +
+                    '<select id="woeBandColor"><option value="">Not set</option>' + WO_BAND_COLORS.map(function(c) {
+                        return '<option value="' + c + '"' + (e.defaultBandColor === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
                 '</div>' +
             '</div>' +
 
@@ -613,9 +649,11 @@ function _woRenderExerciseEditor() {
             if (_woEdit.levels.length > 1) { _woSyncActiveLevel(); woLevelGroupRender(); }
         });
     });
-    document.getElementById('woeUsesWeight').addEventListener('change', function() {
-        document.getElementById('woeWeightRow').classList.toggle('hidden', !this.checked);
-        _woEdit.usesWeight = this.checked;
+    document.getElementById('woeResist').addEventListener('change', function() {
+        document.getElementById('woeWeightRow').classList.toggle('hidden', this.value !== 'weight');
+        document.getElementById('woeBandRow').classList.toggle('hidden', this.value !== 'band');
+        _woEdit.resistType = this.value;
+        _woEdit.usesWeight = this.value === 'weight';
         if (_woEdit.levels.length > 1) { _woSyncActiveLevel(); woLevelGroupRender(); }
     });
 
@@ -916,7 +954,8 @@ async function _woSaveExercise() {
     var lvs = woCollectLevelsForSave();                                   // mirror fields + levels[] (workout-level-editor.js)
 
     var amount = parseInt(document.getElementById('woeAmount').value, 10);
-    var usesWeight = document.getElementById('woeUsesWeight').checked;
+    var resistType = document.getElementById('woeResist').value;
+    var usesWeight = resistType === 'weight';
     var weightRaw  = document.getElementById('woeWeight').value;
     var weight = usesWeight && weightRaw !== '' ? parseFloat(weightRaw) : null;
 
@@ -926,6 +965,9 @@ async function _woSaveExercise() {
         measure:       _woEdit.measure,
         defaultAmount: isNaN(amount) ? null : amount,
         usesWeight:    usesWeight,
+        resistType:    resistType,
+        bandType:         resistType === 'band' ? document.getElementById('woeBandType').value : '',
+        defaultBandColor: resistType === 'band' ? document.getElementById('woeBandColor').value : '',
         defaultWeight: weight,
         sideMode:      document.getElementById('woeSideMode').value,
         startSide:     document.getElementById('woeStartSide').value,
@@ -1892,6 +1934,7 @@ function _woNewStep(ex, inCircuit) {
         type: 'exercise', section: 'main',
         exerciseId: ex.id, exerciseName: ex.name, measure: ex.measure,
         sideMode: woSideModeOf(ex), startSide: ex.startSide || 'left', swapStart: !!ex.swapStart && woSideModeOf(ex) === 'each', eachSide: woSideModeOf(ex) === 'each', usesWeight: !!ex.usesWeight,
+        resistType: woResistOf(ex), bandType: ex.bandType || '', bandColor: ex.defaultBandColor || '',
         sets: sets, baseSets: _woCloneSets(sets),
         restBetweenSets: inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_SETS),
         restAfter:       inCircuit ? null : _woBlankRest(WO_DEFAULT_REST_AFTER),
@@ -2069,6 +2112,11 @@ function _woSetsEditor(st, inCircuit) {
     var unit = st.measure === 'time' ? 'sec' : 'reps';
     var s0   = sets[0] || { amount: '', weight: null };
     var wField = function(val, k) {
+        if (st.resistType === 'band') {            // band color is per exercise step, so show it once (quick row / first set)
+            if (k != null && k !== 0) return '';
+            return ' with <select data-f="bandColor" title="Band color"><option value="">band color</option>' + WO_BAND_COLORS.map(function(c) {
+                return '<option value="' + c + '"' + (st.bandColor === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>';
+        }
         return st.usesWeight ? ' @ <input type="number" min="0" step="0.5" data-f="' + (k == null ? 'qweight' : 'weight') + '"' +
                (k == null ? '' : ' data-k="' + k + '"') + ' value="' + (val != null ? val : '') + '"> lb' : '';
     };
@@ -2339,6 +2387,7 @@ function _woStepInput(ev) {
     var f = inp.getAttribute('data-f');
 
     if (f === 'section') { st.section = inp.value; return; }
+    if (f === 'bandColor') { st.bandColor = inp.value; return; }
     if (f === 'stapperOn') {                                   // Stapper: go round the exercises until time is up
         if (inp.checked) { st.stapper = { minutes: WO_STAPPER_DEFAULT.minutes }; delete st.interval; st.restBetweenItems = _woBlankRest(0); }
         else delete st.stapper;
