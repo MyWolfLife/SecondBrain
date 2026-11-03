@@ -524,7 +524,19 @@ function _loadCollectionPageInner(id) {
 
             // Sort items per type
             var collType = window.currentCollection ? window.currentCollection.type : '';
-            sortCollectionItems(items, collType);
+
+            // Sort dropdown — only for types that define options; others sort by name
+            var sortRow    = document.getElementById('collectionSortRow');
+            var sortSelect = document.getElementById('collectionSortSelect');
+            var sortOpts   = COLLECTION_SORT_OPTIONS[collType];
+            if (sortRow) sortRow.classList.toggle('hidden', !sortOpts);
+            if (sortSelect && sortOpts) {
+                sortSelect.innerHTML = sortOpts.map(function(o) {
+                    return '<option value="' + o[0] + '">' + o[1] + '</option>';
+                }).join('');
+            }
+            var currentSort = function() { return sortOpts && sortSelect ? sortSelect.value : 'name'; };
+            sortCollectionItems(items, collType, currentSort());
 
             // Store for client-side filtering
             window._collectionItemsCache = items;
@@ -532,14 +544,28 @@ function _loadCollectionPageInner(id) {
             renderCollectionItemsList(items, collType, listEl);
 
             // Wire up filter input (clone to remove stale listeners)
+            var activeFilter = filterEl;
             if (filterEl) {
                 var newFilter = filterEl.cloneNode(true);
                 filterEl.parentNode.replaceChild(newFilter, filterEl);
                 newFilter.value = '';
+                activeFilter = newFilter;
                 newFilter.addEventListener('input', function() {
                     var term = this.value.toLowerCase().trim();
                     var filtered = filterCollectionItems(window._collectionItemsCache, collType, term);
                     renderCollectionItemsList(filtered, collType, listEl);
+                });
+            }
+
+            // Re-sort and re-render when the sort selection changes (keeps the current filter)
+            if (sortSelect) {
+                var newSort = sortSelect.cloneNode(true);
+                sortSelect.parentNode.replaceChild(newSort, sortSelect);
+                sortSelect = newSort;
+                newSort.addEventListener('change', function() {
+                    sortCollectionItems(window._collectionItemsCache, collType, newSort.value);
+                    var term = activeFilter ? activeFilter.value.toLowerCase().trim() : '';
+                    renderCollectionItemsList(filterCollectionItems(window._collectionItemsCache, collType, term), collType, listEl);
                 });
             }
         })
@@ -556,30 +582,46 @@ function _loadCollectionPageInner(id) {
  * @param {Array}  items    — item objects
  * @param {string} collType — collection type string
  */
-function sortCollectionItems(items, collType) {
+function sortCollectionItems(items, collType, sortBy) {
+    // Case-insensitive text compare of one field; returns -1/0/1
+    function cmpText(x, y) {
+        x = (x || '').toString().toLowerCase();
+        y = (y || '').toString().toLowerCase();
+        return x < y ? -1 : (x > y ? 1 : 0);
+    }
+    // Numeric compare; blank/non-numeric values sort last
+    function cmpNum(x, y) {
+        var nx = parseFloat(x); if (isNaN(nx)) nx = Infinity;
+        var ny = parseFloat(y); if (isNaN(ny)) ny = Infinity;
+        return nx === ny ? 0 : (nx < ny ? -1 : 1);
+    }
+    function td(item, field) { return item.typeData ? item.typeData[field] : ''; }
+
     items.sort(function(a, b) {
+        // Primary key: the dropdown selection (name, or artist/author where offered)
+        var primary = 0;
+        if (sortBy === 'artist')      primary = cmpText(td(a, 'artist'), td(b, 'artist'));
+        else if (sortBy === 'author') primary = cmpText(td(a, 'author'), td(b, 'author'));
+        else                          primary = cmpText(a.name, b.name);
+        if (primary) return primary;
+
+        // Secondary keys by type
         if (collType === 'Comics') {
-            var seriesA = ((a.typeData && a.typeData.series) || '').toLowerCase();
-            var seriesB = ((b.typeData && b.typeData.series) || '').toLowerCase();
-            if (seriesA !== seriesB) return seriesA < seriesB ? -1 : 1;
-            // Sort by issue number numerically
-            var numA = parseFloat((a.typeData && a.typeData.issueNumber) || 0) || 0;
-            var numB = parseFloat((b.typeData && b.typeData.issueNumber) || 0) || 0;
-            return numA - numB;
+            return cmpNum(td(a, 'issueNumber'), td(b, 'issueNumber')) || cmpText(a.name, b.name);
         }
-        if (collType === 'Records/Albums') {
-            var fmtA = ((a.typeData && a.typeData.format) || '').toLowerCase();
-            var fmtB = ((b.typeData && b.typeData.format) || '').toLowerCase();
-            if (fmtA !== fmtB) return fmtA < fmtB ? -1 : 1;
-            var artA = ((a.typeData && a.typeData.artist) || '').toLowerCase();
-            var artB = ((b.typeData && b.typeData.artist) || '').toLowerCase();
-            if (artA !== artB) return artA < artB ? -1 : 1;
-            return (a.name || '').toLowerCase() < (b.name || '').toLowerCase() ? -1 : 1;
+        if (collType === 'Records/Albums' || collType === 'Books & Magazines') {
+            return cmpNum(td(a, 'year'), td(b, 'year')) || cmpText(a.name, b.name);
         }
-        // All others: name A→Z
-        return (a.name || '').toLowerCase() < (b.name || '').toLowerCase() ? -1 : 1;
+        return 0;
     });
 }
+
+/** Sort options offered in the dropdown per collection type (first is the default). */
+var COLLECTION_SORT_OPTIONS = {
+    'Comics':            [['name', 'Name']],
+    'Records/Albums':    [['name', 'Name'], ['artist', 'Artist']],
+    'Books & Magazines': [['name', 'Name'], ['author', 'Author']]
+};
 
 /**
  * Filter items by the appropriate field for the collection type.

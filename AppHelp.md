@@ -4562,17 +4562,18 @@ In the Collections list, collections shared with you show **Can edit** or **View
 
 | Type | Type-Specific Fields | Sort Order | Search Field |
 |------|---------------------|------------|--------------|
-| Comics | Series, Issue #, Variant, Publisher, Year | Series A-Z → Issue # | Series |
-| Records/Albums | Format (LP/45/Cassette/CD/8-Track), Artist, Album, Label, Year | Format → Artist → Album | Artist |
+| Comics | Series, Issue #, Variant, Publisher, Year | Sort by Name → Issue # | Series |
+| Records/Albums | Format (LP/45/Cassette/CD/8-Track), Artist, Album, Label, Year | Sort by Name or Artist → Year | Artist |
 | Hats | Style, Color, Brand, Year | Name A-Z | Name |
 | Hat Pins | Description | Name A-Z | Name |
 | Beanie Babies | Style, Year, Has Tags (checkbox) | Name A-Z | Name |
 | Ceramic Stadiums | Team, Year | Name A-Z | Name |
-| Books & Magazines | Type (Book/Magazine), Author, Publisher, Year, ISBN, Issue Date | Name A-Z | Title + Author |
+| Books & Magazines | Type (Book/Magazine), Author, Publisher, Year, ISBN, Issue Date | Sort by Name or Author → Year | Title + Author |
 | Generic | Three custom-labeled fields (you name them) | Name A-Z | Name |
 
 **Collection detail page:**
 - Header shows item count and total estimated worth.
+- **Sort by** -- dropdown at the top for Comics (Name), Records/Albums (Name or Artist) and Books & Magazines (Name or Author). Items with the same value are then ordered by issue # (comics) or year (records, books). Other collection types always sort by name.
 - **Filter bar** -- pre-labeled based on type ("Filter by series...", "Filter by artist...", etc.). Client-side search within the current collection.
 - Item rows show: 48×48 thumbnail, name, key field (series/artist/style/team/author), estimated value.
 - **+ Add Item** -- opens the item form with type-specific fields injected automatically.

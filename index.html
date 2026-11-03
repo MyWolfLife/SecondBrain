@@ -10821,8 +10821,12 @@ service firebase.storage {
                 <button class="btn btn-secondary btn-small hidden" id="collShareBtn" onclick="shOpenShareDialog()">Share…</button>
             </div>
             <div id="collWhoLabel" style="color:#666; font-size:0.85rem; margin:-4px 0 8px;"></div>
+            <div id="collectionSortRow" class="hidden" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <label for="collectionSortSelect" style="font-size:0.85rem; color:#666;">Sort by</label>
+                <select id="collectionSortSelect" class="filter-input" style="width:auto;"></select>
+            </div>
             <div class="section-header">
-                <input type="text" id="collectionFilterInput" placeholder="Filter…" class="filter-input">
+                <input type="text" id="collectionFilterInput"placeholder="Filter…" class="filter-input">
                 <button class="btn btn-primary btn-small" id="addCollectionItemBtn">+ Add Item</button>
                 <button class="btn btn-primary btn-small hidden" id="collectionFromPicBtn">+ Photo</button>
             </div>
@@ -12449,7 +12453,7 @@ export default {
     <script src="js/neighbors.js?v=489"></script>
     <script src="js/favorites.js?v=487"></script>
     <script src="js/beneficiaries.js?v=490"></script>
-    <script src="js/collections.js?v=491"></script>
+    <script src="js/collections.js?v=492"></script>
     <script src="js/health.js?v=488"></script>
     <script src="js/notes.js?v=487"></script>
     <script src="js/lifecalendar.js?v=488"></script>

@@ -715,13 +715,13 @@ Tracks physical collectible inventories. Each collection is a named list with a 
 
 | Type | Type-Specific Fields | Sort Order | Filter Field |
 |------|---------------------|------------|--------------|
-| Comics | series, issueNumber, variant, publisher, year | Series A-Z → issue # | series |
-| Records/Albums | format, artist, album, label, year | Format → artist → album | artist |
+| Comics | series, issueNumber, variant, publisher, year | Sort dropdown (Name) → issue # | series |
+| Records/Albums | format, artist, album, label, year | Sort dropdown (Name / Artist) → year | artist |
 | Hats | style, color, brand, year | Name A-Z | name |
 | Hat Pins | description | Name A-Z | name |
 | Beanie Babies | style, year, hasTags | Name A-Z | name |
 | Ceramic Stadiums | team, year | Name A-Z | name |
-| Books & Magazines | type (Book/Magazine), author, publisher, year, isbn, issueDate | Name A-Z | title + author |
+| Books & Magazines | type (Book/Magazine), author, publisher, year, isbn, issueDate | Sort dropdown (Name / Author) → year | title + author |
 | Generic | label1/2/3 values (custom labels per collection) | Name A-Z | name |
 
 ### Collection List Page
@@ -730,6 +730,7 @@ Tracks physical collectible inventories. Each collection is a named list with a 
 
 ### Collection Detail Page
 - Item count + total estimated worth in header
+- **Sort by** dropdown above the filter bar for Comics (Name), Records/Albums (Name, Artist) and Books & Magazines (Name, Author); defaults to Name, resets on each visit. Ties break by issue # (Comics) or year (Records, Books), then name; blank numbers sort last. Other types have no dropdown and sort by name. Changing it re-sorts in place and keeps the current filter text.
 - Client-side filter bar (search field pre-labeled by type, e.g., "Filter by series…")
 - Item rows with: 48×48 thumbnail (if set), name, key field (author/artist/etc.), estimated value
 - Add item (manual) and `+Photo` (LLM identification) buttons
