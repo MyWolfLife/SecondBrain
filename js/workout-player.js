@@ -37,6 +37,7 @@ function _woSetPhases(st, set, ctx) {
             exerciseId: st.exerciseId, exerciseName: st.exerciseName,
             measure: st.measure, amount: amount, amountMax: amountMax, failure: failure, weight: weight, tempo: woHasTempo(st.tempo) ? st.tempo : null,
             bandLabel: st.resistType === 'band' ? woBandLabel(st.bandColor, st.bandType) : null,
+            bandColor: st.resistType === 'band' ? (st.bandColor || '') : null,
             setIndex: ctx.setIndex, setCount: ctx.setCount,
             round: ctx.round, rounds: ctx.rounds, side: side, sideMode: st.sideMode || null,
             levelId: st.runLevelId || null, levelLabel: st.runLevelLabel || null,
@@ -1047,7 +1048,9 @@ function _woPlayerRender() {
         center = '<div class="wo-ring wo-ring--reps"><div class="wo-ring-text">' + woBigAmount(p) + '<span class="wo-ring-unit">' + unit + '</span>' +
                  (p.weight != null ? '<span class="wo-ring-weight">@ ' + p.weight + ' lb</span>' : '') + '</div></div>' +
                  ((selfMode || woNeedsActual(p)) ? '<div class="wo-adjust">Did: <input type="number" min="0" id="woActAmt" value="' + p.amount + '"> ' + unit +
-                             (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') + '</div>' : '') +
+                             (p.weight != null ? ' @ <input type="number" min="0" step="0.5" id="woActWt" value="' + p.weight + '"> lb' : '') +
+                             (p.bandColor != null ? ' with <select id="woActBand"><option value="">band color</option>' + WO_BAND_COLORS.map(function(c) {
+                                 return '<option value="' + c + '"' + (p.bandColor === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' : '') + '</div>' : '') +
                  (p.capSec ? '<div class="wo-cap" id="woCap">Work time left: <strong id="woCapLeft"></strong></div>' : '') +
                  '<button type="button" class="wo-bigbtn" id="woDone">✓ DONE</button>' +
                  (selfMode ? '<div class="wo-tap-hint">change the numbers above if you did something different · say “done”</div>'
@@ -1133,7 +1136,8 @@ function _woPlayerRender() {
         var actual = null;
         if (amt) {      // self-paced: whatever is in the boxes is what you did
             var a = parseFloat(amt.value), w = wt ? parseFloat(wt.value) : NaN;
-            actual = { amount: isNaN(a) ? null : a, weight: isNaN(w) ? null : w };
+            var bandSel = document.getElementById('woActBand');
+            actual = { amount: isNaN(a) ? null : a, weight: isNaN(w) ? null : w, band: bandSel ? bandSel.value : null };
         }
         R.done(actual);
     });
@@ -1272,6 +1276,8 @@ function woSetLinesFromRun(phases, results, keepUnreachedBlocks) {
             targetMax: p.amountMax != null ? p.amountMax : null, failure: !!p.failure,                // rep range / to failure
             actualAmount: done ? ((r.actual && r.actual.amount != null) ? r.actual.amount : p.amount) : null,
             actualWeight: done ? ((r.actual && r.actual.weight != null) ? r.actual.weight : p.weight) : null,
+            targetBand: p.bandColor != null ? p.bandColor : null,                                      // band exercises only
+            actualBand: done && p.bandColor != null ? ((r.actual && r.actual.band != null) ? r.actual.band : p.bandColor) : null,
             doneAt: done ? _woISODate(r.doneAt) : null,
             skipped: !done, manual: false
         });

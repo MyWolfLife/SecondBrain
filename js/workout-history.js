@@ -177,6 +177,7 @@ function _woRenderDoneLines() {
             var ex = _woExMap[s.exerciseId];
             var unit = s.measure === 'time' ? 'sec' : 'reps';
             var showWeight = s.measure !== 'time' && (s.targetWeight != null || s.actualWeight != null || (ex && ex.usesWeight));
+            var showBand = s.targetBand != null || s.actualBand != null || (ex && woResistOf(ex) === 'band');
             var skipped = !!s.skipped || s.actualAmount == null;
             var label = _woEsc(woLineName(s)) + ' <span class="wo-line-set">Set ' + nums[i] + (s.side ? ' · ' + s.side : '') + '</span>';
             return '<div class="wo-line' + (skipped ? ' wo-line--skipped' : '') + '" data-i="' + i + '">' +
@@ -188,6 +189,8 @@ function _woRenderDoneLines() {
                 '<span class="wo-line-vals">' +
                     '<input type="number" min="0" data-f="amount" value="' + (s.actualAmount != null ? s.actualAmount : '') + '" placeholder="' + (s.failure ? 'max' : (s.targetMax != null ? s.targetAmount + '–' + s.targetMax : (s.targetAmount != null ? s.targetAmount : ''))) + '"> ' + unit +
                     (showWeight ? ' @ <input type="number" min="0" step="0.5" data-f="weight" value="' + (s.actualWeight != null ? s.actualWeight : '') + '" placeholder="' + (s.targetWeight != null ? s.targetWeight : '') + '"> lb' : '') +
+                    (showBand ? ' with <select data-f="band"><option value="">band color</option>' + WO_BAND_COLORS.map(function(c) {
+                        return '<option value="' + c + '"' + (s.actualBand === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' : '') +
                 '</span>' +
                 '<button type="button" class="wo-frame-btn wo-frame-btn--del" data-act="del" title="Delete this line">🗑</button>' +
             '</div>';
@@ -233,6 +236,8 @@ function _woDoneLineInput(ev) {
         s.actualAmount = isNaN(a) ? null : a;
         s.skipped = s.actualAmount == null;       // a number fills in a skipped set; clearing it marks it skipped again
         if (s.actualAmount != null && !s.doneAt) s.doneAt = new Date().toISOString();
+    } else if (f === 'band') {
+        s.actualBand = inp.value;
     } else {
         s.actualWeight = inp.value !== '' ? parseFloat(inp.value) : null;
     }
@@ -249,6 +254,7 @@ function _woDoneAddLine() {
             targetAmount: null, targetWeight: null,
             actualAmount: ex.defaultAmount != null ? ex.defaultAmount : (ex.measure === 'time' ? 30 : 10),
             actualWeight: ex.usesWeight && ex.defaultWeight != null ? ex.defaultWeight : null,
+            actualBand: woResistOf(ex) === 'band' ? (ex.defaultBandColor || '') : null,
             doneAt: new Date().toISOString(), skipped: false, manual: true
         }, woLevelFieldsFor(ex)));
         _woD.dirty = true;
@@ -486,7 +492,7 @@ async function woRenderActivityWorkoutSummary(el, activityId, act) {
         var key = woRecordKey(s);                                   // one entry per exercise AND level
         if (!byEx[key]) { byEx[key] = { name: woLineName(s), parts: [] }; order.push(key); }
         if (s.skipped || s.actualAmount == null) return;
-        byEx[key].parts.push(woFmtAmount(s.measure, s.actualAmount, s.actualWeight) + (s.side ? ' (' + s.side + ')' : ''));
+        byEx[key].parts.push(woFmtAmount(s.measure, s.actualAmount, s.actualWeight) + (s.actualBand ? ' [' + s.actualBand + ' band]' : '') + (s.side ? ' (' + s.side + ')' : ''));
     });
     var list = order.map(function(id) {
         var e = byEx[id];
