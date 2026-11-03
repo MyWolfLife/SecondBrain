@@ -715,7 +715,7 @@ Tracks physical collectible inventories. Each collection is a named list with a 
 
 | Type | Type-Specific Fields | Sort Order | Filter Field |
 |------|---------------------|------------|--------------|
-| Comics | series, issueNumber, variant, publisher, year | Sort dropdown (Name) → issue # | series |
+| Comics | series, issueNumber, variant, publisher, year, writer, artist, colorer | Sort dropdown (Name) → issue # | series |
 | Records/Albums | format, artist, album, label, year | Sort dropdown (Name / Artist) → year | artist |
 | Hats | style, color, brand, year | Name A-Z | name |
 | Hat Pins | description | Name A-Z | name |

@@ -4562,7 +4562,7 @@ In the Collections list, collections shared with you show **Can edit** or **View
 
 | Type | Type-Specific Fields | Sort Order | Search Field |
 |------|---------------------|------------|--------------|
-| Comics | Series, Issue #, Variant, Publisher, Year | Sort by Name → Issue # | Series |
+| Comics | Series, Issue #, Variant, Publisher, Year, Writer, Artist, Colorer | Sort by Name → Issue # | Series |
 | Records/Albums | Format (LP/45/Cassette/CD/8-Track), Artist, Album, Label, Year | Sort by Name or Artist → Year | Artist |
 | Hats | Style, Color, Brand, Year | Name A-Z | Name |
 | Hat Pins | Description | Name A-Z | Name |

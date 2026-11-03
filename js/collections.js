@@ -742,6 +742,20 @@ function renderCollectionItemTypeFields(collType, typeData, colDoc) {
                     '<label for="ciYear">Year</label>' +
                     '<input type="number" id="ciYear" placeholder="e.g., 1998" value="' + escapeHtml(String(typeData.year || '')) + '">' +
                 '</div>' +
+            '</div>' +
+            '<div class="form-row">' +
+                '<div class="form-group">' +
+                    '<label for="ciWriter">Writer</label>' +
+                    '<input type="text" id="ciWriter" value="' + escapeHtml(typeData.writer || '') + '">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label for="ciComicArtist">Artist</label>' +
+                    '<input type="text" id="ciComicArtist" value="' + escapeHtml(typeData.artist || '') + '">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label for="ciColorer">Colorer</label>' +
+                    '<input type="text" id="ciColorer" value="' + escapeHtml(typeData.colorer || '') + '">' +
+                '</div>' +
             '</div>';
 
     } else if (collType === 'Records/Albums') {
@@ -962,6 +976,9 @@ function handleCollectionItemModalSave() {
         typeData.issueNumber = (document.getElementById('ciIssueNumber') ? document.getElementById('ciIssueNumber').value.trim() : '');
         typeData.publisher   = (document.getElementById('ciPublisher')   ? document.getElementById('ciPublisher').value.trim()   : '');
         typeData.year        = (document.getElementById('ciYear')        ? document.getElementById('ciYear').value.trim()        : '');
+        typeData.writer      = (document.getElementById('ciWriter')      ? document.getElementById('ciWriter').value.trim()      : '');
+        typeData.artist      = (document.getElementById('ciComicArtist') ? document.getElementById('ciComicArtist').value.trim() : '');
+        typeData.colorer     = (document.getElementById('ciColorer')     ? document.getElementById('ciColorer').value.trim()     : '');
     } else if (collType === 'Records/Albums') {
         typeData.artist = (document.getElementById('ciArtist') ? document.getElementById('ciArtist').value.trim() : '');
         typeData.label  = (document.getElementById('ciLabel')  ? document.getElementById('ciLabel').value.trim()  : '');
@@ -1167,6 +1184,9 @@ function renderCollectionItemInfoCard(infoCard, itemData, colData) {
         if (typeData.issueNumber) rows.push(['Issue #',   escapeHtml(String(typeData.issueNumber))]);
         if (typeData.publisher)   rows.push(['Publisher', escapeHtml(typeData.publisher)]);
         if (typeData.year)        rows.push(['Year',      escapeHtml(String(typeData.year))]);
+        if (typeData.writer)      rows.push(['Writer',    escapeHtml(typeData.writer)]);
+        if (typeData.artist)      rows.push(['Artist',    escapeHtml(typeData.artist)]);
+        if (typeData.colorer)     rows.push(['Colorer',   escapeHtml(typeData.colorer)]);
     } else if (collType === 'Records/Albums') {
         if (typeData.artist) rows.push(['Artist', escapeHtml(typeData.artist)]);
         if (typeData.label)  rows.push(['Label',  escapeHtml(typeData.label)]);
@@ -1551,13 +1571,16 @@ function getCollectionIdPrompt(collType) {
         return base.concat([
             'You are a comic book identification assistant. Analyze the comic cover image.',
             'Return this exact JSON:',
-            '{ "name": "", "series": "", "issueNumber": "", "publisher": "", "year": "", "estimatedValue": "", "additionalMessage": "" }',
+            '{ "name": "", "series": "", "issueNumber": "", "publisher": "", "year": "", "writer": "", "artist": "", "colorer": "", "estimatedValue": "", "additionalMessage": "" }',
             '',
             '- name: series + issue combined, e.g. "Amazing Spider-Man #223"',
             '- series: the comic series name, e.g. "Amazing Spider-Man"',
             '- issueNumber: the issue number as a string, e.g. "223"',
             '- publisher: e.g. "Marvel", "DC", or "" if unknown',
             '- year: 4-digit publication year string, or "" if unknown',
+            '- writer: the credited writer(s) of this specific issue, only if you actually know it (from the cover or from solid knowledge of this exact issue). NEVER guess; return "" if not certain. Separate multiple names with ", "',
+            '- artist: the credited artist/penciller of this specific issue, same rule: only what you actually know, NEVER guess, "" if not certain',
+            '- colorer: the credited colorist of this specific issue, same rule: only what you actually know, NEVER guess, "" if not certain',
             '- estimatedValue: estimated collector value as a number string e.g. "12.50", or "" if unknown',
             '- additionalMessage: note any issues (unclear image, etc). Leave "" if none.'
         ]).join('\n');
@@ -1777,7 +1800,10 @@ async function collectionAutoSaveFromLlm(parsed, images, collectionId, collType)
             series:      (parsed.series      || '').trim(),
             issueNumber: (parsed.issueNumber || '').trim(),
             publisher:   (parsed.publisher   || '').trim(),
-            year:        String(parsed.year  || '').trim()
+            year:        String(parsed.year  || '').trim(),
+            writer:      String(parsed.writer  || '').trim(),
+            artist:      String(parsed.artist  || '').trim(),
+            colorer:     String(parsed.colorer || '').trim()
         };
         // Build name from series + issue if LLM didn't provide it
         if (!name && typeData.series) {
@@ -1873,6 +1899,9 @@ function collectionShowResultModal(parsed, collType, identified) {
         if (parsed.issueNumber) rows.push(['Issue #',   String(parsed.issueNumber)]);
         if (parsed.publisher)   rows.push(['Publisher', parsed.publisher]);
         if (parsed.year)        rows.push(['Year',      String(parsed.year)]);
+        if (parsed.writer)      rows.push(['Writer',    String(parsed.writer)]);
+        if (parsed.artist)      rows.push(['Artist',    String(parsed.artist)]);
+        if (parsed.colorer)     rows.push(['Colorer',   String(parsed.colorer)]);
     } else if (collType === 'Records/Albums') {
         if (parsed.artist)  rows.push(['Artist',  parsed.artist]);
         if (parsed.format)  rows.push(['Format',  parsed.format]);
