@@ -127,6 +127,9 @@ function _woRenderDayLines() {
             '<span class="wo-line-vals">' +
                 '<input type="number" min="0" data-f="amount" value="' + (isDone ? s.actualAmount : (s.targetAmount != null ? s.targetAmount : '')) + '"> ' + unit +
                 (s.targetWeight != null || s.actualWeight != null ? ' @ <input type="number" min="0" step="0.5" data-f="weight" value="' + (isDone ? (s.actualWeight != null ? s.actualWeight : '') : (s.targetWeight != null ? s.targetWeight : '')) + '"> lb' : '') +
+                (s.targetBand != null ? ' with <select data-f="band"><option value="">band color</option>' + WO_BAND_COLORS.map(function(c) {
+                    var cur = isDone ? s.actualBand : s.targetBand;
+                    return '<option value="' + c + '"' + (cur === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' : '') +
             '</span>' +
             '<span class="wd-when">' + _woEsc(when) + '</span>' +
         '</div>';
@@ -140,12 +143,14 @@ async function _woDayClick(ev) {
     var i = parseInt(row.getAttribute('data-i'), 10), s = _woDay.sets[i];
     if (!s) return;
     if (_woDayIsDone(s)) {                       // undo
-        s.actualAmount = null; s.actualWeight = null; s.doneAt = null; s.skipped = false;
+        s.actualAmount = null; s.actualWeight = null; s.actualBand = null; s.doneAt = null; s.skipped = false;
     } else {                                     // tick: take whatever is in the boxes (they start at the target)
         var a = parseFloat(row.querySelector('[data-f=amount]').value);
         var wEl = row.querySelector('[data-f=weight]'), w = wEl ? parseFloat(wEl.value) : NaN;
         s.actualAmount = isNaN(a) ? s.targetAmount : a;
         s.actualWeight = isNaN(w) ? (s.targetWeight != null ? s.targetWeight : null) : w;
+        var bEl = row.querySelector('[data-f=band]');
+        if (s.targetBand != null) s.actualBand = bEl ? bEl.value : s.targetBand;
         s.doneAt = new Date().toISOString(); s.skipped = false;
     }
     _woRenderDayLines();
@@ -165,7 +170,7 @@ async function _woDayFinish() {
     try {
         var id = _woDay.id, d = _woDay.data;
         var lines = JSON.parse(JSON.stringify(sets));
-        lines.forEach(function(l) { if (!_woDayIsDone(l)) { l.skipped = true; l.actualAmount = null; l.actualWeight = null; l.doneAt = null; } });
+        lines.forEach(function(l) { if (!_woDayIsDone(l)) { l.skipped = true; l.actualAmount = null; l.actualWeight = null; l.actualBand = null; l.doneAt = null; } });
         var prs = [];
         try { prs = await woComputePRs(lines, id); } catch (err) { console.error('Workouts: could not check records:', err); }
         var startMs = d.startedAt ? Date.parse(d.startedAt) : Date.now();
