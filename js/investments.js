@@ -3365,7 +3365,7 @@ function _investSnapshotRowHtml(s, opts) {
         '<div class="invest-snap-detail hidden" id="' + detailId + '">' +
             '<div class="invest-snap-detail-cats">' + catRows + '</div>' +
             _investSnapRollupHtml(s) +
-            _investSnapAccountsHtml(s.perAccount) +
+            _investSnapAccountsHtml(s.perAccount, s.detailed) +
             (!noDelete
                 ? '<div class="invest-snap-detail-actions">' +
                       '<button class="btn btn-danger btn-small" onclick="_investDeleteSnapshot(\'' + s.id + '\',\'' + (s.type || '') + '\',\'' + (s.date || '') + '\')">Delete</button>' +
@@ -3385,7 +3385,8 @@ function _investToggleSnapDetailById(rowId, detailId) {
     if (chevron) chevron.textContent = detail.classList.contains('hidden') ? '›' : '⌄';
 }
 
-function _investSnapAccountsHtml(perAccount) {
+// collapsed: start the Accounts accordion closed (Detailed snapshots, where the Stock Rollup sits above it)
+function _investSnapAccountsHtml(perAccount, collapsed) {
     if (!perAccount || Object.keys(perAccount).length === 0) return '';
     // Support old format (id → number) and new format (id → object)
     var entries = Object.entries(perAccount).map(function(pair) {
@@ -3415,8 +3416,9 @@ function _investSnapAccountsHtml(perAccount) {
         '</div>' + _investSnapPositionsHtml(e.positions);
     }).join('');
     return '<div class="invest-snap-detail-accounts">' +
-        '<div class="invest-snap-acct-header">Accounts</div>' +
-        rows +
+        '<div class="invest-snap-acct-header invest-snap-acct-row--toggle" onclick="_investSnapToggleBlock(this)">' +
+            '<span class="invest-snap-block-chev">' + (collapsed ? '›' : '⌄') + '</span>Accounts</div>' +
+        '<div' + (collapsed ? ' class="hidden"' : '') + '>' + rows + '</div>' +
     '</div>';
 }
 
