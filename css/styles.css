@@ -15869,9 +15869,10 @@ input[type="date"].invest-snap-more-filter-input   { width: 160px; }
     background: #e8f1fa;
     border-radius: 4px;
     padding: 1px 6px;
-    margin-left: 6px;
+    align-self: flex-start;
 }
-.invest-snap-detail-check { display: flex; align-items: center; gap: 8px; font-weight: normal; }
+.form-group .invest-snap-detail-check { display: flex; align-items: center; gap: 8px; font-weight: normal; }
+.invest-snap-detail-check input { width: auto; margin: 0; }
 .invest-snap-positions { padding: 2px 12px 6px 24px; background: #fafafa; }
 .invest-snap-pos-row {
     display: flex;
