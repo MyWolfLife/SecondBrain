@@ -3337,6 +3337,7 @@ function _investSnapshotRowHtml(s, opts) {
         '<div class="invest-snap-row-main" onclick="' + toggleFn + '">' +
             '<div class="invest-snap-row-left">' +
                 '<span class="invest-snap-date">' + escapeHtml(dateLabel) + '</span>' +
+                (s.detailed ? '<span class="invest-snap-detail-tag" title="Includes holdings detail">Detailed</span>' : '') +
                 (s.notes ? '<span class="invest-snap-notes">' + escapeHtml(s.notes) + '</span>' : '') +
             '</div>' +
             '<div class="invest-snap-row-right">' +
@@ -3390,12 +3391,30 @@ function _investSnapAccountsHtml(perAccount) {
                 '<span class="invest-snap-acct-total">' + _investFmtCurrency(e.total || 0) + '</span>' +
                 (holdHref ? '<a class="iht-btn invest-snap-acct-link" href="' + holdHref + '" title="View holdings">📋</a>' : '') +
             '</div>' +
-        '</div>';
+        '</div>' + _investSnapPositionsHtml(e.positions);
     }).join('');
     return '<div class="invest-snap-detail-accounts">' +
         '<div class="invest-snap-acct-header">Accounts</div>' +
         rows +
     '</div>';
+}
+
+// Holdings saved with a "Detailed" snapshot: ticker, shares x price = value, cost basis
+function _investSnapPositionsHtml(positions) {
+    if (!positions || !positions.length) return '';
+    var rows = positions.map(function(p) {
+        var value = (p.shares != null && p.price != null) ? p.shares * p.price : null;
+        var parts = [];
+        if (p.shares != null) parts.push(p.shares + ' sh');
+        if (p.price  != null) parts.push('@ ' + _investFmtCurrency(p.price));
+        if (p.costBasis != null) parts.push('cost ' + _investFmtCurrency(p.costBasis) + '/sh');
+        return '<div class="invest-snap-pos-row">' +
+            '<span class="invest-snap-pos-ticker">' + escapeHtml(p.ticker || p.name || '—') + '</span>' +
+            '<span class="invest-snap-pos-info">' + escapeHtml(parts.join(' · ')) + '</span>' +
+            '<span class="invest-snap-pos-value">' + _investFmtCurrency(value) + '</span>' +
+        '</div>';
+    }).join('');
+    return '<div class="invest-snap-positions">' + rows + '</div>';
 }
 
 function _investToggleSnapDetail(snapId) {
@@ -3502,6 +3521,7 @@ function _investOpenSnapModal() {
         return '<option value="' + escapeHtml(f) + '">' + f.charAt(0).toUpperCase() + f.slice(1) + '</option>';
     }).join('');
     document.getElementById('investSnapNotes').value  = '';
+    document.getElementById('investSnapDetailed').checked = false;
     document.getElementById('investSnapStatus').textContent = '';
 
     openModal('investSnapModal');
@@ -3515,6 +3535,7 @@ async function _investCaptureSnapshot() {
 
     var type  = typeEl  ? typeEl.value.trim()  : '';
     var notes = notesEl ? notesEl.value.trim() : '';
+    var detailed = !!document.getElementById('investSnapDetailed').checked;
 
     if (!type) { alert('Please select a snapshot type.'); return; }
 
@@ -3557,6 +3578,18 @@ async function _investCaptureSnapshot() {
             pending:  t.pending  || 0,
             total:    t.total    || 0
         };
+        // Optional full detail: one entry per holding as it stood at capture time
+        if (detailed) {
+            perAccount[acct.id].positions = (acct._holdings || []).map(function(h) {
+                return {
+                    ticker:    h.ticker      || '',
+                    name:      h.companyName || '',
+                    shares:    h.shares      != null ? h.shares      : null,
+                    price:     h.lastPrice   != null ? h.lastPrice   : null,
+                    costBasis: h.costBasis   != null ? h.costBasis   : null
+                };
+            });
+        }
     });
 
     var date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -3575,6 +3608,7 @@ async function _investCaptureSnapshot() {
             cash:      cats.cash,
             invCash:   cats.invCash
         },
+        detailed:    detailed,
         notes:       notes || null,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });

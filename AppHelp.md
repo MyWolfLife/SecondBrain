@@ -2487,6 +2487,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 **Capturing a snapshot**: Tap **+ Capture** → if prices haven't been updated today, you'll see a prompt — tap OK to update prices first (recommended) or Cancel to proceed with current cached values. While prices are updating, the OK/Capture button is disabled and shows "Updating…" so you can't proceed mid-update → select type → add optional notes → tap **Capture**.
 
+**Include holdings detail**: Check this box in the Capture dialog (off by default) to also save every holding's ticker, shares, price and cost basis. Those snapshots get a blue **Detailed** tag next to the date, and when you expand one, each account lists its holdings as they were that day. Leave it unchecked for a lighter snapshot with totals only.
+
 **Prices last updated**: Shown just below the frequency badges. Also shown on the Summary page below the "Update All Prices" button. This tells you at a glance whether your prices are fresh before capturing.
 
 **Snapshot types**: Daily, Weekly, Monthly, Yearly — configured per group in Manage Groups. The "Me" group defaults to all four. A kids' or secondary group might only track Yearly.

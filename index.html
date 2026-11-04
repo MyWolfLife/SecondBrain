@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Bishop">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="css/styles.css?v=559">
+    <link rel="stylesheet" href="css/styles.css?v=560">
 
     <!-- Leaflet.js — map display library (free, open source) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -8348,6 +8348,12 @@ service firebase.storage {
                     <label>Notes <span class="field-optional">(optional)</span></label>
                     <textarea id="investSnapNotes" rows="2" placeholder="e.g. Year-end review, market high"></textarea>
                 </div>
+                <div class="form-group">
+                    <label class="invest-snap-detail-check">
+                        <input type="checkbox" id="investSnapDetailed"> Include holdings detail
+                    </label>
+                    <div class="invest-prices-note">Also saves each holding's ticker, shares, price and cost basis. Makes the snapshot larger.</div>
+                </div>
                 <div id="investSnapStatus" class="invest-prices-note"></div>
                 <div class="modal-actions">
                     <button class="btn btn-primary" id="investSnapSaveBtn" onclick="_investCaptureSnapshot()">Capture</button>
@@ -12513,7 +12519,7 @@ export default {
     <script src="js/sharememory.js?v=1"></script>
     <script src="js/sharethought.js?v=1"></script>
     <script src="js/credentials.js?v=489"></script>
-    <script src="js/investments.js?v=501"></script>
+    <script src="js/investments.js?v=502"></script>
     <script src="js/investments-ai.js?v=489"></script>
     <script src="js/investments-import.js?v=487"></script>
     <script src="js/budgets.js?v=488"></script>

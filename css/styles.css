@@ -15863,6 +15863,26 @@ input[type="date"].invest-snap-more-filter-input   { width: 160px; }
     border-radius: 4px;
     padding: 1px 5px;
 }
+.invest-snap-detail-tag {
+    font-size: 0.7rem;
+    color: #2e6da4;
+    background: #e8f1fa;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 6px;
+}
+.invest-snap-detail-check { display: flex; align-items: center; gap: 8px; font-weight: normal; }
+.invest-snap-positions { padding: 2px 12px 6px 24px; background: #fafafa; }
+.invest-snap-pos-row {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #555;
+    padding: 2px 0;
+}
+.invest-snap-pos-ticker { font-weight: 600; min-width: 52px; }
+.invest-snap-pos-info { flex: 1; color: #888; }
 .invest-snap-acct-right {
     display: flex;
     align-items: center;
