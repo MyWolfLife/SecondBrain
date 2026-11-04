@@ -3420,6 +3420,11 @@ function _investSnapAccountsHtml(perAccount) {
     '</div>';
 }
 
+// Share counts to at most 4 decimals (summing fractional shares leaves float noise like 3402.5330000000004)
+function _investFmtShares(n) {
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: 4 });
+}
+
 // Signed "+$1.23 (+4.56%)" move from a snapshot price to the current price on file, colored up/down.
 // Returns '' when there is no current price to compare against.
 function _investSnapMoveHtml(thenPrice, nowPrice) {
@@ -3446,7 +3451,7 @@ function _investSnapPositionsHtml(positions) {
     var rows = positions.map(function(p) {
         var value = (p.shares != null && p.price != null) ? p.shares * p.price : null;
         var parts = [];
-        if (p.shares != null) parts.push(p.shares + ' sh');
+        if (p.shares != null) parts.push(_investFmtShares(p.shares) + ' sh');
         if (p.price  != null) parts.push('@ ' + _investFmtCurrency(p.price));
         if (p.costBasis != null) parts.push('cost ' + _investFmtCurrency(p.costBasis) + '/sh');
         var cur  = _investSnapCurPrices[p.ticker];
@@ -3508,12 +3513,12 @@ function _investSnapRollupHtml(s) {
         var avg  = (t.hasCost && t.shares > 0) ? ' · avg cost ' + _investFmtCurrency(t.costAmt / t.shares) + '/sh' : '';
         var accts = t.accounts.map(function(a) {
             return '<div class="invest-snap-pos-row"><span class="invest-snap-pos-info">' + escapeHtml(a.name) +
-                   ' · ' + a.shares + ' sh</span><span class="invest-snap-pos-value">' + _investFmtCurrency(a.value) + '</span></div>';
+                   ' · ' + _investFmtShares(a.shares) + ' sh</span><span class="invest-snap-pos-value">' + _investFmtCurrency(a.value) + '</span></div>';
         }).join('');
         return '<div class="invest-snap-pos-row invest-snap-acct-row--toggle" onclick="_investSnapToggleBlock(this)">' +
                 '<span class="invest-snap-pos-ticker"><span class="invest-snap-block-chev">›</span>' + escapeHtml(t.ticker) + '</span>' +
                 '<span class="invest-snap-pos-info">' + escapeHtml(t.name) + (t.name ? '<br>' : '') +
-                    t.shares + ' sh · ' + _investFmtCurrency(t.price) + escapeHtml(avg) +
+                    _investFmtShares(t.shares) + ' sh · ' + _investFmtCurrency(t.price) + escapeHtml(avg) +
                     (cur != null ? '<br>Now ' + _investFmtCurrency(cur) + ' ' + move : '<br>No current price') + '</span>' +
                 '<span class="invest-snap-pos-value">' + _investFmtCurrency(t.value) + '<br><small>' + pct + '</small></span>' +
             '</div>' +
