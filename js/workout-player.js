@@ -942,10 +942,7 @@ async function loadWorkoutRunPage() {
         if (location.hash.indexOf('#workout-run') !== 0) return;                     // a real navigation — hashHandler deals with it
         var R = _woP.runner, pausedByUs = false;
         if (R.state === 'running') { R.pause(); pausedByUs = true; }
-        if (confirm('Leave the workout?
-
-OK = end it now and save what you have done so far.
-Cancel = keep going.')) { R.end(); return; }
+        if (confirm('Leave the workout?\n\nOK = end it now and save what you have done so far.\nCancel = keep going.')) { R.end(); return; }
         history.pushState({ woGuard: true }, '', location.href);                      // put the guard back for the next Back press
         if (pausedByUs && _woP && _woP.runner.state === 'paused') _woP.runner.resume();
     };
