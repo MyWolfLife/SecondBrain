@@ -2990,6 +2990,20 @@ async function _investAutoFillCompanyName() {
 
 var _investSnapshotsGroupId = null;
 
+// Live prices (ticker -> lastPrice on file) the snapshot rollup and holdings lists compare against.
+var _investSnapCurPrices = {};
+async function _investLoadSnapCurPrices() {
+    _investSnapCurPrices = {};
+    var group = _investGroupById(_investSnapshotsGroupId);
+    if (!group) return;
+    var accounts = await _investLoadGroupAccounts(group);
+    accounts.forEach(function(a) {
+        (a._holdings || []).forEach(function(h) {
+            if (h.ticker && h.lastPrice != null) _investSnapCurPrices[h.ticker] = h.lastPrice;
+        });
+    });
+}
+
 // Snapshots live with their group: in the group's share when it is a shared person's group, otherwise private.
 function _investGroupById(groupId) {
     return _investGroups.find(function(g) { return g.id === groupId; }) || null;
@@ -3051,6 +3065,7 @@ async function loadInvestmentsSnapshotTypePage(type) {
         _investSnapshotsAll = {};
         ['yearly', 'monthly', 'weekly', 'daily'].forEach(function(t) { _investSnapshotsAll[t] = []; });
         snapshots.forEach(function(s) { if (_investSnapshotsAll[s.type]) _investSnapshotsAll[s.type].push(s); });
+        if (snapshots.some(function(x) { return x.detailed; })) await _investLoadSnapCurPrices();
     }
 
     _investRenderSnapshotTypePage(type);
@@ -3172,6 +3187,7 @@ async function _investRenderSnapshotsPage() {
     }
 
     var snapshots = await _investLoadSnapshots(group.id);
+    if (snapshots.some(function(x) { return x.detailed; })) await _investLoadSnapCurPrices();
 
     // Self-heal: recompute group-scoped ATH from snapshot history.
     // This migrates any data from the old global ATH key format and
@@ -3348,6 +3364,7 @@ function _investSnapshotRowHtml(s, opts) {
         '</div>' +
         '<div class="invest-snap-detail hidden" id="' + detailId + '">' +
             '<div class="invest-snap-detail-cats">' + catRows + '</div>' +
+            _investSnapRollupHtml(s) +
             _investSnapAccountsHtml(s.perAccount) +
             (!noDelete
                 ? '<div class="invest-snap-detail-actions">' +
@@ -3383,13 +3400,17 @@ function _investSnapAccountsHtml(perAccount) {
         var typeLabel = e.type ? INVEST_ACCOUNT_TYPES.find(function(t) { return t.value === e.type; }) : null;
         var typeTxt   = typeLabel ? typeLabel.label : (e.type || '');
         var holdHref  = (e.ns && e.id) ? '#investments/account/' + encodeURIComponent(e.ns) + '/' + encodeURIComponent(e.id) : '';
-        return '<div class="invest-snap-acct-row">' +
-            '<div class="invest-snap-acct-name">' + escapeHtml(e.name || 'Account') +
+        var hasPos = !!(e.positions && e.positions.length);
+        return '<div class="invest-snap-acct-row' + (hasPos ? ' invest-snap-acct-row--toggle' : '') + '"' +
+                (hasPos ? ' onclick="_investSnapToggleBlock(this)"' : '') + '>' +
+            '<div class="invest-snap-acct-name">' +
+                (hasPos ? '<span class="invest-snap-block-chev">\u203a</span>' : '') +
+                escapeHtml(e.name || 'Account') +
                 (typeTxt ? '<span class="invest-snap-acct-type">' + escapeHtml(typeTxt) + '</span>' : '') +
             '</div>' +
             '<div class="invest-snap-acct-right">' +
                 '<span class="invest-snap-acct-total">' + _investFmtCurrency(e.total || 0) + '</span>' +
-                (holdHref ? '<a class="iht-btn invest-snap-acct-link" href="' + holdHref + '" title="View holdings">📋</a>' : '') +
+                (holdHref ? '<a class="iht-btn invest-snap-acct-link" href="' + holdHref + '" title="View holdings" onclick="event.stopPropagation()">📋</a>' : '') +
             '</div>' +
         '</div>' + _investSnapPositionsHtml(e.positions);
     }).join('');
@@ -3399,7 +3420,27 @@ function _investSnapAccountsHtml(perAccount) {
     '</div>';
 }
 
-// Holdings saved with a "Detailed" snapshot: ticker, shares x price = value, cost basis
+// Signed "+$1.23 (+4.56%)" move from a snapshot price to the current price on file, colored up/down.
+// Returns '' when there is no current price to compare against.
+function _investSnapMoveHtml(thenPrice, nowPrice) {
+    if (thenPrice == null || nowPrice == null || !thenPrice) return '';
+    var diff = nowPrice - thenPrice;
+    var pct  = diff / thenPrice * 100;
+    var cls  = diff > 0 ? 'invest-snap-up' : (diff < 0 ? 'invest-snap-down' : '');
+    return '<span class="' + cls + '">' + _investFmtGain(diff, pct) + '</span>';
+}
+
+// Expand/collapse the block right after a header element (account rows, rollup header)
+function _investSnapToggleBlock(hdr) {
+    var body = hdr.nextElementSibling;
+    if (!body) return;
+    body.classList.toggle('hidden');
+    var chev = hdr.querySelector('.invest-snap-block-chev');
+    if (chev) chev.textContent = body.classList.contains('hidden') ? '›' : '⌄';
+}
+
+// Holdings saved with a "Detailed" snapshot: ticker, shares @ price, move to today's price, value then.
+// Starts collapsed; the account row above it toggles it.
 function _investSnapPositionsHtml(positions) {
     if (!positions || !positions.length) return '';
     var rows = positions.map(function(p) {
@@ -3408,13 +3449,111 @@ function _investSnapPositionsHtml(positions) {
         if (p.shares != null) parts.push(p.shares + ' sh');
         if (p.price  != null) parts.push('@ ' + _investFmtCurrency(p.price));
         if (p.costBasis != null) parts.push('cost ' + _investFmtCurrency(p.costBasis) + '/sh');
+        var cur  = _investSnapCurPrices[p.ticker];
+        var move = _investSnapMoveHtml(p.price, cur);
         return '<div class="invest-snap-pos-row">' +
             '<span class="invest-snap-pos-ticker">' + escapeHtml(p.ticker || p.name || '—') + '</span>' +
-            '<span class="invest-snap-pos-info">' + escapeHtml(parts.join(' · ')) + '</span>' +
+            '<span class="invest-snap-pos-info">' + escapeHtml(parts.join(' · ')) +
+                (move ? '<br>Now ' + _investFmtCurrency(cur) + ' ' + move : '') + '</span>' +
             '<span class="invest-snap-pos-value">' + _investFmtCurrency(value) + '</span>' +
         '</div>';
     }).join('');
-    return '<div class="invest-snap-positions">' + rows + '</div>';
+    return '<div class="invest-snap-positions hidden">' + rows + '</div>';
+}
+
+// Stock Rollup for a Detailed snapshot: holdings grouped by ticker across accounts, with each
+// ticker's price move from the snapshot to the current price on file.
+function _investSnapRollupHtml(s) {
+    if (!s.detailed || !s.perAccount) return '';
+    var map = {};
+    Object.keys(s.perAccount).forEach(function(k) {
+        var a = s.perAccount[k];
+        if (!a || typeof a !== 'object') return;
+        (a.positions || []).forEach(function(p) {
+            if (!p.ticker || !p.shares) return;
+            var t = map[p.ticker] || (map[p.ticker] = {
+                ticker: p.ticker, name: p.name || '', price: p.price, shares: 0, value: 0,
+                costAmt: 0, hasCost: true, accounts: []
+            });
+            var val = p.price != null ? p.shares * p.price : 0;
+            t.shares += p.shares;
+            t.value  += val;
+            if (p.price != null) t.price = p.price;
+            if (p.costBasis != null) t.costAmt += p.shares * p.costBasis; else t.hasCost = false;
+            t.accounts.push({ name: a.name || 'Account', shares: p.shares, value: val });
+        });
+    });
+    var list = Object.keys(map).map(function(k) { return map[k]; })
+        .sort(function(x, y) { return y.value - x.value; });
+    if (!list.length) return '';
+
+    var totalThen = list.reduce(function(n, t) { return n + t.value; }, 0);
+    // Portfolio-level move: same shares, valued at today's prices (tickers with no current price left out)
+    var cmpThen = 0, cmpNow = 0, skipped = 0;
+    list.forEach(function(t) {
+        var cur = _investSnapCurPrices[t.ticker];
+        if (cur == null || t.price == null) { skipped++; return; }
+        cmpThen += t.value;
+        cmpNow  += t.shares * cur;
+    });
+    var totalMove = cmpThen
+        ? '<span class="' + (cmpNow >= cmpThen ? 'invest-snap-up' : 'invest-snap-down') + '">' +
+          _investFmtGain(cmpNow - cmpThen, (cmpNow - cmpThen) / cmpThen * 100) + '</span>'
+        : '';
+
+    var rows = list.map(function(t) {
+        var cur  = _investSnapCurPrices[t.ticker];
+        var move = _investSnapMoveHtml(t.price, cur);
+        var pct  = totalThen > 0 ? (t.value / totalThen * 100).toFixed(1) + '%' : '—';
+        var avg  = (t.hasCost && t.shares > 0) ? ' · avg cost ' + _investFmtCurrency(t.costAmt / t.shares) + '/sh' : '';
+        var accts = t.accounts.map(function(a) {
+            return '<div class="invest-snap-pos-row"><span class="invest-snap-pos-info">' + escapeHtml(a.name) +
+                   ' · ' + a.shares + ' sh</span><span class="invest-snap-pos-value">' + _investFmtCurrency(a.value) + '</span></div>';
+        }).join('');
+        return '<div class="invest-snap-pos-row invest-snap-acct-row--toggle" onclick="_investSnapToggleBlock(this)">' +
+                '<span class="invest-snap-pos-ticker"><span class="invest-snap-block-chev">›</span>' + escapeHtml(t.ticker) + '</span>' +
+                '<span class="invest-snap-pos-info">' + escapeHtml(t.name) + (t.name ? '<br>' : '') +
+                    t.shares + ' sh · ' + _investFmtCurrency(t.price) + escapeHtml(avg) +
+                    (cur != null ? '<br>Now ' + _investFmtCurrency(cur) + ' ' + move : '<br>No current price') + '</span>' +
+                '<span class="invest-snap-pos-value">' + _investFmtCurrency(t.value) + '<br><small>' + pct + '</small></span>' +
+            '</div>' +
+            '<div class="invest-snap-rollup-accts hidden">' + accts + '</div>';
+    }).join('');
+
+    var canUpdate = finGroupCanEdit(_investGroupById(_investSnapshotsGroupId));
+    var asOf = _investConfig.lastUpdateAllDate ? 'Current prices as of ' + _investConfig.lastUpdateAllDate : 'Current prices: none updated yet';
+    return '<div class="invest-snap-rollup">' +
+        '<div class="invest-snap-acct-header invest-snap-acct-row--toggle" onclick="_investSnapToggleBlock(this)">' +
+            '<span class="invest-snap-block-chev">›</span>Stock Rollup' +
+            (totalMove ? '<span class="invest-snap-rollup-total">' + totalMove + '</span>' : '') +
+        '</div>' +
+        '<div class="invest-snap-rollup-body hidden">' +
+            '<div class="invest-snap-rollup-bar">' +
+                '<span>' + escapeHtml(asOf) + '</span>' +
+                (canUpdate ? '<button class="btn btn-secondary btn-small" onclick="_investSnapUpdatePrices(this)">📡 Update Prices</button>' : '') +
+            '</div>' +
+            (cmpThen
+                ? '<div class="invest-snap-rollup-summary">These holdings then: <strong>' + _investFmtCurrency(cmpThen) +
+                  '</strong> · at current prices: <strong>' + _investFmtCurrency(cmpNow) + '</strong> ' + totalMove +
+                  (skipped ? '<br><small>' + skipped + ' ticker' + (skipped !== 1 ? 's' : '') + ' without a current price left out.</small>' : '') + '</div>'
+                : '') +
+            '<div class="invest-snap-positions">' + rows + '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+// Refresh live prices, reload the comparison prices, and redraw the snapshot pages
+async function _investSnapUpdatePrices(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+    _investSummaryGroupId = _investSnapshotsGroupId;     // _investUpdateAllPrices works on the summary group
+    await _investUpdateAllPrices();
+    await _investLoadSnapCurPrices();
+    var typePage = document.getElementById('page-investments-snapshots-type');
+    if (typePage && !typePage.classList.contains('hidden')) {
+        _investRenderSnapshotTypePage(typePage.dataset.type);
+    } else {
+        await _investRenderSnapshotsPage();
+    }
 }
 
 function _investToggleSnapDetail(snapId) {

@@ -2489,6 +2489,8 @@ Requires a Finnhub API key in Settings. Prices persist in Firestore across sessi
 
 **Include holdings detail**: Check this box in the Capture dialog (off by default) to also save every holding's ticker, shares, price and cost basis. Those snapshots get a blue **Detailed** tag next to the date, and when you expand one, each account lists its holdings as they were that day. Leave it unchecked for a lighter snapshot with totals only.
 
+**Looking inside a Detailed snapshot**: Tap a snapshot to expand it. Tap an account's name to show or hide its holdings. Each holding shows the price that day and how it has moved since, as $ and %, compared with the current price on file. The **Stock Rollup** section (tap to open) combines holdings by ticker across all accounts and shows the same price moves, plus a line showing what that day's holdings would be worth at today's prices. Tap a ticker to see which accounts held it. The rollup compares against prices as of the date shown there — tap **Update Prices** in it to refresh. Tickers you no longer hold have no current price, so they show "No current price" and are left out of the total.
+
 **Prices last updated**: Shown just below the frequency badges. Also shown on the Summary page below the "Update All Prices" button. This tells you at a glance whether your prices are fresh before capturing.
 
 **Snapshot types**: Daily, Weekly, Monthly, Yearly — configured per group in Manage Groups. The "Me" group defaults to all four. A kids' or secondary group might only track Yearly.
