@@ -449,7 +449,7 @@ async function _investAiCallLLM(messages) {
         body: JSON.stringify({
             model                : model || ep.model,
             messages             : messages,
-            max_completion_tokens: 4000
+            max_completion_tokens: 16000   // reasoning models burn part of this on hidden thinking
         })
     });
 
@@ -458,7 +458,16 @@ async function _investAiCallLLM(messages) {
         throw new Error((errData.error && errData.error.message) || 'LLM error: HTTP ' + res.status);
     }
     var data = await res.json();
-    return data.choices[0].message.content;
+    var choice = data.choices && data.choices[0];
+    var text   = choice && choice.message && choice.message.content;
+    if (!text || !String(text).trim()) {
+        // Reasoning models can spend the whole token budget thinking and return nothing.
+        var why = (choice && choice.finish_reason === 'length')
+            ? 'the model ran out of tokens before writing an answer (it used them all reasoning). Try fewer data groups or a different model.'
+            : 'the model returned an empty response (finish reason: ' + ((choice && choice.finish_reason) || 'unknown') + ').';
+        throw new Error('No answer came back — ' + why);
+    }
+    return text;
 }
 
 // ---------- Cache Helpers ----------
