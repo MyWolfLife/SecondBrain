@@ -36,7 +36,7 @@ var AS_DET_LABELS = { dipA: '📉 Panic dip on quality', springD: '🌀 Compress
 // ---------------------------------------------------------------------------
 
 // The Run-scan button is only shown outside market week — Friday 5pm through
-// Monday 7am (local time). During the trading week (Mon 07:00 → Fri 17:00) it's
+// Monday 9am (local time). During the trading week (Mon 09:00 → Fri 17:00) it's
 // hidden so scans only happen after the market closes for the week, keeping the
 // tracking cadence weekly (rationale in StockAnalysisRankingPlan.md). This is a
 // self-discipline nudge, not a hard lock.
@@ -45,7 +45,7 @@ function _asScanAllowedNow() {
     var day  = now.getDay();    // 0 Sun … 6 Sat
     var hour = now.getHours();
     if (day === 0 || day === 6) return true;   // Sun / Sat — always allowed
-    if (day === 1) return hour < 7;            // Mon before 7am (weekend tail)
+    if (day === 1) return hour < 9;            // Mon before 9am (weekend tail)
     if (day === 5) return hour >= 17;          // Fri 5pm onward
     return false;                              // Tue–Thu — hidden all day
 }

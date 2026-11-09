@@ -2978,7 +2978,7 @@ Holdings Health is the flip side of the whole Analyzer: instead of finding stock
 ### Quick Help
 - 📚 New to the Stock Analyzer? [Open the Training guide](#help/analyzer-training)
 - The **Scan** page is the "Friday morning" view — tap **▶ Run scan** to hunt the whole universe for active setups (takes a couple of seconds; uses cached price data)
-- The **Run scan** button only appears **after the market closes for the week** — from **Friday 5 pm to Monday 7 am**. During the trading week it's hidden (with a 🔒 note) so you always scan on the same weekly rhythm the tracking Scoreboard expects
+- The **Run scan** button only appears **after the market closes for the week** — from **Friday 5 pm to Monday 9 am**. During the trading week it's hidden (with a 🔒 note) so you always scan on the same weekly rhythm the tracking Scoreboard expects
 - The colored **regime banner** reads the overall market first: green = favorable, amber = mixed, red = hostile for +10% moves
 - The **funnel numbers** show how selective the scan was: Scanned → Passed base rate → Triggered → Shortlisted
 - The scan hunts four kinds of setup: **📉 Panic dip** (a quality stock that fell hard and fast), **🌀 Compressed spring** (a stock coiled quietly near its highs), **🚀 Post-earnings drift** (a company that beat earnings and jumped — winners like that tend to keep drifting up for weeks), and **📈 Revision momentum** (analysts quietly raising their earnings estimates faster than the price is rising)

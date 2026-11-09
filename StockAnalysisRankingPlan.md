@@ -389,8 +389,8 @@ they need bumps but no spec/help edits.
   Bumps: analyzer-scan.js v25, sw v490.
 - **2026-07-17 — Phase-6 readiness aids (follow-up, not Phase 6 itself).** Three Scoreboard/
   Scan tweaks to support the eventual calibration build: (1) **Scan page** — the ▶ Run scan
-  button is hidden Mon 07:00 → Fri 17:00 local (`_asScanAllowedNow`), shown only Fri 5pm →
-  Mon 7am, forcing the weekly after-close cadence the tracking loop assumes (UI nudge, not a
+  button is hidden Mon 09:00 → Fri 17:00 local (`_asScanAllowedNow`), shown only Fri 5pm →
+  Mon 9am, forcing the weekly after-close cadence the tracking loop assumes (UI nudge, not a
   hard lock). (2) **Scoreboard** — a top calibration-progress banner (`_asbCalibrationBanner`)
   shows "{scans} run · {graded} of 30 graded candidates toward calibration", green when ≥30.
   (3) **Scoreboard** — a **📋 Calibration prompt** button (`_asbCopyCalibrationPrompt`) copies
