@@ -57,7 +57,7 @@ async function loadAnalyzerScanPage() {
 
     var runControl = _asScanAllowedNow()
         ? '<button class="btn-primary" id="asRunBtn" onclick="_asRunScan()">▶ Run scan</button>'
-        : '<span class="ab-dim">🔒 The weekly scan unlocks after the market closes — run it any time from <strong>Friday&nbsp;5&nbsp;pm</strong> to <strong>Monday&nbsp;7&nbsp;am</strong>.</span>';
+        : '<span class="ab-dim">🔒 The weekly scan unlocks after the market closes — run it any time from <strong>Friday&nbsp;5&nbsp;pm</strong> to <strong>Monday&nbsp;9&nbsp;am</strong>.</span>';
 
     page.innerHTML =
         '<div class="page-header"><h2>📡 Scan</h2></div>' +
