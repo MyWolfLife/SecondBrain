@@ -4496,15 +4496,27 @@ function _investPerfRow(label) {
 // trades/deposits) keeps the day's delta visible instead of resetting it to ~$0. If there is no snapshot
 // today, fall back to the LATEST capture on the most recent prior date (that date's "close").
 async function _investLoadPeriodBaselines(groupId) {
-    var snap = await _investSnapshotCol(groupId).orderBy('date', 'desc').limit(200).get();
+    var col = _investSnapshotCol(groupId);
     var todayStr = new Date().toISOString().split('T')[0];
     var byType = { daily: [], weekly: [], monthly: [], yearly: [] };
-    snap.forEach(function(doc) {
-        var data = doc.data();
-        if (data.groupId === groupId && byType[data.type]) {
-            byType[data.type].push(Object.assign({ id: doc.id }, data));
-        }
-    });
+    function collect(snap) {
+        snap.forEach(function(doc) {
+            var data = doc.data();
+            if (data.groupId === groupId && byType[data.type]) {
+                byType[data.type].push(Object.assign({ id: doc.id }, data));
+            }
+        });
+    }
+    // Recent daily/weekly snapshots...
+    collect(await col.orderBy('date', 'desc').limit(200).get());
+    // ...plus ALL monthly/yearly ones by type. They're few, but they're old: a busy run of
+    // daily snapshots pushes the January yearly baseline past the 200-doc limit, which made
+    // the YTD cell disappear. Equality-only queries need no composite index.
+    byType.monthly = []; byType.yearly = [];
+    var older = await Promise.all(['monthly', 'yearly'].map(function(t) {
+        return col.where('type', '==', t).get();
+    }));
+    older.forEach(collect);
     var b = { daily: null, weekly: null, monthly: null, yearly: null };
     Object.keys(byType).forEach(function(type) {
         b[type] = _investPickBaseline(byType[type], todayStr);
